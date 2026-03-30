@@ -1,0 +1,6 @@
+framework module rongcloud_im_wrapper_plugin {
+  umbrella header "rongcloud_im_wrapper_plugin-umbrella.h"
+
+  export *
+  module * { export * }
+}

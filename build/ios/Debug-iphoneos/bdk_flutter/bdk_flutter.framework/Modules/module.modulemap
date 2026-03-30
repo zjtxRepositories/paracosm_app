@@ -1,0 +1,11 @@
+framework module bdk_flutter {
+  umbrella header "bdk_flutter-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+module bdk_flutter.Swift {
+  header "bdk_flutter-Swift.h"
+  requires objc
+}

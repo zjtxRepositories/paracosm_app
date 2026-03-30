@@ -1,0 +1,15 @@
+File: F:\project\mufengweilai\paracosm_app\lib\pages\chat\chat_detail_page.dart
+Hardcoded Strings: '发送消�? ${_inputController.text}'
+-------------------------
+File: F:\project\mufengweilai\paracosm_app\lib\pages\chat\chat_page.dart
+Hardcoded Strings: 's right😎', '�?, '
+-------------------------
+File: F:\project\mufengweilai\paracosm_app\lib\pages\chat\chat_search_page.dart
+Hardcoded Strings: 'Cancel'
+-------------------------
+File: F:\project\mufengweilai\paracosm_app\lib\pages\chat\friend_request_page.dart
+Hardcoded Strings: 'Added', 'Expired', 'Rejected'
+-------------------------
+File: F:\project\mufengweilai\paracosm_app\lib\pages\chat\session_details_page.dart
+Hardcoded Strings: '风险提示', '是否清空聊天记录', '确定', '取消'
+-------------------------

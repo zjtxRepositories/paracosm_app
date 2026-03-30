@@ -1,0 +1,41 @@
+# Flutter
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+coverage/
+
+# Android
+android/.gradle
+android/app/debug
+android/app/profile
+android/app/release
+
+# iOS
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/.last_build_id
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+
+# Dart
+doc/api/
+
+# Misc
+*.swp
+*.lock
+.flutter-plugins-dependencies
+ios/Podfile
+macos/Podfile

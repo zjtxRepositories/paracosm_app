@@ -32,6 +32,7 @@ class AccountManager {
     if (accountId != null) {
       final account = await AccountDao().getAccountById(accountId);
       _currentAccount = account;
+      _currentWallet = await WalletDao().getWalletById(accountId);
     }
   }
 

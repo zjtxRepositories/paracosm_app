@@ -49,12 +49,10 @@ class AppNetworkImage extends StatelessWidget {
     }
 
     /// 圆角处理
-    if (borderRadius != null) {
-      return ClipRRect(
-        borderRadius: borderRadius!,
-        child: image,
-      );
-    }
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.all(Radius.circular((width/2))),
+      child: image,
+    );
 
     return image;
   }

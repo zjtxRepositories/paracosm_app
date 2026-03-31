@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/coin_overview_api.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -9,8 +11,10 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_network_selector.dart';
 
+import '../../core/util/string_util.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../modules/account/model/account_model.dart';
+import '../../modules/wallet/chains/model/coin_market_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../widgets/common/app_network_image.dart';
 
@@ -28,19 +32,62 @@ class _ProfilePageState extends State<ProfilePage> {
   AccountModel? _accountModel;
   WalletModel? _walletModel;
   ChainAccount? _selectedNetwork;
-
+  List<CoinMarketModel> _coinMarkets = [];
+  List<TokenModel> _tokens = [];
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     fetchData();
+    fetchMarketData();
+    fetchTokenList();
   }
 
   Future<void> fetchData() async {
     final manager = AccountManager();
     _accountModel = manager.currentAccount;
     _walletModel = manager.currentWallet;
+    _selectedNetwork = _walletModel?.currentChain;
     setState(() {});
+  }
+
+  Future<void> fetchMarketData() async {
+    final list = await CoinOverviewApi.getCoins();
+    setState(() {
+      _coinMarkets = list;
+    });
+    fetchTokenList();
+  }
+
+  Future<void> fetchTokenList() async {
+    List<ChainAccount> chains = _walletModel?.chains ?? [];
+    final coins = _coinMarkets;
+    List<TokenModel> tokenList = [];
+    for (final chain in chains) {
+      final tokens = chain.tokens;
+      for (final token in tokens) {
+        if (token.isAdded == false) {
+          tokenList.add(token);
+          continue;
+        }
+        final index = coins.indexWhere((c) => c.symbol.toLowerCase().split('/')[0] == token.symbol.toLowerCase());
+        if (index != -1){
+          token.market = coins[index];
+        }
+        if (token.address.isEmpty && !(index != -1 || token.isAdded == true)) {
+          tokenList.add(token);
+          continue;
+        }
+        token.isAdded = true;
+        tokenList.add(token);
+      }
+    }
+    setState(() {
+      _tokens = tokenList;
+    });
+    // WalletTokenDao.inserts(tokenList);
+    // await _loadLocalTokenList();
+    // AssetService.to.startPeriodicUpdate(_tokens);
   }
 
   /// 显示网络选择弹窗
@@ -159,6 +206,8 @@ class _ProfilePageState extends State<ProfilePage> {
     EdgeInsetsGeometry margin = const EdgeInsets.only(top: 16, left: 20, right: 20, bottom: 24),
     VoidCallback? onEyeTap,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    String showName = _walletModel?.name ?? '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
     return Container(
       margin: margin,
       padding: const EdgeInsets.all(16),
@@ -177,7 +226,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Row(
                 children: [
                   Text(
-                    AppLocalizations.of(context)!.profileProfileWalletNo1,
+                    showName,
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey400,
                       fontSize: 14,
@@ -353,17 +402,7 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 构建代币列表区域
   Widget _buildTokenList() {
     // 模拟代币数据 (还原为之前的版本，保留补全图标逻辑)
-    final tokens = [
-      {'name': AppLocalizations.of(context)!.profileProfileAll, 'symbol': 'ALL', 'price': '0.00', 'change': '0.00%', 'isUp': true, 'icon': 'all.png'},
-      {'name': 'Solana', 'symbol': 'SOL', 'price': '145.20', 'change': '2.45%', 'isUp': true, 'icon': 'solana.png'},
-      {'name': 'Ethereum', 'symbol': 'ETH', 'price': '3,083.29', 'change': '0.63%', 'isUp': true, 'icon': 'eth.png'},
-      {'name': 'BNB Chain', 'symbol': 'BNB', 'price': '580.00', 'change': '0.85%', 'isUp': true, 'icon': 'bnb.png'},
-      {'name': 'Base', 'symbol': 'BASE', 'price': '1.00', 'change': '0.12%', 'isUp': true, 'icon': 'base.png'},
-      {'name': 'Polygon', 'symbol': 'MATIC', 'price': '0.75', 'change': '1.25%', 'isUp': false, 'icon': 'polygon.png'},
-      {'name': 'Optimism', 'symbol': 'OP', 'price': '2.40', 'change': '3.15%', 'isUp': true, 'icon': 'optimism.png'},
-      {'name': 'Arbitrum', 'symbol': 'ARB', 'price': '1.20', 'change': '0.92%', 'isUp': false, 'icon': 'arbitrum.png'},
-    ];
-
+    if (_tokens.isEmpty) return SizedBox();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20,vertical: 16),
@@ -386,17 +425,17 @@ class _ProfilePageState extends State<ProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            AppLocalizations.of(context)!.profileTokenNetworkTokens,
+            '资产',
             style: AppTextStyles.h2.copyWith(fontSize: 18, color: AppColors.black),
           ),
           const SizedBox(height: 8),
-          ...tokens.map((token) => _buildTokenItem(
-                token['name'] as String,
-                token['symbol'] as String,
-                token['price'] as String,
-                token['change'] as String,
-                token['isUp'] as bool,
-                token['icon'] as String,
+          ..._tokens.map((token) => _buildTokenItem(
+                token.name,
+                token.symbol,
+                token.market?.close ?? 0.0,
+                token.market?.chg ?? 0.0,
+                (token.market?.chg ?? 0.0) > 0,
+                 token.logo,
               )),
           // 添加底部安全边距，确保列表在滑动到底部时不会紧贴边缘
           const SizedBox(height: 20),
@@ -407,7 +446,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   /// 构建代币列表项
   /// [name] 代币名称, [symbol] 代币符号, [price] 价格, [change] 涨跌幅, [isUp] 是否上涨, [iconName] 图标文件名
-  Widget _buildTokenItem(String name, String symbol, String price, String change, bool isUp, String iconName) {
+  Widget _buildTokenItem(String name, String symbol, double price, double change, bool isUp, String iconName) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -430,20 +469,11 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(40),
-                child: Image.asset(
-                  'assets/images/profile/$iconName',
+                child: AppNetworkImage(
+                  url: iconName,
                   width: 36,
                   height: 36,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Center(
-                    child: Text(
-                      name.substring(0, 1).toUpperCase(),
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.grey400,
-                      ),
-                    ),
-                  ),
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
@@ -460,35 +490,60 @@ class _ProfilePageState extends State<ProfilePage> {
                 });
               },
               behavior: HitTestBehavior.opaque,
-              child: Text(
-                name,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: AppColors.grey900,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.grey900,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '\$$price',
+                        style: AppTextStyles.caption.copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          color: AppColors.grey400,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        change > 0 ? '+${truncateDouble(change)}%' : '${truncateDouble(change)}%',
+                        style: AppTextStyles.caption.copyWith(
+                          color: isUp ? AppColors.primaryDark : AppColors.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              )
             ),
           ),
-          // 3. 简易迷你趋势图 (点击跳转 K 线图 - 第一个截图页)
-          Expanded(
-            flex: 1,
-            child: GestureDetector(
-              onTap: () {
-                context.push('/token-market', extra: {
-                  'symbol': symbol,
-                });
-              },
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                height: 18,
-                child: CustomPaint(
-                  painter: MiniChartPainter(isUp: isUp),
-                ),
-              ),
-            ),
-          ),
+          // // 3. 简易迷你趋势图 (点击跳转 K 线图 - 第一个截图页)
+          // Expanded(
+          //   flex: 1,
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       context.push('/token-market', extra: {
+          //         'symbol': symbol,
+          //       });
+          //     },
+          //     behavior: HitTestBehavior.opaque,
+          //     child: SizedBox(
+          //       height: 18,
+          //       child: CustomPaint(
+          //         painter: MiniChartPainter(isUp: isUp),
+          //       ),
+          //     ),
+          //   ),
+          // ),
           // 4. 价格和涨跌幅显示
           Expanded(
             flex: 2,
@@ -503,23 +558,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: AppColors.grey900,
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CustomPaint(
-                      size: const Size(10, 7),
-                      painter: ArrowPainter(isUp: isUp),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      change,
-                      style: AppTextStyles.caption.copyWith(
-                        color: isUp ? AppColors.primaryDark : AppColors.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '\$$price',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: AppColors.grey900,
+                  ),
                 ),
               ],
             ),

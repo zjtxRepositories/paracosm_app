@@ -13,6 +13,7 @@ class ApiPaths {
   static const walletInfo = "/wallet/info";
   static const walletBalance = "/wallet/balance";
   static const transfer = "/wallet/transfer";
+  static const coinOverview = "/imApi/block/coin/overview";
 
   /// 配置
   static const config = '/imApi/config';

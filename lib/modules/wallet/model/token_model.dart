@@ -1,3 +1,5 @@
+import 'package:paracosm/modules/wallet/chains/model/coin_market_model.dart';
+
 class TokenModel {
 
   String symbol;        // ETH / USDT
@@ -6,6 +8,8 @@ class TokenModel {
   String balance;       // 余额（字符串防精度丢失）
   int decimals;         // 精度
   String logo;
+  bool? isAdded;
+  CoinMarketModel? market;
 
   TokenModel({
     required this.symbol,
@@ -14,6 +18,8 @@ class TokenModel {
     required this.balance,
     required this.decimals,
     required this.logo,
+    this.isAdded,
+    this.market,
   });
 
   factory TokenModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +30,9 @@ class TokenModel {
       balance: json["balance"] ?? "0",
       decimals: json["decimals"] ?? 18,
       logo: json["logo"] ?? "",
+      isAdded: json["isAdded"],
+      market:json["market"] != null ? CoinMarketModel.fromJson(json["market"]) : null,
+
     );
   }
 
@@ -35,6 +44,8 @@ class TokenModel {
       "balance": balance,
       "decimals": decimals,
       "logo": logo,
+      "isAdded": isAdded,
+      "market": market?.toJson(),
     };
   }
 

@@ -29,7 +29,6 @@ class ChainConfigService {
         config.chainType,
         config.coinIndex,
       );
-
       /// 2. 转 Token
       final tokens = config.tokens.map((t) {
         return TokenModel(
@@ -37,8 +36,9 @@ class ChainConfigService {
           name: t.name,
           address: t.address,
           decimals: t.decimals,
-          balance: "0",
+          balance: BigInt.zero,
           logo: t.icon,
+          coinId: t.coinId, chainId: config.chainId,
         );
       }).toList();
 
@@ -48,8 +48,9 @@ class ChainConfigService {
         chainId: config.chainId,
         tokens: tokens,
         logo: config.icon,
-        chainType: config.chainType,
+        chainType:chainTypeFromString(config.chainType),
         symbol: config.symbol,
+        nodes: config.nodes,
       );
 
     }).toList());
@@ -84,8 +85,10 @@ class ChainConfigService {
             name: t.name,
             address: t.address,
             decimals: t.decimals,
-            balance: "0",
+            balance: BigInt.zero,
             logo: t.icon,
+            coinId: t.coinId,
+            chainId: config.chainId,
           );
         }).toList();
 
@@ -98,8 +101,8 @@ class ChainConfigService {
           chainId: config.chainId,
           tokens: tokens,
           logo: config.icon,
-          chainType: config.chainType,
-          symbol: config.symbol,
+          chainType: chainTypeFromString(config.chainType),
+          symbol: config.symbol, nodes: config.nodes,
         );
 
       }).toList(),

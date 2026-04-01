@@ -1,41 +1,108 @@
-# Flutter
+# =========================
+# Flutter / Dart
+# =========================
 .dart_tool/
 .packages
 .pub/
 .pub-cache/
 build/
 coverage/
+doc/api/
+.flutter-plugins-dependencies
 
+# ✅ App 项目必须提交（锁版本）
+# pubspec.lock
+
+# =========================
 # Android
-android/.gradle
-android/app/debug
-android/app/profile
-android/app/release
+# =========================
+android/.gradle/
+android/app/build/
+android/local.properties
 
+# 🔐 签名文件（严禁提交）
+*.keystore
+*.jks
+key.properties
+
+# =========================
 # iOS
+# =========================
 ios/Flutter/Generated.xcconfig
 ios/Flutter/ephemeral/
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/.last_build_id
 
+# 🔐 iOS 签名 / 证书（严禁提交）
+*.p12
+*.mobileprovision
+
+# =========================
 # macOS
+# =========================
 .DS_Store
 
+# =========================
 # IDE
+# =========================
 .idea/
 *.iml
 .vscode/
 
+# =========================
 # Logs
+# =========================
 *.log
 
-# Dart
-doc/api/
+# =========================
+# Env / 配置
+# =========================
+.env
+.env.*
+*.env
 
-# Misc
+# =========================
+# 钱包安全（核心！！！）
+# =========================
+
+# ❗️绝对禁止提交的敏感数据
+wallet.json
+wallet_backup.json
+mnemonic.txt
+private_key.txt
+keystore.json
+
+# 可能的自定义存储
+**/wallets/*
+**/keys/*
+**/secrets/*
+**/backup/*
+
+# SQLite / 本地数据库（可能含敏感信息）
+*.db
+*.sqlite
+*.sqlite3
+
+# Flutter Secure Storage 导出（防止误提交）
+secure_storage.json
+
+# =========================
+# 临时文件
+# =========================
 *.swp
+*.tmp
+*.bak
+
+# =========================
+# 测试 / 调试
+# =========================
+test_driver/app.*
+test_driver/logs/
+
+# =========================
+# 其他
+# =========================
 *.lock
-.flutter-plugins-dependencies
-ios/Podfile
-macos/Podfile
+# ❗️但注意：不要忽略 pubspec.lock（Flutter App 必须提交）
+!pubspec.lock

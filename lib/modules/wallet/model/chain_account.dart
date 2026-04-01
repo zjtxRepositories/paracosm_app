@@ -1,15 +1,31 @@
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+enum ChainType { evm, solana, bitcoin }
 
+/// 字符串转 ChainType
+ChainType chainTypeFromString(String? type) {
+  if (type == null) return ChainType.evm;
+
+  switch (type.toLowerCase()) {
+    case 'evm':
+      return ChainType.evm;
+    case 'solana':
+      return ChainType.solana;
+    case 'bitcoin':
+    case 'btc':
+      return ChainType.bitcoin;
+    default:
+      return ChainType.evm;
+  }
+}
 class ChainAccount {
-
-  String name;         // ETH / BTC / SOL
+  String name;
   String address;
   int chainId;
   String logo;
   String symbol;
-  /// ✅ 新增 Token 列表
   List<TokenModel> tokens;
-  String chainType;
+  ChainType chainType;
+  List<String> nodes;
 
   ChainAccount({
     required this.name,
@@ -19,20 +35,23 @@ class ChainAccount {
     required this.symbol,
     this.tokens = const [],
     required this.chainType,
+    required this.nodes,
   });
 
-  /// JSON
   factory ChainAccount.fromJson(Map<String, dynamic> json) {
     return ChainAccount(
-      name: json["name"],
-      address: json["address"],
+      name: json["name"] ?? "",
+      address: json["address"] ?? "",
       chainId: json["chainId"] ?? 0,
-      logo: json["logo"],
-      symbol: json["symbol"],
+      logo: json["logo"] ?? "",
+      symbol: json["symbol"] ?? "",
       tokens: (json["tokens"] as List? ?? [])
           .map((e) => TokenModel.fromJson(e))
           .toList(),
-      chainType: json["chainType"],
+      chainType: chainTypeFromString(json["chainType"]), // ✅
+      nodes: (json["nodes"] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(), // ✅
     );
   }
 
@@ -44,8 +63,8 @@ class ChainAccount {
       "logo": logo,
       "symbol": symbol,
       "tokens": tokens.map((e) => e.toJson()).toList(),
-      "chainType": chainType,
+      "chainType": chainType.name, // ✅
+      "nodes": nodes,
     };
   }
-
 }

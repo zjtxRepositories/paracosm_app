@@ -1,6 +1,10 @@
 
 import 'package:paracosm/modules/wallet/service/wallet_service.dart';
+import '../chains/btc/bitcoin_service.dart';
+import '../chains/evm/evm_service.dart';
+import '../chains/sol/solana_service.dart';
 import '../model/wallet_model.dart';
+import '../security/wallet_security.dart';
 
 class WalletManager {
 
@@ -23,4 +27,30 @@ class WalletManager {
     return wallet;
   }
 
+  static bool _initialized = false;
+
+  static Future<void> unlock({
+    required String walletId,
+  }) async {
+    final mnemonic = await WalletSecurity.tryAutoUnlock(walletId);
+    if (mnemonic == null) return;
+
+    print('恢复----${mnemonic}');
+    /// 2. 恢复三条链
+    /// EVM
+    EvmService.getOrCreateWallet(mnemonic);
+
+    /// SOL
+    await SolanaService.getOrCreateFromMnemonic(mnemonic);
+
+    /// BTC
+    await BitcoinService.getOrCreateWallet(mnemonic);
+
+    /// 3. BTC 同步（重要）
+    await BitcoinService.sync();
+
+    _initialized = true;
+  }
+
+  static bool get isUnlocked => _initialized;
 }

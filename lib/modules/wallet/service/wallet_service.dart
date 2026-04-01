@@ -1,5 +1,6 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/modules/wallet/model/chain_account.dart';
 
 import '../chains/service/chain_config_service.dart';
 import '../model/wallet_model.dart';
@@ -71,7 +72,7 @@ class WalletService {
 
     /// 3. 用 ETH 地址作为 walletId（行业标准）
     final evmChain = chains.firstWhere(
-          (e) => e.chainType == 'evm',
+          (e) => e.chainType == ChainType.evm,
     );
 
     final walletId = evmChain.address;

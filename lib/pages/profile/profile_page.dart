@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/core/network/api/coin_overview_api.dart';
+import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -60,6 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> fetchTokenList() async {
+    if (_walletModel == null) return;
     List<ChainAccount> chains = _walletModel?.chains ?? [];
     final coins = _coinMarkets;
     List<TokenModel> tokenList = [];
@@ -67,7 +70,6 @@ class _ProfilePageState extends State<ProfilePage> {
       final tokens = chain.tokens;
       for (final token in tokens) {
         if (token.isAdded == false) {
-          tokenList.add(token);
           continue;
         }
         final index = coins.indexWhere((c) => c.symbol.toLowerCase().split('/')[0] == token.symbol.toLowerCase());
@@ -75,7 +77,6 @@ class _ProfilePageState extends State<ProfilePage> {
           token.market = coins[index];
         }
         if (token.address.isEmpty && !(index != -1 || token.isAdded == true)) {
-          tokenList.add(token);
           continue;
         }
         token.isAdded = true;
@@ -85,9 +86,8 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _tokens = tokenList;
     });
-    // WalletTokenDao.inserts(tokenList);
-    // await _loadLocalTokenList();
-    // AssetService.to.startPeriodicUpdate(_tokens);
+    WalletDao().updateWallet(_walletModel!);
+    PortfolioService().start( _tokens);
   }
 
   /// 显示网络选择弹窗
@@ -274,41 +274,23 @@ class _ProfilePageState extends State<ProfilePage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _isBalanceVisible
-                  ? Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '\$',
-                            style: AppTextStyles.h1.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          const WidgetSpan(child: SizedBox(width: 2)),
-                          TextSpan(
-                            text: '7,859,942.00',
-                            style: AppTextStyles.h1.copyWith(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Transform.translate(
-                      offset: const Offset(0, 4), 
-                      child: Text(
-                        '********',
-                        style: AppTextStyles.h1.copyWith(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.black,
-                        ),
-                      ),
+              StreamBuilder<double>(
+                stream: PortfolioService().totalUsdStream,
+                builder: (context, snapshot) {
+                  final total = snapshot.data ?? 0;
+
+                  return _isBalanceVisible
+                      ? Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '\$'),
+                        TextSpan(text: truncateDouble(total)),
+                      ],
                     ),
+                  )
+                      : Text('********');
+                },
+              ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
@@ -398,55 +380,70 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  /// 构建代币列表区域
   Widget _buildTokenList() {
-    // 模拟代币数据 (还原为之前的版本，保留补全图标逻辑)
-    if (_tokens.isEmpty) return SizedBox();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20,vertical: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x05000000), // #000000 2% 比例
-            spreadRadius: 0,
-            blurRadius: 20,
-            offset: Offset(0, -10), // X: 0, Y: -10
+    return StreamBuilder<List<TokenModel>>(
+      stream: PortfolioService().stream,
+      builder: (context, snapshot) {
+        final tokens = snapshot.data == null ? _tokens : snapshot.data!
+            .where((t) => t.isAdded == true)
+            .toList();
+
+        if (tokens.isEmpty) return const SizedBox();
+        tokens.sort((a, b) {
+          return b.balance.compareTo(a.balance);
+        });
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x05000000),
+                blurRadius: 20,
+                offset: Offset(0, -10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '资产',
-            style: AppTextStyles.h2.copyWith(fontSize: 18, color: AppColors.black),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '资产',
+                style: AppTextStyles.h2.copyWith(
+                  fontSize: 18,
+                  color: AppColors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              /// 动态列表
+              ...tokens.map((token) {
+                return _buildTokenItem(token,
+                  token.name,
+                  token.symbol,
+                  token.market?.close ?? 0.0,
+                  token.market?.chg ?? 0.0,
+                  (token.market?.chg ?? 0.0) > 0,
+                  token.logo,
+                );
+              }),
+
+              const SizedBox(height: 20),
+            ],
           ),
-          const SizedBox(height: 8),
-          ..._tokens.map((token) => _buildTokenItem(
-                token.name,
-                token.symbol,
-                token.market?.close ?? 0.0,
-                token.market?.chg ?? 0.0,
-                (token.market?.chg ?? 0.0) > 0,
-                 token.logo,
-              )),
-          // 添加底部安全边距，确保列表在滑动到底部时不会紧贴边缘
-          const SizedBox(height: 20),
-        ],
-      ),
+        );
+      },
     );
   }
 
   /// 构建代币列表项
-  /// [name] 代币名称, [symbol] 代币符号, [price] 价格, [change] 涨跌幅, [isUp] 是否上涨, [iconName] 图标文件名
-  Widget _buildTokenItem(String name, String symbol, double price, double change, bool isUp, String iconName) {
+  Widget _buildTokenItem(TokenModel token,String name, String symbol, double price, double change, bool isUp, String iconName) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -493,7 +490,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    symbol,
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -526,44 +523,25 @@ class _ProfilePageState extends State<ProfilePage> {
               )
             ),
           ),
-          // // 3. 简易迷你趋势图 (点击跳转 K 线图 - 第一个截图页)
-          // Expanded(
-          //   flex: 1,
-          //   child: GestureDetector(
-          //     onTap: () {
-          //       context.push('/token-market', extra: {
-          //         'symbol': symbol,
-          //       });
-          //     },
-          //     behavior: HitTestBehavior.opaque,
-          //     child: SizedBox(
-          //       height: 18,
-          //       child: CustomPaint(
-          //         painter: MiniChartPainter(isUp: isUp),
-          //       ),
-          //     ),
-          //   ),
-          // ),
-          // 4. 价格和涨跌幅显示
           Expanded(
             flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$$price',
+                  token.showBalance,
                   style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: AppColors.grey900,
                   ),
                 ),
                 Text(
-                  '\$$price',
-                  style: AppTextStyles.body.copyWith(
+                  '\$${token.showUsdValue}',
+                  style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: AppColors.grey900,
+                    fontSize: 12,
+                    color: AppColors.grey400,
                   ),
                 ),
               ],

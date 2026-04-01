@@ -1,9 +1,11 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../im/service/im_service.dart';
 import '../../user/model/user_info.dart';
 import '../../wallet/model/wallet_model.dart';
+import '../../wallet/security/wallet_security.dart';
 import '../model/account_model.dart';
 
 class AccountManager {
@@ -33,6 +35,7 @@ class AccountManager {
       final account = await AccountDao().getAccountById(accountId);
       _currentAccount = account;
       _currentWallet = await WalletDao().getWalletById(accountId);
+      WalletManager.unlock(walletId: accountId);
     }
   }
 

@@ -15,6 +15,7 @@ class WalletSecurity {
 
   static const _pbkdf2Iterations = 210000;
   static const _keyLength = 32;
+  static const _autoUnlockKey = "wallet_auto_key";
 
   /// =========================
   /// 初始化
@@ -198,6 +199,7 @@ class WalletSecurity {
         "privateKey": encryptedPk,
       }),
     );
+    await enableAutoUnlock(password);
   }
 
   static Future<Map<String, dynamic>?> getWallet({
@@ -233,6 +235,46 @@ class WalletSecurity {
   static Future<bool> hasWallet(String walletId) async {
     final data = await _storage.read(key: "wallet_v1_$walletId");
     return data != null;
+  }
+
+  static Future<void> enableAutoUnlock(String password) async {
+    final salt = await _getSalt();
+    final keyBytes = _pbkdf2(password, salt);
+
+    await _storage.write(
+      key: _autoUnlockKey,
+      value: base64Encode(keyBytes),
+    );
+  }
+
+  static Future<String?> tryAutoUnlock(String walletId) async {
+    final storedKey = await _storage.read(key: _autoUnlockKey);
+    if (storedKey == null) return null;
+
+    final key = encrypt.Key(base64Decode(storedKey));
+
+    final data = await _storage.read(key: "wallet_v1_$walletId");
+    if (data == null) return null;
+
+    final json = jsonDecode(data);
+
+    final encrypted = jsonDecode(json["mnemonic"]);
+
+    final iv = encrypt.IV(base64Decode(encrypted["iv"]));
+    final bytes = base64Decode(encrypted["data"]);
+
+    final encrypter = encrypt.Encrypter(
+      encrypt.AES(key, mode: encrypt.AESMode.gcm),
+    );
+
+    try {
+      return encrypter.decrypt(
+        encrypt.Encrypted(bytes),
+        iv: iv,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   /// =========================

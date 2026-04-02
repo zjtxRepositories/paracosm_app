@@ -126,6 +126,46 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         });
 
   }
+
+  ///备份
+  void _backupMnemonic(){
+    WalletModals.showPasswordModal(
+        context: context,
+        title: AppLocalizations.of(context)!
+            .profileTransferPassword,
+        onConfirm: (password) async {
+          AppLoading.show();
+          final isResult =
+              await WalletSecurity.verifyPassword(password);
+          AppLoading.dismiss();
+          if (!isResult) {
+            return AppToast.show('密码错误！');
+          }
+          final data = await WalletSecurity.getWallet(walletId: _walletModel?.id ?? '', password: password);
+          if (data == null) {
+            return AppToast.show('数据错误！');
+          }
+          if (_walletModel?.type == WalletType.privateKey){
+            final privateKey = data['privateKey'];
+            context.push('/wallet-backup-private-key',
+              extra: {
+                'privateKey': privateKey,
+              },
+            );
+            return;
+          }
+          final mnemonic = data['mnemonic'];
+          context.push('/wallet-backup-mnemonic',
+            extra: {
+              'mnemonic': mnemonic,
+            },
+          );
+        });
+
+
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return AppPage(
@@ -313,38 +353,43 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         'icon': 'add-wallet.png',
         'onTap': _showWalletSwitcher
       },
-      {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsBackupPrivateKey,
-        'icon': 'key.png'
-      },
-      {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsBackupMnemonic,
-        'icon': 'back-up.png'
-      },
-      {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsChangeCurrency,
-        'icon': 'change-currency.png',
-        'onTap': _showWalletSwitcher
-      },
-      {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsPcosm,
-        'icon': 'pcosm.png',
-        'route': '/pcosm-detail'
-      },
+      if (_walletModel?.isPrivateKey == true)
+        {
+          'title': AppLocalizations.of(context)!.profileProfileDetailsBackupPrivateKey,
+          'icon': 'key.png',
+          'onTap': _backupMnemonic,
+        },
+
+      if (_walletModel?.isMnemonic == true)
+        {
+          'title': AppLocalizations.of(context)!.profileProfileDetailsBackupMnemonic,
+          'icon': 'back-up.png',
+          'onTap': _backupMnemonic,
+        },
+      // {
+      //   'title': AppLocalizations.of(context)!.profileProfileDetailsChangeCurrency,
+      //   'icon': 'change-currency.png',
+      //   'onTap': _showWalletSwitcher
+      // },
+      // {
+      //   'title': AppLocalizations.of(context)!.profileProfileDetailsPcosm,
+      //   'icon': 'pcosm.png',
+      //   'route': '/pcosm-detail'
+      // },
       {
         'title': AppLocalizations.of(context)!.profileProfileDetailsChangePassword,
         'icon': 'change-password.png',
         'onTap': _showPasswordModal
       },
-      {
-        'title': AppLocalizations.of(context)!.profileNodeSettingsNodeSettings,
-        'icon': 'node-setting.png',
-        'route': '/node-settings'
-      },
-      {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsMessagesNotifications,
-        'icon': 'message.png'
-      },
+      // {
+      //   'title': AppLocalizations.of(context)!.profileNodeSettingsNodeSettings,
+      //   'icon': 'node-setting.png',
+      //   'route': '/node-settings'
+      // },
+      // {
+      //   'title': AppLocalizations.of(context)!.profileProfileDetailsMessagesNotifications,
+      //   'icon': 'message.png'
+      // },
       {
         'title': AppLocalizations.of(context)!.profileLanguageSettingsChangeLanguage,
         'icon': 'change-language.png',

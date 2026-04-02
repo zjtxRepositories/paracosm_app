@@ -2,22 +2,33 @@ import 'dart:convert';
 
 import 'chain_account.dart';
 
+class WalletType {
+  static const String mnemonic = "mnemonic";
+  static const String privateKey = "privateKey";
+}
 class WalletModel {
-
   String id;
   String? name;
   int aIndex;
   int currentChainId;
 
+  /// ⭐ 钱包类型（新增）
+  String type;
+
   /// 多链账户
   List<ChainAccount> chains;
 
-  ChainAccount? get currentChain => chains.firstWhere((item) => item.chainId == currentChainId);
+  ChainAccount? get currentChain =>
+      chains.firstWhere((item) => item.chainId == currentChainId);
+
+  bool get isPrivateKey => type == WalletType.privateKey;
+  bool get isMnemonic => type == WalletType.mnemonic;
 
   WalletModel({
     required this.id,
     required this.aIndex,
     required this.chains,
+    required this.type, // ⭐ 必填
     this.currentChainId = 62176,
     this.name,
   });
@@ -28,7 +39,7 @@ class WalletModel {
       'name': name,
       'aIndex': aIndex,
       'currentChainId': currentChainId,
-      /// List → JSON String
+      'type': type, // ⭐ 存进去
       'chains': jsonEncode(
         chains.map((e) => e.toJson()).toList(),
       ),
@@ -40,36 +51,14 @@ class WalletModel {
       id: json['id'],
       name: json['name'],
       aIndex: json['aIndex'],
-      currentChainId: json['currentChainId'],
-      /// JSON String → List<ChainAccount>
+      currentChainId: json['currentChainId'] ?? 62176,
+
+      /// ⭐ 兼容老数据（重点！）
+      type: json['type'] ?? WalletType.mnemonic,
+
       chains: (jsonDecode(json['chains']) as List)
           .map((e) => ChainAccount.fromJson(e))
           .toList(),
     );
   }
-}
-
-extension WalletExt on WalletModel {
-
-  String get ethAddress =>
-      getAddress("ETH") ?? "";
-
-  String get btcAddress =>
-      getAddress("BTC") ?? "";
-
-  /// 获取指定链地址
-  String? getAddress(String chain) {
-
-    try {
-      return chains
-          .firstWhere((e) => e.name == chain)
-          .address;
-    } catch (e) {
-      return null;
-    }
-
-  }
-
-
-
 }

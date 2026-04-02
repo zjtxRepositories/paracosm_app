@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
@@ -142,7 +143,20 @@ class AppRouter {
       // 备份私钥页
       GoRoute(
         path: '/wallet-backup-private-key',
-        builder: (context, state) => const WalletBackupPrivateKeyPage(),
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final privateKey = data?['privateKey'];
+          return WalletBackupPrivateKeyPage(privateKey: privateKey);
+        },
+      ),
+      // 备份助记词页
+      GoRoute(
+        path: '/wallet-backup-mnemonic',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final mnemonic = data?['mnemonic'];
+          return WalletBackupMnemonicPage(mnemonic: mnemonic);
+        },
       ),
       // 备份风险确认页
       GoRoute(

@@ -12,7 +12,8 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 ///
 /// 展示多个链的私钥列表，支持复制并包含风险提示弹窗。
 class WalletBackupPrivateKeyPage extends StatefulWidget {
-  const WalletBackupPrivateKeyPage({super.key});
+  final String privateKey;
+  const WalletBackupPrivateKeyPage({super.key, required this.privateKey});
 
   @override
   State<WalletBackupPrivateKeyPage> createState() =>
@@ -22,12 +23,20 @@ class WalletBackupPrivateKeyPage extends StatefulWidget {
 class _WalletBackupPrivateKeyPageState
     extends State<WalletBackupPrivateKeyPage> {
   // 模拟私钥数据
-  final String _privateKeyPart1 = '0x2920e547d2234127f764eb63ebe 4822';
-  final String _privateKeyPart2 = '0x2920e547d2234127f764eb63ebe 4822';
+   String _privateKeyPart1 = '';
+   String _privateKeyPart2 = '';
 
   bool _isCopied1 = false;
   bool _isCopied2 = false;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    final mid = (widget.privateKey.length / 2).ceil();
+    _privateKeyPart1 = widget.privateKey.substring(0, mid);
+    _privateKeyPart2 = widget.privateKey.substring(mid);
 
+  }
   void _copyKey(String key, int part) {
     final loc = AppLocalizations.of(context)!;
     AppModal.show(

@@ -91,6 +91,7 @@ class WalletService {
       id: walletId,
       aIndex: accounts.length,
       chains: chains,
+      type: WalletType.mnemonic
     );
   }
 
@@ -110,7 +111,7 @@ class WalletService {
     );
 
     final evmChain = chains.firstWhere(
-          (e) => e.chainType == 'evm',
+          (e) => e.chainType == ChainType.evm,
     );
 
     final walletId = evmChain.address;
@@ -127,6 +128,7 @@ class WalletService {
       id: walletId,
       chains: chains,
       aIndex: accounts.length,
+        type: WalletType.privateKey
     );
   }
 }

@@ -12,6 +12,7 @@ class WalletDao extends BaseDao {
   CREATE TABLE IF NOT EXISTS $tableName (
     id TEXT PRIMARY KEY,
     name TEXT,
+    type TEXT,
     aIndex INTEGER,
     currentChainId INTEGER,
     chains TEXT

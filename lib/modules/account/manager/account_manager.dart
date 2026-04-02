@@ -1,5 +1,6 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/modules/account/service/account_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../im/service/im_service.dart';
@@ -64,10 +65,10 @@ class AccountManager {
   /// 切换账号
   Future<void> switchAccount(String accountId) async {
     _currentAccount =
-        accounts.firstWhere((e) => e.id == accountId);
+        accounts.firstWhere((e) => e.id.toLowerCase() == accountId.toLowerCase());
     if (_currentAccount != null){
+      await AppConfigDao().setCurrentUser(accountId);
       _currentWallet = await WalletDao().getWalletById(accountId);
-      await AppConfigDao().setCurrentUser(_currentAccount!.id);
       await ImService.switchAccount(_currentAccount!.id);
     }
   }

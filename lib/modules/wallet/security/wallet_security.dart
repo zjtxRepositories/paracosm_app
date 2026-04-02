@@ -284,11 +284,19 @@ class WalletSecurity {
     required String oldPassword,
     required String newPassword,
   }) async {
-    final all = await _storage.readAll();
+    // 1. 先校验
+    final isValid = await verifyPassword(oldPassword);
+    if (!isValid) {
+      throw Exception("旧密码错误");
+    }
 
+    final all = await _storage.readAll();
     final walletKeys =
     all.keys.where((k) => k.startsWith("wallet_v1_"));
 
+    final temp = <String, Map<String, String>>{};
+
+    // 2. 全部解密
     for (final key in walletKeys) {
       final data = jsonDecode(all[key]!);
 
@@ -299,20 +307,31 @@ class WalletSecurity {
           ? await decryptData(data["privateKey"], oldPassword)
           : "";
 
-      final newEncryptedMnemonic =
-      await encryptData(mnemonic, newPassword);
+      temp[key] = {
+        "mnemonic": mnemonic,
+        "privateKey": privateKey,
+      };
+    }
 
-      final newEncryptedPk = privateKey.isNotEmpty
-          ? await encryptData(privateKey, newPassword)
+    // 3. 统一加密写入
+    for (final entry in temp.entries) {
+      final newEncryptedMnemonic =
+      await encryptData(entry.value["mnemonic"]!, newPassword);
+
+      final newEncryptedPk = entry.value["privateKey"]!.isNotEmpty
+          ? await encryptData(entry.value["privateKey"]!, newPassword)
           : "";
 
       await _storage.write(
-        key: key,
+        key: entry.key,
         value: jsonEncode({
           "mnemonic": newEncryptedMnemonic,
           "privateKey": newEncryptedPk,
         }),
       );
     }
+
+    // 4. 最后更新 autoUnlock
+    await enableAutoUnlock(newPassword);
   }
 }

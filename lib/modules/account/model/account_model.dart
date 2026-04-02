@@ -1,3 +1,7 @@
+import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/modules/wallet/model/wallet_model.dart';
+import 'package:solana/solana.dart';
+
 class AccountModel {
   String id;
   String userId;
@@ -31,5 +35,10 @@ class AccountModel {
       avatar: json['avatar'] ?? '',
       token: json['token'] ?? '',
     );
+  }
+
+  Future<WalletModel?> get wallet async {
+    final model = await WalletDao().getWalletById(id);
+    return model;
   }
 }

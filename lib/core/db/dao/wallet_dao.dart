@@ -25,7 +25,6 @@ class WalletDao extends BaseDao {
     await insert(
       tableName,
       model.toJson(),
-      useUserDB: true
     );
   }
 
@@ -46,7 +45,6 @@ class WalletDao extends BaseDao {
       tableName,
       where: 'id = ?',
       whereArgs: [id],
-        useUserDB: true
     );
 
     if (result == null) return null;
@@ -63,7 +61,6 @@ class WalletDao extends BaseDao {
       model.toJson(),
       where: 'id = ?',
       whereArgs: [model.id],
-        useUserDB: true
     );
   }
 
@@ -75,7 +72,6 @@ class WalletDao extends BaseDao {
       tableName,
       where: 'id = ?',
       whereArgs: [id],
-        useUserDB: true
     );
   }
 
@@ -93,7 +89,6 @@ class WalletDao extends BaseDao {
     final result = await query(
       tableName,
       limit: 1,
-        useUserDB: true
     );
 
     return result.isNotEmpty;

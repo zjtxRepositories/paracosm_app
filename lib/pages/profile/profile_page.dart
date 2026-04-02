@@ -87,7 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     WalletDao().updateWallet(_walletModel!);
-    PortfolioService().start( _tokens);
+    // PortfolioService().start( _tokens);
   }
 
   /// 显示网络选择弹窗

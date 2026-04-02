@@ -266,6 +266,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "flutter_easyloading",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_easyloading-3.0.5",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "flutter_lints",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_lints-6.0.0",
       "packageUri": "lib/",
@@ -336,6 +342,12 @@
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_secure_storage_windows-4.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "flutter_spinkit",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_spinkit-5.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "flutter_test",

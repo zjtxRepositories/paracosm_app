@@ -59,9 +59,9 @@ class DBManager {
     if (dbName == 'app_global.db') {
       await db.execute(AccountDao.createTableSql);
       await db.execute(AppConfigDao.createTableSql);
+      await db.execute(WalletDao.createTableSql);
     } else {
       print('2-------');
-      await db.execute(WalletDao.createTableSql);
     }
   }
 }

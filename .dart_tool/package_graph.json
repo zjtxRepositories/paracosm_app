@@ -16,6 +16,7 @@
         "ed25519_hd_key",
         "encrypt",
         "flutter",
+        "flutter_easyloading",
         "flutter_localizations",
         "flutter_riverpod",
         "flutter_screenutil",
@@ -79,6 +80,14 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_easyloading",
+      "version": "3.0.5",
+      "dependencies": [
+        "flutter",
+        "flutter_spinkit"
       ]
     },
     {
@@ -1338,6 +1347,13 @@
       "dependencies": [
         "collection",
         "hooks"
+      ]
+    },
+    {
+      "name": "flutter_spinkit",
+      "version": "5.2.2",
+      "dependencies": [
+        "flutter"
       ]
     }
   ],

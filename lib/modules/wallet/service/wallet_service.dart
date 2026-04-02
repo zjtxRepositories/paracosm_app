@@ -125,7 +125,8 @@ class WalletService {
     final accounts = await AccountDao().getAccounts();
     return WalletModel(
       id: walletId,
-      chains: chains, aIndex: accounts.length,
+      chains: chains,
+      aIndex: accounts.length,
     );
   }
 }

@@ -105,4 +105,10 @@ class TokenModel {
     final amount = balance / divisor;
     return amount * price;
   }
+
+  String get showAddress {
+    if (address.isNotEmpty) return address;
+    return getChain()?.address ?? '';
+  }
+
 }

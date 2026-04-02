@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
@@ -334,10 +335,10 @@ class AppRouter {
         path: '/token-detail',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
+          print('dd----${state.extra }');
+          final extra = state.extra as TokenModel?;
           return TokenDetailPage(
-            tokenName: extra?['name'] ?? 'Binance Coin',
-            tokenSymbol: extra?['symbol'] ?? 'BNB',
+            token: extra,
           );
         },
       ),

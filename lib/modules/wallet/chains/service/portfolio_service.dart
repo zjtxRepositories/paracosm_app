@@ -97,7 +97,7 @@ class PortfolioService {
   /// =========================
   /// 启动定时刷新
   /// =========================
-  void start(List<TokenModel> tokens, {int interval = 30}) {
+  void start(List<TokenModel> tokens, {int interval = 60}) {
     _timer?.cancel();
 
     _refresh(tokens); // 立即刷新

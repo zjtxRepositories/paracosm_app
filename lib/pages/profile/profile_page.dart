@@ -345,7 +345,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/token-receive');
+                      context.push(
+                        '/token-receive',
+                        extra: {
+                          'symbol': _selectedNetwork?.symbol,
+                          'network': _selectedNetwork?.name,
+                          'address':_selectedNetwork?.address,
+                        },
+                      );
                     },
                     child: Container(
                       height: 42,
@@ -451,10 +458,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
           GestureDetector(
             onTap: () {
-              context.push('/token-detail', extra: {
-                'name': name,
-                'symbol': symbol,
-              });
+              context.push('/token-detail', extra: token);
             },
             behavior: HitTestBehavior.opaque,
             child: Container(
@@ -481,10 +485,7 @@ class _ProfilePageState extends State<ProfilePage> {
             flex: 2,
             child: GestureDetector(
               onTap: () {
-                context.push('/token-detail', extra: {
-                  'name': name,
-                  'symbol': symbol,
-                });
+                context.push('/token-detail', extra: token);
               },
               behavior: HitTestBehavior.opaque,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start,

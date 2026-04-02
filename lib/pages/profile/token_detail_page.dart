@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -9,13 +10,11 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// 代币详情页面 (Token Detail Page)
 class TokenDetailPage extends StatefulWidget {
-  final String tokenName;
-  final String tokenSymbol;
+  final TokenModel? token;
 
   const TokenDetailPage({
     super.key,
-    required this.tokenName,
-    required this.tokenSymbol,
+    required this.token,
   });
 
   @override
@@ -26,12 +25,6 @@ class _TokenDetailPageState extends State<TokenDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isBalanceVisible = true;
-
-  Map<String, dynamic> _selectedNetwork = {
-    'name': 'BNB Chain',
-    'symbol': 'BNB',
-    'icon': 'bnb-small.png',
-  };
 
   @override
   void initState() {
@@ -351,7 +344,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
   Widget build(BuildContext context) {
     return AppPage(
       showNav: true,
-      title: widget.tokenSymbol,
+      title: widget.token?.name,
       backgroundColor: AppColors.white,
       child: Column(
         children: [
@@ -404,7 +397,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
               Row(
                 children: [
                   Text(
-                    'Wallet No. 1',
+                    '资产',
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey400,
                       fontSize: 14,
@@ -433,7 +426,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                           ),
                           const WidgetSpan(child: SizedBox(width: 2)),
                           TextSpan(
-                            text: '7,859,942.00',
+                            text: widget.token?.displayBalance,
                             style: AppTextStyles.h1.copyWith(
                               fontSize: 28,
                               fontWeight: FontWeight.w600,
@@ -478,7 +471,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: _selectedNetwork);
+                      context.push('/transfer', extra: widget.token);
                     },
                     child: Container(
                       height: 44,
@@ -517,10 +510,9 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       context.push(
                         '/token-receive',
                         extra: {
-                          'symbol': widget.tokenSymbol,
-                          'network': 'Binancestry(BSC)',
-                          'address':
-                              '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
+                          'symbol': widget.token?.symbol,
+                          'network': widget.token?.name,
+                          'address': widget.token?.showAddress,
                         },
                       );
                     },
@@ -705,7 +697,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.tokenSymbol,
+                  widget.token?.symbol ?? '',
                   style: AppTextStyles.h2.copyWith(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,

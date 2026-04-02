@@ -5,154 +5,151 @@ import 'package:solana/solana.dart';
 
 class SolanaService {
   /// =========================
-  /// 单例 keyPair（全局唯一）
+  /// 多钱包存储（key = address）
   /// =========================
-  static Ed25519HDKeyPair? _keyPair;
-
-  /// 当前 mnemonic（用于校验）
-  static String? _currentMnemonic;
+  static final Map<String, Ed25519HDKeyPair> _wallets = {};
+  static final Map<String, String> _mnemonics = {}; // address -> mnemonic
 
   /// =========================
-  /// 获取 keyPair（安全）
-  /// =========================
-   Ed25519HDKeyPair get keyPair {
-    if (_keyPair == null) {
-      throw Exception("Solana wallet 未初始化");
-    }
-    return _keyPair!;
-  }
-
-  /// =========================
-  /// 地址（同步获取）
-  /// =========================
-   String get address {
-    return keyPair.address;
-  }
-
-  /// =========================
-  /// 路径
+  /// BIP44 路径
   /// =========================
   static String _getPath(int account, int index) {
     return "m/44'/501'/$account'/$index'";
   }
 
   /// =========================
-  /// 获取或创建钱包（助记词）
+  /// 创建或获取钱包（助记词）
   /// =========================
-  static Future<Ed25519HDKeyPair> getOrCreateFromMnemonic(
+  static Future<Ed25519HDKeyPair> createWalletFromMnemonic(
       String mnemonic, {
         int account = 0,
         int index = 0,
       }) async {
-    /// ✅ 已存在
-    if (_keyPair != null) {
-      if (_currentMnemonic == mnemonic) {
-        return _keyPair!;
-      }
-    }
-
-    /// ❌ 未初始化 → 创建
     if (!bip39.validateMnemonic(mnemonic)) {
       throw Exception("Invalid mnemonic");
     }
 
+    // 已存在相同助记词的钱包 → 返回已有钱包
+    for (final entry in _mnemonics.entries) {
+      if (entry.value == mnemonic) {
+        return _wallets[entry.key]!;
+      }
+    }
+
+    // 创建新钱包
     final seed = bip39.mnemonicToSeed(mnemonic);
     final path = _getPath(account, index);
 
-    final keyData = await ED25519_HD_KEY.derivePath(
-      path,
-      seed,
-    );
+    final keyData = await ED25519_HD_KEY.derivePath(path, seed);
 
-    _keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
+    final keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
       privateKey: keyData.key,
     );
 
-    _currentMnemonic = mnemonic;
+    final address = keyPair.address;
+    _wallets[address] = keyPair;
+    _mnemonics[address] = mnemonic;
 
-    return _keyPair!;
+    return keyPair;
   }
 
   /// =========================
-  /// 私钥恢复（只允许一次）
+  /// 导入私钥
   /// =========================
-  static Future<Ed25519HDKeyPair> initFromPrivateKey(
-      String base64PrivateKey,
-      ) async {
-    if (_keyPair != null) {
-      return _keyPair!;
-    }
-
+  static Future<Ed25519HDKeyPair> importWalletFromPrivateKey(
+      String base64PrivateKey) async {
     final privateKeyBytes = base64Decode(base64PrivateKey);
-
-    _keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
+    final keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
       privateKey: privateKeyBytes,
     );
 
-    return _keyPair!;
+    final address = keyPair.address;
+    _wallets[address] = keyPair;
+
+    return keyPair;
   }
 
   /// =========================
-  /// 获取地址
+  /// 获取钱包
   /// =========================
-  static Future<String> getAddress(String mnemonic) async {
-    final kp = await getOrCreateFromMnemonic(mnemonic);
+  static Ed25519HDKeyPair? getWallet(String address) {
+    return _wallets[address];
+  }
+
+  /// =========================
+  /// 获取地址（通过助记词）
+  /// =========================
+  static Future<String> getAddressFromMnemonic(String mnemonic,
+      {int account = 0, int index = 0}) async {
+    final kp = await createWalletFromMnemonic(
+      mnemonic,
+      account: account,
+      index: index,
+    );
     return kp.address;
   }
 
   /// =========================
-  /// deriveAddress（统一入口）
+  /// 派生地址（统一入口）
   /// =========================
   static Future<String> deriveAddress(
       String mnemonic, {
         int account = 0,
         int index = 0,
       }) async {
-    /// ✅ 已存在 → 直接用
-    if (_keyPair != null) {
-      if (_currentMnemonic == mnemonic) {
-        throw Exception("钱包已用其他助记词初始化");
-        return _keyPair!.address;
-      }
-    }
-
-    /// ❌ 未创建 → 创建
-    final kp = await getOrCreateFromMnemonic(
+    return await getAddressFromMnemonic(
       mnemonic,
       account: account,
       index: index,
     );
-
-    return kp.address;
   }
 
   /// =========================
-  /// 导出私钥
+  /// 导出私钥（base64）
   /// =========================
-  static Future<String> exportPrivateKey() async {
-    if (_keyPair == null) {
-      throw Exception("钱包未初始化");
-    }
+  static Future<Ed25519HDKeyPair> exportKeyPair(String address) async {
+    final keyPair = _wallets[address];
+    if (keyPair == null) throw Exception("钱包不存在");
+    return keyPair;
+  }
 
-    final keyData = await _keyPair!.extract();
+  static Future<String> exportPrivateKey(String address) async {
+    final keyPair = _wallets[address];
+    if (keyPair == null) throw Exception("钱包不存在");
+
+    final keyData = await keyPair.extract();
     return base64Encode(keyData.bytes);
   }
 
   /// =========================
-  /// 公钥
+  /// 获取公钥（Base58）
   /// =========================
-  static String get publicKey {
-    if (_keyPair == null) {
-      throw Exception("钱包未初始化");
-    }
-    return _keyPair!.publicKey.toBase58();
+  static String getPublicKey(String address) {
+    final keyPair = _wallets[address];
+    if (keyPair == null) throw Exception("钱包不存在");
+    return keyPair.publicKey.toBase58();
   }
 
   /// =========================
-  /// 清空（登出）
+  /// 删除指定钱包
   /// =========================
-  static void clear() {
-    _keyPair = null;
-    _currentMnemonic = null;
+  static void removeWallet(String address) {
+    _wallets.remove(address);
+    _mnemonics.remove(address);
+  }
+
+  /// =========================
+  /// 清空所有钱包
+  /// =========================
+  static void clearAllWallets() {
+    _wallets.clear();
+    _mnemonics.clear();
+  }
+
+  /// =========================
+  /// 获取所有钱包地址
+  /// =========================
+  static List<String> getAllWalletAddresses() {
+    return _wallets.keys.toList();
   }
 }

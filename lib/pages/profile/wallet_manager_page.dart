@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
+import 'package:paracosm/modules/wallet/security/wallet_security.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 
+import '../../core/db/dao/wallet_dao.dart';
+import '../../core/util/string_util.dart';
 import '../../modules/account/model/account_model.dart';
+import '../../modules/wallet/chains/service/portfolio_service.dart';
+import '../../modules/wallet/service/mnemonic_service.dart';
+import '../../widgets/common/app_modal.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 钱包管理页面 (Change/Add Wallet)
@@ -22,7 +29,7 @@ class WalletManagerPage extends StatefulWidget {
 
 class _WalletManagerPageState extends State<WalletManagerPage> {
   bool _isBalanceVisible = true;
-  AccountModel? _accountModel;
+  List<AccountModel> _accounts = [];
   WalletModel? _walletModel;
 
   @override
@@ -34,8 +41,8 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
 
   Future<void> fetchData() async {
     final manager = AccountManager();
-    _accountModel = manager.currentAccount;
     _walletModel = manager.currentWallet;
+    _accounts = manager.accounts;
     setState(() {});
   }
 
@@ -68,9 +75,14 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
                   ),
                   const SizedBox(height: 20),
                   // 钱包列表
-                  _buildWalletListItem(l10n.profileProfileDetailsWalletNo2, '0xF795...4aA5', 'assets/images/chat/avatar.png'),
-                  const SizedBox(height: 20),
-                  _buildWalletListItem(l10n.profileProfileDetailsWalletNo3, '0xF795...4aA5', 'assets/images/chat/avatar.png'),
+                  ..._accounts.map((account) {
+                    return Column(
+                      children: [
+                        buildWalletListItem(account.id, account.avatar),
+                        const SizedBox(height: 20),
+                      ],
+                    );
+                  }),
                 ],
               ),
             ),
@@ -85,14 +97,18 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
                   backgroundColor: AppColors.white,
                   textColor: AppColors.grey900,
                   border: const BorderSide(color: AppColors.grey200, width: 1),
-                  onPressed: () {},
+                  onPressed: () {
+                    _showPasswordModal(0);
+                  },
                 ),
                 const SizedBox(height: 12),
                 AppButton(
                   text: l10n.walletSetupImportTitle,
                   backgroundColor: AppColors.grey900,
                   textColor: AppColors.white,
-                  onPressed: () {},
+                  onPressed: () {
+                    _showPasswordModal(1);
+                  },
                 ),
               ],
             ),
@@ -164,41 +180,23 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _isBalanceVisible
-                  ? Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '\$',
-                            style: AppTextStyles.h1.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          const WidgetSpan(child: SizedBox(width: 2)),
-                          TextSpan(
-                            text: '7,859,942.00',
-                            style: AppTextStyles.h1.copyWith(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Transform.translate(
-                      offset: const Offset(0, 4),
-                      child: Text(
-                        '********',
-                        style: AppTextStyles.h1.copyWith(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.black,
-                        ),
-                      ),
+              StreamBuilder<double>(
+                stream: PortfolioService().totalUsdStream,
+                builder: (context, snapshot) {
+                  final total = snapshot.data ?? 0;
+
+                  return _isBalanceVisible
+                      ? Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '\$'),
+                        TextSpan(text: truncateDouble(total)),
+                      ],
                     ),
+                  )
+                      : Text('********');
+                },
+              ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
@@ -217,58 +215,159 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
   }
 
   /// 构建钱包列表项
-  Widget _buildWalletListItem(String name, String address, String avatarPath) {
-    return GestureDetector(
-      onTap: () {
-        context.push('/wallet-edit', extra: {
-          'name': name,
-          'address': address,
-        });
+  Widget buildWalletListItem(String address, String avatarPath) {
+    print('address----$address');
+    final l10n = AppLocalizations.of(context)!;
+
+    return FutureBuilder<WalletModel?>(
+      future: WalletDao().getWalletById(address),
+      builder: (context, snapshot) {
+        final wallet = snapshot.data;
+        final showName = wallet?.name ?? '${l10n.profileProfileDetailsWallet} ${(wallet?.aIndex ?? 0) + 1}';
+
+        return GestureDetector(
+          onTap: () {
+            context.push('/wallet-edit', extra: {
+              'name': showName,
+              'address': address,
+            });
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            children: [
+              // 钱包头像
+              ClipOval(
+                child: Image.asset(
+                  'assets/images/chat/avatar.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 钱包信息
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      showName,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      address,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 12,
+                        color: AppColors.grey400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 右侧图标
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.grey300,
+              ),
+            ],
+          ),
+        );
       },
-      behavior: HitTestBehavior.opaque,
-      child: Row(
-        children: [
-          // 钱包头像
-          ClipOval(
-            child: Image.asset(
-              avatarPath,
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // 钱包信息
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.grey900,
+    );
+  }
+
+  /// 显示密码输入弹窗
+  void _showPasswordModal(int tag) {
+    final passwordController = TextEditingController();
+    bool isObscure = true;
+
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.walletStep1HintPwd,
+      confirmText: AppLocalizations.of(context)!.profileTransferConfirm,
+      onConfirm: () async {
+        context.pop(); // 关闭密码弹窗
+        // TODO: 密码验证逻辑
+        final password = passwordController.text;
+        final isResult = await WalletSecurity.verifyPassword(password);
+        if (!isResult){
+          AppToast.show('密码错误！');
+          return;
+        }
+        if (tag == 0){
+          final List<String> mnemonics = MnemonicService.generateMnemonic().split(" ");
+          context.push('/wallet-creating',
+            extra: {
+              'password': password,
+              'mnemonics':mnemonics,
+            },
+          );
+          return;
+        }
+        context.push('/wallet-import',
+          extra: {
+            'password': password,
+          },
+        );
+      },
+      child: StatefulBuilder(
+        builder: (context, setModalState) {
+          final isEmpty = passwordController.text.isEmpty;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isEmpty ? AppColors.grey100 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isEmpty ? Colors.transparent : AppColors.grey900,
+                    width: 1,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  address,
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 12,
-                    color: AppColors.grey400,
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: passwordController,
+                        obscureText: isObscure,
+                        onChanged: (value) => setModalState(() {}),
+                        decoration: const InputDecoration(
+                          hintText: '',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.grey900,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setModalState(() => isObscure = !isObscure),
+                      child: Image.asset(
+                        isObscure ? 'assets/images/common/eye-off-line.png' : 'assets/images/common/eye-line.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          // 右侧图标
-          const Icon(
-            Icons.chevron_right,
-            size: 20,
-            color: AppColors.grey300,
-          ),
-        ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          );
+        },
       ),
     );
   }

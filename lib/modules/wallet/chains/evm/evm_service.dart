@@ -6,9 +6,9 @@ import 'package:web3dart/crypto.dart';
 
 class EvmService {
   /// =========================
-  /// 单钱包实例（全局唯一）
+  /// 多钱包实例（key = address）
   /// =========================
-  static Map<String, String>? _wallet;
+  static final Map<String, Map<String, String>> _wallets = {};
 
   /// =========================
   /// BIP44 路径（固定 index = 0）
@@ -16,53 +16,57 @@ class EvmService {
   static const String _path = "m/44'/60'/0'/0/0";
 
   /// =========================
-  /// 获取或创建钱包
+  /// 创建或获取钱包（助记词）
   /// =========================
-  static Map<String, String> getOrCreateWallet(String mnemonic) {
-    /// ✅ 已存在 → 直接返回
-    if (_wallet != null) {
-      return _wallet!;
-    }
-
-    /// ❌ 未创建 → 创建
+  static Map<String, String> createWalletFromMnemonic(String mnemonic) {
     if (!bip39.validateMnemonic(mnemonic)) {
       throw Exception('Invalid mnemonic');
     }
 
+    // 检查是否已存在相同助记词的钱包
+    for (final wallet in _wallets.values) {
+      if (wallet['mnemonic'] == mnemonic) {
+        return wallet;
+      }
+    }
+
+    // 创建新钱包
     final seed = bip39.mnemonicToSeed(mnemonic);
     final root = bip32.BIP32.fromSeed(seed);
-
     final child = root.derivePath(_path);
+
     if (child.privateKey == null) {
       throw Exception('Failed to derive private key');
     }
 
-    final privateKeyBytes = child.privateKey!;
-    final privateKeyHex = bytesToHex(privateKeyBytes, include0x: true);
-
+    final privateKeyHex = bytesToHex(child.privateKey!, include0x: true);
     final credentials = EthPrivateKey.fromHex(privateKeyHex);
     final address = credentials.address.hexEip55;
 
-    _wallet = {
+    final walletInfo = {
       'address': address,
       'privateKey': privateKeyHex,
+      'mnemonic': mnemonic,
     };
 
-    return _wallet!;
+    _wallets[address] = walletInfo;
+
+    return walletInfo;
   }
+
   /// =========================
-  /// 派生地址（单钱包模式）
+  /// 派生地址（通过助记词）
   /// =========================
   static String deriveAddress(String mnemonic) {
-    /// ✅ 已存在钱包 → 直接返回地址
-    if (_wallet != null) {
-      return _wallet!['address']!;
+    // 已存在钱包 → 返回
+    for (final wallet in _wallets.values) {
+      if (wallet['mnemonic'] == mnemonic) {
+        return wallet['address']!;
+      }
     }
-
-    /// ❌ 未创建 → 创建并返回
-    return getOrCreateWallet(mnemonic)['address']!;
+    // 不存在 → 创建
+    return createWalletFromMnemonic(mnemonic)['address']!;
   }
-
 
   /// =========================
   /// 私钥 → 地址
@@ -103,9 +107,30 @@ class EvmService {
   }
 
   /// =========================
-  /// （可选）清空钱包（登出用）
+  /// 删除指定钱包
   /// =========================
-  static void clearWallet() {
-    _wallet = null;
+  static void removeWallet(String address) {
+    _wallets.remove(address);
+  }
+
+  /// =========================
+  /// 清空所有钱包
+  /// =========================
+  static void clearAllWallets() {
+    _wallets.clear();
+  }
+
+  /// =========================
+  /// 获取所有钱包地址
+  /// =========================
+  static List<String> getAllWalletAddresses() {
+    return _wallets.keys.toList();
+  }
+
+  /// =========================
+  /// 获取钱包信息（通过地址）
+  /// =========================
+  static Map<String, String>? getWallet(String address) {
+    return _wallets[address];
   }
 }

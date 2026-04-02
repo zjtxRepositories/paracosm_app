@@ -9,6 +9,7 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../modules/account/service/account_service.dart';
 import '../../modules/wallet/security/wallet_security.dart';
@@ -425,7 +426,7 @@ class _WalletImportPageState extends State<WalletImportPage>
                                               privateKey: _tabController.index == 1 ?_privateKeyController.text : null, password: widget.password!);
                                           context.push('/chat');
                                         }catch(e){
-                                          print('创建钱包错误：$e');
+                                          AppToast.show('导入钱包错误: $e');
                                         }
                                         return;
                                       }

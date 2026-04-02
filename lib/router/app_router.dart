@@ -113,7 +113,11 @@ class AppRouter {
       // 导入钱包页
       GoRoute(
         path: '/wallet-import',
-        builder: (context, state) => const WalletImportPage(),
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final password = data?['password'];
+          return WalletImportPage(password: password);
+        },
       ),
       // 导入设置密码页
       GoRoute(

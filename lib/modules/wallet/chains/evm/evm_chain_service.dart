@@ -50,7 +50,16 @@ class EvmChainService {
       },
     );
   }
-
+  static Future<BigInt> getBalance(
+      ChainAccount chain,
+      String contractAddress,
+      String address,
+      ) async {
+    if (contractAddress.isNotEmpty){
+      return getTokenBalance(chain, contractAddress, address);
+    }
+    return getNativeBalance(chain, address);
+  }
   /// =========================
   /// 获取 ERC20 余额
   /// =========================

@@ -35,6 +35,7 @@ class AccountManager {
       final account = await AccountDao().getAccountById(accountId);
       _currentAccount = account;
       _currentWallet = await WalletDao().getWalletById(accountId);
+      accounts = await AccountDao().getAccounts();
       WalletManager.unlock(walletId: accountId);
     }
   }

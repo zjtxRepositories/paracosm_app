@@ -3,7 +3,6 @@ import 'package:solana/solana.dart';
 import 'package:solana/dto.dart';
 
 class SolanaChainService {
-  final SolanaService _solService = SolanaService();
   static bool isTestnet = true;
 
   /// 多 RPC 节点
@@ -40,10 +39,10 @@ class SolanaChainService {
   /// =========================
   /// SOL 余额
   /// =========================
-  Future<BigInt> getBalance() async {
+  Future<BigInt> getBalance(String address) async {
     final client = await _getClient();
-    print('address-----${_solService.address}');
-    final result = await client.getBalance(_solService.address);
+    print('address-----$address');
+    final result = await client.getBalance(address);
 
     return BigInt.from(result.value);
   }
@@ -51,11 +50,11 @@ class SolanaChainService {
   /// =========================
   /// Token 余额（SPL）
   /// =========================
-  Future<BigInt> getTokenBalance(String mintAddress) async {
+  Future<BigInt> getTokenBalance(String address,String mintAddress) async {
     final client = await _getClient();
 
     final result = await client.getTokenAccountsByOwner(
-      _solService.address,
+      address,
       TokenAccountsFilter.byMint(mintAddress),
     );
 
@@ -77,26 +76,27 @@ class SolanaChainService {
   /// 转 SOL
   /// =========================
   Future<String> sendSol({
+    required String address,
     required String toAddress,
     required double amount,
   }) async {
     final client = await _getClient();
 
     final lamports = (amount * lamportsPerSol).toInt();
-
+    final keyPair = await SolanaService.exportKeyPair(address);
     final tx = await client.signAndSendTransaction(
       Message(
         instructions: [
           SystemInstruction.transfer(
             fundingAccount:
-            Ed25519HDPublicKey.fromBase58(_solService.address),
+            Ed25519HDPublicKey.fromBase58(address),
             recipientAccount:
             Ed25519HDPublicKey.fromBase58(toAddress),
             lamports: lamports,
           ),
         ],
       ),
-      [_solService.keyPair],
+      [keyPair],
     );
 
     return tx;
@@ -105,11 +105,11 @@ class SolanaChainService {
   /// =========================
   /// 获取交易记录（简单版）
   /// =========================
-  Future<List<String>> getTxs() async {
+  Future<List<String>> getTxs(String address) async {
     final client = await _getClient();
 
     final result =
-    await client.getSignaturesForAddress(_solService.address);
+    await client.getSignaturesForAddress(address);
 
     return result.map((e) => e.signature).toList();
   }

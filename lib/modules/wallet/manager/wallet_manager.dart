@@ -38,16 +38,16 @@ class WalletManager {
     print('恢复----${mnemonic}');
     /// 2. 恢复三条链
     /// EVM
-    EvmService.getOrCreateWallet(mnemonic);
+    EvmService.createWalletFromMnemonic(mnemonic);
 
     /// SOL
-    await SolanaService.getOrCreateFromMnemonic(mnemonic);
+    await SolanaService.createWalletFromMnemonic(mnemonic);
 
     /// BTC
     await BitcoinService.getOrCreateWallet(mnemonic);
 
     /// 3. BTC 同步（重要）
-    await BitcoinService.sync();
+    await BitcoinService.sync(mnemonic);
 
     _initialized = true;
   }

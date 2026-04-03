@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:bdk_flutter/bdk_flutter.dart';
@@ -12,24 +14,45 @@ class BitcoinService {
   static const Network _network = Network.bitcoin;
 
   /// =========================
-  /// 多钱包存储
+  /// 多钱包存储（安全）
   /// =========================
-  static final Map<String, Wallet> _wallets = {};           // descriptor -> wallet
-  static final Map<String, String> _mnemonics = {};         // descriptor -> mnemonic
-  static final Map<String, Blockchain> _blockchains = {};   // descriptor -> blockchain
-
-  /// ✅ 地址索引缓存（核心）
-  static final Map<String, String> _addressIndex = {};      // address -> descriptor
+  static final Map<String, Wallet> _wallets = {};       // walletId -> wallet
+  static final Map<String, String> _mnemonics = {};     // walletId -> mnemonic
+  static final Map<String, String> _privateKeys = {};   // walletId -> wif
+  static final Map<String, String> _descriptors = {};   // walletId -> descriptor
 
   /// =========================
-  /// 构建 Descriptor（BIP84）
+  /// Blockchain（全局单例）
+  /// =========================
+  static Blockchain? _blockchain;
+  static String? _currentNode;
+
+  /// =========================
+  /// 地址缓存（核心）
+  /// =========================
+  static final Map<String, String> _addressIndex = {};      // address -> walletId
+  static final Map<String, int> _addressPathIndex = {};     // address -> index
+  static final Map<String, int> _addressAccountIndex = {};  // address -> account
+  static final Map<String, int> _addressChangeIndex = {};   // address -> change
+
+  /// =========================
+  /// 工具
+  /// =========================
+  static String _hash(String input) {
+    return sha256.convert(utf8.encode(input)).toString();
+  }
+
+  /// =========================
+  /// Descriptor（BIP84）
   /// =========================
   static String _buildDescriptor(String mnemonic, {int account = 0}) {
     final seed = bip39.mnemonicToSeed(mnemonic);
     final root = bip32.BIP32.fromSeed(seed);
-    final xprv = root.toBase58();
 
-    return "wpkh($xprv/84'/0'/$account')";
+    final child = root.derivePath("m/84'/0'/$account'");
+    final xprv = child.toBase58();
+
+    return "wpkh($xprv/0/*)";
   }
 
   /// =========================
@@ -44,7 +67,7 @@ class BitcoinService {
     return await Wallet.create(
       descriptor: descriptor,
       network: _network,
-      databaseConfig: DatabaseConfig.memory(),
+      databaseConfig: const DatabaseConfig.memory(), // 👉 生产建议换 sqlite
     );
   }
 
@@ -57,96 +80,110 @@ class BitcoinService {
     }
 
     final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
 
-    if (_wallets.containsKey(descriptor)) {
-      return _wallets[descriptor]!;
+    if (_wallets.containsKey(walletId)) {
+      return _wallets[walletId]!;
     }
 
     final wallet = await _createWallet(descriptor);
-    _wallets[descriptor] = wallet;
-    _mnemonics[descriptor] = mnemonic;
+
+    _wallets[walletId] = wallet;
+    _mnemonics[walletId] = mnemonic;
+    _descriptors[walletId] = descriptor;
 
     return wallet;
   }
 
   /// =========================
-  /// Blockchain
+  /// Blockchain 初始化
   /// =========================
-  static Future<Blockchain> _initBlockchain() async {
+  static Future<void> _initBlockchain() async {
     final node = await ElectrumNodeManager().getNode(testnet: false);
 
-    return await Blockchain.create(
+    _currentNode = node;
+
+    _blockchain = await Blockchain.create(
       config: BlockchainConfig.electrum(
         config: ElectrumConfig(
           url: node,
           retry: 3,
           timeout: 30,
-          stopGap: BigInt.from(20),
+          stopGap: BigInt.from(50),
           validateDomain: false,
         ),
       ),
     );
   }
 
-  static Future<Blockchain> _getBlockchain(String descriptor) async {
-    if (_blockchains.containsKey(descriptor)) {
-      return _blockchains[descriptor]!;
-    }
-
-    final blockchain = await _initBlockchain();
-    _blockchains[descriptor] = blockchain;
-
-    return blockchain;
+  static Future<Blockchain> _getBlockchain() async {
+    if (_blockchain != null) return _blockchain!;
+    await _initBlockchain();
+    return _blockchain!;
   }
 
+  /// =========================
+  /// 同步（descriptor）
+  /// =========================
   static Future<void> syncByDescriptor(String descriptor) async {
-    final wallet = _wallets[descriptor];
-    if (wallet == null) {
-      throw Exception("Wallet not found");
-    }
+    final walletId = _hash(descriptor);
+    final wallet = _wallets[walletId];
+    if (wallet == null) throw Exception("Wallet not found");
 
-    var blockchain = await _getBlockchain(descriptor);
+    final blockchain = await _getBlockchain();
 
     try {
       await wallet.sync(blockchain: blockchain);
     } catch (e) {
-      ElectrumNodeManager().markFailed(blockchain.toString());
-      blockchain = await _initBlockchain();
-      _blockchains[descriptor] = blockchain;
-      await wallet.sync(blockchain: blockchain);
+      if (_currentNode != null) {
+        ElectrumNodeManager().markFailed(_currentNode!);
+      }
+      await _initBlockchain();
+      await wallet.sync(blockchain: _blockchain!);
     }
   }
 
   /// =========================
-  /// 同步
+  /// 同步（助记词）
   /// =========================
   static Future<void> sync(String mnemonic, {int account = 0}) async {
-    final descriptor = _buildDescriptor(mnemonic, account: account);
     final wallet = await getOrCreateWallet(mnemonic, account: account);
-    var blockchain = await _getBlockchain(descriptor);
+    final blockchain = await _getBlockchain();
 
     try {
       await wallet.sync(blockchain: blockchain);
     } catch (e) {
-      ElectrumNodeManager().markFailed(blockchain.toString());
-      blockchain = await _initBlockchain();
-      _blockchains[descriptor] = blockchain;
-      await wallet.sync(blockchain: blockchain);
+      if (_currentNode != null) {
+        ElectrumNodeManager().markFailed(_currentNode!);
+      }
+      await _initBlockchain();
+      await wallet.sync(blockchain: _blockchain!);
     }
   }
 
   /// =========================
   /// 地址缓存
   /// =========================
-  static void _cacheAddress(String address, String descriptor) {
-    _addressIndex[address] = descriptor;
+  static void _cacheAddress(
+      String address,
+      String walletId,
+      int index,
+      int account, {
+        int change = 0,
+      }) {
+    _addressIndex[address] = walletId;
+    _addressPathIndex[address] = index;
+    _addressAccountIndex[address] = account;
+    _addressChangeIndex[address] = change;
   }
 
   /// =========================
-  /// deriveAddress（lastUnused）
+  /// 获取未使用地址
   /// =========================
   static Future<String> deriveAddress(String mnemonic, {int account = 0}) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
+
     final wallet = await getOrCreateWallet(mnemonic, account: account);
 
     final addressInfo = wallet.getAddress(
@@ -154,7 +191,48 @@ class BitcoinService {
     );
 
     final address = addressInfo.address.toString();
-    _cacheAddress(address, descriptor);
+    final index = addressInfo.index;
+
+    _cacheAddress(address, walletId, index, account, change: 0);
+
+    return address;
+  }
+
+  /// =========================
+  /// 私钥导入
+  /// =========================
+  static Future<String> privateKeyToAddress(String wif) async {
+    final descriptorStr = "wpkh($wif)";
+    final walletId = _hash(descriptorStr);
+
+    if (_wallets.containsKey(walletId)) {
+      final wallet = _wallets[walletId]!;
+      final addr = wallet.getAddress(addressIndex: AddressIndex.lastUnused());
+      return addr.address.toString();
+    }
+
+    final descriptor = await Descriptor.create(
+      descriptor: descriptorStr,
+      network: _network,
+    );
+
+    final wallet = await Wallet.create(
+      descriptor: descriptor,
+      network: _network,
+      databaseConfig: const DatabaseConfig.memory(),
+    );
+
+    _wallets[walletId] = wallet;
+    _privateKeys[walletId] = wif;
+    _descriptors[walletId] = descriptorStr;
+
+    final addressInfo = wallet.getAddress(
+      addressIndex: AddressIndex.lastUnused(),
+    );
+
+    final address = addressInfo.address.toString();
+
+    _cacheAddress(address, walletId, 0, 0, change: 0);
 
     return address;
   }
@@ -164,6 +242,8 @@ class BitcoinService {
   /// =========================
   static Future<String> getNewAddress(String mnemonic, {int account = 0}) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
+
     final wallet = await getOrCreateWallet(mnemonic, account: account);
 
     final addressInfo = wallet.getAddress(
@@ -171,7 +251,9 @@ class BitcoinService {
     );
 
     final address = addressInfo.address.toString();
-    _cacheAddress(address, descriptor);
+    final index = addressInfo.index;
+
+    _cacheAddress(address, walletId, index, account, change: 0);
 
     return address;
   }
@@ -185,6 +267,8 @@ class BitcoinService {
         int index = 0,
       }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
+
     final wallet = await getOrCreateWallet(mnemonic, account: account);
 
     final addressInfo = wallet.getAddress(
@@ -192,26 +276,55 @@ class BitcoinService {
     );
 
     final address = addressInfo.address.toString();
-    _cacheAddress(address, descriptor);
+
+    _cacheAddress(address, walletId, index, account, change: 0);
 
     return address;
   }
 
   /// =========================
-  /// 通过地址获取钱包（核心）
+  /// 地址 → descriptor
   /// =========================
-  static Wallet? getWalletByAddress(String address) {
-    final descriptor = _addressIndex[address];
-    if (descriptor == null) return null;
-
-    return _wallets[descriptor];
+  static String? getDescriptorByAddress(String address) {
+    final walletId = _addressIndex[address];
+    if (walletId == null) return null;
+    return _descriptors[walletId];
   }
 
   /// =========================
-  /// 获取 descriptor
+  /// 地址 → 私钥
   /// =========================
-  static String? getDescriptorByAddress(String address) {
-    return _addressIndex[address];
+  static String? getPrivateKeyByAddress(String address) {
+    final walletId = _addressIndex[address];
+    if (walletId == null) return null;
+
+    final wif = _privateKeys[walletId];
+    if (wif != null) return wif;
+
+    final index = _addressPathIndex[address];
+    final account = _addressAccountIndex[address];
+    final change = _addressChangeIndex[address] ?? 0;
+    final mnemonic = _mnemonics[walletId];
+
+    if (index == null || account == null || mnemonic == null) return null;
+
+    final seed = bip39.mnemonicToSeed(mnemonic);
+    final root = bip32.BIP32.fromSeed(seed);
+
+    final child = root.derivePath(
+      "m/84'/0'/$account'/$change/$index",
+    );
+
+    return child.toWIF();
+  }
+
+  /// =========================
+  /// 地址 → Wallet
+  /// =========================
+  static Wallet? getWalletByAddress(String address) {
+    final walletId = _addressIndex[address];
+    if (walletId == null) return null;
+    return _wallets[walletId];
   }
 
   /// =========================
@@ -219,13 +332,24 @@ class BitcoinService {
   /// =========================
   static void removeWallet(String mnemonic, {int account = 0}) {
     final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
 
-    _wallets.remove(descriptor);
-    _mnemonics.remove(descriptor);
-    _blockchains.remove(descriptor);
+    _wallets.remove(walletId);
+    _mnemonics.remove(walletId);
+    _privateKeys.remove(walletId);
+    _descriptors.remove(walletId);
 
-    /// 清理地址索引
-    _addressIndex.removeWhere((key, value) => value == descriptor);
+    final addresses = _addressIndex.entries
+        .where((e) => e.value == walletId)
+        .map((e) => e.key)
+        .toList();
+
+    for (final addr in addresses) {
+      _addressIndex.remove(addr);
+      _addressPathIndex.remove(addr);
+      _addressAccountIndex.remove(addr);
+      _addressChangeIndex.remove(addr);
+    }
   }
 
   /// =========================
@@ -234,14 +358,20 @@ class BitcoinService {
   static void clearAllWallets() {
     _wallets.clear();
     _mnemonics.clear();
-    _blockchains.clear();
+    _privateKeys.clear();
+    _descriptors.clear();
     _addressIndex.clear();
+    _addressPathIndex.clear();
+    _addressAccountIndex.clear();
+    _addressChangeIndex.clear();
+    _blockchain = null;
+    _currentNode = null;
   }
 
   /// =========================
   /// 获取所有钱包
   /// =========================
   static List<String> getAllDescriptors() {
-    return _wallets.keys.toList();
+    return _descriptors.values.toList();
   }
 }

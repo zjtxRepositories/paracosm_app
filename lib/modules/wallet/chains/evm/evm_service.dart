@@ -77,6 +77,14 @@ class EvmService {
   }
 
   /// =========================
+  /// 地址 → 私钥（从缓存获取）
+  /// =========================
+  static String? getPrivateKeyByAddress(String address) {
+    final wallet = _wallets[address];
+    return wallet?['privateKey'];
+  }
+
+  /// =========================
   /// 校验私钥
   /// =========================
   static bool isValidPrivateKey(String privateKeyHex) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -88,6 +89,7 @@ class MyApp extends ConsumerWidget {
             locale: settings.locale, // 使用 provider 中的语言设置
             // 全局点击空白处收起键盘
             builder: (context, child) {
+              child = EasyLoading.init()(context, child);
               return GestureDetector(
                 onTap: () {
                   // 获取当前焦点节点

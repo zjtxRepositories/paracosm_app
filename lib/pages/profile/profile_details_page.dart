@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/security/wallet_security.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -128,7 +129,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   }
 
   ///备份
-  void _backupMnemonic(){
+  void _backupMnemonic(String type){
     WalletModals.showPasswordModal(
         context: context,
         title: AppLocalizations.of(context)!
@@ -145,12 +146,28 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           if (data == null) {
             return AppToast.show('数据错误！');
           }
-          if (_walletModel?.type == WalletType.privateKey){
-            final privateKey = data['privateKey'];
-            context.push('/wallet-backup-private-key',
-              extra: {
-                'privateKey': privateKey,
-              },
+          if (type == WalletType.privateKey){
+            WalletModals.showChainSelector(
+                context: context,
+                wallet: _walletModel!,
+                onSelected: (chain) async {
+                  if (chain.address.isNotEmpty){
+                    final privateKey = await WalletManager.generatePrivateKey(chain);
+                    context.push('/wallet-backup-private-key',
+                      extra: {
+                        'privateKey': privateKey,
+                      },
+                    );
+                    return;
+                  }
+                  context.push('/wallet-import-private-key',
+                    extra: {
+                      'password': password,
+                      'walletId': _walletModel!.id,
+                      'chainType': chain.chainType,
+                    },
+                  );
+                }
             );
             return;
           }
@@ -161,8 +178,6 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
             },
           );
         });
-
-
   }
 
 
@@ -353,18 +368,16 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         'icon': 'add-wallet.png',
         'onTap': _showWalletSwitcher
       },
-      if (_walletModel?.isPrivateKey == true)
-        {
-          'title': AppLocalizations.of(context)!.profileProfileDetailsBackupPrivateKey,
-          'icon': 'key.png',
-          'onTap': _backupMnemonic,
-        },
-
-      if (_walletModel?.isMnemonic == true)
+      {
+        'title': AppLocalizations.of(context)!.profileProfileDetailsBackupPrivateKey,
+        'icon': 'key.png',
+        'onTap': () => _backupMnemonic(WalletType.privateKey),
+      },
+      if (_walletModel?.isPrivateKey == false)
         {
           'title': AppLocalizations.of(context)!.profileProfileDetailsBackupMnemonic,
           'icon': 'back-up.png',
-          'onTap': _backupMnemonic,
+          'onTap': () => _backupMnemonic(WalletType.mnemonic),
         },
       // {
       //   'title': AppLocalizations.of(context)!.profileProfileDetailsChangeCurrency,

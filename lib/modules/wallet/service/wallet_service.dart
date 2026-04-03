@@ -101,6 +101,7 @@ class WalletService {
   static Future<WalletModel> _buildWalletByPrivateKey({
     required String privateKey,
     required String password,
+    ChainType chainType = ChainType.evm,
   }) async {
 
     /// 1. 构建链（只支持 EVM）
@@ -111,7 +112,7 @@ class WalletService {
     );
 
     final evmChain = chains.firstWhere(
-          (e) => e.chainType == ChainType.evm,
+          (e) => e.chainType == chainType
     );
 
     final walletId = evmChain.address;
@@ -130,5 +131,35 @@ class WalletService {
       aIndex: accounts.length,
         type: WalletType.privateKey
     );
+  }
+
+  /// =========================
+  /// 核心：私钥构建
+  /// =========================
+  static Future<WalletModel> importPrivateKeyByChainType({
+    required String privateKey,
+    required String password,
+    required String walletId,
+    ChainType chainType = ChainType.evm,
+  }) async {
+    final configs = await ChainConfigService.loadConfigs();
+    final config = configs.where((e) {
+      return chainTypeFromString(e.chainType) == chainType;
+    }).toList();
+    final chains = await ChainConfigService.buildChainsFromPrivateKey(
+      config,
+      privateKey,
+      chainType:  chainType
+    );
+    final wallet = await WalletDao().getWalletById(walletId);
+    final oldChains = wallet?.chains ?? [];
+    final filteredOldChains = oldChains
+        .where((c) => c.chainType != chainType)
+        .toList();
+    wallet?.chains = [
+      ...filteredOldChains,
+      ...chains,
+    ];
+    return wallet!;
   }
 }

@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/modals/wallet_modals.dart';
+
+import '../../modules/wallet/manager/wallet_manager.dart';
+import '../../modules/wallet/security/wallet_security.dart';
+import '../../widgets/common/app_loading.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 钱包编辑/管理页面 (Manage Wallet)
 class WalletEditPage extends StatefulWidget {
-  final String walletName;
-  final String walletAddress;
+  final WalletModel wallet;
 
   const WalletEditPage({
     super.key,
-    this.walletName = 'Wallet No. 2',
-    this.walletAddress = '0X5E4F3A2689B11EE4...',
+    required this.wallet,
   });
 
   @override
@@ -28,19 +34,79 @@ class _WalletEditPageState extends State<WalletEditPage> {
   @override
   void initState() {
     super.initState();
-    _currentWalletName = widget.walletName;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final l10n = AppLocalizations.of(context)!;
+
+      setState(() {
+        _currentWalletName = widget.wallet.name ??
+            '${l10n.profileProfileDetailsWallet} ${widget.wallet.aIndex + 1}';
+      });
+    });
+  }
+
+  ///备份
+  void _backupMnemonic(String type){
+    WalletModals.showPasswordModal(
+        context: context,
+        title: AppLocalizations.of(context)!
+            .profileTransferPassword,
+        onConfirm: (password) async {
+          AppLoading.show();
+          final isResult =
+          await WalletSecurity.verifyPassword(password);
+          AppLoading.dismiss();
+          if (!isResult) {
+            return AppToast.show('密码错误！');
+          }
+          final data = await WalletSecurity.getWallet(walletId: widget.wallet.id, password: password);
+          if (data == null) {
+            return AppToast.show('数据错误！');
+          }
+          if (type == WalletType.privateKey){
+            WalletModals.showChainSelector(
+                context: context,
+                wallet: widget.wallet,
+                onSelected: (chain) async {
+                  if (chain.address.isNotEmpty){
+                    final privateKey = await WalletManager.generatePrivateKey(chain);
+                    context.push('/wallet-backup-private-key',
+                      extra: {
+                        'privateKey': privateKey,
+                      },
+                    );
+                    return;
+                  }
+                  context.push('/wallet-import-private-key',
+                    extra: {
+                      'password': password,
+                      'walletId': widget.wallet.id,
+                      'chainType': chain.chainType,
+                    },
+                  );
+                }
+            );
+            return;
+          }
+          final mnemonic = data['mnemonic'];
+          context.push('/wallet-backup-mnemonic',
+            extra: {
+              'mnemonic': mnemonic,
+            },
+          );
+        });
   }
 
   /// 显示重命名钱包弹窗 (参考 transfer_page.dart 的 _showPasswordModal)
   void _showRenameModal() {
     final nameController = TextEditingController(text: _currentWalletName);
-
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.profileWalletEditRenameThisWallet,
       confirmText: AppLocalizations.of(context)!.profileWalletEditSave,
-      onConfirm: () {
+      onConfirm: () async {
         if (nameController.text.isNotEmpty) {
+          await WalletManager.changeWalletName(widget.wallet.id, nameController.text);
           setState(() {
             _currentWalletName = nameController.text;
           });
@@ -124,17 +190,21 @@ class _WalletEditPageState extends State<WalletEditPage> {
                   const Divider(color: AppColors.grey100, height: 1),
                   const SizedBox(height: 24),
                   // 菜单列表
-                  _buildMenuItem(
+                  widget.wallet.isPrivateKey == false ?  _buildMenuItem(
                     icon: 'learn.png',
                     title: AppLocalizations.of(context)!.profileWalletEditBackupMnemonics,
-                    onTap: () {},
-                  ),
+                    onTap: () {
+                      _backupMnemonic(WalletType.mnemonic);
+                    },
+                  ):SizedBox(),
                   const SizedBox(height: 24),
                   _buildMenuItem(
                     icon: 'security.png',
                     title: AppLocalizations.of(context)!.profileWalletEditBackingUpPrivate,
-                    onTap: () {},
-                  ),
+                    onTap: () {
+                      _backupMnemonic(WalletType.privateKey);
+                    },
+                  )
                 ],
               ),
             ),
@@ -174,8 +244,10 @@ class _WalletEditPageState extends State<WalletEditPage> {
                   text: AppLocalizations.of(context)!.profileWalletEditDelete,
                   backgroundColor: AppColors.error,
                   textColor: Colors.white,
-                  onPressed: () {
+                  onPressed: () async {
                     // TODO: 删除钱包逻辑
+                    await AccountManager().deleteAccount(widget.wallet.id);
+                    context.pop();
                   },
                 ),
               ],
@@ -224,7 +296,7 @@ class _WalletEditPageState extends State<WalletEditPage> {
                   const SizedBox(width: 3),
                   Expanded(
                     child: Text(
-                      widget.walletAddress,
+                      widget.wallet.id,
                       style: AppTextStyles.body.copyWith(
                         fontSize: 12,
                         color: AppColors.grey400,

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
+import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
@@ -118,6 +120,17 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final password = data?['password'];
           return WalletImportPage(password: password);
+        },
+      ),
+      // 导入私钥页
+      GoRoute(
+        path: '/wallet-import-private-key',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final password = data?['password'];
+          final walletId = data?['walletId'];
+          final chainType = data?['chainType'];
+          return WalletImportPrivateKeyPage(password: password, walletId: walletId, chainType: chainType,);
         },
       ),
       // 导入设置密码页
@@ -341,10 +354,10 @@ class AppRouter {
         path: '/wallet-edit',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
+          final wallet = state.extra as WalletModel?;
+          if (wallet == null) return SizedBox();
           return WalletEditPage(
-            walletName: extra?['name'] ?? 'Wallet No. 2',
-            walletAddress: extra?['address'] ?? '0X5E4F3A2689B11EE4...',
+            wallet: wallet,
           );
         },
       ),
@@ -353,7 +366,6 @@ class AppRouter {
         path: '/token-detail',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          print('dd----${state.extra }');
           final extra = state.extra as TokenModel?;
           return TokenDetailPage(
             token: extra,

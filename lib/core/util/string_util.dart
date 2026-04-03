@@ -12,3 +12,8 @@ String truncateDouble(double value) {
       .replaceAll(RegExp(r'0+$'), '')
       .replaceAll(RegExp(r'\.$'), '');
 }
+
+String ellipsisMiddle(String text, {int head = 7, int tail = 7}) {
+  if (text.length <= head + tail) return text;
+  return '${text.substring(0, head)}...${text.substring(text.length - tail)}';
+}

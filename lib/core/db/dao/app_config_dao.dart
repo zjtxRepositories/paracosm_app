@@ -11,7 +11,7 @@ class AppConfigDao extends BaseDao {
   ''';
 
 
-  Future<void> setCurrentUser(String userId) async {
+  Future<void> setCurrentUser(String? userId) async {
     await insert(
       table,
       {'key': 'currentUserId', 'value': userId},

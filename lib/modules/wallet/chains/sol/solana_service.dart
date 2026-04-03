@@ -103,6 +103,40 @@ class SolanaService {
       index: index,
     );
   }
+  /// =========================
+  /// 私钥 → 地址（导入钱包）
+  /// =========================
+  static Future<String> privateKeyToAddress(String base64PrivateKey) async {
+    // 1. 解码
+    final privateKeyBytes = base64Decode(base64PrivateKey);
+
+    // 2. 创建 keypair
+    final keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
+      privateKey: privateKeyBytes,
+    );
+
+    final address = keyPair.address;
+
+    // 3. 已存在直接返回
+    if (_wallets.containsKey(address)) {
+      return address;
+    }
+
+    // 4. 缓存钱包
+    _wallets[address] = keyPair;
+
+    return address;
+  }
+  /// =========================
+  /// 地址 → 私钥（base64）
+  /// =========================
+  static Future<String?> getPrivateKeyByAddress(String address) async {
+    final keyPair = _wallets[address];
+    if (keyPair == null) return null;
+
+    final keyData = await keyPair.extract();
+    return base64Encode(keyData.bytes);
+  }
 
   /// =========================
   /// 导出私钥（base64）

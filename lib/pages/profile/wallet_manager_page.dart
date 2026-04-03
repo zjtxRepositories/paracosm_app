@@ -216,7 +216,6 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
 
   /// 构建钱包列表项
   Widget buildWalletListItem(String address, String avatarPath) {
-    print('address----$address');
     final l10n = AppLocalizations.of(context)!;
 
     return FutureBuilder<WalletModel?>(
@@ -227,10 +226,7 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
 
         return GestureDetector(
           onTap: () {
-            context.push('/wallet-edit', extra: {
-              'name': showName,
-              'address': address,
-            });
+            context.push('/wallet-edit', extra: wallet);
           },
           behavior: HitTestBehavior.opaque,
           child: Row(

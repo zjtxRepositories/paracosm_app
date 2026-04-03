@@ -61,7 +61,6 @@ class AccountManager {
 
   }
 
-
   /// 切换账号
   Future<void> switchAccount(String accountId) async {
     _currentAccount =
@@ -70,7 +69,18 @@ class AccountManager {
       await AppConfigDao().setCurrentUser(accountId);
       _currentWallet = await WalletDao().getWalletById(accountId);
       await ImService.switchAccount(_currentAccount!.id);
+      WalletManager.unlock(walletId: accountId);
     }
+  }
+
+  /// 删除账号
+  Future<void> deleteAccount(String accountId) async {
+    await AccountDao().deleteAccount(accountId);
+    await WalletDao().deleteWallet(accountId);
+    accounts = await AccountDao().getAccounts();
+    _currentAccount = accounts.first;
+    await AppConfigDao().setCurrentUser(_currentAccount?.id);
+    _currentWallet = await WalletDao().getWalletById(_currentAccount?.id ?? '');
   }
 
 }

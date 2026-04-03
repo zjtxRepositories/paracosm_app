@@ -59,8 +59,9 @@ class ChainConfigService {
   static Future<List<ChainAccount>> buildChainsFromPrivateKey(
       List<ChainConfigModel> configs,
       String privateKey,
+  {    ChainType chainType = ChainType.evm,
+  }
       ) async {
-
     return await Future.wait(
       configs.map((config) async {
 
@@ -69,11 +70,19 @@ class ChainConfigService {
         /// =========================
         /// 1️⃣ 只支持 EVM
         /// =========================
-        if (config.chainType == 'evm') {
-          address = EvmService.privateKeyToAddress(privateKey);
+        final type = chainTypeFromString(config.chainType);
+        if (type == chainType) {
+          if (type == ChainType.evm){
+            address = EvmService.privateKeyToAddress(privateKey);
+          }else if (type == ChainType.bitcoin){
+            address = await BitcoinService.privateKeyToAddress(privateKey);
+          }else {
+            address = await SolanaService.privateKeyToAddress(privateKey);
+          }
         } else {
           /// 非 EVM 不支持
-          throw Exception("私钥导入暂不支持 ${config.chainType}");
+          address = '';
+          // throw Exception("私钥导入暂不支持 ${config.chainType}");
         }
 
         /// =========================

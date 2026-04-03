@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/widgets/common/app_chain_selector.dart';
 import 'package:paracosm/widgets/modals/wallet_switcher_modal.dart';
 import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/model/chain_account.dart';
@@ -33,6 +34,28 @@ class WalletModals {
           wallet.currentChainId = network.chainId;
           await WalletDao().updateWallet(wallet);
           onSelected(network);
+          context.pop();
+        },
+      ),
+    );
+  }
+
+  /// =========================
+  /// 链
+  /// =========================
+  static void showChainSelector({
+    required BuildContext context,
+    required WalletModel wallet,
+    required Function(ChainAccount) onSelected,
+  }) {
+    AppModal.show(
+      context,
+      title: '选择导出地址',
+      confirmText: null,
+      onConfirm: () {},
+      child: AppChainSelector(
+        onSelected: (chain) async {
+          onSelected(chain);
           context.pop();
         },
       ),

@@ -329,12 +329,10 @@ class AppRouter {
         path: '/transfer',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final initialNetwork = state.extra as Map<String, dynamic>? ?? {
-            'name': 'BNB Chain',
-            'symbol': 'BNB',
-            'icon': 'bnb-small.png',
-          };
-          return TransferPage(initialNetwork: initialNetwork);
+          final data = state.extra as Map<String, dynamic>?;
+          final token = data?['token'];
+          final chain = data?['chain'];
+          return TransferPage(token: token, chain: chain);
         },
       ),
       // 转账详情页

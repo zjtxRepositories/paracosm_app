@@ -1,16 +1,26 @@
+
 String truncateDouble(double value) {
-  String str = value.toString();
-  // 查找小数点的位置
-  int dotIndex = str.indexOf('.');
-  if (dotIndex == -1) {
-    // 如果没有小数点，直接返回
-    return str;
+  if (value == 0) return '0';
+
+  // 小于1时，保留更多精度
+  if (value < 1) {
+    return _truncate(value, 8);
   }
-  // 截取到小数点后两位（不含多余的0）
-  String truncated = str.substring(0, (dotIndex + 3).clamp(0, str.length));
-  return truncated
-      .replaceAll(RegExp(r'0+$'), '')
-      .replaceAll(RegExp(r'\.$'), '');
+
+  // 大于1，保留2位
+  return _truncate(value, 2);
+}
+
+String _truncate(double value, int digits) {
+  String str = value.toStringAsFixed(18);
+  final parts = str.split('.');
+
+  String decimal = parts.length > 1 ? parts[1] : '';
+
+  decimal = decimal.substring(0, digits.clamp(0, decimal.length));
+  decimal = decimal.replaceAll(RegExp(r'0+$'), '');
+
+  return decimal.isEmpty ? parts[0] : '${parts[0]}.$decimal';
 }
 
 String ellipsisMiddle(String text, {int head = 7, int tail = 7}) {

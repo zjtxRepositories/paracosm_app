@@ -1,5 +1,6 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
-
+import 'package:paracosm/core/network/client/http_client.dart';
+import '../model/gas_fee.dart';
 import 'bitcoin_service.dart';
 
 class BitcoinChainService {
@@ -9,6 +10,15 @@ class BitcoinChainService {
 
   /// 缓存时间（秒）
   static const int _cacheSeconds = 10;
+
+  /// ⭐ fee缓存（避免频繁请求）
+  static BtcFeeRate? _feeCache;
+  static int _feeCacheTime = 0;
+
+  /// ⭐ mempool API（主网）
+  static const String _feeUrl =
+      "https://mempool.space/api/v1/fees/recommended";
+
 
   /// =========================
   /// 获取余额
@@ -72,5 +82,146 @@ class BitcoinChainService {
     await BitcoinService.syncByDescriptor(descriptor);
 
     return wallet.listTransactions(includeRaw: false);
+  }
+
+  /// =========================
+  /// 发送 BTC
+  /// =========================
+  static Future<String> sendTransaction({
+    required String fromAddress,
+    required String toAddress,
+    required BigInt amount, // satoshis
+    double? feePerVbyte, // 可选：自定义 sat/vByte
+    bool isSegWit = true,
+  }) async {
+    final wallet = BitcoinService.getWalletByAddress(fromAddress);
+    if (wallet == null) throw Exception("Wallet not found");
+
+    final descriptor = BitcoinService.getDescriptorByAddress(fromAddress);
+    if (descriptor == null) throw Exception("Descriptor not found");
+
+    final blockchain = BitcoinService().blockchain;
+    if (blockchain == null) throw Exception("blockchain not found");
+
+    // 同步钱包
+    await BitcoinService.syncByDescriptor(descriptor);
+
+    // 获取手续费，如果没传 feePerVbyte，就用默认中速费率
+    double feeRateUsed = feePerVbyte ?? (await BitcoinChainService.getFeeEstimate(
+      inputs: 1,
+      outputs: 2,
+      isSegWit: isSegWit,
+    ))["medium"]!.toDouble();
+    final service = BitcoinService();
+    // 构建 ScriptBuf
+    final addressObj = await Address.fromString(s: toAddress, network: service.network);
+    final script = addressObj.scriptPubkey();
+
+    // 构建交易
+    final builder = TxBuilder()
+      ..addRecipient(script, amount)
+      ..feeRate(feeRateUsed)
+      ..enableRbf(); // 可选
+
+    // 构建并签名
+    final result = await builder.finish(wallet);
+    final psbt = result.$1;
+    wallet.sign(psbt: psbt);
+    final tx = psbt.extractTx();
+    final txId = await blockchain.broadcast(transaction: tx);
+
+    return txId;
+  }
+
+  /// =========================
+  /// 获取BTC手续费（慢 / 中 / 快）
+  /// =========================
+  static Future<BtcFeeRate> getFeeRate() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    /// ✅ 10秒缓存
+    if (_feeCache != null && now - _feeCacheTime < 10000) {
+      return _feeCache!;
+    }
+
+    try {
+      final response = await HttpClient().get(_feeUrl);
+      final data = response.data;
+      final result = BtcFeeRate(
+        slow: data['hourFee'] ?? 10,
+        medium: data['halfHourFee'] ?? 15,
+        fast: data['fastestFee'] ?? 25,
+      );
+
+      _feeCache = result;
+      _feeCacheTime = now;
+
+      return result;
+    } catch (e) {
+      /// ⭐ fallback（防止接口挂）
+      return BtcFeeRate(
+        slow: 10,
+        medium: 15,
+        fast: 25,
+      );
+    }
+  }
+
+  /// =========================
+  /// 估算交易大小（bytes）
+  /// =========================
+  static int estimateTxSize({
+    required int inputs,
+    required int outputs,
+    bool isSegWit = true,
+  }) {
+    if (isSegWit) {
+      /// SegWit更省手续费
+      return inputs * 68 + outputs * 31 + 10;
+    } else {
+      return inputs * 148 + outputs * 34 + 10;
+    }
+  }
+
+  /// =========================
+  /// 计算手续费（satoshi）
+  /// =========================
+  static int estimateFee({
+    required int feeRate, // sat/vByte
+    required int txSize,
+  }) {
+    return feeRate * txSize;
+  }
+
+  /// =========================
+  /// 🚀 一步获取最终手续费（推荐用这个）
+  /// =========================
+  static Future<Map<String, int>> getFeeEstimate({
+    required int inputs,
+    required int outputs,
+    bool isSegWit = true,
+  }) async {
+    final feeRate = await getFeeRate();
+
+    final txSize = estimateTxSize(
+      inputs: inputs,
+      outputs: outputs,
+      isSegWit: isSegWit,
+    );
+
+    return {
+      "slow": estimateFee(
+        feeRate: feeRate.slow,
+        txSize: txSize,
+      ),
+      "medium": estimateFee(
+        feeRate: feeRate.medium,
+        txSize: txSize,
+      ),
+      "fast": estimateFee(
+        feeRate: feeRate.fast,
+        txSize: txSize,
+      ),
+    };
   }
 }

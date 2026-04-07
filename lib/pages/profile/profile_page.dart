@@ -87,7 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     WalletDao().updateWallet(_walletModel!);
-    // PortfolioService().start( _tokens);
+    PortfolioService().start( _tokens);
   }
 
   /// 显示网络选择弹窗
@@ -313,7 +313,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: _selectedNetwork);
+                      context.push('/transfer', extra: {
+                        'chain':_selectedNetwork
+                      });
                     },
                     child: Container(
                       height: 44,
@@ -391,10 +393,19 @@ class _ProfilePageState extends State<ProfilePage> {
     return StreamBuilder<List<TokenModel>>(
       stream: PortfolioService().stream,
       builder: (context, snapshot) {
-        final tokens = snapshot.data == null ? _tokens : snapshot.data!
-            .where((t) => t.isAdded == true)
-            .toList();
-
+        final List<TokenModel> tokens = [];
+        if (snapshot.hasData && snapshot.data != null) {
+          final snapList = snapshot.data!
+              .where((t) => t.isAdded == true)
+              .toList();
+          tokens.addAll(snapList);
+          final snapAddresses = snapList.map((t) => t.symbol).toSet();
+          tokens.addAll(
+            _tokens.where((t) => !snapAddresses.contains(t.symbol)),
+          );
+        } else {
+          tokens.addAll(_tokens);
+        }
         if (tokens.isEmpty) return const SizedBox();
         tokens.sort((a, b) {
           return b.balance.compareTo(a.balance);

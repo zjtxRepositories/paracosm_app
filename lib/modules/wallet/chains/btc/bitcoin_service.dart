@@ -12,6 +12,7 @@ class BitcoinService {
   /// 网络
   /// =========================
   static const Network _network = Network.bitcoin;
+  Network get network => _network;
 
   /// =========================
   /// 多钱包存储（安全）
@@ -26,6 +27,7 @@ class BitcoinService {
   /// =========================
   static Blockchain? _blockchain;
   static String? _currentNode;
+  Blockchain? get blockchain => _blockchain;
 
   /// =========================
   /// 地址缓存（核心）

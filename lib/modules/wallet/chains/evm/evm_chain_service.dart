@@ -1,12 +1,22 @@
 import 'dart:async';
+import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart';
+import '../model/gas_fee.dart';
 
 class EvmChainService {
   static final Map<String, Web3Client> _clients = {};
 
-  /// 获取或创建 client（复用）
+  static final Map<int, String> _bestRpcCache = {};
+
+  static final Map<int, GasLevel> _gasCache = {};
+  static final Map<int, int> _gasCacheTime = {};
+
+  /// =========================
+  /// client
+  /// =========================
   static Web3Client _getClient(String rpc) {
     return _clients.putIfAbsent(
       rpc,
@@ -14,17 +24,35 @@ class EvmChainService {
     );
   }
 
-  /// 🚀 RPC容灾（自动切换）
+  static Future<void> dispose() async {
+    for (final client in _clients.values) {
+      client.dispose();
+    }
+    _clients.clear();
+  }
+
+  /// =========================
+  /// RPC容灾
+  /// =========================
   static Future<T> _withFallback<T>(
+      int chainId,
       List<String> rpcs,
       Future<T> Function(Web3Client client) action,
       ) async {
+    final sortedRpcs = {
+      if (_bestRpcCache.containsKey(chainId))
+        _bestRpcCache[chainId]!,
+      ...rpcs,
+    }.toList();
+
     Exception? lastError;
 
-    for (final rpc in rpcs) {
+    for (final rpc in sortedRpcs) {
       try {
         final client = _getClient(rpc);
-        return await action(client);
+        final result = await action(client);
+        _bestRpcCache[chainId] = rpc;
+        return result;
       } catch (e) {
         lastError = Exception("RPC失败: $rpc -> $e");
       }
@@ -34,41 +62,32 @@ class EvmChainService {
   }
 
   /// =========================
-  /// 获取原生余额（多RPC容灾）
+  /// 余额
   /// =========================
   static Future<BigInt> getNativeBalance(
       ChainAccount chain,
       String address,
       ) async {
-    return _withFallback<BigInt>(
+    return _withFallback(
+      chain.chainId,
       chain.nodes,
           (client) async {
-        final balance = await client.getBalance(
-          EthereumAddress.fromHex(address),
-        );
+            final balance = await client
+            .getBalance(EthereumAddress.fromHex(address))
+            .timeout(const Duration(seconds: 8));
+
         return balance.getInWei;
       },
     );
   }
-  static Future<BigInt> getBalance(
-      ChainAccount chain,
-      String contractAddress,
-      String address,
-      ) async {
-    if (contractAddress.isNotEmpty){
-      return getTokenBalance(chain, contractAddress, address);
-    }
-    return getNativeBalance(chain, address);
-  }
-  /// =========================
-  /// 获取 ERC20 余额
-  /// =========================
+
   static Future<BigInt> getTokenBalance(
       ChainAccount chain,
       String contractAddress,
       String address,
       ) async {
-    return _withFallback<BigInt>(
+    return _withFallback(
+      chain.chainId,
       chain.nodes,
           (client) async {
         final contract = DeployedContract(
@@ -83,52 +102,346 @@ class EvmChainService {
           function: function,
           params: [EthereumAddress.fromHex(address)],
         );
+
         return result.first as BigInt;
       },
     );
   }
 
-  /// =========================
-  /// 🚀 多链获取原生余额（并发）
-  /// =========================
-  static Future<Map<String, BigInt>> getAllNativeBalances(
-      List<ChainAccount> chains,
+  static Future<BigInt> getBalance(
+      ChainAccount chain,
+      String contractAddress,
       String address,
       ) async {
-    final futures = chains.map((node) async {
-      final balance = await getNativeBalance(node, address);
-      return MapEntry(node.symbol, balance);
-    });
-
-    final results = await Future.wait(futures);
-
-    return Map.fromEntries(results);
+    if (contractAddress.isNotEmpty) {
+      return getTokenBalance(chain, contractAddress, address);
+    }
+    return getNativeBalance(chain, address);
   }
 
   /// =========================
-  /// 🚀 多链 Token（可扩展）
+  /// Gas
   /// =========================
-  static Future<Map<String, Map<String, BigInt>>> getAllTokenBalances(
-      List<ChainAccount> chains,
-      Map<int, List<String>> tokenMap, // chainId -> contracts
+  static Future<GasLevel> getGasLevels(ChainAccount chain) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (_gasCache.containsKey(chain.chainId) &&
+        now - _gasCacheTime[chain.chainId]! < 10000) {
+      return _gasCache[chain.chainId]!;
+    }
+
+    try {
+      final result = await _withFallback(
+        chain.chainId,
+        chain.nodes,
+            (client) async {
+          final block = await client.getBlockInformation();
+          final baseFee = block.baseFeePerGas;
+
+          /// 老链
+          if (baseFee == null) {
+            final gasPrice = await client.getGasPrice();
+
+            return GasLevel(
+              slow: GasFee(
+                maxFeePerGas: gasPrice.getInWei,
+                maxPriorityFeePerGas: BigInt.zero,
+                gasPrice: gasPrice.getInWei,
+              ),
+              medium: GasFee(
+                maxFeePerGas:
+                gasPrice.getInWei * BigInt.from(12) ~/ BigInt.from(10),
+                maxPriorityFeePerGas: BigInt.zero,
+                gasPrice:
+                gasPrice.getInWei * BigInt.from(12) ~/ BigInt.from(10),
+              ),
+              fast: GasFee(
+                maxFeePerGas:
+                gasPrice.getInWei * BigInt.from(15) ~/ BigInt.from(10),
+                maxPriorityFeePerGas: BigInt.zero,
+                gasPrice:
+                gasPrice.getInWei * BigInt.from(15) ~/ BigInt.from(10),
+              ),
+            );
+          }
+
+          /// EIP-1559
+          final base = baseFee.getInWei;
+
+          GasFee build(double m, int tipGwei) {
+            final priority = BigInt.from(tipGwei) * BigInt.from(1e9.toInt());
+            final maxFee =
+                (base * BigInt.from((m * 10).toInt()) ~/ BigInt.from(10)) +
+                    priority;
+
+            return GasFee(
+              maxFeePerGas: maxFee,
+              maxPriorityFeePerGas: priority,
+            );
+          }
+
+          return GasLevel(
+            slow: build(1.2, 1),
+            medium: build(1.5, 2),
+            fast: build(2, 3),
+          );
+        },
+      );
+
+      _gasCache[chain.chainId] = result;
+      _gasCacheTime[chain.chainId] = now;
+
+      return result;
+    } catch (_) {
+      return GasLevel(
+        slow: GasFee(
+          maxFeePerGas: BigInt.from(20 * 1e9),
+          maxPriorityFeePerGas: BigInt.from(1 * 1e9),
+        ),
+        medium: GasFee(
+          maxFeePerGas: BigInt.from(30 * 1e9),
+          maxPriorityFeePerGas: BigInt.from(2 * 1e9),
+        ),
+        fast: GasFee(
+          maxFeePerGas: BigInt.from(40 * 1e9),
+          maxPriorityFeePerGas: BigInt.from(3 * 1e9),
+        ),
+      );
+    }
+  }
+
+  /// =========================
+  /// nonce
+  /// =========================
+  static Future<int> _getNonce(
+      Web3Client client,
       String address,
       ) async {
-    final result = <String, Map<String, BigInt>>{};
+    return client.getTransactionCount(
+      EthereumAddress.fromHex(address),
+    );
+  }
 
-    await Future.wait(chains.map((node) async {
-      final tokens = tokenMap[node.chainId] ?? [];
+  /// =========================
+  /// gas limit
+  /// =========================
+  static Future<BigInt> _estimateGas(
+      Web3Client client, {
+        required String from,
+        required String to,
+        required BigInt value,
+        String? data,
+      }) async {
+    final estimate = await client.estimateGas(
+      sender: EthereumAddress.fromHex(from),
+      to: EthereumAddress.fromHex(to),
+      value: EtherAmount.inWei(value),
+      data: data != null ? hexToBytes(data) : null,
+    );
 
-      final balances = <String, BigInt>{};
+    return estimate + BigInt.from(10000);
+  }
 
-      await Future.wait(tokens.map((contract) async {
-        final balance = await getTokenBalance(node, contract, address);
-        balances[contract] = balance;
-      }));
+  /// =========================
+  /// 🚀 转账
+  /// =========================
+  static Future<String> sendTransaction({
+    required ChainAccount chain,
+    required String contractAddress,
+    required String to,
+    required BigInt amountWei,
+    GasFee? gasFee,
+    String? customData,
+  })async {
+    if (!EvmService.isValidAddress(to)) throw '地址不合法';
+    final privateKey = EvmService.getPrivateKeyByAddress(chain.address);
+    if (privateKey == null) throw '没有找到该钱包！';
 
-      result[node.symbol] = balances;
-    }));
+    if (contractAddress.isEmpty){
+      return sendNativeTransaction(chain: chain, privateKey: privateKey, to: to, amountWei: amountWei, gasFee: gasFee);
+    }
+    return sendErc20Transaction(chain: chain, privateKey: privateKey,
+        contractAddress: contractAddress, to: to, amount: amountWei, gasFee: gasFee);
+  }
+  /// =========================
+  /// 🚀 原生转账
+  /// =========================
+  static Future<String> sendNativeTransaction({
+    required ChainAccount chain,
+    required String privateKey,
+    required String to,
+    required BigInt amountWei,
+    GasFee? gasFee,
+  }) async {
+    return _withFallback(
+      chain.chainId,
+      chain.nodes,
+          (client) async {
+        final credentials = EthPrivateKey.fromHex(privateKey);
+        final from = credentials.address;
 
-    return result;
+        final nonce = await _getNonce(client, from.hex);
+        final gas = gasFee ?? (await getGasLevels(chain)).medium;
+
+        final gasLimit = await _estimateGas(
+          client,
+          from: from.hex,
+          to: to,
+          value: amountWei,
+        );
+
+        /// 自动判断 EIP-1559 或 Legacy
+        final bool useEip1559 = gas.maxFeePerGas > BigInt.zero &&
+            gas.maxPriorityFeePerGas > BigInt.zero;
+
+        /// 如果 priorityFee 为 0，强制设置为 1 Gwei 避免编码失败
+        final maxPriorityFee = useEip1559
+            ? (gas.maxPriorityFeePerGas > BigInt.zero
+            ? gas.maxPriorityFeePerGas
+            : BigInt.from(1e9))
+            : null;
+        //
+        // print('--- Transaction Debug ---');
+        // print('from: ${from.hex}');
+        // print('to: $to');
+        // print('value (wei): $amountWei');
+        // print('nonce: $nonce');
+        // print('gasLimit: $gasLimit');
+        // print('useEip1559: $useEip1559');
+        // print('gasPrice: ${gas.gasPrice}');
+        // print('maxFeePerGas: ${gas.maxFeePerGas}');
+        // print('maxPriorityFeePerGas: $maxPriorityFee');
+        // print('--------------------------');
+
+        final tx = Transaction(
+          from: from,
+          to: EthereumAddress.fromHex(to),
+          value: EtherAmount.inWei(amountWei),
+          nonce: nonce,
+          maxGas: gasLimit.toInt(),
+
+          /// 根据判断选择填充字段
+          gasPrice: useEip1559 ? null : EtherAmount.inWei(gas.gasPrice!),
+          maxFeePerGas:
+          useEip1559 ? EtherAmount.inWei(gas.maxFeePerGas) : null,
+          maxPriorityFeePerGas:
+          useEip1559 ? EtherAmount.inWei(maxPriorityFee!) : null,
+        );
+
+        final signed = await client.signTransaction(
+          credentials,
+          tx,
+          chainId: chain.chainId,
+        );
+
+        final rawTx = bytesToHex(signed, include0x: true);
+        print('sendNativeTransaction：$rawTx');
+        return client.sendRawTransaction(signed);
+      },
+    );
+  }
+
+  /// =========================
+  /// 🚀 ERC20转账
+  /// =========================
+  static Future<String> sendErc20Transaction({
+    required ChainAccount chain,
+    required String privateKey,
+    required String contractAddress,
+    required String to,
+    required BigInt amount,
+    GasFee? gasFee,
+  }) async {
+    return _withFallback(
+      chain.chainId,
+      chain.nodes,
+          (client) async {
+        final credentials = EthPrivateKey.fromHex(privateKey);
+        final from = credentials.address;
+
+        // ERC20 合约
+        final contract = DeployedContract(
+          ContractAbi.fromJson(_erc20TransferAbi, 'ERC20'),
+          EthereumAddress.fromHex(contractAddress),
+        );
+
+        final function = contract.function('transfer');
+
+        final data = Transaction.callContract(
+          contract: contract,
+          function: function,
+          parameters: [
+            EthereumAddress.fromHex(to),
+            amount,
+          ],
+        ).data;
+
+        final nonce = await _getNonce(client, from.hex);
+        final gas = gasFee ?? (await getGasLevels(chain)).medium;
+
+        final gasLimit = await _estimateGas(
+          client,
+          from: from.hex,
+          to: contractAddress,
+          value: BigInt.zero,
+          data: bytesToHex(data!, include0x: true),
+        );
+
+        /// 自动判断 EIP-1559 或 LegacyTx
+        final bool useEip1559 = gas.maxFeePerGas > BigInt.zero &&
+            gas.maxPriorityFeePerGas > BigInt.zero;
+
+        final maxPriorityFee = useEip1559
+            ? (gas.maxPriorityFeePerGas > BigInt.zero
+            ? gas.maxPriorityFeePerGas
+            : BigInt.from(1e9)) // 保证 >0
+            : null;
+
+        print('--- ERC20 Transaction Debug ---');
+        print('from: ${from.hex}');
+        print('to: $to');
+        print('contract: $contractAddress');
+        print('amount: $amount');
+        print('nonce: $nonce');
+        print('gasLimit: $gasLimit');
+        print('useEip1559: $useEip1559');
+        print('gasPrice: ${gas.gasPrice}');
+        print('maxFeePerGas: ${gas.maxFeePerGas}');
+        print('maxPriorityFeePerGas: $maxPriorityFee');
+        print('-------------------------------');
+
+        final tx = Transaction(
+          from: from,
+          to: EthereumAddress.fromHex(contractAddress),
+          data: data,
+          nonce: nonce,
+          maxGas: gasLimit.toInt(),
+
+          /// 根据判断选择填充字段
+          gasPrice: useEip1559 ? null : EtherAmount.inWei(gas.gasPrice!),
+          maxFeePerGas:
+          useEip1559 ? EtherAmount.inWei(gas.maxFeePerGas) : null,
+          maxPriorityFeePerGas:
+          useEip1559 ? EtherAmount.inWei(maxPriorityFee!) : null,
+        );
+
+        final signed = await client.signTransaction(
+          credentials,
+          tx,
+          chainId: chain.chainId,
+        );
+
+        final rawTx = bytesToHex(signed, include0x: true);
+        print('from-tx--1-=$rawTx');
+
+        try {
+          return await client.sendRawTransaction(signed);
+        } catch (e) {
+          print('❌ ERC20 广播失败: $e');
+          rethrow;
+        }
+      },
+    );
   }
 }
 
@@ -136,5 +449,20 @@ class EvmChainService {
 const String _erc20Abi = '''
 [
   {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}
+]
+''';
+
+const String _erc20TransferAbi = '''
+[
+  {
+    "constant": false,
+    "inputs": [
+      {"name": "_to", "type": "address"},
+      {"name": "_value", "type": "uint256"}
+    ],
+    "name": "transfer",
+    "outputs": [{"name": "", "type": "bool"}],
+    "type": "function"
+  }
 ]
 ''';

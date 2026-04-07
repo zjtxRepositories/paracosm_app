@@ -9,6 +9,7 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../modules/account/service/account_service.dart';
@@ -422,9 +423,18 @@ class _WalletImportPageState extends State<WalletImportPage>
                                     onPressed: (_tabController.index == 0 ? _isMnemonicInvalid : _isPrivateKeyInvalid) ? () async {
                                       if (widget.password != null){
                                         try {
+                                          AppLoading.show();
                                           await AccountService.creating(mnemonic: _tabController.index == 0 ?_mnemonicController.text : null,
                                               privateKey: _tabController.index == 1 ?_privateKeyController.text : null, password: widget.password!);
-                                          context.push('/chat');
+                                          AppLoading.dismiss();
+                                          final result = await context.push('/wallet-setup');
+                                          if (result == true) {
+                                            context.go('/chat');
+                                            return;
+                                          }
+                                          context.go('/chat');
+                                          // GoRouter.of(context).pop();
+
                                         }catch(e){
                                           AppToast.show('导入钱包错误: $e');
                                         }

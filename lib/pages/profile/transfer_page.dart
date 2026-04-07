@@ -1,23 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:k_chart_plus/k_chart_plus.dart';
+import 'package:paracosm/core/util/double_util.dart';
+import 'package:paracosm/core/util/string_util.dart';
+import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
+import 'package:paracosm/widgets/modals/wallet_modals.dart';
 import '../../modules/account/manager/account_manager.dart';
+import '../../modules/wallet/chains/model/gas_fee.dart';
+import '../../modules/wallet/chains/service/portfolio_service.dart';
 import '../../modules/wallet/model/chain_account.dart';
+import '../../modules/wallet/security/wallet_security.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/base/app_page.dart';
 import '../../widgets/common/app_button.dart';
-import '../../widgets/common/app_modal.dart';
 import '../../widgets/common/app_network_image.dart';
-import '../../widgets/common/app_network_selector.dart';
 import '../../widgets/base/app_localizations.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 转账页面
 class TransferPage extends StatefulWidget {
-  final Map<String, dynamic> initialNetwork;
+  final TokenModel? token;
+  final ChainAccount? chain;
 
   const TransferPage({
     super.key,
-    required this.initialNetwork,
+    required this.token,
+    required this.chain,
   });
 
   @override
@@ -28,19 +41,26 @@ class _TransferPageState extends State<TransferPage> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   ChainAccount? _selectedNetwork;
+  TokenModel? _token;
+  TokenModel? _showToken;
   final _wallet = AccountManager().currentWallet;
-
+  double _calculateFee = 0.0;
   // 模拟数据
-  final String _balance = '5,452.24';
-  final String _fiatBalance = '0.251544';
+  String _balance = '0.00';
+  String _usdValue = '0.00';
   double _feeProgress = 0.0; // 0: Slow, 0.5: Middle, 1: Fast
+  GasFee? _gasFee;
 
   @override
   void initState() {
     super.initState();
-    if (_wallet != null){
+    if (_wallet != null && widget.chain == null){
       _selectedNetwork = _wallet.currentChain;
     }
+    _selectedNetwork ??= widget.chain;
+    _showToken = widget.token;
+    getBalance(token: widget.token,chain: widget.chain);
+    getCalculateFee();
   }
 
   @override
@@ -50,182 +70,141 @@ class _TransferPageState extends State<TransferPage> {
     super.dispose();
   }
 
+  Future<void> getBalance({TokenModel? token, ChainAccount? chain}) async {
+    if (token != null){
+      _token = token;
+      _balance = token.displayBalance;
+    }else {
+      if (chain != null){
+        _token = chain.tokens.firstWhere((item) => item.address.isEmpty);
+        _balance = _token!.displayBalance;
+      }
+    }
+    setState(() {});
+    if (_token  != null){
+      PortfolioService().start( [_token!]);
+    }
+  }
+
+  Future<void> getCalculateFee({double progress = 0}) async {
+    if (_selectedNetwork?.chainType == ChainType.evm) {
+      final GasLevel gasLevel = await EvmChainService.getGasLevels(
+          _selectedNetwork!);
+      final gasLimit = BigInt.from(21000);
+      _gasFee = progress == 0 ? gasLevel.slow : progress == 0.5
+          ? gasLevel.medium
+          : gasLevel.fast;
+      final ethFee = GasCalculator.calculateEthFee(
+        gasLimit: gasLimit,
+        fee: _gasFee!,
+      );
+      setState(() {
+        _calculateFee = ethFee;
+      });
+    }
+    if (_selectedNetwork?.chainType == ChainType.bitcoin) {
+      final BtcFeeRate feeRateData = await BitcoinChainService.getFeeRate();
+      int feeRate = progress == 0 ? feeRateData.slow : progress == 0.5
+          ? feeRateData.medium
+          : feeRateData.fast;
+      final vBytes = 140;
+      final fee = GasCalculator.calculateBtcFee(
+          vBytes: vBytes, feeRate: feeRate);
+      setState(() {
+        _calculateFee = fee;
+      });
+    }
+  }
+
+  double _getCalculateMax() {
+    if (_token == null) return 0;
+    double balance = _token!.formatBalance();
+    if (_calculateFee > balance) return 0;
+    if (_selectedNetwork?.chainType == ChainType.evm) {
+      if (_showToken != null) {
+        return balance;
+      }
+    }
+    return balance - _calculateFee;
+  }
+
+  Future<void> _sendTransfer(String amount,String address) async {
+    try {
+      AppLoading.show();
+      if (_selectedNetwork?.chainType == ChainType.evm) {
+        // final amountWei = doubleToBigInt(double.parse(amount), decimals: _token!.decimals);
+        // await EvmChainService.sendTransaction(chain: _selectedNetwork!,
+        //     contractAddress: _token!.address, to: address, amountWei: amountWei, gasFee: _gasFee);
+        // AppLoading.dismiss();
+      }
+      if (_selectedNetwork?.chainType == ChainType.bitcoin) {
+        final satoshis = GasCalculator.btcToSatoshi(amount);
+         await BitcoinChainService.sendTransaction(fromAddress: _selectedNetwork!.address,
+             toAddress: address, amount: satoshis, feePerVbyte:_calculateFee);
+      }
+
+      if (_selectedNetwork?.chainType == ChainType.solana) {
+        await SolanaChainService().sendSol(address: _selectedNetwork!.address,
+            toAddress: address, amount: double.parse(amount));
+      }
+      AppLoading.dismiss();
+      context.push('/transfer-details');
+    } catch (e) {
+      print('e----$e');
+      AppLoading.dismiss();
+      AppToast.show(e.toString());
+    }
+
+  }
+
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (_wallet == null) return;
-    AppModal.show(
-      context,
-      title: AppLocalizations.of(context)!.profileProfileDetailsChooseNetwork,
-      confirmText: null, // 移除底部确认按钮，改为点击项即选择并关闭
-      onConfirm: () {},
-      child: AppNetworkSelector(
-        initialNetwork: _selectedNetwork ?? _wallet.chains.first,
-        networks: _wallet.chains,
-        onSelected: (network) {
+    WalletModals.showNetworkSelector(
+        context: context,
+        wallet: _wallet,
+        onSelected: (network){
           setState(() {
+            _token = null;
             _selectedNetwork = network;
           });
-          context.pop();
-        },
-      ),
-    );
+          getBalance(chain: network);
+        });
   }
 
   /// 显示支付详情弹窗
   void _showPaymentDetails() {
-    AppModal.show(
-      context,
-      title: AppLocalizations.of(context)!.profileTransferPaymentDetails,
-      confirmText: AppLocalizations.of(context)!.profileTransferConfirmPayment,
-      onConfirm: () {
-        context.pop();
-        _showPasswordModal();
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 16),
-          // 金额显示
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                '-${_amountController.text.isEmpty ? '0' : _amountController.text}',
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.grey900,
-                ),
-              ),
-              const SizedBox(width: 4),
-              AppNetworkImage(
-                url: _selectedNetwork?.logo,
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // 预估金额
-          Text(
-            '0.000139 OMT (Absenteeism)',
-            style: AppTextStyles.body.copyWith(
-              fontSize: 12,
-              color: AppColors.grey400,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // 分割线
-          Container(
-            height: 1,
-            color: AppColors.grey100,
-          ),
-          const SizedBox(height: 16),
-          // 地址详情
-          _buildDetailRow('From', '0X5E4F...1EE4'),
-          const SizedBox(height: 12),
-          _buildDetailRow('To', _addressController.text.isEmpty ? '0X5E4F...1EE4' : _addressController.text),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
+    if (_token == null) return;
+    WalletModals.showPaymentDetails(context,
+        amount: _amountController.text,
+        logo: _token!.logo,
+        absenteeism: '${truncateDouble(_calculateFee)} ${_token!.symbol}',
+        from: (_token!.address.isNotEmpty) ? _token!.address: _selectedNetwork!.address,
+        to: _addressController.text,
+        onConfirm: (){
+             context.pop();
+            _showPasswordModal();
+        });
+
   }
 
   /// 显示密码输入弹窗
   void _showPasswordModal() {
-    final passwordController = TextEditingController();
-    bool isObscure = true;
+    WalletModals.showPasswordModal(
+        context: context,
+        title: AppLocalizations.of(context)!.profileTransferPassword,
+        onConfirm: (password) async {
+          final isResult =
+              await WalletSecurity.verifyPassword(password);
+          if (!isResult) {
+            return AppToast.show('密码错误！');
+          }
+          _sendTransfer(_amountController.text,_addressController.text);
+        });
 
-    AppModal.show(
-      context,
-      title: AppLocalizations.of(context)!.profileTransferPassword,
-      confirmText: AppLocalizations.of(context)!.profileTransferConfirm,
-      onConfirm: () {
-        context.pop(); // 关闭密码弹窗
-        // TODO: 密码验证逻辑
-         context.push('/transfer-details');
-      },
-      child: StatefulBuilder(
-        builder: (context, setModalState) {
-          final isEmpty = passwordController.text.isEmpty;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 16),
-              Container(
-                height: 52,
-                decoration: BoxDecoration(
-                  color: isEmpty ? AppColors.grey100 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isEmpty ? Colors.transparent : AppColors.grey900,
-                    width: 1,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: passwordController,
-                        obscureText: isObscure,
-                        onChanged: (value) => setModalState(() {}),
-                        decoration: const InputDecoration(
-                          hintText: '',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.grey900,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setModalState(() => isObscure = !isObscure),
-                      child: Image.asset(
-                        isObscure ? 'assets/images/common/eye-off-line.png' : 'assets/images/common/eye-line.png',
-                        width: 24,
-                        height: 24,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          );
-        },
-      ),
-    );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey600,
-          ),
-        ),
-        Text(
-          value.length > 20 ? '${value.substring(0, 8)}...${value.substring(value.length - 4)}' : value,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.grey800,
-          ),
-        ),
-      ],
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +219,10 @@ class _TransferPageState extends State<TransferPage> {
             // 金额输入卡片
             _buildAmountCard(),
             const SizedBox(height: 24),
+
+            _buildChooseChain(),
+            const SizedBox(height: 24),
+
             // 收款地址输入
             _buildAddressInput(),
             const SizedBox(height: 38),
@@ -249,11 +232,11 @@ class _TransferPageState extends State<TransferPage> {
             // 继续按钮
             AppButton(
               text: AppLocalizations.of(context)!.profileTransferConfirm,
-              onPressed: () {
+              onPressed: _amountController.text.isNotEmpty && _addressController.text.isNotEmpty ? () {
                 if (_amountController.text.isNotEmpty) {
                   _showPaymentDetails();
                 }
-              },
+              } : null,
               backgroundColor: _amountController.text.isEmpty ? AppColors.grey300 : AppColors.grey900,
               textColor: Colors.white,
             ),
@@ -299,42 +282,49 @@ class _TransferPageState extends State<TransferPage> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onChanged: (value) => setState(() {}),
+                  onChanged: (value){
+                    if (_token == null) return;
+                    final val = double.parse(value);
+                    final usd = val * _token!.price;
+                    setState(() {
+                      _usdValue = truncateDouble(usd);
+                    });
+                  },
                 ),
               ),
-              // 网络选择下拉框
-              GestureDetector(
-                onTap: _showNetworkSelector,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey100,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: AppColors.grey200, width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppNetworkImage(
-                        url: _selectedNetwork?.logo,
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _selectedNetwork?.symbol ?? '',
-                        style: AppTextStyles.body.copyWith(
-                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.grey900,
-                        ),
-                      ),
-                      const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
-                    ],
-                  ),
-                ),
-              ),
+              // // 网络选择下拉框
+              // GestureDetector(
+              //   onTap: _showNetworkSelector,
+              //   child: Container(
+              //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              //     decoration: BoxDecoration(
+              //       color: AppColors.grey100,
+              //       borderRadius: BorderRadius.circular(100),
+              //       border: Border.all(color: AppColors.grey200, width: 1),
+              //     ),
+              //     child: Row(
+              //       mainAxisSize: MainAxisSize.min,
+              //       children: [
+              //         AppNetworkImage(
+              //           url: _selectedNetwork?.logo,
+              //           width: 24,
+              //           height: 24,
+              //           fit: BoxFit.contain,
+              //         ),
+              //         const SizedBox(width: 4),
+              //         Text(
+              //           _selectedNetwork?.symbol ?? '',
+              //           style: AppTextStyles.body.copyWith(
+              //              fontSize: 14,
+              //             fontWeight: FontWeight.w600,
+              //             color: AppColors.grey900,
+              //           ),
+              //         ),
+              //         const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
+              //       ],
+              //     ),
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 12),
@@ -342,7 +332,7 @@ class _TransferPageState extends State<TransferPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '\$${_amountController.text.isEmpty ? '0.00' : _fiatBalance}',
+                '\$${_amountController.text.isEmpty ? '0.00' : _usdValue}',
                 style: AppTextStyles.body.copyWith(
                   fontSize: 12,
                   color: AppColors.grey400,
@@ -350,18 +340,35 @@ class _TransferPageState extends State<TransferPage> {
               ),
               Row(
                 children: [
-                  Text(
-                    '${AppLocalizations.of(context)!.profileTransferBalance}: $_balance',
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 12,
-                      color: AppColors.grey700,
-                    ),
-                  ),
+                   _token != null
+              ? StreamBuilder<List<TokenModel>>(
+              stream: PortfolioService().stream,
+                     builder: (context, snapshot) {
+                       final tokens = snapshot.data ?? [];
+
+                       final token = tokens
+                           .where((item) => item.name == _token!.name)
+                           .firstOrNull;
+
+                       final balance = token?.displayBalance ?? _balance;
+                       _balance = balance;
+
+                       return Text(
+                         '${AppLocalizations.of(context)!.profileTransferBalance}: $balance',
+                         style: AppTextStyles.body.copyWith(
+                           fontSize: 12,
+                           color: AppColors.grey700,
+                         ),
+                       );
+                     },
+                   )
+                       : const SizedBox(),
+
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       setState(() {
-                        _amountController.text = _balance.replaceAll(',', '');
+                        _amountController.text = truncateDouble(_getCalculateMax());
                       });
                     },
                     child: Container(
@@ -385,6 +392,80 @@ class _TransferPageState extends State<TransferPage> {
           ),
         ],
       ),
+    );
+  }
+
+  ///网络选择
+  Widget _buildChooseChain() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '代币和网络',
+          style: AppTextStyles.body.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.grey600,
+          ),
+        ),
+        SizedBox(height: 12),
+        Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.grey200),
+            ),
+            child:Padding(padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Visibility(
+                    visible: _showToken != null,
+                    child: Row(
+                      children: [
+                        AppNetworkImage(
+                          url: _showToken?.logo,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          _showToken?.symbol ?? '',
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: (){
+                      _showNetworkSelector();
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          _selectedNetwork?.symbol ?? '',
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.grey400,
+                          ),
+                        ),
+                        SizedBox(width: 4,),
+                        const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            )
+        )
+      ],
     );
   }
 
@@ -444,6 +525,7 @@ class _TransferPageState extends State<TransferPage> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical:8),
                 ),
+                onChanged: (t)=> setState(() {})
               ),
             ),
             // 粘贴按钮
@@ -516,7 +598,7 @@ class _TransferPageState extends State<TransferPage> {
               ),
             ),
             Text(
-              '0.00 (Estimated)',
+              '${truncateDouble(_calculateFee)} (Estimated)',
               style: AppTextStyles.body.copyWith(
                 fontSize: 14,
                 color: AppColors.grey400,
@@ -549,6 +631,7 @@ class _TransferPageState extends State<TransferPage> {
                   setState(() {
                     _feeProgress = value;
                   });
+                  getCalculateFee(progress: value);
                 },
               ),
             ),

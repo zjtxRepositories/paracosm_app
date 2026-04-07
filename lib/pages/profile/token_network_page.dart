@@ -241,7 +241,9 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: _selectedNetwork);
+                      context.push('/transfer', extra: {
+                        'chain': _selectedNetwork,
+                      },);
                     },
                     child: Container(
                       height: 44,

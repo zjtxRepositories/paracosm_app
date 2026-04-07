@@ -71,7 +71,7 @@ class WalletManager {
 
   static bool get isUnlocked => _initialized;
 
-  /// 生成地址（多链支持）
+  /// 生成私钥（多链支持）
   static Future<String?> generatePrivateKey(
       ChainAccount chain
       ) async {

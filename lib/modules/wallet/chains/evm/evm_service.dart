@@ -141,4 +141,15 @@ class EvmService {
   static Map<String, String>? getWallet(String address) {
     return _wallets[address];
   }
+
+  static bool isValidAddress(String address) {
+    try {
+      final addr = EthereumAddress.fromHex(address);
+      // 可选：强制 checksum
+      final checksummed = addr.hexEip55;
+      return address == checksummed || address.toLowerCase() == address;
+    } catch (_) {
+      return false;
+    }
+  }
 }

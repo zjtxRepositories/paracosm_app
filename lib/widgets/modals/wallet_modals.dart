@@ -7,8 +7,10 @@ import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 import '../base/app_localizations.dart';
 import '../common/app_modal.dart';
+import '../common/app_network_image.dart';
 import '../common/app_network_selector.dart';
 
 class WalletModals {
@@ -162,6 +164,95 @@ class WalletModals {
         currentWalletId: currentWalletId,
         onSwitch: onSwitch,
         onAddWallet: onAddWallet,
+      ),
+    );
+  }
+
+  static void showPaymentDetails(
+      BuildContext context, {
+        required String amount,
+        required String logo,
+        required String absenteeism,
+        required String from,
+        required String to,
+        required VoidCallback onConfirm,
+      }) {
+    Widget _buildDetailRow(String label, String value) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppColors.grey600,
+            ),
+          ),
+          Text(
+            value.length > 20 ? '${value.substring(0, 8)}...${value.substring(value.length - 4)}' : value,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey800,
+            ),
+          ),
+        ],
+      );
+    }
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.profileTransferPaymentDetails,
+      confirmText: AppLocalizations.of(context)!.profileTransferConfirmPayment,
+      onConfirm: onConfirm,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 16),
+          // 金额显示
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '-$amount',
+                style: AppTextStyles.h1.copyWith(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.grey900,
+                ),
+              ),
+              const SizedBox(width: 4),
+              AppNetworkImage(
+                url: logo,
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // 预估金额
+          Text(
+            '$absenteeism (Absenteeism)',
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              color: AppColors.grey400,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 分割线
+          Container(
+            height: 1,
+            color: AppColors.grey100,
+          ),
+          const SizedBox(height: 16),
+          // 地址详情
+          _buildDetailRow('From', from),
+          const SizedBox(height: 12),
+          _buildDetailRow('To',to),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }

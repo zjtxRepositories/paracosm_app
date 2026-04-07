@@ -13,15 +13,16 @@ class PortfolioService {
 
   Timer? _timer;
 
-  ///  直接用 TokenModel 作为数据源
+  /// 直接用 TokenModel 作为数据源
   final StreamController<List<TokenModel>> _controller =
   StreamController.broadcast();
-
   Stream<List<TokenModel>> get stream => _controller.stream;
 
-  final _totalUsdController = StreamController<double>.broadcast();
-
+  final StreamController<double> _totalUsdController =
+  StreamController<double>.broadcast();
   Stream<double> get totalUsdStream => _totalUsdController.stream;
+
+  List<TokenModel> _currentTokens = [];
 
   /// =========================
   /// 核心刷新
@@ -30,6 +31,7 @@ class PortfolioService {
     _refreshBalance(tokens);
     _refreshPrice(tokens);
   }
+
   Future<void> _refreshBalance(List<TokenModel> tokens) async {
     final List<TokenModel> results = List.from(tokens);
 
@@ -37,14 +39,10 @@ class PortfolioService {
       final index = i;
 
       _balanceService.getTokenBalance(tokens[index]).then((token) {
-        print('balance-------${token.symbol}--${token.displayBalance}');
-
         results[index] = token;
-
-        /// ✅ 每个完成就更新
         _controller.add(List.from(results));
       }).catchError((e) {
-        print("失败: ${tokens[index].symbol}");
+        print("刷新余额失败: ${tokens[index].symbol} -> $e");
       });
     }
   }
@@ -52,43 +50,36 @@ class PortfolioService {
   Future<void> _refreshPrice(List<TokenModel> tokens) async {
     try {
       final symbols = tokens.map((e) => e.symbol).toSet().toList();
-
       final priceMap = await _fetchPrices(symbols);
 
       for (final t in tokens) {
         t.price = priceMap[t.symbol] ?? 0;
       }
 
-      _controller.add(tokens); // ✅ 再更新价格
+      _controller.add(tokens); // 更新价格
 
-      /// 顺便更新总资产
+      // 更新总资产
       double total = 0;
       for (final t in tokens) {
         total += t.usdValue;
       }
       _totalUsdController.add(total);
-
     } catch (e) {
       print("价格刷新失败: $e");
     }
   }
 
-  /// =========================
-  /// 获取价格
-  /// =========================
   Future<Map<String, double>> _fetchPrices(List<String> symbols) async {
     final ids = symbols.join(',');
-
     final res = await _dio.get(
       'https://api.coingecko.com/api/v3/simple/price',
       queryParameters: {
-        'ids': ids,        // bitcoin,ethereum
+        'ids': ids,
         'vs_currencies': 'usd',
       },
     );
 
     final data = res.data;
-
     return data.map<String, double>((key, value) {
       return MapEntry(key, (value['usd'] as num).toDouble());
     });
@@ -98,8 +89,8 @@ class PortfolioService {
   /// 启动定时刷新
   /// =========================
   void start(List<TokenModel> tokens, {int interval = 60}) {
+    _currentTokens = tokens;
     _timer?.cancel();
-
     _refresh(tokens); // 立即刷新
 
     _timer = Timer.periodic(Duration(seconds: interval), (_) {
@@ -112,7 +103,19 @@ class PortfolioService {
     _timer = null;
   }
 
+  /// =========================
+  /// 清理 / reset
+  /// =========================
+  void clean() {
+    stop(); // 停止定时器
+    _currentTokens.clear(); // 清空当前 tokens
+    _controller.add([]); // 通知页面清空
+    _totalUsdController.add(0); // 总资产清零
+  }
+
   void dispose() {
+    stop();
     _controller.close();
+    _totalUsdController.close();
   }
 }

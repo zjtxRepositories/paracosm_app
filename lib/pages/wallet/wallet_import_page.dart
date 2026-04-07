@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/service/mnemonic_service.dart';
@@ -426,15 +427,9 @@ class _WalletImportPageState extends State<WalletImportPage>
                                           AppLoading.show();
                                           await AccountService.creating(mnemonic: _tabController.index == 0 ?_mnemonicController.text : null,
                                               privateKey: _tabController.index == 1 ?_privateKeyController.text : null, password: widget.password!);
+                                          await AccountManager().init();
                                           AppLoading.dismiss();
-                                          final result = await context.push('/wallet-setup');
-                                          if (result == true) {
-                                            context.go('/chat');
-                                            return;
-                                          }
                                           context.go('/chat');
-                                          // GoRouter.of(context).pop();
-
                                         }catch(e){
                                           AppToast.show('导入钱包错误: $e');
                                         }

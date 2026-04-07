@@ -29,9 +29,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  late final AccountManager accountManager;
   bool _isBalanceVisible = true; // 控制余额显示/隐藏的状态
 
-  AccountModel? _accountModel;
   WalletModel? _walletModel;
   ChainAccount? _selectedNetwork;
   List<CoinMarketModel> _coinMarkets = [];
@@ -43,11 +43,23 @@ class _ProfilePageState extends State<ProfilePage> {
     fetchData();
     fetchMarketData();
     fetchTokenList();
+    accountManager = AccountManager();
+    accountManager.addListener(_onAccountChanged);
+  }
+  void _onAccountChanged() {
+    PortfolioService().clean();
+    fetchData();
+    fetchTokenList();
+  }
+
+  @override
+  void dispose() {
+    accountManager.removeListener(_onAccountChanged);
+    super.dispose();
   }
 
   Future<void> fetchData() async {
     final manager = AccountManager();
-    _accountModel = manager.currentAccount;
     _walletModel = manager.currentWallet;
     _selectedNetwork = _walletModel?.currentChain;
     setState(() {});

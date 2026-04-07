@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/modules/account/service/account_service.dart';
@@ -9,13 +10,10 @@ import '../../wallet/model/wallet_model.dart';
 import '../../wallet/security/wallet_security.dart';
 import '../model/account_model.dart';
 
-class AccountManager {
+class AccountManager extends ChangeNotifier {
 
-  static final AccountManager _instance =
-  AccountManager._();
-
+  static final AccountManager _instance = AccountManager._();
   factory AccountManager() => _instance;
-
   AccountManager._();
 
   List<AccountModel> accounts = [];
@@ -28,8 +26,8 @@ class AccountManager {
   AccountModel? get currentAccount => _currentAccount;
   WalletModel? get currentWallet => _currentWallet;
 
+  /// 初始化账号
   Future<void> init() async {
-
     final accountId = await AppConfigDao().getCurrentUser();
 
     if (accountId != null) {
@@ -38,6 +36,7 @@ class AccountManager {
       _currentWallet = await WalletDao().getWalletById(accountId);
       accounts = await AccountDao().getAccounts();
       WalletManager.unlock(walletId: accountId);
+      notifyListeners(); // ⚡初始化完成通知页面刷新
     }
   }
 
@@ -50,26 +49,40 @@ class AccountManager {
       id: wallet.id,
       userId: user.userId,
       avatar: user.avatar,
-      nickname:user.nickname,
+      nickname: user.nickname,
       token: user.token,
     );
 
     accounts.add(account);
     _currentWallet = wallet;
     _currentAccount = account;
-    return account;
 
+    // 保存到本地数据库
+    await AccountDao().insertAccount(account);
+    await WalletDao().insertWallet(wallet);
+    await AppConfigDao().setCurrentUser(account.id);
+
+    // 🔔通知全局监听者：新增账号
+    notifyListeners();
+
+    return account;
   }
 
   /// 切换账号
   Future<void> switchAccount(String accountId) async {
-    _currentAccount =
-        accounts.firstWhere((e) => e.id.toLowerCase() == accountId.toLowerCase());
-    if (_currentAccount != null){
+    _currentAccount = accounts.firstWhere(
+          (e) => e.id.toLowerCase() == accountId.toLowerCase(),
+      orElse: () => accounts.first,
+    );
+
+    if (_currentAccount != null) {
       await AppConfigDao().setCurrentUser(accountId);
       _currentWallet = await WalletDao().getWalletById(accountId);
       await ImService.switchAccount(_currentAccount!.id);
       WalletManager.unlock(walletId: accountId);
+
+      // 🔔通知全局监听者：切换账号
+      notifyListeners();
     }
   }
 
@@ -78,9 +91,14 @@ class AccountManager {
     await AccountDao().deleteAccount(accountId);
     await WalletDao().deleteWallet(accountId);
     accounts = await AccountDao().getAccounts();
-    _currentAccount = accounts.first;
-    await AppConfigDao().setCurrentUser(_currentAccount?.id);
-    _currentWallet = await WalletDao().getWalletById(_currentAccount?.id ?? '');
-  }
 
+    _currentAccount = accounts.isNotEmpty ? accounts.first : null;
+    await AppConfigDao().setCurrentUser(_currentAccount?.id ?? '');
+    _currentWallet = _currentAccount != null
+        ? await WalletDao().getWalletById(_currentAccount!.id)
+        : null;
+
+    // 🔔通知全局监听者：删除账号
+    notifyListeners();
+  }
 }

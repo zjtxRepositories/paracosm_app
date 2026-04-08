@@ -143,6 +143,9 @@ class WalletModals {
     );
   }
 
+  /// =========================
+  /// 钱包管理
+  /// =========================
   static void showWalletSwitcher(
       BuildContext context, {
         required List<AccountModel> accounts,
@@ -152,7 +155,6 @@ class WalletModals {
         required VoidCallback onAddWallet,
       }) {
     final l10n = AppLocalizations.of(context)!;
-
     AppModal.show(
       context,
       title: l10n.profileProfileDetailsWallet,
@@ -168,6 +170,9 @@ class WalletModals {
     );
   }
 
+  /// =========================
+  /// 转账-支付详情
+  /// =========================
   static void showPaymentDetails(
       BuildContext context, {
         required String amount,
@@ -254,6 +259,329 @@ class WalletModals {
           const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+
+
+  /// =========================
+  /// dapp-支付详情
+  /// =========================
+  static void showTransactionDetail(
+      BuildContext context, {
+        required String amount,
+        required String logo,
+        required String absenteeism,
+        required String from,
+        required String to,
+        required VoidCallback onConfirm,
+        required bool isSend,
+
+      }) {
+
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.profileTokenDetailPaymentDetails,
+      confirmText: AppLocalizations.of(context)!.profileTokenDetailConfirm,
+      onConfirm: () {
+        // 先关闭当前弹窗
+        Navigator.of(context, rootNavigator: true).pop();
+        // 确保在下一帧显示，避免 Navigator 状态锁定
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     _showSignInfoModal();
+        //   }
+        // });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 金额和状态 (Amount and Status)
+          Center(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${isSend ? '-' : '+'}1',
+                      style: AppTextStyles.h1.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 使用 profile 目录下的图标 (Use icon from profile directory)
+                    Image.asset(
+                      'assets/images/profile/avalanche.png',
+                      width: 20,
+                      height: 20,
+                      errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.token, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isSend ? 'Turning out' : 'Turning in',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: AppColors.grey100, height: 1),
+          const SizedBox(height: 24),
+
+          // 交易时间 (Transaction Time)
+          // 发送方 (From Address)
+          buildDetailItem(
+            label: AppLocalizations.of(context)!.profileTokenDetailFrom,
+            subLabel: '(BSC-HD)',
+            value: '0485CF569D5f2D0f823A9c51a2ba66074481aEb89',
+          ),
+          const SizedBox(height: 20),
+
+          // 接收方 (To Address)
+          buildDetailItem(
+            label: AppLocalizations.of(context)!.profileTokenDetailTo,
+            value: 'Ox49E12A0fD33Bcd4AA5184E94Fdb0554a2d6f0F19',
+          ),
+          const SizedBox(height: 20),
+
+          // 网络费用 (Network Fees)
+          buildDetailItem(
+            label: AppLocalizations.of(context)!.profileTokenDetailNetworkFees,
+            subLabel: '(Estimated \$0~ maximum \$0)',
+            value: '0 BNB~0 BNB',
+            showArrow: true,
+          ),
+          const SizedBox(height: 8),
+
+          // 风险提示 (Warning)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Image.asset(
+                'assets/images/common/tips-error-icon.png',
+                width: 16,
+                height: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'The transaction can be executed for free and can be opened at',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: AppColors.error,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // 更多交易详情链接 (More Transaction Details Link)
+          Center(
+            child: GestureDetector(
+              onTap: () {
+                // TODO: 跳转到更多详情 (Navigate to more details)
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'More transaction details',
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 16,
+                      color: AppColors.primaryLight,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.primaryLight,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  /// =========================
+  /// dapp-支付详情
+  /// =========================
+  static void showSignInfoModal(
+      BuildContext context, {
+        required String amount,
+        required String logo,
+        required String absenteeism,
+        required String from,
+        required String to,
+        required VoidCallback onConfirm,
+        required bool isSend,
+      }) {
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.profileTokenDetailRequestToSign,
+      confirmText: AppLocalizations.of(context)!.profileTokenDetailConfirm,
+      cancelText: AppLocalizations.of(context)!.profileTokenDetailRefused,
+      confirmWidth: 160,
+      cancelBorder: BorderSide(color: AppColors.grey200),
+      cancelWidth: 160,
+      onConfirm: () => Navigator.pop(context),
+      onCancel: () => Navigator.pop(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          // 顶部图标和域名 (Top Icon and Domain)
+          Center(
+            child: Column(
+              children: [
+                Image.asset(
+                  'assets/images/profile/layer.png',
+                  width: 32,
+                  height: 32,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'www.PARACOSM markets',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: AppColors.grey400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: AppColors.grey100, height: 1),
+          const SizedBox(height: 24),
+
+          // 消息部分 (Message Section)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.grey100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 消息内容 (Message Content)
+                Text(
+                  'Message',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: AppColors.grey400,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'login',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.grey800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: AppColors.grey100, height: 1),
+          const SizedBox(height: 24),
+
+          // 签名钱包 (Signature Wallet)
+          buildDetailItem(
+            label: AppLocalizations.of(context)!.profileTokenDetailSignatureWallet,
+            value: '0485CF569D5f2D0f823A9c51a2ba66074481aEb89',
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+
+  }
+
+  /// 构建详情项 (Build Detail Item Widget)
+  static Widget buildDetailItem({
+    required String label,
+    String? subLabel,
+    required String value,
+    bool showArrow = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 14,
+                color: AppColors.grey600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Row(
+              children: [
+                if (subLabel != null)
+                  Text(
+                    subLabel,
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 12,
+                      color: AppColors.grey400,
+                    ),
+                  ),
+                if (showArrow) ...[
+                  const SizedBox(width: 4),
+                  Image.asset(
+                    'assets/images/common/next.png',
+                    width: 16,
+                    height: 16,
+                    color: AppColors.grey400,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.grey100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 14,
+              color: AppColors.grey900,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

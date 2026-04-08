@@ -370,7 +370,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final extra = state.extra as TokenModel?;
-          return TokenDetailPage(
+          return extra == null ? SizedBox():TokenDetailPage(
             token: extra,
           );
         },

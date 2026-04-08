@@ -476,15 +476,14 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildTokenItem(TokenModel token,String name, String symbol, double price, double change, bool isUp, String iconName) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Row(
-        children: [
-          // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
-          GestureDetector(
-            onTap: () {
-              context.push('/token-detail', extra: token);
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Container(
+      child: GestureDetector(
+          onTap: () {
+            context.push('/token-detail', extra: token);
+          },
+        child: Row(
+          children: [
+            // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
+            Container(
               width: 36,
               height: 36,
               decoration: const BoxDecoration(
@@ -501,16 +500,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // 2. 代币名称 (同样点击跳转代币详情)
-          Expanded(
-            flex: 2,
-            child: GestureDetector(
-              onTap: () {
-                context.push('/token-detail', extra: token);
-              },
-              behavior: HitTestBehavior.opaque,
+            const SizedBox(width: 12),
+            // 2. 代币名称 (同样点击跳转代币详情)
+            Expanded(
+              flex: 2,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -544,35 +537,35 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   )
                 ],
-              )
+              ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  token.showBalance,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.grey900,
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    token.showBalance,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.grey900,
+                    ),
                   ),
-                ),
-                Text(
-                  '\$${token.showUsdValue}',
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                    color: AppColors.grey400,
+                  Text(
+                    '\$${token.showUsdValue}',
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                      color: AppColors.grey400,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      )
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/core/util/double_util.dart';
@@ -538,8 +539,15 @@ class _TransferPageState extends State<TransferPage> {
             Positioned(
               bottom: -16,
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
                   // TODO: 处理粘贴逻辑
+                  final data = await Clipboard.getData(Clipboard.kTextPlain);
+                  final text = data?.text;
+                  if (text != null){
+                    setState(() {
+                      _addressController.text = text;
+                    });
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

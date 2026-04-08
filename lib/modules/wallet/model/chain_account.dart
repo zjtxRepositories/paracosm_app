@@ -26,6 +26,8 @@ class ChainAccount {
   List<TokenModel> tokens;
   ChainType chainType;
   List<String> nodes;
+  String? txApiUrl;
+  String? apiKey;
 
   ChainAccount({
     required this.name,
@@ -36,6 +38,8 @@ class ChainAccount {
     this.tokens = const [],
     required this.chainType,
     required this.nodes,
+    this.txApiUrl,
+    this.apiKey,
   });
 
   factory ChainAccount.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,8 @@ class ChainAccount {
       nodes: (json["nodes"] as List? ?? [])
           .map((e) => e.toString())
           .toList(), // ✅
+      txApiUrl: json["txApiUrl"] ?? "",
+      apiKey: json["apiKey"] ?? "",
     );
   }
 
@@ -65,6 +71,8 @@ class ChainAccount {
       "tokens": tokens.map((e) => e.toJson()).toList(),
       "chainType": chainType.name, // ✅
       "nodes": nodes,
+      "txApiUrl": txApiUrl,
+      "apiKey": apiKey,
     };
   }
 }

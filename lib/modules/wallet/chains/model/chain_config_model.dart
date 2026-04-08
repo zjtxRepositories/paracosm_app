@@ -18,6 +18,8 @@ class ChainConfigModel {
   String? explorer;
   String? explorerTxUrl;
   String? explorerAddressUrl;
+  String? txApiUrl;
+  String? apiKey;
 
   List<TokenConfigModel> tokens;
 
@@ -37,6 +39,8 @@ class ChainConfigModel {
     this.explorer,
     this.explorerTxUrl,
     this.explorerAddressUrl,
+    this.txApiUrl,
+    this.apiKey,
   });
 
   factory ChainConfigModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +59,8 @@ class ChainConfigModel {
       explorer: json["explorer"],
       explorerTxUrl: json["explorerTxUrl"],
       explorerAddressUrl: json["explorerAddressUrl"],
+      txApiUrl: json["txApiUrl"],
+      apiKey: json["apiKey"],
       tokens: (json["tokens"] as List)
           .map((e) => TokenConfigModel.fromJson(e))
           .toList(),

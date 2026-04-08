@@ -51,6 +51,8 @@ class ChainConfigService {
         chainType:chainTypeFromString(config.chainType),
         symbol: config.symbol,
         nodes: config.nodes,
+        txApiUrl: config.txApiUrl,
+        apiKey: config.apiKey,
       );
 
     }).toList());
@@ -111,7 +113,10 @@ class ChainConfigService {
           tokens: tokens,
           logo: config.icon,
           chainType: chainTypeFromString(config.chainType),
-          symbol: config.symbol, nodes: config.nodes,
+          symbol: config.symbol,
+          nodes: config.nodes,
+          txApiUrl: config.txApiUrl,
+          apiKey: config.apiKey,
         );
 
       }).toList(),

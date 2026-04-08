@@ -50,6 +50,7 @@
       "https://bsc.publicnode.com",
       "https://bsc.meowrpc.com"
     ],
+    "txApiUrl": "https://api.bscscan.com/api",
     "explorer": "https://bscscan.com",
     "explorerTxUrl": "https://bscscan.com/tx/",
     "explorerAddressUrl": "https://bscscan.com/address/",

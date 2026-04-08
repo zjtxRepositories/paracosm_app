@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/modules/wallet/service/block_chain_service.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -8,9 +10,11 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_network_selector.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 
+import '../../modules/wallet/model/trade_model.dart';
+
 /// 代币详情页面 (Token Detail Page)
 class TokenDetailPage extends StatefulWidget {
-  final TokenModel? token;
+  final TokenModel token;
 
   const TokenDetailPage({
     super.key,
@@ -25,6 +29,8 @@ class _TokenDetailPageState extends State<TokenDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isBalanceVisible = true;
+  List<TradeModel> _list = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -35,8 +41,31 @@ class _TokenDetailPageState extends State<TokenDetailPage>
         setState(() {});
       }
     });
+    load();
   }
+  Future<void> load() async {
+    final chain = widget.token.getChain();
+    if (chain == null) return;
+    setState(() {
+      _isLoading = true; // 开始加载
+    });
+    try {
+      final result = await BlockChainService().getTokenTransactions(
+          chain, chain.address, contractAddress: widget.token.address);
+      setState(() {
+        _list = result;
+      });
+    } catch (e) {
+      // 可以加个提示
+      print("获取交易记录失败: $e");
+    } finally {
+      setState(() {
+        _isLoading = false; // 结束加载
+      });
+    }
 
+
+  }
   @override
   void dispose() {
     _tabController.dispose();
@@ -344,7 +373,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
   Widget build(BuildContext context) {
     return AppPage(
       showNav: true,
-      title: widget.token?.name,
+      title: widget.token.name,
       backgroundColor: AppColors.white,
       child: Column(
         children: [
@@ -426,7 +455,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                           ),
                           const WidgetSpan(child: SizedBox(width: 2)),
                           TextSpan(
-                            text: widget.token?.displayBalance,
+                            text: widget.token.displayBalance,
                             style: AppTextStyles.h1.copyWith(
                               fontSize: 28,
                               fontWeight: FontWeight.w600,
@@ -471,7 +500,9 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: widget.token);
+                      context.push('/transfer', extra: {
+                        'token':widget.token
+                      });
                     },
                     child: Container(
                       height: 44,
@@ -510,9 +541,9 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       context.push(
                         '/token-receive',
                         extra: {
-                          'symbol': widget.token?.symbol,
-                          'network': widget.token?.name,
-                          'address': widget.token?.showAddress,
+                          'symbol': widget.token.symbol,
+                          'network': widget.token.name,
+                          'address': widget.token.showAddress,
                         },
                       );
                     },
@@ -593,13 +624,22 @@ class _TokenDetailPageState extends State<TokenDetailPage>
 
   /// 构建历史记录列表
   Widget _buildHistoryList() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount: 5,
+      itemCount:_list.length,
       itemBuilder: (context, index) {
-        bool isSend = index % 2 == 0;
+        final model = _list[index];
+        bool isSend = model.direction == TradeDirection.sell;
+        final amount =
+            '${model.direction == TradeDirection.buy ? '+' : '-'}${formatTrim(model.amount)}';
+        final address =
+        model.direction == TradeDirection.buy ? (model.from ?? '') : (model.to ?? '');
         return GestureDetector(
           onTap: () => _showTransactionDetail(isSend),
           child: Container(
@@ -627,7 +667,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       Row(
                         children: [
                           Text(
-                            '0X5E4F...1EE4',
+                           ellipsisMiddle(address),
                             style: AppTextStyles.body.copyWith(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -644,7 +684,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '20:10:59 2025-04-22',
+                        formatTimeAgo(model.time),
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
                           color: AppColors.grey600,
@@ -655,7 +695,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                   ),
                 ),
                 Text(
-                  '${isSend ? '-' : '+'}\$250.00',
+                  amount,
                   style: AppTextStyles.body.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -697,22 +737,22 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.token?.symbol ?? '',
+                  widget.token.symbol,
                   style: AppTextStyles.h2.copyWith(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     color: AppColors.grey900,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Binancestry(BSC)',
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 14,
-                    color: AppColors.grey400,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                // const SizedBox(height: 2),
+                // Text(
+                //   'Binancestry(BSC)',
+                //   style: AppTextStyles.body.copyWith(
+                //     fontSize: 14,
+                //     color: AppColors.grey400,
+                //     fontWeight: FontWeight.w400,
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -723,11 +763,11 @@ class _TokenDetailPageState extends State<TokenDetailPage>
             value: 'unknown',
           ),
           const SizedBox(height: 24),
-          _buildOverviewItem(
+          widget.token.address.isNotEmpty ? _buildOverviewItem(
             title: AppLocalizations.of(context)!.profileTokenDetailContractAddress,
-            value: 'Ox49E12A0fD33Bcd4AA5184E94Fdb0554a2d6f0F19',
+            value: widget.token.address,
             showCopy: true,
-          ),
+          ) : SizedBox(),
         ],
       ),
     );

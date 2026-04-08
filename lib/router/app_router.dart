@@ -339,7 +339,12 @@ class AppRouter {
       GoRoute(
         path: '/transfer-details',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const TransferDetailsPage(),
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final token = data?['token'];
+          final tx = data?['tx'];
+          return TransferDetailsPage(token: token, tx: tx);
+        },
       ),
       // 钱包管理页
       GoRoute(

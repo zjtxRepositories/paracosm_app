@@ -131,24 +131,30 @@ class _TransferPageState extends State<TransferPage> {
   Future<void> _sendTransfer(String amount,String address) async {
     try {
       AppLoading.show();
+      String? tx;
       if (_selectedNetwork?.chainType == ChainType.evm) {
-        // final amountWei = doubleToBigInt(double.parse(amount), decimals: _token!.decimals);
-        // await EvmChainService.sendTransaction(chain: _selectedNetwork!,
-        //     contractAddress: _token!.address, to: address, amountWei: amountWei, gasFee: _gasFee);
-        // AppLoading.dismiss();
+        final amountWei = doubleToBigInt(double.parse(amount), decimals: _token!.decimals);
+        tx = await EvmChainService.sendTransaction(chain: _selectedNetwork!,
+            contractAddress: _token!.address, to: address, amountWei: amountWei, gasFee: _gasFee);
+        // tx = '0xb09659fb4d4f7c59397c1823e993fde0d6c1cbab4c4feae3e017d2f4c5e74825';
       }
       if (_selectedNetwork?.chainType == ChainType.bitcoin) {
         final satoshis = GasCalculator.btcToSatoshi(amount);
-         await BitcoinChainService.sendTransaction(fromAddress: _selectedNetwork!.address,
+        tx = await BitcoinChainService.sendTransaction(fromAddress: _selectedNetwork!.address,
              toAddress: address, amount: satoshis, feePerVbyte:_calculateFee);
       }
 
       if (_selectedNetwork?.chainType == ChainType.solana) {
-        await SolanaChainService().sendSol(address: _selectedNetwork!.address,
+        tx = await SolanaChainService().sendSol(address: _selectedNetwork!.address,
             toAddress: address, amount: double.parse(amount));
       }
       AppLoading.dismiss();
-      context.push('/transfer-details');
+      _amountController.text = '';
+      _addressController.text = '';
+      context.push('/transfer-details',extra: {
+        'token': _token,
+        'tx': tx,
+      },);
     } catch (e) {
       print('e----$e');
       AppLoading.dismiss();
@@ -697,16 +703,6 @@ class _TransferPageState extends State<TransferPage> {
     );
   }
 
-  Widget _buildFeeLabel(String label, bool isActive) {
-    return Text(
-      label,
-      style: AppTextStyles.caption.copyWith(
-        fontSize: 12,
-        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-        color: isActive ? AppColors.grey900 : AppColors.grey400,
-      ),
-    );
-  }
 }
 
 /// 自定义滑块滑块形状

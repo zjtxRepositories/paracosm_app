@@ -2,6 +2,9 @@ import 'package:paracosm/modules/wallet/chains/sol/solana_service.dart';
 import 'package:solana/solana.dart';
 import 'package:solana/dto.dart';
 
+import '../../model/transaction_model.dart';
+import '../../service/transaction_service.dart';
+
 class SolanaChainService {
   static bool isTestnet = true;
 
@@ -113,7 +116,96 @@ class SolanaChainService {
 
     return result.map((e) => e.signature).toList();
   }
+  /// =========================
+  /// 获取交易详情
+  /// =========================
+  Future<TransactionModel?> getTransactionDetail(
+      String address,
+      String txHash,
+      ) async {
+    try {
+      final client = await _getClient();
+      final tx = await client.getTransaction(
+        txHash,
+        encoding: Encoding.jsonParsed,
+      );
 
+      if (tx == null) return null;
+
+      final txData = tx.transaction;
+
+      if (txData is! ParsedTransaction) return null;
+
+      final message = txData.message;
+
+      final keys = message.accountKeys;
+
+      /// 1️⃣ 时间
+      DateTime? time;
+      if (tx.blockTime != null) {
+        time = DateTime.fromMillisecondsSinceEpoch(
+          tx.blockTime! * 1000,
+        );
+      }
+
+      /// 2️⃣ 手续费（lamports）
+      final fee = BigInt.from(tx.meta?.fee ?? 0);
+
+      /// 3️⃣ 地址
+
+      final from = keys.isNotEmpty ? keys.first.pubkey : "";
+      final to = keys.length > 1 ? keys[1].pubkey : "";
+      /// 4️⃣ 金额（通过余额变化算）
+      BigInt value = BigInt.zero;
+
+      final pre = tx.meta?.preBalances ?? [];
+      final post = tx.meta?.postBalances ?? [];
+
+      if (pre.isNotEmpty && post.isNotEmpty) {
+        final diff = post[0] - pre[0];
+        value = BigInt.from(diff.abs());
+      }
+
+      return TransactionModel(
+        hash: txHash,
+        from: from,
+        to: to,
+        value: value,
+        fee: fee,
+        logo: '',
+        time: time,
+        decimals: 9, // SOL 固定
+        symbol: '',
+        err: tx.meta?.err,
+      );
+    } catch (e) {
+      print("❌ SOL tx error: $e");
+      return null;
+    }
+  }
+
+  /// 获取交易确认状态
+  Future<ConfirmationStatus?> getConfirmationStatus(String signature) async {
+    try {
+      final client = await _getClient();
+      final result = await client.getSignatureStatuses(
+        [signature],
+        searchTransactionHistory: true,
+      );
+
+      final status = result.value.first;
+
+      /// 可能为空（还没广播成功）
+      if (status == null) return null;
+
+      /// 返回：
+      /// processed / confirmed / finalized
+      return status.confirmationStatus;
+    } catch (e) {
+      print('getConfirmationStatus error: $e');
+      return null;
+    }
+  }
   /// =========================
   /// 地址校验
   /// =========================

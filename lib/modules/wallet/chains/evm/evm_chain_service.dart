@@ -443,6 +443,64 @@ class EvmChainService {
       },
     );
   }
+
+  static Future<TransactionInformation?> getTransactionDetail(ChainAccount chain,String txHash) async {
+    return _withFallback(
+        chain.chainId,
+        chain.nodes,
+            (client) async {
+              final txInfo = await client.getTransactionByHash(txHash);
+              print('getTransactionDetail:-----$txHash---${txInfo.toString()}');
+              return txInfo;
+            }
+    );
+
+  }
+  static Future<TransactionReceipt?> waitForTransaction(
+      {required ChainAccount chain,
+        required String txHash,
+        int confirmations = 1,
+        Duration pollInterval = const Duration(seconds: 5),
+      }) async {
+    return _withFallback(
+        chain.chainId,
+        chain.nodes,
+            (client) async {
+              TransactionReceipt? receipt;
+              while (true) {
+                receipt = await client.getTransactionReceipt(txHash);
+                if (receipt != null) {
+                  final latestBlock = await client.getBlockNumber();
+                  final txConfirmations = latestBlock - receipt.blockNumber.blockNum + 1;
+                  if (txConfirmations >= confirmations) break;
+                }
+                await Future.delayed(pollInterval);
+              }
+              return receipt;
+        }
+    );
+
+  }
+  /// =========================
+  /// 获取区块信息
+  /// =========================
+  static Future<BlockInformation?> getBlock(
+      ChainAccount chain,
+      ) async {
+    return _withFallback(
+        chain.chainId,
+        chain.nodes,
+            (client) async {
+              try {
+                final block = await client.getBlockInformation();
+                return block;
+              } catch (e) {
+                print('getBlock error: $e');
+                return null;
+              }
+        }
+    );
+  }
 }
 
 /// ERC20 ABI

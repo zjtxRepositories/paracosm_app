@@ -1,7 +1,9 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
 import 'package:paracosm/core/network/client/http_client.dart';
+import 'package:paracosm/modules/wallet/model/transaction_model.dart';
 import '../model/gas_fee.dart';
 import 'bitcoin_service.dart';
+import 'bitcoin_tx_detail.dart';
 
 class BitcoinChainService {
   /// 缓存
@@ -131,6 +133,57 @@ class BitcoinChainService {
     final txId = await blockchain.broadcast(transaction: tx);
 
     return txId;
+  }
+
+  /// =========================
+  /// 获取交易详情
+  /// =========================
+  Future<BitcoinTxDetail?> getTransactionDetail(
+      String address,
+      String txid,
+      ) async {
+    try {
+      final txs = await getTransactions(address);
+
+      final tx = txs.firstWhere(
+            (e) => e.txid == txid,
+        orElse: () => throw Exception("tx not found"),
+      );
+      final currentHeight = tx.confirmationTime?.height ?? 0;
+      ///  confirmations
+      final confirmations = tx.confirmationTime != null
+          ? currentHeight - tx.confirmationTime!.height + 1
+          : 0;
+
+      /// 时间
+      DateTime? time;
+      if (tx.confirmationTime != null) {
+        final timestamp = tx.confirmationTime!.timestamp;
+        time = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+      }
+
+      /// 金额（注意：正负）
+      final value = tx.received - tx.sent;
+
+      ///  fee
+      final fee = tx.fee ?? BigInt.zero;
+
+      /// 地址（简单取）
+      final from = tx.sent > BigInt.zero ? "me" : "external";
+      final to = tx.received > BigInt.zero ? "me" : "external";
+      return BitcoinTxDetail(
+        txid: tx.txid,
+        from: from,
+        to: to,
+        value: value,
+        fee: fee,
+        confirmations: confirmations,
+        time: time,
+      );
+    } catch (e) {
+      print("❌ BTC tx error: $e");
+      return null;
+    }
   }
 
   /// =========================

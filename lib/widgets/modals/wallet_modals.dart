@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/widgets/common/app_chain_selector.dart';
+import 'package:paracosm/widgets/modals/wallet_select_token_modal.dart';
 import 'package:paracosm/widgets/modals/wallet_switcher_modal.dart';
 import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/model/chain_account.dart';
+import '../../modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -63,6 +65,31 @@ class WalletModals {
       ),
     );
   }
+  /// =========================
+  /// 代币选择
+  /// =========================
+  static void showTokenSelector({
+    required BuildContext context,
+    TokenModel? currentToken,
+    required WalletModel wallet,
+    required Function(TokenModel) onSelected,
+  }) {
+    AppModal.show(
+      context,
+      title: '选择转账代币',
+      confirmText: null,
+      onConfirm: () {},
+      child: WalletSelectTokenModal(
+        selectedToken: currentToken,
+        wallet: wallet,
+        onSelected: (token) async {
+          onSelected(token);
+          context.pop();
+        },
+      ),
+    );
+  }
+
 
   /// =========================
   /// 密码输入

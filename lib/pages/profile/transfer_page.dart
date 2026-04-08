@@ -167,16 +167,19 @@ class _TransferPageState extends State<TransferPage> {
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (_wallet == null) return;
-    WalletModals.showNetworkSelector(
+    WalletModals.showTokenSelector(
         context: context,
         wallet: _wallet,
-        onSelected: (network){
+        currentToken: _showToken,
+        onSelected: (token){
           setState(() {
-            _token = null;
-            _selectedNetwork = network;
+            _token = token;
+            _showToken = token;
+            _selectedNetwork = token.getChain();
           });
-          getBalance(chain: network);
-        });
+          getBalance(chain: _selectedNetwork);
+        }
+    );
   }
 
   /// 显示支付详情弹窗

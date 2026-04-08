@@ -474,98 +474,102 @@ class _ProfilePageState extends State<ProfilePage> {
 
   /// 构建代币列表项
   Widget _buildTokenItem(TokenModel token,String name, String symbol, double price, double change, bool isUp, String iconName) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: GestureDetector(
-          onTap: () {
-            context.push('/token-detail', extra: token);
-          },
-        child: Row(
-          children: [
-            // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.grey100,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(40),
-                child: AppNetworkImage(
-                  url: iconName,
-                  width: 36,
-                  height: 36,
-                  fit: BoxFit.contain,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          context.push('/token-detail', extra: token);
+        },
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            children: [
+              // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.grey100,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(40),
+                  child: AppNetworkImage(
+                    url: iconName,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            // 2. 代币名称 (同样点击跳转代币详情)
-            Expanded(
-              flex: 2,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: AppColors.grey900,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '\$$price',
-                        style: AppTextStyles.caption.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: AppColors.grey400,
-                        ),
+              const SizedBox(width: 12),
+              // 2. 代币名称 (同样点击跳转代币详情)
+              Expanded(
+                flex: 2,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      symbol,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.grey900,
                       ),
-                      SizedBox(width: 6),
-                      Text(
-                        change > 0 ? '+${truncateDouble(change)}%' : '${truncateDouble(change)}%',
-                        style: AppTextStyles.caption.copyWith(
-                          color: isUp ? AppColors.primaryDark : AppColors.error,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          '\$$price',
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: AppColors.grey400,
+                          ),
                         ),
+                        SizedBox(width: 6),
+                        Text(
+                          change > 0 ? '+${truncateDouble(change)}%' : '${truncateDouble(change)}%',
+                          style: AppTextStyles.caption.copyWith(
+                            color: isUp ? AppColors.primaryDark : AppColors.error,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      token.showBalance,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.grey900,
                       ),
-                    ],
-                  )
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    token.showBalance,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: AppColors.grey900,
                     ),
-                  ),
-                  Text(
-                    '\$${token.showUsdValue}',
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      color: AppColors.grey400,
+                    Text(
+                      '\$${token.showUsdValue}',
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: AppColors.grey400,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      )
+      ),
     );
   }
 }

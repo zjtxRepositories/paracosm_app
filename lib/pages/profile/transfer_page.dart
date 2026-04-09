@@ -172,12 +172,8 @@ class _TransferPageState extends State<TransferPage> {
         wallet: _wallet,
         currentToken: _showToken,
         onSelected: (token){
-          setState(() {
-            _token = token;
-            _showToken = token;
-            _selectedNetwork = token.getChain();
-          });
-          getBalance(chain: _selectedNetwork);
+          _showToken = token;
+          getBalance(chain: token.getChain(),token: token);
         }
     );
   }
@@ -213,8 +209,6 @@ class _TransferPageState extends State<TransferPage> {
         });
 
   }
-
-
 
   @override
   Widget build(BuildContext context) {

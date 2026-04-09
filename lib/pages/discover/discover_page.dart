@@ -66,7 +66,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   // New arrivals 区域
                   _DiscoverSectionHeader(
                     title: l10n.discoverSectionNewArrivals,
-                    onTap: () => context.push('/discover-list/${l10n.discoverSectionNewArrivals}'),
+                    onTap: () => context.push('/discover-list/${l10n.discoverSectionNewArrivals}',extra: dappList1),
                   ),
                   _buildNewArrivalsGrid(l10n),
                   
@@ -75,7 +75,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   // Defi 区域
                   _DiscoverSectionHeader(
                     title: l10n.discoverSectionDefi,
-                    onTap: () => context.push('/discover-list/${l10n.discoverSectionDefi}'),
+                    onTap: () => context.push('/discover-list/${l10n.discoverSectionDefi}',extra: dappList1),
                   ),
                   _buildDefiGrid(l10n),
                   
@@ -216,7 +216,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     //   {'icon': 'assets/images/discover/aelf.png', 'label': l10n.discoverMockAelfLabel},
     // ];
 
-    return _buildItemGrid(dappList1);
+    return _buildItemGrid(dappList1.length > 4
+        ? dappList1.sublist(0, 4).toList() : dappList1);
   }
 
   /// 构建 Defi 网格
@@ -228,7 +229,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     //   {'icon': 'assets/images/discover/cartesi.png', 'label': l10n.discoverMockCartesiLabel},
     // ];
 
-    return _buildItemGrid(dappList2);
+    return _buildItemGrid(dappList2.length > 4
+        ? dappList2.sublist(0, 4).toList() : dappList2);
   }
 
   /// 通用网格构建

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -343,7 +344,8 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final title = state.pathParameters['title'] ?? 'Discover';
-          return DiscoverListPage(title: title);
+          final data = state.extra as List<DAppHive>?;
+          return DiscoverListPage(title: title, dappList: data ?? [],);
         },
       ),
       // 个人资料详情页

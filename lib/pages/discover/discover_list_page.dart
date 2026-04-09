@@ -5,37 +5,40 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
+import '../../core/network/models/dApp_hive.dart';
+import '../../widgets/common/app_network_image.dart';
+
 /// 发现列表页面 (例如：New arrivals, Defi 等详情列表)
 class DiscoverListPage extends StatelessWidget {
   final String title;
+  final List<DAppHive> dappList;
 
   const DiscoverListPage({
     super.key,
-    required this.title,
+    required this.title, required this.dappList,
   });
+
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     // 模拟数据，实际开发中可以根据 title 从接口获取或从上一页传入
-    final List<Map<String, String>> items = _getMockData(l10n);
-
     return AppPage(
       title: title,
       backgroundColor: Colors.white,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        itemCount: items.length,
+        itemCount: dappList.length,
         itemBuilder: (context, index) {
-          final item = items[index];
-          return _buildListItem(item, isLast: index == items.length - 1);
+          final item = dappList[index];
+          return _buildListItem(item, isLast: index == dappList.length - 1);
         },
       ),
     );
   }
 
   /// 构建列表项
-  Widget _buildListItem(Map<String, String> item, {bool isLast = false}) {
+  Widget _buildListItem(DAppHive item, {bool isLast = false}) {
     return Container(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -44,17 +47,11 @@ class DiscoverListPage extends StatelessWidget {
           // 图标
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              item['icon']!,
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 44,
-                height: 44,
-                color: AppColors.grey100,
-                child: const Icon(Icons.apps, color: AppColors.grey400),
-              ),
+            child: AppNetworkImage(
+              url: item.headUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(width: 12),
@@ -74,7 +71,7 @@ class DiscoverListPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['label']!,
+                    item.name ?? '',
                     style: AppTextStyles.h2.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -83,7 +80,7 @@ class DiscoverListPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    item['desc']!,
+                    item.des ?? '',
                     style: AppTextStyles.caption.copyWith(
                       fontSize: 12,
                       color: AppColors.grey400,

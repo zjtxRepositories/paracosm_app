@@ -1,6 +1,5 @@
 import 'package:paracosm/core/network/config/config_service.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
-import 'package:paracosm/modules/im/init/im_init.dart';
 
 import '../modules/wallet/security/wallet_security.dart';
 

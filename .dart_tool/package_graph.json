@@ -494,6 +494,13 @@
       ]
     },
     {
+      "name": "flutter_spinkit",
+      "version": "5.2.2",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
       "name": "shared_preferences_windows",
       "version": "2.4.1",
       "dependencies": [
@@ -1347,13 +1354,6 @@
       "dependencies": [
         "collection",
         "hooks"
-      ]
-    },
-    {
-      "name": "flutter_spinkit",
-      "version": "5.2.2",
-      "dependencies": [
-        "flutter"
       ]
     }
   ],

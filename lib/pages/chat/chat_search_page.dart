@@ -10,6 +10,7 @@ import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 /// 聊天搜索页面
 class ChatSearchPage extends StatefulWidget {
@@ -244,27 +245,8 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
 
   /// 构建空状态视图
   Widget _buildEmptyView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(
-            'assets/images/chat/no-data.png',
-            width: 120,
-            height: 120,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppLocalizations.of(context)!.chatSearchNoData,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.grey400,
-              fontSize: 14,
-            ),
-          ),
-          // 占位，使内容稍微偏上一点，视觉更平衡
-          const SizedBox(height: 100),
-        ],
-      ),
+    return AppEmptyView(
+      text: AppLocalizations.of(context)!.chatSearchNoData,
     );
   }
 

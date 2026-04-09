@@ -140,7 +140,7 @@ class AppPage extends StatelessWidget {
   /// 构建内部内容区域，处理安全区边距
   Widget _buildContent(BuildContext context) {
     return SafeArea(
-      top: showNav,
+      top: showNav && !extendBodyBehindAppBar,
       bottom: isAddBottomMargin,
       child: child,
     );

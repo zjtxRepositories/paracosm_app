@@ -32,6 +32,19 @@ class AccountService {
     return account;
   }
 
+  static Future login(WalletModel wallet, AccountModel account) async {
+    final loginResp = await UserService.login(wallet.id);
+    final account =
+    await AccountManager().createAccount(
+      wallet: wallet,
+      user: loginResp,
+    );
+    print('account---------${account.id}');
+
+    await _save(wallet, account);
+  }
+
+
   static Future _save(WalletModel wallet, AccountModel account) async {
     await AppConfigDao().setCurrentUser(wallet.id);
     await AccountDao().insertAccount(account);

@@ -11,7 +11,6 @@ class AuthInterceptor extends Interceptor {
       ) {
 
     String? token = AccountManager().currentAccount?.token;
-
     if (token != null) {
       options.headers["Authorization"] = "Bearer $token";
     }

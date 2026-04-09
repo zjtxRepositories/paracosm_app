@@ -12,12 +12,13 @@ import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/chat_list_item.dart';
 import 'package:paracosm/widgets/chat/system_notification_item.dart';
-import 'package:paracosm/widgets/chat/chat_action_pop_menu.dart';
+import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
+import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:paracosm/widgets/chat/quick_index_bar.dart';
 import 'package:paracosm/widgets/chat/contact_item.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-
 import '../../modules/im/manager/im_friend_applications_manager.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 /// 聊天主列表页面
 class ChatPage extends StatefulWidget {
@@ -244,50 +245,62 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建聊天列表视图
   Widget _buildChatView() {
+    // 简单的过滤逻辑，为了演示切换 Tab 时的空状态效果
+    // 0: All, 1: Message, 2: DAO, 3: Club, 4: Others
+    final filteredChats = _mockChats.where((chat) {
+      if (_selectedFilterIndex == 0) return true; // All
+      if (_selectedFilterIndex == 1) return chat['type'] == 'chat' || chat['type'] == 'system'; // Message
+      return false; // DAO, Club, Others 暂无数据
+    }).toList();
+
     return Column(
       children: [
-         _buildFriendRequestCard(),
+        _buildFriendRequestCard(),
         _buildFilterBar(),
-       
         Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: _mockChats.length,
-            itemBuilder: (context, index) {
-              final item = _mockChats[index];
-              if (item['type'] == 'system') {
-                return SystemNotificationItem(
-                  title: item['title'] == 'chat_notification_title' 
-                      ? AppLocalizations.of(context)!.chatNotificationTitle 
-                      : item['title'],
-                  subtitle: item['subtitle'],
-                  time: item['time'] == 'chat_yesterday' 
-                      ? AppLocalizations.of(context)!.chatYesterday 
-                      : item['time'],
-                  unreadCount: item['unreadCount'],
-                  icon: item['icon'],
-                  iconBgColor: item['iconBgColor'],
-                  onTap: () => _navigateToDetail(item['title']),
-                );
-              } else {
-                return ChatListItem(
-                  title: item['title'],
-                  subtitle: item['subtitle'] == 'chat_image' 
-                      ? AppLocalizations.of(context)!.chatImage 
-                      : (item['subtitle'] == 'chat_voice' 
-                          ? AppLocalizations.of(context)!.chatVoice 
-                          : item['subtitle']),
-                  time: item['time'] == 'chat_yesterday' 
-                      ? AppLocalizations.of(context)!.chatYesterday 
-                      : item['time'],
-                  unreadCount: item['unreadCount'],
-                  avatars: item['avatars'],
-                  isMuted: item['isMuted'] ?? false,
-                  onTap: () => _navigateToDetail(item['title']),
-                );
-              }
-            },
-          ),
+          child: filteredChats.isEmpty
+              ? AppEmptyView(
+                  text: AppLocalizations.of(context)!.chatSearchNoData,
+                  bottomOffset: 50, // 调整偏移，视觉更平衡
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: filteredChats.length,
+                  itemBuilder: (context, index) {
+                    final item = filteredChats[index];
+                    if (item['type'] == 'system') {
+                      return SystemNotificationItem(
+                        title: item['title'] == 'chat_notification_title'
+                            ? AppLocalizations.of(context)!.chatNotificationTitle
+                            : item['title'],
+                        subtitle: item['subtitle'],
+                        time: item['time'] == 'chat_yesterday'
+                            ? AppLocalizations.of(context)!.chatYesterday
+                            : item['time'],
+                        unreadCount: item['unreadCount'],
+                        icon: item['icon'],
+                        iconBgColor: item['iconBgColor'],
+                        onTap: () => _navigateToDetail(item['title']),
+                      );
+                    } else {
+                      return ChatListItem(
+                        title: item['title'],
+                        subtitle: item['subtitle'] == 'chat_image'
+                            ? AppLocalizations.of(context)!.chatImage
+                            : (item['subtitle'] == 'chat_voice'
+                                ? AppLocalizations.of(context)!.chatVoice
+                                : item['subtitle']),
+                        time: item['time'] == 'chat_yesterday'
+                            ? AppLocalizations.of(context)!.chatYesterday
+                            : item['time'],
+                        unreadCount: item['unreadCount'],
+                        avatars: item['avatars'],
+                        isMuted: item['isMuted'] ?? false,
+                        onTap: () => _navigateToDetail(item['title']),
+                      );
+                    }
+                  },
+                ),
         ),
       ],
     );
@@ -360,6 +373,11 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建联系人列表视图
   Widget _buildContactsView() {
+    if (_mockContacts.isEmpty) {
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.chatSearchNoData,
+      );
+    }
     return Stack(
       key: _contactsStackKey,
       children: [
@@ -591,13 +609,48 @@ class _ChatPageState extends State<ChatPage> {
           IconButton(
             onPressed: () => context.push('/chat-search'),
             icon: Image.asset('assets/images/chat/search.png', width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
+          const SizedBox(width: 16), // 图标间距
           IconButton(
             key: _addButtonKey,
             onPressed: () {
-              ChatActionPopMenu.show(context, _addButtonKey);
+              final l10n = AppLocalizations.of(context)!;
+              AppActionPopMenu.show(
+                context,
+                buttonKey: _addButtonKey,
+                items: [
+                  AppActionPopMenuItem(
+                    icon: 'assets/images/chat/add-friend.png',
+                    label: l10n.chatMenuAddFriend,
+                    onTap: () {
+                      Navigator.pop(context);
+                      // TODO: 跳转添加朋友
+                    },
+                  ),
+                  AppActionPopMenuItem(
+                    icon: 'assets/images/chat/create-group.png',
+                    label: l10n.chatMenuCreateGroup,
+                    onTap: () {
+                      Navigator.pop(context);
+                      SelectMembersModal.show(context);
+                    },
+                  ),
+                  AppActionPopMenuItem(
+                    icon: 'assets/images/chat/scanner.png',
+                    label: l10n.chatMenuScan,
+                    onTap: () {
+                      Navigator.pop(context);
+                      // TODO: 跳转扫一扫
+                    },
+                  ),
+                ],
+              );
             },
             icon: Image.asset('assets/images/chat/add.png', width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),

@@ -107,14 +107,17 @@ class AppModal extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 顶部指示条
-              Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(3),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey200,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -207,29 +210,33 @@ class AppModal extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    AppButton(
-                      text: cancelText!,
-                      width: cancelWidth,
-                      backgroundColor: cancelColor ?? AppColors.white,
-                      textColor: cancelTextColor ?? AppColors.grey900,
-                      border: cancelBorder,
-                      onPressed: () {
-                        if (onCancel != null) {
-                          onCancel!();
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
+                    Expanded(
+                      child: AppButton(
+                        text: cancelText!,
+                        width: cancelWidth,
+                        backgroundColor: cancelColor ?? AppColors.white,
+                        textColor: cancelTextColor ?? AppColors.grey900,
+                        border: cancelBorder,
+                        onPressed: () {
+                          if (onCancel != null) {
+                            onCancel!();
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
                     ),
                     if (confirmText != null) ...[
                       const SizedBox(width: 12),
-                      AppButton(
-                        text: confirmText!,
-                        width: confirmWidth,
-                        backgroundColor: confirmColor,
-                        onPressed: () {
-                          onConfirm();
-                        },
+                      Expanded(
+                        child: AppButton(
+                          text: confirmText!,
+                          width: confirmWidth,
+                          backgroundColor: confirmColor,
+                          onPressed: () {
+                            onConfirm();
+                          },
+                        ),
                       ),
                     ],
                   ],

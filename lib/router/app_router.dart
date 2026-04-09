@@ -18,7 +18,11 @@ import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
 import 'package:paracosm/pages/moments/moments_page.dart';
 import 'package:paracosm/pages/community/community_page.dart';
+import 'package:paracosm/pages/community/community_detail_page.dart';
+import 'package:paracosm/pages/community/create_dao_page.dart';
+import 'package:paracosm/pages/community/create_club_page.dart';
 import 'package:paracosm/pages/discover/discover_page.dart';
+import 'package:paracosm/pages/discover/discover_list_page.dart';
 import 'package:paracosm/pages/profile/profile_page.dart';
 import 'package:paracosm/pages/profile/profile_details_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
@@ -282,6 +286,27 @@ class AppRouter {
           return SessionDetailsPage(name: name);
         },
       ),
+      // 社区详情页
+      GoRoute(
+        path: '/community-detail/:name',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final name = state.pathParameters['name'] ?? 'BKOK持仓群';
+          return CommunityDetailPage(communityName: name);
+        },
+      ),
+      // 创建 DAO 页
+      GoRoute(
+        path: '/create-dao',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateDaoPage(),
+      ),
+      // 创建俱乐部页
+      GoRoute(
+        path: '/create-club',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateClubPage(),
+      ),
       // 聊天搜索页
       GoRoute(
         path: '/chat-search',
@@ -311,6 +336,15 @@ class AppRouter {
         path: '/group-list',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const GroupListPage(),
+      ),
+      // 发现列表页
+      GoRoute(
+        path: '/discover-list/:title',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final title = state.pathParameters['title'] ?? 'Discover';
+          return DiscoverListPage(title: title);
+        },
       ),
       // 个人资料详情页
       GoRoute(

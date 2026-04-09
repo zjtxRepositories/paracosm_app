@@ -15,6 +15,7 @@ class AppButton extends StatelessWidget {
   final double height;
   final double borderRadius;
   final double fontSize;
+  final FontWeight? fontWeight;
   final bool isLoading;
 
   const AppButton({
@@ -28,6 +29,7 @@ class AppButton extends StatelessWidget {
     this.height = 56,
     this.borderRadius = 28,
     this.fontSize = 16,
+    this.fontWeight,
     this.isLoading = false,
   });
 
@@ -63,6 +65,7 @@ class AppButton extends StatelessWidget {
                 style: AppTextStyles.h2.copyWith(
                   color: textColor ?? Colors.white,
                   fontSize: fontSize,
+                  fontWeight: fontWeight,
                 ),
               ),
       ),

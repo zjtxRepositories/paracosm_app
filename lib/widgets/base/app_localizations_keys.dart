@@ -189,8 +189,168 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get sessionDetailsBurn10m => translate('session_details_burn_10m');
   String get sessionDetailsBurn30m => translate('session_details_burn_30m');
 
+  // --- 社区菜单 ---
+  String get communityMenuCreateGroup => translate('community_menu_create_group');
+  String get communityMenuCreateDao => translate('community_menu_create_dao');
+  String get communityMenuCreateClub => translate('community_menu_create_club');
+  String get communityMenuScan => translate('community_menu_scan');
+
+  // --- 社区创建 ---
+  String get communityCreateDaoTitle => translate('community_create_dao_title');
+  String get communityCreateClubTitle => translate('community_create_club_title');
+  String get communityCreateName => translate('community_create_name');
+  String get communityCreateNameNft => translate('community_create_name_nft');
+  String get communityCreateDaoDescription => translate('community_create_dao_description');
+  String get communityCreateClubDescription => translate('community_create_club_description');
+  String get communityCreateDaoDescHint => translate('community_create_dao_desc_hint');
+  String get communityCreateClubNameHint => translate('community_create_club_name_hint');
+  String get communityCreateClubDescHint => translate('community_create_club_desc_hint');
+  String get communityCreateClubStakeNft => translate('community_create_club_stake_nft');
+  String get communityCreateDaoIntro => translate('community_create_dao_intro');
+  String get communityCreateClubIntro => translate('community_create_club_intro');
+
+  // --- 发现相关 ---
+  String get discoverTitle => translate('discover_title');
+  String get discoverTabPopular => translate('discover_tab_popular');
+  String get discoverTabRecommend => translate('discover_tab_recommend');
+  String get discoverTabRecent => translate('discover_tab_recent');
+  String get discoverSectionNewArrivals => translate('discover_section_new_arrivals');
+  String get discoverSectionDefi => translate('discover_section_defi');
+  String get discoverSectionAirdrop => translate('discover_section_airdrop');
+  String get communityFilterTooltip => translate('community_filter_tooltip');
+  String get communityMockBkokGroup => translate('community_mock_bkok_group');
+  String get communityMockSalaryDesc => translate('community_mock_salary_desc');
+  String get communityMockLazyMod => translate('community_mock_lazy_mod');
+  String get communityMockSparkPlan => translate('community_mock_spark_plan');
+  String get communityDetailTabDashboard => translate('community_detail_tab_dashboard');
+  String get communityDetailTabAsset => translate('community_detail_tab_asset');
+  String get communityDetailTabPick => translate('community_detail_tab_pick');
+  String get communityDetailBtnJoin => translate('community_detail_btn_join');
+  String get communityDetailBtnChat => translate('community_detail_btn_chat');
+  String get communityDetailLabelMembers => translate('community_detail_label_members');
+  String get communityDetailMockDesc => translate('community_detail_mock_desc');
+  String get communityDetailYieldSinceAdded => translate('community_detail_yield_since_added');
+  String get communityDetailDaoAssets => translate('community_detail_dao_assets');
+  String get communityDetailDonorRanking => translate('community_detail_donor_ranking');
+  String get communityDetailActivity => translate('community_detail_activity');
+  String get communityDetailBtnDonate => translate('community_detail_btn_donate');
+  String get communityDetailLabelViewMore => translate('community_detail_label_view_more');
+  String get communityDetailLabelMore => translate('community_detail_label_more');
+  String get communityDetailLabelOthers => translate('community_detail_label_others');
+  String get communityDetailActivityIncome => translate('community_detail_activity_income');
+  String get communityDetailActivityLabelDonor => translate('community_detail_activity_label_donor');
+  String get communityDetailActivityLabelFrom => translate('community_detail_activity_label_from');
+  String get communityDetailActivityLabelTime => translate('community_detail_activity_label_time');
+  String get communityDetailLabelShare => translate('community_detail_label_share');
+  String get communityDetailMockPostContent => translate('community_detail_mock_post_content');
+  String get communityDetailMockDonorName1 => translate('community_detail_mock_donor_name_1');
+  String get communityDetailMockDonorName2 => translate('community_detail_mock_donor_name_2');
+  String get communityDetailMockDonorName3 => translate('community_detail_mock_donor_name_3');
+  String get communityDetailActivityIncomeValue => translate('community_detail_activity_income_value');
+  String get communityDetailActivityMockTime => translate('community_detail_activity_mock_time');
+  String get communityDetailMockPostUser => translate('community_detail_mock_post_user');
+  String get communityDetailMockPostTime => translate('community_detail_mock_post_time');
+  String get communityDetailMockDonorAddress => translate('community_detail_mock_donor_address');
+  String get communityDetailMockActivityTitle1 => translate('community_detail_mock_activity_title_1');
+  String get communityDetailMockActivityTitle2 => translate('community_detail_mock_activity_title_2');
+  String get communityDetailMockActivityTitle3 => translate('community_detail_mock_activity_title_3');
+  String get communityDetailMockAssetEthName => translate('community_detail_mock_asset_eth_name');
+  String get communityDetailMockAssetEthFullName => translate('community_detail_mock_asset_eth_full_name');
+  String get communityDetailMockAssetUsdtName => translate('community_detail_mock_asset_usdt_name');
+  String get communityDetailMockAssetUsdtFullName => translate('community_detail_mock_asset_usdt_full_name');
+  String get communityDetailMockAssetVboxName => translate('community_detail_mock_asset_vbox_name');
+
+  // --- 社区弹窗 ---
+  String get communityModalSelectDaoTypeTitle => translate('community_modal_select_dao_type_title');
+  String get communityModalTokenHoldingGroupTitle => translate('community_modal_token_holding_group_title');
+  String get communityModalTokenHoldingGroupDesc => translate('community_modal_token_holding_group_desc');
+  String get communityModalNftHoldingGroupTitle => translate('community_modal_nft_holding_group_title');
+  String get communityModalNftHoldingGroupDesc => translate('community_modal_nft_holding_group_desc');
+  String get communityModalSelectTokenTitle => translate('community_modal_select_token_title');
+  String get communityModalSearchTokenHint => translate('community_modal_search_token_hint');
+
+  // --- 网络 ---
+  String get networkSolana => translate('network_solana');
+  String get networkEthereum => translate('network_ethereum');
+  String get networkTether => translate('network_tether');
+  String get networkBnb => translate('network_bnb');
+  String get networkBnbChain => translate('network_bnb_chain');
+  String get networkBase => translate('network_base');
+  String get networkPolygon => translate('network_polygon');
+  String get networkOptimism => translate('network_optimism');
+  String get networkArbitrum => translate('network_arbitrum');
+  String get networkZksyncEra => translate('network_zksync_era');
+  String get networkAvalanche => translate('network_avalanche');
+  String get networkFantom => translate('network_fantom');
+  String get networkBlast => translate('network_blast');
+  String get networkMerlin => translate('network_merlin');
+  String get networkLinea => translate('network_linea');
+  String get networkScroll => translate('network_scroll');
+  String get networkBitlayer => translate('network_bitlayer');
+  String get networkMantle => translate('network_mantle');
+  String get networkXLayer => translate('network_x_layer');
+  String get networkBitcoin => translate('network_bitcoin');
+
+  // --- 成员选择 ---
+  String get communityTitle => translate('community_title');
+  String get communityTabDao => translate('community_tab_dao');
+  String get communityTabClub => translate('community_tab_club');
+  String get communityTabKey => translate('community_tab_key');
+  String get screening => translate('screening');
+  String get byType => translate('by_type');
+  String get blockchain => translate('blockchain');
+  String get byTag => translate('by_tag');
+  String get reset => translate('reset');
+  String get confirm => translate('confirm');
+
+  // --- 社区模拟数据 ---
+  String get communityMockMemberCount2k => translate('community_mock_member_count_2k');
+  String get communityMockMemberCount2_5k => translate('community_mock_member_count_2_5k');
+  String get communityMockMemberCount1_2k => translate('community_mock_member_count_1_2k');
+  String get communityMockMemberCount8_9k => translate('community_mock_member_count_8_9k');
+  String get communityMockDaoAssetsValue => translate('community_mock_dao_assets_value');
+  String get communityMockYieldValue => translate('community_mock_yield_value');
+  String get communityMockAssetEthPrice => translate('community_mock_asset_eth_price');
+  String get communityMockAssetEthTrend => translate('community_mock_asset_eth_trend');
+  String get communityMockAssetUsdtPrice => translate('community_mock_asset_usdt_price');
+  String get communityMockAssetUsdtTrend => translate('community_mock_asset_usdt_trend');
+  String get communityMockAssetUsdtValue => translate('community_mock_asset_usdt_value');
+  String get communityMockAssetVboxValue => translate('community_mock_asset_vbox_value');
+  String get communityMockAssetDefaultValue => translate('community_mock_asset_default_value');
+  String get communityMockAssetZeroValue => translate('community_mock_asset_zero_value');
+  String get communityMockDonorAmount1 => translate('community_mock_donor_amount_1');
+  String get communityMockDonorAmount2 => translate('community_mock_donor_amount_2');
+  String get communityMockDonorAmount3 => translate('community_mock_donor_amount_3');
+  String get communityMockAddressDetail => translate('community_mock_address_detail');
+  String get communityMockMemberCount5_0k => translate('community_mock_member_count_5_0k');
+  String get communityMockMemberCount3_4k => translate('community_mock_member_count_3_4k');
+  String get communityMockMemberCount1_1k => translate('community_mock_member_count_1_1k');
+  String get communityMockAddress1 => translate('community_mock_address_1');
+  String get communityMockAddress2 => translate('community_mock_address_2');
+  String get communityMockAddress3 => translate('community_mock_address_3');
+  String get communityMockAddress4 => translate('community_mock_address_4');
+  String get communityMockAddress5 => translate('community_mock_address_5');
+  String get communityMockAddress6 => translate('community_mock_address_6');
+
+  // --- 筛选选项 ---
+  String get filterAll => translate('filter_all');
+  String get filterTypeToken => translate('filter_type_token');
+  String get filterTypeNft => translate('filter_type_nft');
+  String get filterTagGame => translate('filter_tag_game');
+  String get filterTagSocial => translate('filter_tag_social');
+  String get filterTagMeme => translate('filter_tag_meme');
+  String get filterTagStaking => translate('filter_tag_staking');
+  String get filterTagAirdrop => translate('filter_tag_airdrop');
+  String get filterTagNews => translate('filter_tag_news');
+  String get filterTagAlpha => translate('filter_tag_alpha');
+  String get filterTagFun => translate('filter_tag_fun');
+  String get filterTagGiveaway => translate('filter_tag_giveaway');
+  String get filterTagInscription => translate('filter_tag_inscription');
+  String get filterTagLayer2 => translate('filter_tag_layer2');
+
   // --- 聊天菜单 ---
   String get chatMenuAddFriend => translate('chat_menu_add_friend');
+  String get chatMenuCreateGroup => translate('chat_menu_create_group');
   String get chatMenuScan => translate('chat_menu_scan');
 
   // --- 成员选择 ---
@@ -332,4 +492,18 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileProfileDetailsChangePassword => translate('profile_profile_details_change_password');
   String get profileProfileDetailsMessagesNotifications => translate('profile_profile_details_messages_notifications');
   String get profileProfileDetailsLogout => translate('profile_profile_details_logout');
+
+  // --- 发现列表数据 ---
+  String get discoverMockArbitrumLabel => translate('discover_mock_arbitrum_label');
+  String get discoverMockArbitrumDesc => translate('discover_mock_arbitrum_desc');
+  String get discoverMockAelfLabel => translate('discover_mock_aelf_label');
+  String get discoverMockAelfDesc => translate('discover_mock_aelf_desc');
+  String get discoverMockStarknetLabel => translate('discover_mock_starknet_label');
+  String get discoverMockStarknetDesc => translate('discover_mock_starknet_desc');
+  String get discoverMockAstarLabel => translate('discover_mock_astar_label');
+  String get discoverMockAstarDesc => translate('discover_mock_astar_desc');
+  String get discoverMockMagicEdenLabel => translate('discover_mock_magic_eden_label');
+  String get discoverMockFluxLabel => translate('discover_mock_flux_label');
+  String get discoverMockIagonLabel => translate('discover_mock_iagon_label');
+  String get discoverMockCartesiLabel => translate('discover_mock_cartesi_label');
 }

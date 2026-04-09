@@ -19,6 +19,7 @@ class AppColors {
   static const Color groupAvatarBg = Color(0xFF61BDFF); // 群聊头像背景
   static const Color onlineBg = Color(0xFF28B87F); // 在线状态背景
   static const Color selfMsgBg = Color(0xFFEBF1D0); // 自己发言消息背景
+  static const Color purple = Color(0xFF5A45FE); //紫色
   // 中性色/灰色阶
   static const Color black = Color(0xFF000000);
   static const Color grey900 = Color(0xFF171717); // 深黑

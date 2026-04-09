@@ -3,7 +3,7 @@ class ApiPaths {
   /// 用户
   static const login = "/user/loginRegRes";
   static const logout = "/user/logout";
-  static const userInfo = "/user/info";
+  static const userInfo = "/user/get";
 
   /// IM
   static const conversationList = "/im/conversation/list";
@@ -18,4 +18,6 @@ class ApiPaths {
   /// 配置
   static const config = '/imApi/config';
 
+  /// dapp
+  static const dappList = '/prod-api/im/app/dApp/list';
 }

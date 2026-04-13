@@ -144,9 +144,7 @@ class TransactionService {
     /// ✅ 获取真实时间（区块时间）
     DateTime? time;
     final block = await EvmFacade.getBlock(chain);
-    if (block != null) {
-      time = block.timestamp;
-    }
+    time = block.timestamp;
 
     final finalModel = TransactionModel(
       hash: tx.hash,

@@ -86,6 +86,15 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
+  /// 刷新
+  Future<void> refreshWallet() async {
+    final accountId = await AppConfigDao().getCurrentUser();
+    if (accountId != null) {
+      _currentWallet = await WalletDao().getWalletById(accountId);
+      notifyListeners();
+    }
+  }
+
   /// 删除账号
   Future<void> deleteAccount(String accountId) async {
     await AccountDao().deleteAccount(accountId);

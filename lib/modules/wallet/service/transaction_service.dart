@@ -1,4 +1,6 @@
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
+import 'package:paracosm/modules/wallet/chains/evm/services/evm_transaction_service.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 import 'package:solana/dto.dart';
 import '../chains/evm/evm_chain_service.dart';
@@ -102,7 +104,7 @@ class TransactionService {
     void Function(TransactionModel model)? onPending,
   }) async {
     final tx =
-    await EvmChainService.getTransactionDetail(chain, txHash);
+    await EvmTransactionService.getTransactionDetail(chain, txHash);
 
     if (tx == null) return null;
 
@@ -121,7 +123,7 @@ class TransactionService {
 
     onPending?.call(pendingModel);
 
-    final receipt = await EvmChainService.waitForTransaction(
+    final receipt = await EvmTransactionService.waitForTransaction(
       chain: chain,
       txHash: txHash,
     );
@@ -141,7 +143,7 @@ class TransactionService {
 
     /// ✅ 获取真实时间（区块时间）
     DateTime? time;
-    final block = await EvmChainService.getBlock(chain);
+    final block = await EvmFacade.getBlock(chain);
     if (block != null) {
       time = block.timestamp;
     }

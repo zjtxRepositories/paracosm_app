@@ -4,6 +4,7 @@ import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 
 import '../../model/chain_account.dart';
 import '../../model/token_model.dart';
+import '../evm/evm_facade.dart';
 
 
 class BalanceService {
@@ -20,10 +21,10 @@ class BalanceService {
 
     switch (chain.chainType) {
       case ChainType.evm:
-        final balance = await EvmChainService.getBalance(
+        final balance = await EvmFacade.getBalance(
           chain,
-          token.address,
           chain.address,
+          contractAddress: token.address,
         );
         token.balance = balance;
         break;

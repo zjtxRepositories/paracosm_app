@@ -5,7 +5,7 @@ import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/core/util/double_util.dart';
 import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
-import 'package:paracosm/modules/wallet/chains/evm/evm_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
@@ -89,7 +89,7 @@ class _TransferPageState extends State<TransferPage> {
 
   Future<void> getCalculateFee({double progress = 0}) async {
     if (_selectedNetwork?.chainType == ChainType.evm) {
-      final GasLevel gasLevel = await EvmChainService.getGasLevels(
+      final GasLevel gasLevel = await EvmFacade.gas(
           _selectedNetwork!);
       final gasLimit = BigInt.from(21000);
       _gasFee = progress == 0 ? gasLevel.slow : progress == 0.5
@@ -135,7 +135,7 @@ class _TransferPageState extends State<TransferPage> {
       String? tx;
       if (_selectedNetwork?.chainType == ChainType.evm) {
         final amountWei = doubleToBigInt(double.parse(amount), decimals: _token!.decimals);
-        tx = await EvmChainService.sendTransaction(chain: _selectedNetwork!,
+        tx = await EvmFacade.send(chain: _selectedNetwork!,
             contractAddress: _token!.address, to: address, amountWei: amountWei, gasFee: _gasFee);
         // tx = '0xb09659fb4d4f7c59397c1823e993fde0d6c1cbab4c4feae3e017d2f4c5e74825';
       }

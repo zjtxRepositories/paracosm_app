@@ -12,6 +12,7 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_network_selector.dart';
+import 'package:paracosm/widgets/modals/wallet_modals.dart';
 
 import '../../core/util/string_util.dart';
 import '../../modules/account/manager/account_manager.dart';
@@ -105,22 +106,14 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (_walletModel == null) return;
-    AppModal.show(
-      context,
-      title: AppLocalizations.of(context)!.profileProfileChooseNetwork,
-      confirmText: null, // 移除底部确认按钮，改为点击项即选择并关闭
-      onConfirm: () {},
-      child: AppNetworkSelector(
-        initialNetwork: _walletModel!.currentChain ?? _walletModel!.chains.first,
-        networks: _walletModel!.chains,
+    WalletModals.showNetworkSelector(
+        context: context,
+        wallet: _walletModel!,
         onSelected: (network) {
           setState(() {
             _selectedNetwork = network;
           });
-          context.pop();
-        },
-      ),
-    );
+        });
   }
 
   @override

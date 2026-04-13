@@ -95,6 +95,16 @@ class WalletManager {
     if (wallet == null) return;
     wallet.name = name;
     await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet();
+  }
+
+  /// 修改钱包名
+  static Future<void> switchChain(String walletId,int chainId)async {
+    final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+    wallet.currentChainId = chainId;
+    await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet();
   }
 }
 

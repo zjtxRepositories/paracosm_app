@@ -5,6 +5,7 @@ import 'package:paracosm/widgets/common/app_chain_selector.dart';
 import 'package:paracosm/widgets/modals/wallet_select_token_modal.dart';
 import 'package:paracosm/widgets/modals/wallet_switcher_modal.dart';
 import '../../modules/account/model/account_model.dart';
+import '../../modules/wallet/manager/wallet_manager.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
@@ -35,8 +36,7 @@ class WalletModals {
         wallet.currentChain ?? wallet.chains.first,
         networks: wallet.chains,
         onSelected: (network) async {
-          wallet.currentChainId = network.chainId;
-          await WalletDao().updateWallet(wallet);
+          WalletManager.switchChain(wallet.id, network.chainId);
           onSelected(network);
           context.pop();
         },

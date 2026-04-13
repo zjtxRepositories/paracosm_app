@@ -106,3 +106,6 @@ test_driver/logs/
 *.lock
 # ❗️但注意：不要忽略 pubspec.lock（Flutter App 必须提交）
 !pubspec.lock
+
+# FVM Version Cache
+.fvm/

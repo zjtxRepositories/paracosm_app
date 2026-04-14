@@ -18,9 +18,9 @@ class EvmFacade {
   /// 发送交易
   static Future<String> send({
     required ChainAccount chain,
-    required String contractAddress,
     required String to,
     required BigInt amountWei,
+    String? contractAddress,
     GasFee? gasFee,
     String? customData,
   }) {

@@ -4,6 +4,7 @@ import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
+import 'package:paracosm/pages/dapp/dapp_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
@@ -346,6 +347,15 @@ class AppRouter {
           final title = state.pathParameters['title'] ?? 'Discover';
           final data = state.extra as List<DAppHive>?;
           return DiscoverListPage(title: title, dappList: data ?? [],);
+        },
+      ),
+      // dapp详情
+      GoRoute(
+        path: '/dapp',
+        builder: (context, state) {
+          final dApp = state.extra as DAppHive?;
+          // print('data--------$mnemonic');
+          return dApp == null ? SizedBox() : DAppPage(dapp: dApp,);
         },
       ),
       // 个人资料详情页

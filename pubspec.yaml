@@ -61,6 +61,8 @@ dependencies:
   k_chart_plus: ^1.0.3
   shared_preferences: ^2.5.5
   flutter_easyloading: ^3.0.5
+  flutter_inappwebview: ^6.1.5
+  hive: ^2.2.3
 
 dev_dependencies:
   flutter_test:
@@ -109,6 +111,7 @@ flutter:
     - assets/images/profile/user/
     - assets/i18n/
     - assets/chains.json
+    - assets/javascript/metamask/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

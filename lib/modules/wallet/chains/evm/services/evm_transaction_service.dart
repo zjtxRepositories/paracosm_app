@@ -16,9 +16,9 @@ class EvmTransactionService {
   /// =========================
   static Future<String> sendTransaction({
     required ChainAccount chain,
-    required String contractAddress,
     required String to,
     required BigInt amountWei,
+    String? contractAddress,
     GasFee? gasFee,
     String? customData,
   }) async {
@@ -28,7 +28,7 @@ class EvmTransactionService {
     EvmService.getPrivateKeyByAddress(chain.address);
     if (privateKey == null) throw '没有找到该钱包！';
 
-    if (contractAddress.isEmpty) {
+    if ((contractAddress ?? '').isEmpty) {
       return sendNativeTransaction(
         chain: chain,
         privateKey: privateKey,
@@ -41,7 +41,7 @@ class EvmTransactionService {
     return sendErc20Transaction(
       chain: chain,
       privateKey: privateKey,
-      contractAddress: contractAddress,
+      contractAddress: contractAddress!,
       to: to,
       amount: amountWei,
       gasFee: gasFee,

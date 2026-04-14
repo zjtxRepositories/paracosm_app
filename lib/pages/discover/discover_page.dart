@@ -254,7 +254,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          return _DiscoverItem(icon: item.headUrl!, label: item.name ?? '');
+          return GestureDetector(
+              onTap: (){
+                context.push('/dapp',extra: item);
+              },
+            child: _DiscoverItem(icon: item.headUrl!, label: item.name ?? ''),
+          );
         },
       ),
     );

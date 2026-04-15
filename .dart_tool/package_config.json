@@ -428,10 +428,10 @@
       "languageVersion": "3.9"
     },
     {
-      "name": "flutter_windowmanager",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_windowmanager-0.2.0",
+      "name": "flutter_windowmanager_plus",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_windowmanager_plus-1.0.1",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.5"
     },
     {
       "name": "freezed_annotation",

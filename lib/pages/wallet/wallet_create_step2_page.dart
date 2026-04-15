@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -47,14 +47,14 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
   }
 
   void _disableScreenshot() async {
-    await FlutterWindowManager.addFlags(
-      FlutterWindowManager.FLAG_SECURE,
+    await FlutterWindowManagerPlus.addFlags(
+      FlutterWindowManagerPlus.FLAG_SECURE,
     );
   }
 
   void _enableScreenshot() async {
-    await FlutterWindowManager.clearFlags(
-      FlutterWindowManager.FLAG_SECURE,
+    await FlutterWindowManagerPlus.clearFlags(
+      FlutterWindowManagerPlus.FLAG_SECURE,
     );
   }
 

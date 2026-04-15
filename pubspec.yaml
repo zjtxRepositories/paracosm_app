@@ -53,7 +53,8 @@ dependencies:
   ed25519_hd_key: ^2.3.0
   solana: ^0.32.0
   bip32: ^2.0.0
-  flutter_windowmanager: ^0.2.0
+#  flutter_windowmanager: ^0.2.0
+  flutter_windowmanager_plus: ^1.0.1
   rongcloud_im_wrapper_plugin: 5.32.5
   cached_network_image: ^3.4.1
 

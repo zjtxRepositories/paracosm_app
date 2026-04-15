@@ -23,7 +23,7 @@
         "flutter_riverpod",
         "flutter_screenutil",
         "flutter_secure_storage",
-        "flutter_windowmanager",
+        "flutter_windowmanager_plus",
         "get",
         "go_router",
         "hive",
@@ -174,8 +174,8 @@
       ]
     },
     {
-      "name": "flutter_windowmanager",
-      "version": "0.2.0",
+      "name": "flutter_windowmanager_plus",
+      "version": "1.0.1",
       "dependencies": [
         "flutter"
       ]
@@ -529,19 +529,32 @@
       ]
     },
     {
+      "name": "convert",
+      "version": "3.1.2",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
+      "name": "buffer",
+      "version": "1.2.3",
+      "dependencies": []
+    },
+    {
+      "name": "equatable",
+      "version": "2.0.8",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
       "name": "pointycastle",
       "version": "3.9.1",
       "dependencies": [
         "collection",
         "convert",
         "js"
-      ]
-    },
-    {
-      "name": "convert",
-      "version": "3.1.2",
-      "dependencies": [
-        "typed_data"
       ]
     },
     {
@@ -1446,19 +1459,6 @@
         "collection",
         "hooks"
       ]
-    },
-    {
-      "name": "equatable",
-      "version": "2.0.8",
-      "dependencies": [
-        "collection",
-        "meta"
-      ]
-    },
-    {
-      "name": "buffer",
-      "version": "1.2.3",
-      "dependencies": []
     }
   ],
   "configVersion": 1

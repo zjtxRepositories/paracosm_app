@@ -32,7 +32,6 @@ class DAppAccountAuthHive {
   // =========================
   static bool checkAuth(String host) {
     final key = _normalize(host);
-    print('checkAuth-------$key---${allAddressAuth.contains(key)}');
     return allAddressAuth.contains(key);
   }
 

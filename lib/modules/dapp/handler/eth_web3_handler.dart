@@ -31,7 +31,7 @@ class EthEvents {
 /// ===== Eth Web3 handler（核心）=====
 abstract class EthWeb3Handler {
   /// ===== 核心（EIP-1193）=====
-  Future<dynamic> request(String method, [List<dynamic>? params]);
+  // Future<dynamic> request(String method, [List<dynamic>? params]);
 
   void emit(String event, dynamic data);
 

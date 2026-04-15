@@ -1,3 +1,4 @@
+import 'package:eth_sig_util/eth_sig_util.dart';
 import 'package:paracosm/modules/wallet/chains/evm/client/evm_client_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_balance_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_gas_service.dart';
@@ -35,12 +36,12 @@ class EvmFacade {
   }
 
   /// 签名
-  static Future<String> signMessage(String address, String message) {
-    return EvmSignService.signMessage(address: address, message: message);
+  static Future<String> signMessage(String address, String message,{required bool personal}) {
+    return EvmSignService.signMessage(address: address, message: message,personal: personal);
   }
 
-  static Future<String> signTypedData(String privateKey, Map<String, dynamic> typedData,) {
-    return EvmTypedDataSigner.signTypedData(privateKey: privateKey, typedData: typedData);
+  static Future<String> signTypedDataRaw(String address, String jsonData, TypedDataVersion version,{bool personal = false}) {
+    return EvmTypedDataSigner.signTypedData(address: address, jsonData: jsonData, version: version);
   }
 
   /// RPC

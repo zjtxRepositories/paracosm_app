@@ -106,5 +106,16 @@ class WalletManager {
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();
   }
+
+  /// 添加链
+  static Future<void> addChain(String walletId,ChainAccount chain)async {
+    final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+    wallet.chains.add(chain);
+    await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet();
+  }
+
+
 }
 

@@ -15,6 +15,7 @@
         "dio",
         "ed25519_hd_key",
         "encrypt",
+        "eth_sig_util",
         "flutter",
         "flutter_easyloading",
         "flutter_inappwebview",
@@ -82,6 +83,17 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "eth_sig_util",
+      "version": "0.0.9",
+      "dependencies": [
+        "buffer",
+        "collection",
+        "convert",
+        "equatable",
+        "pointycastle"
       ]
     },
     {
@@ -517,6 +529,22 @@
       ]
     },
     {
+      "name": "pointycastle",
+      "version": "3.9.1",
+      "dependencies": [
+        "collection",
+        "convert",
+        "js"
+      ]
+    },
+    {
+      "name": "convert",
+      "version": "3.1.2",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
       "name": "crypto",
       "version": "3.0.7",
       "dependencies": [
@@ -708,15 +736,6 @@
       "dependencies": []
     },
     {
-      "name": "pointycastle",
-      "version": "3.9.1",
-      "dependencies": [
-        "collection",
-        "convert",
-        "js"
-      ]
-    },
-    {
       "name": "web_socket_channel",
       "version": "3.0.3",
       "dependencies": [
@@ -776,13 +795,6 @@
         "crypto",
         "ffi",
         "meta",
-        "typed_data"
-      ]
-    },
-    {
-      "name": "convert",
-      "version": "3.1.2",
-      "dependencies": [
         "typed_data"
       ]
     },
@@ -1434,6 +1446,19 @@
         "collection",
         "hooks"
       ]
+    },
+    {
+      "name": "equatable",
+      "version": "2.0.8",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "buffer",
+      "version": "1.2.3",
+      "dependencies": []
     }
   ],
   "configVersion": 1

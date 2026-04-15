@@ -1,32 +1,72 @@
-
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:eth_sig_util/eth_sig_util.dart';
+import 'package:eth_sig_util/util/utils.dart';
+import '../evm_service.dart';
 
 class EvmSignService {
 
-  /// =========================
-  /// signMessage
-  /// =========================
   static Future<String> signMessage({
     required String address,
     required String message,
+    required bool personal,
   }) async {
-    // final privateKey = EvmService.getPrivateKeyByAddress(address);
-    // if (privateKey == null) throw Exception("找不到该钱包");
-    // final credentials = EthPrivateKey.fromHex(privateKey);
-    //
-    // /// 1️⃣ 统一 bytes（⭐关键：全部转 List<int>）
-    // final List<int> messageBytes = message.startsWith('0x')
-    //     ? hexToBytes(message).toList()
-    //     : utf8.encode(message);
+    final privateKey = EvmService.getPrivateKeyByAddress(address);
+    if (privateKey == null) {
+      throw Exception("找不到该钱包");
+    }
 
-    // /// 2️⃣ 转 Uint8List（只做一次）
-    // final Uint8List data = Uint8List.fromList(messageBytes);
-    //
-    // /// 3️⃣ 使用 web3dart 官方方法
-    // final signature = credentials.signPersonalMessageToUint8List(fix(data));
-    //
-    // /// 4️⃣ 转 hex
-    // return bytesToHex(signature, include0x: true);
-    return '';
+    final keyBytes = _normalizePrivateKey(privateKey);
+
+    final Uint8List messageBytes = _normalizeMessage(message);
+
+    if (personal) {
+      return EthSigUtil.signPersonalMessage(
+        message: messageBytes,
+        privateKeyInBytes: keyBytes,
+      );
+    }
+
+    return EthSigUtil.signMessage(
+      message: messageBytes,
+      privateKeyInBytes: keyBytes,
+    );
   }
 
+  /// =========================
+  /// message 统一解析（关键）
+  /// =========================
+  static Uint8List _normalizeMessage(String message) {
+    final trimmed = message.trim();
+
+    // hex message
+    if (trimmed.startsWith('0x')) {
+      try {
+        return hexToBytes(trimmed);
+      } catch (_) {
+        // fallback：当作普通字符串
+        return Uint8List.fromList(utf8.encode(trimmed));
+      }
+    }
+
+    // 默认 utf8
+    return Uint8List.fromList(utf8.encode(trimmed));
+  }
+
+  /// =========================
+  /// privateKey 统一格式化
+  /// =========================
+  static Uint8List _normalizePrivateKey(dynamic key) {
+    if (key is Uint8List) return key;
+
+    if (key is String) {
+      final clean = key.startsWith('0x') ? key.substring(2) : key;
+      return Uint8List.fromList(List<int>.generate(
+        clean.length ~/ 2,
+            (i) => int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16),
+      ));
+    }
+
+    throw Exception("Unsupported privateKey format");
+  }
 }

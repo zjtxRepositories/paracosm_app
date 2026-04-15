@@ -24,6 +24,14 @@ class WalletModel {
   bool get isPrivateKey => type == WalletType.privateKey;
   bool get isMnemonic => type == WalletType.mnemonic;
 
+  ChainAccount? get evmChain =>
+      chains.firstWhere((item) => item.chainType == ChainType.evm);
+
+  /// 判断链
+  bool hasChain(int chainId) {
+    return chains.where((item) => item.chainId == chainId).isNotEmpty;
+  }
+
   WalletModel({
     required this.id,
     required this.aIndex,

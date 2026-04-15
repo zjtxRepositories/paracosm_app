@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/pages/brower/browser_controller.dart';
+import 'package:paracosm/pages/dapp/dapp_modal_service.dart';
 
 import '../../modules/dapp/dapp_web3_service.dart';
 import '../../modules/dapp/handler/eth_web3_handler.dart';
@@ -80,32 +81,6 @@ class _DAppPageState extends State<DAppPage> {
     _prepare();
   }
 
-  Future<List<String>> showConnectSheet({
-     required BuildContext context,
-     required String host,
-     required String title,
-     required String faviconUrl,
-     required String uri,
-     required String address,
-   }){
-     final completer = Completer<List<String>>();
-     DappModals.showConnectSheet(
-       context: context,
-       host: host,
-       title: title,
-       faviconUrl: faviconUrl,
-       uri: uri.toString(),
-       onApprove: () {
-         completer.complete([address]);
-       },
-       onReject: () {
-         completer.completeError(
-           EthHandlerException("Request account rejected"),
-         );
-       },
-     );
-     return completer.future;
-   }
   // =========================================================
   // UI
   // =========================================================

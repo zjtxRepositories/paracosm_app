@@ -5,6 +5,7 @@ import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/pages/dapp/dapp_page.dart';
+import 'package:paracosm/pages/profile/token_manager_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
@@ -419,6 +420,14 @@ class AppRouter {
           return extra == null ? SizedBox():TokenDetailPage(
             token: extra,
           );
+        },
+      ),
+      // 币种管理页
+      GoRoute(
+        path: '/token-manager',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          return TokenManagerPage();
         },
       ),
       // 代币市场/K线页

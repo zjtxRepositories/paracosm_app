@@ -41,16 +41,20 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    fetchData();
-    fetchMarketData();
-    fetchTokenList();
     accountManager = AccountManager();
     accountManager.addListener(_onAccountChanged);
+
+    _init();
   }
+
+  Future<void> _init() async {
+    await fetchData();
+    await fetchMarketData(); // 内部再调 fetchTokenList
+  }
+
   void _onAccountChanged() {
     PortfolioService().clean();
-    fetchData();
-    fetchTokenList();
+    _init();
   }
 
   @override
@@ -71,7 +75,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _coinMarkets = list;
     });
-    fetchTokenList();
+    await fetchTokenList();
   }
 
   Future<void> fetchTokenList() async {
@@ -436,12 +440,27 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '资产',
-                style: AppTextStyles.h2.copyWith(
-                  fontSize: 18,
-                  color: AppColors.black,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '资产',
+                    style: AppTextStyles.h2.copyWith(
+                      fontSize: 18,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      context.push('/token-manager');
+                    },
+                    child: Image.asset(
+                      'assets/images/common/icon_edit_row.png',
+                      width: 20,
+                      height: 20,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
 

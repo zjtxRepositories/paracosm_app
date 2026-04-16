@@ -3,6 +3,7 @@ import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/account/service/account_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/service/wallet_service.dart';
 import '../chains/btc/bitcoin_service.dart';
 import '../chains/evm/evm_service.dart';
@@ -112,6 +113,21 @@ class WalletManager {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     wallet.chains.add(chain);
+    await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet();
+  }
+
+  /// 更新钱包
+  static Future<void> updateToken(String walletId,TokenModel token)async {
+    final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+    final chainIndex = wallet.chains.indexWhere((item) => item.chainId == token.chainId);
+    if (chainIndex == -1) return ;
+    ChainAccount chain = wallet.chains[chainIndex];
+    final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
+    if (tokenIndex == -1) return ;
+    chain.tokens[tokenIndex] = token;
+    wallet.chains[chainIndex] = chain;
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();
   }

@@ -158,7 +158,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                           ),
                           const WidgetSpan(child: SizedBox(width: 2)),
                           TextSpan(
-                            text: widget.token.displayBalance,
+                            text: widget.token.showUsdValue,
                             style: AppTextStyles.h1.copyWith(
                               fontSize: 28,
                               fontWeight: FontWeight.w600,

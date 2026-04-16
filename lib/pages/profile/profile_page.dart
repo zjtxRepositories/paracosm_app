@@ -523,7 +523,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         SizedBox(width: 6),
                         Text(
-                          change > 0 ? '+${truncateDouble(change)}%' : '${truncateDouble(change)}%',
+                          change > 0 ? '+${truncateDouble(change,digits: 2)}%' : '${truncateDouble(change,digits: 2)}%',
                           style: AppTextStyles.caption.copyWith(
                             color: isUp ? AppColors.primaryDark : AppColors.error,
                             fontSize: 12,

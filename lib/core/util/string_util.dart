@@ -1,10 +1,10 @@
 
-String truncateDouble(double value) {
+String truncateDouble(double value,{int digits = 8}) {
   if (value == 0) return '0';
 
   // 小于1时，保留更多精度
   if (value < 1) {
-    return _truncate(value, 8);
+    return _truncate(value, digits);
   }
 
   // 大于1，保留2位

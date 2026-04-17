@@ -1100,19 +1100,20 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
             onTap: () {},
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   l10n.communityDetailLabelMore,
                   style: AppTextStyles.h2.copyWith(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w400,
                     color: AppColors.primaryLight,
                   ),
                 ),
                 const SizedBox(width: 4),
                 const Icon(
                   Icons.chevron_right,
-                  size: 20,
+                  size: 10,
                   color: AppColors.primaryLight, // 修改颜色
                 ),
               ],

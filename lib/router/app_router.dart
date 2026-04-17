@@ -21,6 +21,12 @@ import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
 import 'package:paracosm/pages/moments/moments_page.dart';
+import 'package:paracosm/pages/moments/message_center_page.dart';
+import 'package:paracosm/pages/moments/new_post_page.dart';
+import 'package:paracosm/pages/moments/moment_post_detail_page.dart';
+import 'package:paracosm/pages/moments/moment_user_profile_page.dart';
+import 'package:paracosm/pages/moments/report_page.dart';
+import 'package:paracosm/pages/moments/report_detail_page.dart';
 import 'package:paracosm/pages/community/community_page.dart';
 import 'package:paracosm/pages/community/community_detail_page.dart';
 import 'package:paracosm/pages/community/create_dao_page.dart';
@@ -189,7 +195,41 @@ class AppRouter {
           return WalletBackupRiskPage(nextPath: nextPath, password: password);
         },
       ),
+      // 消息中心页
+      GoRoute(
+        path: '/message-center',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MessageCenterPage(),
+      ),
+      // 新建帖子页
+      GoRoute(
+        path: '/new-post',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => NewPostPage(
+          isRetweet: state.uri.queryParameters['retweet'] == '1',
+        ),
+      ),
+      GoRoute(
+        path: '/moment-post-detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentPostDetailPage(),
+      ),
       
+      GoRoute(
+        path: '/moment-user-profile',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentUserProfilePage(),
+      ),
+      GoRoute(
+        path: '/moment-report',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentReportPage(),
+      ),
+      GoRoute(
+        path: '/moment-report-detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentReportDetailPage(),
+      ),
       // 主 Tab 路由分支配置
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

@@ -620,12 +620,12 @@ class _ChatPageState extends State<ChatPage> {
               AppActionPopMenu.show(
                 context,
                 buttonKey: _addButtonKey,
+                rightOffset: 5,
                 items: [
                   AppActionPopMenuItem(
                     icon: 'assets/images/chat/add-friend.png',
                     label: l10n.chatMenuAddFriend,
                     onTap: () {
-                      Navigator.pop(context);
                       // TODO: 跳转添加朋友
                     },
                   ),
@@ -633,7 +633,6 @@ class _ChatPageState extends State<ChatPage> {
                     icon: 'assets/images/chat/create-group.png',
                     label: l10n.chatMenuCreateGroup,
                     onTap: () {
-                      Navigator.pop(context);
                       SelectMembersModal.show(context);
                     },
                   ),
@@ -641,7 +640,6 @@ class _ChatPageState extends State<ChatPage> {
                     icon: 'assets/images/chat/scanner.png',
                     label: l10n.chatMenuScan,
                     onTap: () {
-                      Navigator.pop(context);
                       // TODO: 跳转扫一扫
                     },
                   ),

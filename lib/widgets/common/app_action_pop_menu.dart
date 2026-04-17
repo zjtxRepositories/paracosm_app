@@ -143,7 +143,7 @@ class AppActionPopMenu extends StatelessWidget {
           return Stack(
             children: [
               Positioned(
-                top: offset.dy + renderBox.size.height - 4,
+                top: offset.dy + renderBox.size.height +10,
                 right: rightOffset,
                 child: FadeTransition(
                   opacity: animation,

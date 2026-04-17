@@ -6,12 +6,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/pages/brower/browser_controller.dart';
-import 'package:paracosm/pages/dapp/dapp_modal_service.dart';
-
 import '../../modules/dapp/dapp_web3_service.dart';
 import '../../modules/dapp/handler/eth_web3_handler.dart';
 import '../../modules/dapp/handler/metamask_handler.dart';
-import '../../widgets/modals/dapp_modals.dart';
 
 class DAppPage extends StatefulWidget {
   final DAppHive dapp;

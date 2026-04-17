@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
-import 'package:paracosm/widgets/common/app_checkbox.dart';
 
 /// 成员模型
 class Member {
@@ -26,15 +26,33 @@ class Member {
 
 /// 选择成员弹窗
 class SelectMembersModal extends StatefulWidget {
-  const SelectMembersModal({super.key});
+  final bool showTag;
+  final String confirmText;
+  final bool showSelectedCount;
 
-  /// 显示弹窗的静态方法
-  static Future<List<Member>?> show(BuildContext context) {
+  const SelectMembersModal({
+    super.key,
+    this.showTag = true,
+    this.confirmText = 'Create',
+    this.showSelectedCount = false,
+  });
+
+  /// 显示弹窗
+  static Future<List<Member>?> show(
+    BuildContext context, {
+    bool showTag = true,
+    String confirmText = 'Create',
+    bool showSelectedCount = false,
+  }) {
     return showModalBottomSheet<List<Member>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const SelectMembersModal(),
+      builder: (context) => SelectMembersModal(
+        showTag: showTag,
+        confirmText: confirmText,
+        showSelectedCount: showSelectedCount,
+      ),
     );
   }
 
@@ -43,7 +61,7 @@ class SelectMembersModal extends StatefulWidget {
 }
 
 class _SelectMembersModalState extends State<SelectMembersModal> {
-  // 模拟数据
+  /// 模拟数据
   final List<Member> _members = [
     Member(
       id: '1',
@@ -92,30 +110,31 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     ),
   ];
 
+  int get _selectedCount => _members.where((member) => member.isSelected).length;
+
+  List<Member> get _selectedMembers =>
+      _members.where((member) => member.isSelected).toList(growable: false);
+
   @override
   Widget build(BuildContext context) {
-    // 计算列表区域的高度逻辑
-    // 如果数据小于 5，则自适应高度；否则设置固定高度或限制最大高度
     const double itemHeight = 72.0;
-    final double listHeight = _members.length < 5 
-        ? _members.length * itemHeight 
-        : 5 * itemHeight;
+    final double listHeight =
+        _members.length < 5 ? _members.length * itemHeight : 5 * itemHeight;
 
     return AppModal(
       title: 'Select Members',
-      confirmText: 'Create',
+      confirmText: widget.showSelectedCount
+          ? '${widget.confirmText} ($_selectedCount)'
+          : widget.confirmText,
       onConfirm: () {
-        final selected = _members.where((m) => m.isSelected).toList();
-        Navigator.pop(context, selected);
+        Navigator.pop(context, _selectedMembers);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 搜索框
           const AppSearchInput(),
           const SizedBox(height: 12),
-          // 成员列表
           SizedBox(
             height: listHeight,
             child: ListView.builder(
@@ -123,7 +142,10 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
               itemExtent: itemHeight,
               itemBuilder: (context, index) {
                 final member = _members[index];
-                return _buildMemberItem(member, index != _members.length - 1);
+                return _buildMemberItem(
+                  member: member,
+                  showDivider: index != _members.length - 1,
+                );
               },
             ),
           ),
@@ -132,12 +154,14 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     );
   }
 
-  Widget _buildMemberItem(Member member, bool showDivider) {
-    return Container(
+  Widget _buildMemberItem({
+    required Member member,
+    required bool showDivider,
+  }) {
+    return SizedBox(
       height: 76,
       child: Row(
         children: [
-          // 头像
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Image.asset(
@@ -148,7 +172,6 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
             ),
           ),
           const SizedBox(width: 12),
-          // 名称和地址
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -184,16 +207,16 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                       ],
                     ),
                   ),
-                  // 标签
-                  Text(
-                    member.tag,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.grey700,
-                      fontSize: 12,
+                  if (widget.showTag) ...[
+                    Text(
+                      member.tag,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.grey700,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // 复选框
+                    const SizedBox(width: 8),
+                  ],
                   AppCheckbox(
                     value: member.isSelected,
                     onChanged: (val) {

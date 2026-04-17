@@ -165,7 +165,7 @@ class DAppWeb3Service implements EthWeb3Handler {
     if (!value.startsWith('0x')) return BigInt.parse(value);
     return hexToInt(value);
   }
-  
+
   @override
   ChainAccount get ethChain => wallet.currentChain!;
   // =========================================================

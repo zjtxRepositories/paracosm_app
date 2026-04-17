@@ -43,6 +43,16 @@ class AppToast {
     );
   }
 
+  /// 显示复制成功提示
+  static void showCopied([String message = 'Copied!']) {
+    showToastWidget(
+      _buildCopiedToastChild(message: message),
+      duration: const Duration(seconds: 2),
+      position: ToastPosition.top,
+      handleTouch: true,
+    );
+  }
+
   /// 构建带图标的 Toast 内容视图
   static Widget _buildToastChild({
     required IconData icon,
@@ -95,6 +105,38 @@ class AppToast {
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+
+  /// 构建复制成功提示内容视图
+  static Widget _buildCopiedToastChild({
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            'assets/images/moments/done.png',
+            width: 16,
+            height: 16,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            message,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.grey900,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }

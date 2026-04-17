@@ -23,6 +23,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   int _activeTabIndex = 0;
   List<DAppHive> dappList1 = [];
   List<DAppHive> dappList2 = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -32,9 +33,32 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   Future<void> fetchData() async {
-    dappList1 = await DappListApi.get(1);
-    dappList2 = await DappListApi.get(2);
-    setState(() {});
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final results = await Future.wait([
+        DappListApi.get(1),
+        DappListApi.get(2),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        dappList1 = results[0];
+        dappList2 = results[1];
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      debugPrint("DiscoverPage error: $e");
+    }
   }
   
   @override
@@ -53,44 +77,39 @@ class _DiscoverPageState extends State<DiscoverPage> {
         children: [
           _buildCustomHeader(context, l10n),
           Expanded(
-            child: SingleChildScrollView(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Banner 区域
                   _buildBanner(),
 
-                  // 分类标签
-                  // _buildTabBar(tabs),
-
-                  // New arrivals 区域
                   _DiscoverSectionHeader(
                     title: l10n.discoverSectionNewArrivals,
-                    onTap: () => context.push('/discover-list/${l10n.discoverSectionNewArrivals}',extra: dappList1),
+                    onTap: () => context.push(
+                      '/discover-list/${l10n.discoverSectionNewArrivals}',
+                      extra: dappList1,
+                    ),
                   ),
                   _buildNewArrivalsGrid(l10n),
-                  
+
                   const SizedBox(height: 24),
-                  
-                  // Defi 区域
+
                   _DiscoverSectionHeader(
                     title: l10n.discoverSectionDefi,
-                    onTap: () => context.push('/discover-list/${l10n.discoverSectionDefi}',extra: dappList1),
+                    onTap: () => context.push(
+                      '/discover-list/${l10n.discoverSectionDefi}',
+                      extra: dappList1,
+                    ),
                   ),
                   _buildDefiGrid(l10n),
-                  
+
                   const SizedBox(height: 24),
-                  
-                  // Airdrop 区域
-                  // _DiscoverSectionHeader(
-                  //   title: l10n.discoverSectionAirdrop,
-                  //   onTap: () => context.push('/discover-list/${l10n.discoverSectionAirdrop}'),
-                  // ),
-                  // const SizedBox(height: 100), // 留白
                 ],
               ),
             ),
-          ),
+          )
         ],
       ),
     );

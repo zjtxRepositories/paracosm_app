@@ -49,6 +49,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _init() async {
     await fetchData();
+    await fetchTokenList();
     await fetchMarketData(); // 内部再调 fetchTokenList
   }
 

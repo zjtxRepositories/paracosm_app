@@ -17,7 +17,7 @@ class TokenModel {
   bool? isAdded;
   CoinMarketModel? market;
   double price;
-
+  String? protocol;
 
   TokenModel({
     required this.symbol,
@@ -31,6 +31,7 @@ class TokenModel {
     this.isAdded,
     this.market,
     this.price = 0,
+    this.protocol,
   });
 
   factory TokenModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +49,7 @@ class TokenModel {
       isAdded: json["isAdded"],
       market:json["market"] != null ? CoinMarketModel.fromJson(json["market"]) : null,
       price:json["price"],
+      protocol: json["protocol"],
 
     );
   }
@@ -65,6 +67,7 @@ class TokenModel {
       "isAdded": isAdded,
       "market": market?.toJson(),
       "price": price,
+      "protocol": protocol,
     };
   }
 

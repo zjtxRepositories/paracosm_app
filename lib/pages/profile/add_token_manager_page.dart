@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/chains/btc/bitcoin_search_token_info.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
@@ -33,7 +34,7 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
   WalletModel? wallet = AccountManager().currentWallet;
   late ChainAccount chain;
   bool _isEnabled = false;
-  final TextEditingController addressTextEditingController = TextEditingController(text: '0xB396a76607ce0e6fDe11834fd034A49bF27e5d56');
+  final TextEditingController addressTextEditingController = TextEditingController();
   final TextEditingController symbolTextEditingController = TextEditingController();
   final TextEditingController decimalsTextEditingController = TextEditingController();
   ProtocolType? _protocolType;
@@ -123,14 +124,14 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
   }
 
   void searchBTCAsset() async {
-    // if (_protocolType == null || _keyword.isEmpty) return;
-    // final result = await TokenManager.searchBTCAsset(_protocolType!,_keyword);
-    // setState(() {
-    //   _btcTokens = result;
-    //   _isEnabled = _protocolType != null
-    //       && (_btcTokens ?? []).isNotEmpty
-    //       && symbolTextEditingController.text.isNotEmpty;
-    // });
+    if (_protocolType == null || _keyword.isEmpty) return;
+    final result = await BitcoinSearchTokenInfo.searchBTCAsset(_protocolType!,_keyword);
+    setState(() {
+      _btcTokens = result;
+      _isEnabled = _protocolType != null
+          && (_btcTokens ?? []).isNotEmpty
+          && symbolTextEditingController.text.isNotEmpty;
+    });
   }
 
   void addBTCAsset() async {
@@ -138,8 +139,9 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
     for (final token in _btcTokens!) {
       await WalletManager.addToken(wallet!.id,token);
     }
-    Get.back(result: true);
     EasyLoading.showToast('添加成功');
+    context.pop();
+
   }
   /// 显示网络选择弹窗
   void _showNetworkSelector() {

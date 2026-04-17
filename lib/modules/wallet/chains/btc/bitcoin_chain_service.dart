@@ -1,6 +1,5 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
 import 'package:paracosm/core/network/client/http_client.dart';
-import 'package:paracosm/modules/wallet/model/transaction_model.dart';
 import '../model/gas_fee.dart';
 import 'bitcoin_service.dart';
 import 'bitcoin_tx_detail.dart';

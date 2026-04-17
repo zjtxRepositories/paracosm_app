@@ -140,8 +140,12 @@ class WalletManager {
     if (chainIndex == -1) return;
     ChainAccount chain = wallet.chains[chainIndex];
     final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
-    if (tokenIndex != -1) return;
-    chain.tokens.add(token);
+    if (tokenIndex != -1){
+      if (chain.tokens[tokenIndex].isAdded == true) return;
+      chain.tokens[tokenIndex].isAdded = true;
+    }else{
+      chain.tokens.add(token);
+    }
     wallet.chains[chainIndex] = chain;
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();

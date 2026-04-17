@@ -42,6 +42,7 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   Future<void> reloadTokenList() async {
     final chains = _wallet?.chains;
     if (chains == null) return;
+    tokenList = [];
     for (final chain in chains){
       tokenList.addAll(chain.tokens);
     }
@@ -97,30 +98,36 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
 
   // ================= 自定义 Token =================
   Widget _buildCustomTokenCard() {
-    return Container(
-      margin: EdgeInsets.all(20),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.grey200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Image.asset('assets/images/wallet/icon_coin.png', width: 24),
-              SizedBox(width: 10),
-              Text('自定义币种',
-                style: AppTextStyles.h2.copyWith(
-                  fontSize: 18,
-                  color: AppColors.black,
-              ),),
-            ],
-          ),
-          Icon(Icons.arrow_forward_ios, size: 16),
-        ],
+    return GestureDetector(
+      onTap: () async {
+       await context.push('/add-token-manager');
+       _init();
+      },
+      child: Container(
+        margin: EdgeInsets.all(20),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Image.asset('assets/images/wallet/icon_coin.png', width: 24),
+                SizedBox(width: 10),
+                Text('自定义币种',
+                  style: AppTextStyles.h2.copyWith(
+                    fontSize: 18,
+                    color: AppColors.black,
+                  ),),
+              ],
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16),
+          ],
+        ),
       ),
     );
   }

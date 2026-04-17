@@ -145,10 +145,22 @@ class EvmService {
   static bool isValidAddress(String address) {
     try {
       final addr = EthereumAddress.fromHex(address);
-      // 可选：强制 checksum
       final checksummed = addr.hexEip55;
       return address == checksummed || address.toLowerCase() == address;
     } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> isContractAddress(
+      Web3Client client,
+      String address,
+      ) async {
+    try {
+      final ethAddress = EthereumAddress.fromHex(address);
+      final code = await client.getCode(ethAddress);
+      return code.isNotEmpty;
+    } catch (e) {
       return false;
     }
   }

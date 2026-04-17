@@ -117,12 +117,12 @@ class WalletManager {
     await AccountManager().refreshWallet();
   }
 
-  /// 更新钱包
+  /// 更新token
   static Future<void> updateToken(String walletId,TokenModel token)async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     final chainIndex = wallet.chains.indexWhere((item) => item.chainId == token.chainId);
-    if (chainIndex == -1) return ;
+    if (chainIndex == -1) return;
     ChainAccount chain = wallet.chains[chainIndex];
     final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
     if (tokenIndex == -1) return ;
@@ -132,6 +132,20 @@ class WalletManager {
     await AccountManager().refreshWallet();
   }
 
+  /// 添加token
+  static Future<void> addToken(String walletId,TokenModel token)async {
+    final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+    final chainIndex = wallet.chains.indexWhere((item) => item.chainId == token.chainId);
+    if (chainIndex == -1) return;
+    ChainAccount chain = wallet.chains[chainIndex];
+    final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
+    if (tokenIndex != -1) return;
+    chain.tokens.add(token);
+    wallet.chains[chainIndex] = chain;
+    await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet();
+  }
 
 }
 

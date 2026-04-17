@@ -1,13 +1,16 @@
 import 'package:eth_sig_util/eth_sig_util.dart';
 import 'package:paracosm/modules/wallet/chains/evm/client/evm_client_manager.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_balance_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_gas_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_sign_service.dart';
+import 'package:paracosm/modules/wallet/chains/evm/services/evm_token_info_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_transaction_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_typed_data_signer.dart';
 import 'package:web3dart/web3dart.dart';
 
 import '../../model/chain_account.dart';
+import '../../model/token_model.dart';
 import '../model/gas_fee.dart';
 
 class EvmFacade {
@@ -59,6 +62,36 @@ class EvmFacade {
       chain.chainId,
       chain.nodes,
           (client) => client.getBlockInformation(),
+    );
+  }
+
+  ///address
+  static bool isValidAddress(String address) {
+    return EvmService.isValidAddress(address);
+  }
+
+  static Future<bool> isContractAddress(
+      ChainAccount chain,
+      String address,
+      ) async {
+    return EvmClientManager.withFallback(
+      chain.chainId,
+      chain.nodes,
+          (client) => EvmService.isContractAddress(client, address),
+    );
+
+  }
+
+  ///token
+  static Future<TokenModel?> getTokenInfo(
+      ChainAccount chain,
+      String contractAddress,
+      ) {
+    return EvmClientManager.withFallback(
+      chain.chainId,
+      chain.nodes,
+          (client) => EvmTokenInfoService.getTokenInfo(
+              client: client, contractAddress: contractAddress, chainId: chain.chainId)
     );
   }
 }

@@ -2,13 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/core/util/string_util.dart';
-import 'package:paracosm/widgets/modals/share_modals.dart';
 import '../../core/network/models/social_media_model.dart';
 import '../../widgets/common/app_action_pop_menu.dart';
-import '../../widgets/common/app_modal.dart';
 
 class MomentPostCard extends StatelessWidget {
   final SocialInvitationModel model;
+  final bool isFollowing;
   final VoidCallback? onTap;
   final VoidCallback? onLike;
   final VoidCallback? onCollect;
@@ -18,6 +17,7 @@ class MomentPostCard extends StatelessWidget {
   const MomentPostCard({
     super.key,
     required this.model,
+    required this.isFollowing,
     this.onTap,
     this.onLike,
     this.onCollect,
@@ -48,12 +48,12 @@ class MomentPostCard extends StatelessWidget {
           children: [
             _Header(
               model: model,
+              isFollowing: isFollowing,
               onFollow: onFollow,
               onShare: onShare,
             ),
 
             const SizedBox(height: 16),
-
             /// 内容
             Text(
               model.content,
@@ -86,19 +86,19 @@ class MomentPostCard extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final SocialInvitationModel model;
+  final bool isFollowing;
   final VoidCallback? onFollow;
   final VoidCallback? onShare;
 
   const _Header({
     required this.model,
+    required this.isFollowing,
     this.onFollow,
     this.onShare,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isFollowing = model.isCollect;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

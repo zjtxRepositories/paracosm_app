@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:path/path.dart';
 
 import '../../../core/network/api/social_circle_note_api.dart';
+import '../../../core/network/api/social_circle_user_api.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/modals/share_modals.dart';
 
@@ -12,6 +15,8 @@ import '../../../widgets/modals/share_modals.dart';
 class MomentsController extends ChangeNotifier {
   final List<SocialInvitationModel> _items = [];
   List<SocialInvitationModel> get items => _items;
+  List<String> _followNoteIds = [];
+  List<String> get followNoteIds => _followNoteIds;
   final List<StoryData> _stories = [
     const StoryData(
       id: 'add',
@@ -40,6 +45,7 @@ class MomentsController extends ChangeNotifier {
     _page = 1;
     _hasMore = true;
     await fetchMore();
+    _getFollowList();
   }
 
   /// 分页加载
@@ -50,7 +56,7 @@ class MomentsController extends ChangeNotifier {
     notifyListeners();
 
     /// 👉 TODO: 换成你的真实接口
-    final data = await _mockFetch();
+    final data = await _fetchData();
 
     if (data.length < _pageSize) {
       _hasMore = false;
@@ -74,16 +80,48 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 点赞
-  void toggleLike(SocialInvitationModel item) {
+  Future<void> toggleLike(SocialInvitationModel item) async {
+    AppLoading.show();
     item.isLike = !item.isLike;
+    final result = await SocialCircleNoteApi.socialCircleNoteLikeToggle(item.noteId, item.isLike);
+    AppLoading.dismiss();
+    if (!result){
+      AppToast.show('点赞失败！');
+      return;
+    }
     item.likes += item.isLike == true ? 1 : -1;
     notifyListeners();
   }
 
   /// 收藏
-  void toggleCollect(SocialInvitationModel item) {
+  Future<void> toggleCollect(SocialInvitationModel item) async {
+    AppLoading.show();
     item.isCollect = !item.isCollect ;
+    final result = await SocialCircleNoteApi.socialCircleNoteCollectToggle(item.noteId, item.isCollect);
+    AppLoading.dismiss();
+    if (!result){
+      AppToast.show('收藏失败！');
+      return;
+    }
     item.collects += item.isCollect == true ? 1 : -1;
+    notifyListeners();
+  }
+
+  /// 关注
+  Future<void> toggleFollow(SocialInvitationModel item) async {
+    AppLoading.show();
+    bool isFollow = !_followNoteIds.contains(item.noteId);
+    final result = await SocialCircleUserApi.socialCircleUserFollowToggle(item.noteId, isFollow);
+    AppLoading.dismiss();
+    if (!result){
+      AppToast.show('关注失败！');
+      return;
+    }
+    if (isFollow){
+      _followNoteIds.add(item.noteId);
+    }else{
+      _followNoteIds.remove(item.noteId);
+    }
     notifyListeners();
   }
 
@@ -92,12 +130,21 @@ class MomentsController extends ChangeNotifier {
     ShareModals.show(context);
   }
 
-  /// mock 数据（你后面替换接口）
-  Future<List<SocialInvitationModel>> _mockFetch() async {
-    return await SocialCircleNoteApi.get(
+  /// 数据
+  Future<List<SocialInvitationModel>> _fetchData() async {
+    return await SocialCircleNoteApi.getSocialCircleNoteList(
       _page.toString(),
       _pageSize.toString(),
     );
+  }
+
+
+  /// 关注列表
+  Future<void> _getFollowList() async {
+    List<String> list = await SocialCircleNoteApi.getSocialCircleUserFollowList();
+    _followNoteIds = list;
+    print('fllowing:$_followNoteIds');
+    notifyListeners();
   }
 }
 

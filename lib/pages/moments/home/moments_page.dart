@@ -57,9 +57,11 @@ class _MomentsPageState extends State<MomentsPage> {
                   final item = controller.items[index];
                   return MomentPostCard(
                     model: item,
+                    isFollowing: controller.followNoteIds.contains(item.noteId),
                     onLike: () => controller.toggleLike(item),
                     onCollect: () => controller.toggleCollect(item),
                     onShare: () => controller.toggleShare(item,context),
+                    onFollow: () => controller.toggleFollow(item),
                     onTap: () => context.push('/moment-post-detail',extra: item),
                   );
                 },

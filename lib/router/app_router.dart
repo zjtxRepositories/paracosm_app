@@ -20,7 +20,7 @@ import 'package:paracosm/pages/chat/group_details_page.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
-import 'package:paracosm/pages/moments/moments_page.dart';
+import 'package:paracosm/pages/moments/home/moments_page.dart';
 import 'package:paracosm/pages/moments/message_center_page.dart';
 import 'package:paracosm/pages/moments/new_post_page.dart';
 import 'package:paracosm/pages/moments/moment_post_detail_page.dart';

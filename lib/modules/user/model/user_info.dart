@@ -21,4 +21,13 @@ class UserInfo {
       token: json["access_token"] ?? "",
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'nickname': nickname,
+      'avatar': avatar,
+      'token': token,
+    };
+  }
 }

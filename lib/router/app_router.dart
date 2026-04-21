@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/models/dApp_hive.dart';
+import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -212,7 +213,12 @@ class AppRouter {
       GoRoute(
         path: '/moment-post-detail',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const MomentPostDetailPage(),
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final item = data?['item'];
+          final isFollowing = data?['isFollowing'];
+          return data == null ? SizedBox() : MomentPostDetailPage(item: item, isFollowing: isFollowing);
+        },
       ),
       
       GoRoute(

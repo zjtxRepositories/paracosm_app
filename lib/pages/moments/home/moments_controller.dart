@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:path/path.dart';
-
 import '../../../core/network/api/social_circle_note_api.dart';
 import '../../../core/network/api/social_circle_user_api.dart';
 import '../../../theme/app_colors.dart';
@@ -125,10 +123,28 @@ class MomentsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 发送评论
+  Future<SocialInvitationModel> sendComment(SocialInvitationModel item,String content,String rootId,String noteId,String toUserId) async {
+    AppLoading.show();
+    final result = await SocialCircleNoteApi.socialCircleNoteReview(noteId, toUserId, content, rootId);
+    AppLoading.dismiss();
+    if (!result){
+      AppToast.show('发布失败！');
+      throw '发布失败！';
+    }
+    final note = await SocialCircleNoteApi.getSocialCircleNoteInfo(item.noteId);
+    if (note == null) throw '没有获取到';
+    item.reviewInfo = note.reviewInfo;
+    item.reviews = note.reviews;
+    notifyListeners();
+    return note;
+  }
+
   /// 分享
   void toggleShare(SocialInvitationModel item,BuildContext context) {
     ShareModals.show(context);
   }
+
 
   /// 数据
   Future<List<SocialInvitationModel>> _fetchData() async {

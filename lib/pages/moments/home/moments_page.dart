@@ -62,7 +62,10 @@ class _MomentsPageState extends State<MomentsPage> {
                     onCollect: () => controller.toggleCollect(item),
                     onShare: () => controller.toggleShare(item,context),
                     onFollow: () => controller.toggleFollow(item),
-                    onTap: () => context.push('/moment-post-detail',extra: item),
+                    onTap: () => context.push('/moment-post-detail',extra: {
+                      'item': item,
+                      'isFollowing': controller.followNoteIds.contains(item.noteId),
+                    },),
                   );
                 },
               ),

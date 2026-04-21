@@ -70,11 +70,10 @@ class SocialCircleNoteApi {
 
   static Future<SocialInvitationModel?> getSocialCircleNoteInfo(
       String noteId,
-      String userID,
       ) async {
     final res = await _client.get("/app/note/info", params: {
       "note_id": noteId,
-      "user_id": userID,
+      "user_id": _userId,
     });
 
     return _parseOne(res["data"]);
@@ -129,14 +128,13 @@ class SocialCircleNoteApi {
   }
 
   static Future<bool> socialCircleNoteReview(
-      String userId,
       String noteId,
       String toUserId,
       String content,
       String rootId,
       ) =>
       _postOk("/app/note/review", {
-        "user_id": userId,
+        "user_id": _userId,
         "note_id": noteId,
         "to_user_id": toUserId,
         "content": content,
@@ -144,12 +142,11 @@ class SocialCircleNoteApi {
       });
 
   static Future<bool> socialCircleNoteDelreview(
-      String userId,
       String noteId,
       String reviewId,
       ) =>
       _postOk("/app/note/delreview", {
-        "user_id": userId,
+        "user_id": _userId,
         "note_id": noteId,
         "review_id": reviewId,
       });

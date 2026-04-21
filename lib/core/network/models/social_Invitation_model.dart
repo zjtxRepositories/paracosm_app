@@ -40,7 +40,7 @@ class SocialInvitationModel {
   final int authority;
   final List<SocialMediaModel> media;
   int likes;
-  final int reviews;
+  int reviews;
   int collects;
   final int shares;
   final int forwards;

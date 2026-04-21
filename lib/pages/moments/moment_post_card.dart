@@ -66,7 +66,7 @@ class MomentPostCard extends StatelessWidget {
             const SizedBox(height: 8),
 
             /// 图片
-            _ImageGrid(medias: model.media),
+            ImageGrid(medias: model.media),
 
             const SizedBox(height: 12),
 
@@ -104,7 +104,7 @@ class _Header extends StatelessWidget {
       children: [
         Row(
           children: [
-            _Avatar(url: model.userInfoModel?.avatar ?? ''),
+            Avatar(url: model.userInfoModel?.avatar ?? ''),
             const SizedBox(width: 8),
 
             Column(
@@ -131,29 +131,7 @@ class _Header extends StatelessWidget {
 
         Row(
           children: [
-            GestureDetector(
-              onTap: onFollow,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: isFollowing ? Colors.white : Colors.black,
-                  borderRadius: BorderRadius.circular(28),
-                  border: isFollowing
-                      ? Border.all(color: Colors.grey.shade300)
-                      : null,
-                ),
-                child: Text(
-                  isFollowing ? 'Following' : 'Follow',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isFollowing ? Colors.black : Colors.white,
-                  ),
-                ),
-              ),
-            ),
+            FollowButton(isFollowing: isFollowing,onTap: onFollow),
             const SizedBox(width: 8),
             Builder(
               builder: (context) {
@@ -209,11 +187,11 @@ class _Header extends StatelessWidget {
 
 }
 
-class _ImageGrid extends StatelessWidget {
+class ImageGrid extends StatelessWidget {
   final List<SocialMediaModel> medias;
   final double spacing;
 
-  const _ImageGrid({
+  const ImageGrid({super.key,
     required this.medias,
     this.spacing = 4,
   });
@@ -303,14 +281,14 @@ class _PostActionBar extends StatelessWidget {
     return Row(
       children: [
         _Item(
-          icon: 'assets/images/moments/like.png',
+          icon: model.isLike? 'assets/images/moments/like-active.png' : 'assets/images/moments/like.png',
           text: '${model.likes}',
           onTap: onLike,
         ),
         const SizedBox(width: 24),
 
         _Item(
-          icon: 'assets/images/moments/collect.png',
+          icon: model.isCollect? 'assets/images/moments/collect-active.png' : 'assets/images/moments/collect.png',
           text: '${model.collects}',
           onTap: onCollect,
         ),
@@ -318,7 +296,7 @@ class _PostActionBar extends StatelessWidget {
 
         _Item(
           icon: 'assets/images/moments/comment.png',
-          text: '${model.reviewInfo.length}',
+          text: '${model.reviews}',
         ),
 
         const Spacer(),
@@ -363,12 +341,12 @@ class _Item extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
+class Avatar extends StatelessWidget {
   final String? url;
   final double size;
   final double radius;
 
-  const _Avatar({
+  const Avatar({
     this.url,
     this.size = 36,
     this.radius = 8,
@@ -405,6 +383,44 @@ class _Avatar extends StatelessWidget {
         Icons.person,
         size: size * 0.5,
         color: const Color(0xFFCCCCCC),
+      ),
+    );
+  }
+}
+
+class FollowButton extends StatelessWidget {
+  final bool isFollowing;
+  final VoidCallback? onTap;
+
+  const FollowButton({
+    this.isFollowing = false,
+    this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: isFollowing ? Colors.white : Colors.black,
+          borderRadius: BorderRadius.circular(28),
+          border: isFollowing
+              ? Border.all(color: Colors.grey.shade300)
+              : null,
+        ),
+        child: Text(
+          isFollowing ? 'Following' : 'Follow',
+          style: TextStyle(
+            fontSize: 12,
+            color: isFollowing ? Colors.black : Colors.white,
+          ),
+        ),
       ),
     );
   }

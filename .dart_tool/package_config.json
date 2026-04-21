@@ -566,6 +566,18 @@
       "languageVersion": "3.3"
     },
     {
+      "name": "jni",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/jni-1.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "jni_flutter",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/jni_flutter-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
       "name": "js",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/js-0.6.7",
       "packageUri": "lib/",
@@ -699,7 +711,7 @@
     },
     {
       "name": "path_provider_android",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/path_provider_android-2.2.23",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/path_provider_android-2.3.1",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -867,7 +879,7 @@
     },
     {
       "name": "solana",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/solana-0.32.0",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/solana-0.32.0+1",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -945,9 +957,9 @@
     },
     {
       "name": "synchronized",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/synchronized-3.4.0",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/synchronized-3.4.0+1",
       "packageUri": "lib/",
-      "languageVersion": "3.8"
+      "languageVersion": "3.11"
     },
     {
       "name": "term_glyph",
@@ -1029,7 +1041,7 @@
     },
     {
       "name": "vm_service",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/vm_service-15.0.2",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/vm_service-15.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },

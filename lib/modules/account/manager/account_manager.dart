@@ -7,7 +7,6 @@ import '../../../core/db/dao/app_config_dao.dart';
 import '../../im/service/im_service.dart';
 import '../../user/model/user_info.dart';
 import '../../wallet/model/wallet_model.dart';
-import '../../wallet/security/wallet_security.dart';
 import '../model/account_model.dart';
 
 class AccountManager extends ChangeNotifier {

@@ -1,3 +1,5 @@
+import 'media_item.dart';
+
 class SocialMediaModel {
   SocialMediaModel(
       this.url,
@@ -41,5 +43,32 @@ class SocialMediaModel {
       'width': width,
       'height': height,
     };
+  }
+}
+
+extension MediaTypeMapper on MediaType {
+  int toInt() => this == MediaType.image ? 0 : 1;
+
+  static MediaType fromInt(int value) {
+    return value == 1 ? MediaType.video : MediaType.image;
+  }
+}
+
+extension SocialMediaToItemMapper on SocialMediaModel {
+  MediaItem toMediaItem() {
+    return MediaItem(
+      file: null,
+      url: url.isEmpty ? null : url,
+      type: MediaTypeMapper.fromInt(type),
+
+      coverFile: null,
+      coverUrl: cover.isEmpty ? null : cover,
+    );
+  }
+}
+
+extension SocialMediaListMapper on List<SocialMediaModel> {
+  List<MediaItem> toMediaItems() {
+    return map((e) => e.toMediaItem()).toList();
   }
 }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
+import 'package:paracosm/core/network/models/social_media_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import '../../../core/network/api/social_circle_note_api.dart';
 import '../../../core/network/api/social_circle_user_api.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/modals/share_modals.dart';
 
 /// ==========================
@@ -172,6 +174,19 @@ class MomentsController extends ChangeNotifier {
     context.push('/moment-report');
   }
 
+  /// 图片详情
+  void toggleMedia(List<SocialMediaModel> medias,int initialIndex,BuildContext context) {
+    print('init:$initialIndex');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppMediaGallery(
+          list: medias.map((e) => e.toMediaItem()).toList(),
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
 
   /// 数据
   Future<List<SocialInvitationModel>> _fetchData() async {

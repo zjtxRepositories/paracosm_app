@@ -121,6 +121,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 const SizedBox(height: 16),
                 ImageGrid(
                   medias: model.media,
+                  onTap:(index) => controller.toggleMedia(model.media, index,context),
                 ),
 
                 const SizedBox(height: 16),

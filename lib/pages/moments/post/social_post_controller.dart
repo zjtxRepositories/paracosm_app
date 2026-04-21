@@ -11,29 +11,9 @@ import 'package:paracosm/core/network/models/social_media_model.dart';
 import 'package:paracosm/core/network/models/social_note_publish_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/core/util/media_handle_util.dart';
+import '../../../core/network/models/media_item.dart';
 import '../../../modules/account/manager/account_manager.dart';
 
-/// ======================
-/// MediaType
-/// ======================
-enum MediaType { image, video }
-
-/// ======================
-/// MediaItem
-/// ======================
-class MediaItem {
-  final File file;
-  final MediaType type;
-
-  /// 👉 视频封面（图片路径）
-  final File? coverFile;
-
-  MediaItem(
-      this.file,
-      this.type, {
-        this.coverFile,
-      });
-}
 
 /// ======================
 /// Controller
@@ -119,14 +99,14 @@ class SocialPostController extends GetxController {
 
         assetList.add(
           MediaItem(
-            file,
-            MediaType.video,
+            file: file,
+            type:MediaType.video,
             coverFile: coverFile,
           ),
         );
       } else {
         assetList.add(
-          MediaItem(file, MediaType.image),
+          MediaItem(file: file, type: MediaType.image),
         );
       }
     }
@@ -153,7 +133,7 @@ class SocialPostController extends GetxController {
       /// ======================
       if (item.type == MediaType.image) {
         final compressed =
-        await MediaHandleUtil.compressedImageQuality(item.file.path);
+        await MediaHandleUtil.compressedImageQuality(item.file!.path);
 
         final url = await UploadFileApi.uploadFileByPath(compressed);
         if (url == null) continue;
@@ -176,7 +156,7 @@ class SocialPostController extends GetxController {
       /// 视频
       /// ======================
       if (item.type == MediaType.video) {
-        final result = await MediaHandleUtil.video(item.file);
+        final result = await MediaHandleUtil.video(item.file!);
         if (result == null) continue;
 
         final videoUrl =

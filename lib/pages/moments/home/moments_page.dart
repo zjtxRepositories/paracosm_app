@@ -65,6 +65,7 @@ class _MomentsPageState extends State<MomentsPage> {
                     onFollow: () => controller.toggleFollow(item),
                     onBlock: () => controller.toggleBlock(item),
                     onReport: () => controller.toggleReport(item,context),
+                    onMediaTap: (index) => controller.toggleMedia(item.media, index,context),
                     onTap: () => context.push('/moment-post-detail',extra: {
                       'item': item,
                       'isFollowing': controller.followIds.contains(item.userId),

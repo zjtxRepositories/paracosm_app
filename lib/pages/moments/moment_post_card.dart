@@ -16,6 +16,7 @@ class MomentPostCard extends StatelessWidget {
   final VoidCallback? onFollow;
   final VoidCallback? onBlock;
   final VoidCallback? onReport;
+  final Function(int)? onMediaTap;
 
   const MomentPostCard({
     super.key,
@@ -29,6 +30,7 @@ class MomentPostCard extends StatelessWidget {
     this.onFollow,
     this.onBlock,
     this.onReport,
+    this.onMediaTap,
   });
 
   @override
@@ -75,7 +77,12 @@ class MomentPostCard extends StatelessWidget {
             const SizedBox(height: 8),
 
             /// 图片
-            ImageGrid(medias: model.media),
+            ImageGrid(
+              medias: model.media,
+              onTap: (index){
+                onMediaTap?.call(index);
+              }
+            ),
 
             const SizedBox(height: 12),
 
@@ -206,10 +213,12 @@ class _Header extends StatelessWidget {
 class ImageGrid extends StatelessWidget {
   final List<SocialMediaModel> medias;
   final double spacing;
+  final Function(int)? onTap;
 
   const ImageGrid({super.key,
     required this.medias,
     this.spacing = 4,
+    this.onTap,
   });
 
   @override
@@ -238,37 +247,40 @@ class ImageGrid extends StatelessWidget {
             final isLast = index == visibleCount - 1;
             final showOverlay = hasMore && isLast;
 
-            return SizedBox(
-              width: itemSize,
-              height: itemSize,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.network(
-                      image.url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: const Color(0xFFF2F2F2),
-                        child: const Icon(Icons.image_not_supported),
-                      ),
-                    ),
-
-                    if (showOverlay)
-                      Container(
-                        color: Colors.black.withOpacity(0.5),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '+$hiddenCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
+            return GestureDetector(
+              onTap: ()=> onTap?.call(index),
+              child: SizedBox(
+                width: itemSize,
+                height: itemSize,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        image.url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFFF2F2F2),
+                          child: const Icon(Icons.image_not_supported),
                         ),
                       ),
-                  ],
+
+                      if (showOverlay)
+                        Container(
+                          color: Colors.black.withOpacity(0.5),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '+$hiddenCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );

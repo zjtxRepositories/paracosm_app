@@ -9,6 +9,8 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 
+import '../../../core/network/models/media_item.dart';
+import '../../../widgets/common/app_media_gallery.dart';
 
 class NewPostPage extends StatefulWidget {
   final bool isRetweet;
@@ -250,11 +252,24 @@ Widget buildMediaRow(SocialPostController controller,BuildContext context) {
         ...controller.assetList.asMap().entries.map((e) {
           final index = e.key;
           final item = e.value;
-          return _ImagePreview(
-            file: item.file,
-            isVideo: item.type == MediaType.video,
-            coverFile: item.coverFile,
-            onDelete: () => controller.removeMedia(index),
+          return GestureDetector(
+            onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AppMediaGallery(
+                    list: controller.assetList,
+                    initialIndex: index,
+                  ),
+                ),
+              );
+            },
+            child: _ImagePreview(
+              file: item.file!,
+              isVideo: item.type == MediaType.video,
+              coverFile: item.coverFile,
+              onDelete: () => controller.removeMedia(index),
+            ),
           );
         }),
 

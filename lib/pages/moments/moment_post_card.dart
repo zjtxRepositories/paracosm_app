@@ -8,21 +8,27 @@ import '../../widgets/common/app_action_pop_menu.dart';
 class MomentPostCard extends StatelessWidget {
   final SocialInvitationModel model;
   final bool isFollowing;
+  final bool isBlock;
   final VoidCallback? onTap;
   final VoidCallback? onLike;
   final VoidCallback? onCollect;
   final VoidCallback? onShare;
   final VoidCallback? onFollow;
+  final VoidCallback? onBlock;
+  final VoidCallback? onReport;
 
   const MomentPostCard({
     super.key,
     required this.model,
     required this.isFollowing,
+    required this.isBlock,
     this.onTap,
     this.onLike,
     this.onCollect,
     this.onShare,
     this.onFollow,
+    this.onBlock,
+    this.onReport,
   });
 
   @override
@@ -49,8 +55,11 @@ class MomentPostCard extends StatelessWidget {
             _Header(
               model: model,
               isFollowing: isFollowing,
+              isBlock: isBlock,
               onFollow: onFollow,
               onShare: onShare,
+              onBlock: onBlock,
+              onReport: onReport,
             ),
 
             const SizedBox(height: 16),
@@ -87,14 +96,21 @@ class MomentPostCard extends StatelessWidget {
 class _Header extends StatelessWidget {
   final SocialInvitationModel model;
   final bool isFollowing;
+  final bool isBlock;
   final VoidCallback? onFollow;
   final VoidCallback? onShare;
+  final VoidCallback? onBlock;
+  final VoidCallback? onReport;
 
   const _Header({
     required this.model,
+    required this.isBlock,
     required this.isFollowing,
     this.onFollow,
     this.onShare,
+    this.onBlock,
+    this.onReport,
+
   });
 
   @override
@@ -154,13 +170,13 @@ class _Header extends StatelessWidget {
                         ),
                         AppActionPopMenuItem(
                           icon: 'assets/images/moments/block.png',
-                          label: 'Block this user',
-                          onTap: () {},
+                          label: isBlock ? 'Unblock this use' : 'Block this user',
+                          onTap: onBlock ?? (){},
                         ),
                         AppActionPopMenuItem(
                           icon: 'assets/images/moments/report.png',
                           label: 'Report',
-                          onTap: () {},
+                          onTap: onReport ?? (){},
                           showDivider: false,
                         ),
                       ],

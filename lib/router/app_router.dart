@@ -217,7 +217,8 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final item = data?['item'];
           final isFollowing = data?['isFollowing'];
-          return data == null ? SizedBox() : MomentPostDetailPage(item: item, isFollowing: isFollowing);
+          final isBlock = data?['isBlock'];
+          return data == null ? SizedBox() : MomentPostDetailPage(item: item, isFollowing: isFollowing, isBlock: isBlock,);
         },
       ),
       

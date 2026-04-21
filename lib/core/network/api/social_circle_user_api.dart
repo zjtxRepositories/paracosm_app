@@ -28,31 +28,31 @@ class SocialCircleUserApi {
   /// =========================
   /// GET 列表
   /// =========================
-  static Future<List<String>> getSocialCircleUserBlock(String userId) async {
+  static Future<List<String>> getSocialCircleUserBlock() async {
     final res = await _httpUtil.get(
       "/app/user/block",
-      params: {"user_id": userId},
+      params: {"user_id": _userId},
     );
 
-    return _parseStringList(res.data["data"]);
+    return _parseStringList(res["data"]);
   }
 
-  static Future<List<String>> getSocialCircleUserFollow(String userId) async {
+  static Future<List<String>> getSocialCircleUserFollow() async {
     final res = await _httpUtil.get(
       "/app/user/follow",
-      params: {"user_id": userId},
+      params: {"user_id": _userId},
     );
 
-    return _parseStringList(res.data["data"]);
+    return _parseStringList(res["data"]);
   }
 
-  static Future<List<String>> getSocialCircleUserFans(String userId) async {
+  static Future<List<String>> getSocialCircleUserFans() async {
     final res = await _httpUtil.get(
       "/app/user/fans",
-      params: {"user_id": userId},
+      params: {"user_id": _userId},
     );
 
-    return _parseStringList(res.data["data"]);
+    return _parseStringList(res["data"]);
   }
 
   static Future<List<SocialInvitationModel>> getSocialCircleUserNote() async {
@@ -63,7 +63,7 @@ class SocialCircleUserApi {
       },
     );
 
-    return _parseInvitationList(res.data["data"]);
+    return _parseInvitationList(res["data"]);
   }
 
   /// =========================
@@ -91,7 +91,6 @@ class SocialCircleUserApi {
   /// block / unblock（合并）
   /// =========================
   static Future<bool> socialCircleUserBlockToggle(
-      String userId,
       String blockUserId,
       bool isBlock,
       ) async {
@@ -102,12 +101,12 @@ class SocialCircleUserApi {
     final res = await _httpUtil.post(
       path,
       data: {
-        "user_id": userId,
+        "user_id": _userId,
         "block_user_id": blockUserId,
       },
     );
 
-    return _isOk(res.data);
+    return _isOk(res);
   }
 
   /// =========================
@@ -127,6 +126,6 @@ class SocialCircleUserApi {
       },
     );
 
-    return _isOk(res.data);
+    return _isOk(res);
   }
 }

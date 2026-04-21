@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
@@ -13,8 +14,10 @@ import '../../../widgets/modals/share_modals.dart';
 class MomentsController extends ChangeNotifier {
   final List<SocialInvitationModel> _items = [];
   List<SocialInvitationModel> get items => _items;
-  List<String> _followNoteIds = [];
-  List<String> get followNoteIds => _followNoteIds;
+  List<String> _followIds = [];
+  List<String> get followIds => _followIds;
+  List<String> _blockIds = [];
+  List<String> get blockIds => _blockIds;
   final List<StoryData> _stories = [
     const StoryData(
       id: 'add',
@@ -44,6 +47,7 @@ class MomentsController extends ChangeNotifier {
     _hasMore = true;
     await fetchMore();
     _getFollowList();
+    _getBlockList();
   }
 
   /// 分页加载
@@ -108,17 +112,17 @@ class MomentsController extends ChangeNotifier {
   /// 关注
   Future<void> toggleFollow(SocialInvitationModel item) async {
     AppLoading.show();
-    bool isFollow = !_followNoteIds.contains(item.noteId);
-    final result = await SocialCircleUserApi.socialCircleUserFollowToggle(item.noteId, isFollow);
+    bool isFollow = !_followIds.contains(item.userId);
+    final result = await SocialCircleUserApi.socialCircleUserFollowToggle(item.userId, isFollow);
     AppLoading.dismiss();
     if (!result){
       AppToast.show('关注失败！');
       return;
     }
     if (isFollow){
-      _followNoteIds.add(item.noteId);
+      _followIds.add(item.userId);
     }else{
-      _followNoteIds.remove(item.noteId);
+      _followIds.remove(item.userId);
     }
     notifyListeners();
   }
@@ -145,6 +149,29 @@ class MomentsController extends ChangeNotifier {
     ShareModals.show(context);
   }
 
+  /// 拉黑
+  Future<void> toggleBlock(SocialInvitationModel item) async {
+    AppLoading.show();
+    bool isBlock = !_blockIds.contains(item.userId);
+    final result = await SocialCircleUserApi.socialCircleUserBlockToggle(item.userId, isBlock);
+    AppLoading.dismiss();
+    if (!result){
+      AppToast.show('拉黑失败！');
+      return;
+    }
+    if (isBlock){
+      _blockIds.add(item.userId);
+    }else{
+      _blockIds.remove(item.userId);
+    }
+    notifyListeners();
+  }
+
+  /// 举报
+  void toggleReport(SocialInvitationModel item,BuildContext context) {
+    context.push('/moment-report');
+  }
+
 
   /// 数据
   Future<List<SocialInvitationModel>> _fetchData() async {
@@ -154,12 +181,19 @@ class MomentsController extends ChangeNotifier {
     );
   }
 
-
   /// 关注列表
   Future<void> _getFollowList() async {
-    List<String> list = await SocialCircleNoteApi.getSocialCircleUserFollowList();
-    _followNoteIds = list;
-    print('fllowing:$_followNoteIds');
+    List<String> list = await SocialCircleUserApi.getSocialCircleUserFollow();
+    _followIds = list;
+    print('fllowing:$_followIds');
+    notifyListeners();
+  }
+
+  /// 拉黑列表
+  Future<void> _getBlockList() async {
+    List<String> list = await SocialCircleUserApi.getSocialCircleUserBlock();
+    _blockIds = list;
+    print('_blockIds:$_blockIds');
     notifyListeners();
   }
 }

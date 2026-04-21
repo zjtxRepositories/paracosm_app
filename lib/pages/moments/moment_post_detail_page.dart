@@ -17,11 +17,13 @@ import 'moment_post_card.dart';
 class MomentPostDetailPage extends StatefulWidget {
   final SocialInvitationModel item;
   final bool isFollowing;
+  final bool isBlock;
 
   const MomentPostDetailPage({
     super.key,
     required this.item,
     required this.isFollowing,
+    required this.isBlock,
   });
 
   @override
@@ -31,6 +33,7 @@ class MomentPostDetailPage extends StatefulWidget {
 class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
   late SocialInvitationModel model;
   late bool isFollowing;
+  late bool isBlock;
   final MomentsController controller = MomentsController();
   final GlobalKey<CommentComposerBarState> inputKey = GlobalKey();
 
@@ -39,6 +42,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
     super.initState();
     model = widget.item;
     isFollowing = widget.isFollowing;
+    isBlock = widget.isBlock;
   }
 
   @override
@@ -66,17 +70,17 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/share-pop.png',
                     label: 'Share',
-                    onTap: () {},
+                    onTap: () => controller.toggleShare(model,context),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/block.png',
                     label: 'Block this user',
-                    onTap: () {},
+                    onTap: () => controller.toggleBlock(model),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/report.png',
-                    label: 'Report',
-                    onTap: () {},
+                    label: isBlock ? 'Unblock this use' : 'Block this user',
+                    onTap: () => controller.toggleReport(model,context),
                     showDivider: false,
                   ),
                 ],

@@ -57,14 +57,18 @@ class _MomentsPageState extends State<MomentsPage> {
                   final item = controller.items[index];
                   return MomentPostCard(
                     model: item,
-                    isFollowing: controller.followNoteIds.contains(item.noteId),
+                    isFollowing: controller.followIds.contains(item.userId),
+                    isBlock:controller.blockIds.contains(item.userId),
                     onLike: () => controller.toggleLike(item),
                     onCollect: () => controller.toggleCollect(item),
                     onShare: () => controller.toggleShare(item,context),
                     onFollow: () => controller.toggleFollow(item),
+                    onBlock: () => controller.toggleBlock(item),
+                    onReport: () => controller.toggleReport(item,context),
                     onTap: () => context.push('/moment-post-detail',extra: {
                       'item': item,
-                      'isFollowing': controller.followNoteIds.contains(item.noteId),
+                      'isFollowing': controller.followIds.contains(item.userId),
+                      'isBlock': controller.blockIds.contains(item.userId),
                     },),
                   );
                 },
@@ -116,7 +120,6 @@ class _MomentsPageState extends State<MomentsPage> {
               return GestureDetector(
                 child: _StoryAvatar(story: stories[index]),
                 onTap: (){
-                  print('dd----${stories[index].showAddBadge}');
                   if (!stories[index].showAddBadge){
                     context.push('/new-post?retweet=1');
                     return;

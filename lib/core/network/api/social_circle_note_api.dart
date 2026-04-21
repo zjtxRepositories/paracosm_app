@@ -3,6 +3,7 @@
 import '../../../modules/account/manager/account_manager.dart';
 import '../client/base_client.dart';
 import '../models/social_Invitation_model.dart';
+import '../models/social_note_publish_model.dart';
 import 'api_paths.dart';
 
 class SocialCircleNoteApi {
@@ -49,13 +50,6 @@ class SocialCircleNoteApi {
     return _parseList(res["data"]);
   }
 
-  static Future<List<SocialInvitationModel>> getSocialCircleNoteDraft() async {
-    final res = await _client.get("/app/user/draft", params: {
-      "user_id": _userId,
-    });
-
-    return _parseList(res["data"]);
-  }
 
   static Future<List<String>> getSocialCircleUserFollowList() async {
     final res = await _client.get("/app/user/follow", params: {
@@ -90,10 +84,6 @@ class SocialCircleNoteApi {
     return res["code"] == 1;
   }
 
-  // static Future<bool> socialCircleNotePublish(
-  //     NotePublishReq model,
-  //     ) =>
-  //     _postOk("/app/note/publish", model.toJson());
 
   static Future<bool> socialCircleNoteDel(String noteId) =>
       _postOk("/app/note/delete", {
@@ -172,4 +162,21 @@ class SocialCircleNoteApi {
         "from_user_id": fromUserId,
         "to_user_id": toUserId,
       });
+
+  static Future<List<SocialInvitationModel>> getSocialCircleNoteDraft() async {
+    final res = await _client.get("/app/user/draft", params: {
+      "user_id": _userId,
+    });
+
+    return _parseList(res["data"]);
+  }
+
+  static Future<bool> socialCircleUpdateNoteDraft(SocialNotePublishModel model
+     )  =>
+      _postOk("/app/user/draft", model.toJson());
+
+  static Future<bool> socialCircleNotePublish(SocialNotePublishModel model
+      )  =>
+      _postOk("/app/note/publish", model.toJson());
+
 }

@@ -24,8 +24,15 @@ class BaseClient {
   Future<dynamic> post(
       String path, {
         dynamic data,
+        Options? options,
+        void Function(int, int)? onSendProgress,
       }) async {
-    final res = await _dio.post(path, data: data);
+    final res = await _dio.post(
+      path,
+      data: data,
+      options: options,
+      onSendProgress: onSendProgress,
+    );
     return res.data;
   }
 }

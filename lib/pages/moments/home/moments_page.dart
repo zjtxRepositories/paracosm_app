@@ -121,7 +121,7 @@ class _MomentsPageState extends State<MomentsPage> {
                 child: _StoryAvatar(story: stories[index]),
                 onTap: (){
                   if (!stories[index].showAddBadge){
-                    context.push('/new-post?retweet=1');
+                    context.push('/new-post?retweet=0');
                     return;
                   }
                 },

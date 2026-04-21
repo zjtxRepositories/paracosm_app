@@ -57,6 +57,10 @@ dependencies:
   flutter_windowmanager_plus: ^1.0.1
   rongcloud_im_wrapper_plugin: 5.32.5
   cached_network_image: ^3.4.1
+  wechat_assets_picker: ^10.1.1
+  photo_manager: ^3.9.0
+  flutter_image_compress: ^2.4.0
+  video_compress: ^3.1.4
 
   flutter_screenutil: ^5.9.3
   k_chart_plus: ^1.0.3

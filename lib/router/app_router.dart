@@ -23,7 +23,7 @@ import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
 import 'package:paracosm/pages/moments/home/moments_page.dart';
 import 'package:paracosm/pages/moments/message_center_page.dart';
-import 'package:paracosm/pages/moments/new_post_page.dart';
+import 'package:paracosm/pages/moments/post/new_post_page.dart';
 import 'package:paracosm/pages/moments/moment_post_detail_page.dart';
 import 'package:paracosm/pages/moments/moment_user_profile_page.dart';
 import 'package:paracosm/pages/moments/report_page.dart';

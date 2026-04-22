@@ -31,7 +31,7 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
     _controller = PageController(initialPage: _index);
 
     MediaCacheManager.preload(widget.list, _index);
-    
+
   }
 
   void _onPageChanged(int index) {
@@ -150,10 +150,11 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
                   icon: const Icon(Icons.close, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
-                Text(
-                  "${_index + 1}/${widget.list.length}",
-                  style: const TextStyle(color: Colors.white),
-                ),
+                if (widget.list.length > 1)
+                  Text(
+                    "${_index + 1}/${widget.list.length}",
+                    style: const TextStyle(color: Colors.white),
+                  ),
               ],
             ),
           ),

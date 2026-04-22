@@ -177,8 +177,7 @@ class MomentsController extends ChangeNotifier {
   /// 图片详情
   void toggleMedia(List<SocialMediaModel> medias,int initialIndex,BuildContext context) {
     print('init:$initialIndex');
-    Navigator.push(
-      context,
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => AppMediaGallery(
           list: medias.map((e) => e.toMediaItem()).toList(),
@@ -186,6 +185,7 @@ class MomentsController extends ChangeNotifier {
         ),
       ),
     );
+
   }
 
   /// 数据

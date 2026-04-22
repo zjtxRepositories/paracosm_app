@@ -6,6 +6,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
@@ -135,30 +136,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 构建头像部分
   Widget _buildAvatarSection() {
     return Center(
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child:AppNetworkImage(
-              url: _user?.profile.portraitUri,
-              width: 80,
-              height: 80,
-              fit: BoxFit.contain,
-            ),
-          ),
-
-          Positioned(
-            right: -4,
-            bottom: -4,
-            child: Image.asset(
-              'assets/images/chat/star.png',
-              width: 20,
-              height: 20,
-            ),
-          ),
-        ],
-      ),
+      child: UserAvatarWidget(
+        userId: _user?.profile.userId,
+        avatarUrl: _user?.profile.portraitUri,
+        size: 80,
+        borderRadius: BorderRadius.circular(16),
+      )
     );
   }
 

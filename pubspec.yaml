@@ -118,7 +118,7 @@ flutter:
     - assets/i18n/
     - assets/chains.json
     - assets/javascript/metamask/
-    - assets/avatar/
+    - assets/images/avatar/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

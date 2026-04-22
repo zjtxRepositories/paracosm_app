@@ -19,6 +19,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 import '../../modules/im/result/im_result.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
 import '../../widgets/common/app_network_image.dart';
 
 enum ChatSearchType {
@@ -355,15 +356,12 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: ClipRRect(
+              child: UserAvatarWidget(
+                userId: user.userId,
+                avatarUrl: user.portraitUri,
+                size: 48,
                 borderRadius: BorderRadius.circular(10),
-                child:AppNetworkImage(
-                  url: user.portraitUri,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.contain,
-                ),
-              ),
+              )
             ),
             const SizedBox(width: 8),
             Expanded(

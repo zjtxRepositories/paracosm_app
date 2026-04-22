@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:paracosm/core/network/models/user_model.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -7,18 +9,18 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../modules/im/manager/im_user_manager.dart';
+import '../../widgets/common/app_network_image.dart';
 
 /// 用户资料页面
 class UserProfilePage extends StatefulWidget {
-  final String name;
-  final String avatarPath;
-  final String address;
+  final String userId;
 
   const UserProfilePage({
     super.key,
-    required this.name,
-    required this.avatarPath,
-    this.address = '0X5E4F3A2689B11EE4..',
+    required this.userId,
   });
 
   @override
@@ -26,9 +28,40 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
+  UserModel? _user;
+
   @override
   void initState() {
     super.initState();
+    fetchData();
+  }
+
+  Future<void> fetchData() async {
+    final manager = ImUserManager();
+    final currentUserId = AccountManager().currentAccount?.id;
+
+    RCIMIWUserProfile? profile;
+    try {
+      if (widget.userId == currentUserId) {
+        profile = await manager.getMyUserProfile();
+      }
+      else {
+        final result =
+            await manager.getUserProfiles([widget.userId]) ?? [];
+        if (result.isNotEmpty) {
+          profile = result.first;
+        }
+      }
+      if (profile == null) return;
+      if (!mounted) return;
+
+      setState(() {
+        _user = UserModel(profile: profile!);
+      });
+    } catch (e) {
+      // 可以加日志
+      debugPrint("fetchData error: $e");
+    }
   }
 
   @override
@@ -63,7 +96,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         Navigator.pop(context);
       },
       child: _SetNoteNameInputWrapper(
-        initialText: widget.name,
+        initialText: _user?.name ?? '',
       ),
     );
   }
@@ -105,17 +138,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: AssetImage(widget.avatarPath),
-                fit: BoxFit.cover,
-              ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child:AppNetworkImage(
+              url: _user?.profile.portraitUri,
+              width: 80,
+              height: 80,
+              fit: BoxFit.contain,
             ),
           ),
+
           Positioned(
             right: -4,
             bottom: -4,
@@ -133,7 +165,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 构建用户名称
   Widget _buildNameSection() {
     return Text(
-      widget.name,
+      _user?.name ?? '',
       style: AppTextStyles.h1.copyWith(fontSize: 20, color: AppColors.grey900),
     );
   }
@@ -143,19 +175,24 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset(
-          'assets/images/common/copy-grey.png',
-          width: 16,
-          height: 16,
-        ),
-        const SizedBox(width: 2),
-        Text(
-          widget.address,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.grey400,
-            fontSize: 12,
+        // Image.asset(
+        //   'assets/images/common/copy-grey.png',
+        //   width: 16,
+        //   height: 16,
+        // ),
+        // const SizedBox(width: 2),
+        SizedBox(
+          width: 128,
+          child: Text(
+            _user?.profile.userId ?? '',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey400,
+              fontSize: 12,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
+        )
       ],
     );
   }

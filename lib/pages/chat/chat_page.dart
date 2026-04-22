@@ -4,6 +4,7 @@ import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/wallet/security/wallet_security.dart';
+import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -627,6 +628,7 @@ class _ChatPageState extends State<ChatPage> {
                     label: l10n.chatMenuAddFriend,
                     onTap: () {
                       // TODO: 跳转添加朋友
+                      context.push('/chat-search',extra: ChatSearchType.user);
                     },
                   ),
                   AppActionPopMenuItem(

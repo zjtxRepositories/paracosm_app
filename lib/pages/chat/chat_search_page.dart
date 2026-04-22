@@ -12,10 +12,21 @@ import 'package:paracosm/widgets/common/app_search_input.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
+enum ChatSearchType {
+  all,
+  user,
+  group,
+  message,
+}
+
 /// 聊天搜索页面
 class ChatSearchPage extends StatefulWidget {
-  const ChatSearchPage({super.key});
+  final ChatSearchType type;
 
+  const ChatSearchPage({
+    super.key,
+    this.type = ChatSearchType.all,
+  });
   @override
   State<ChatSearchPage> createState() => _ChatSearchPageState();
 }
@@ -24,6 +35,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool get _isSearching => _searchQuery.isNotEmpty;
+  ChatSearchType get _type => widget.type;
 
   // 模拟搜索结果数据
   final List<Map<String, dynamic>> _mockUsers = [
@@ -74,7 +86,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   Future<void> searchUserData(String keyword) async {
     final users = await ImUserManager().getUserProfiles([keyword]);
     setState(() {
-      
+
     });
   }
 
@@ -98,7 +110,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
       showNav: true,
       isCustomHeader: true,
       renderCustomHeader: _buildCustomHeader(),
-      child: _isSearching ? _buildResultView() : _buildInitialView(),
+      child: _isSearching || _type != ChatSearchType.all ? _buildResultView() : _buildInitialView(),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../service/im_service.dart';
 import 'im_connection_manager.dart';
 import 'im_friend_applications_manager.dart';
 import 'im_friend_manager.dart';
@@ -24,7 +25,7 @@ class IMEngineManager {
   /// 初始化 SDK
   Future<void> init() async {
     RCIMIWEngineOptions options = RCIMIWEngineOptions.create();
-    RCIMIWEngine engine = await RCIMIWEngine.create("融云AppKey", options);
+    RCIMIWEngine engine = await RCIMIWEngine.create(ImConfig.appKey, options);
     _engine = engine;
   }
 
@@ -40,13 +41,13 @@ class IMEngineManager {
 //...
         });
 
-    int? ret = await _engine?.connect(token, 15, callback: callback);
+     await _engine?.connect(token, 15, callback: callback);
 
   }
 
   /// 断开连接
   Future<void> disconnect() async {
-    int? ret = await _engine?.disconnect(true);
+     await _engine?.disconnect(true);
     _userId = null;
   }
 

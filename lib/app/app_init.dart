@@ -2,6 +2,7 @@ import 'package:paracosm/core/network/config/config_service.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/core/util/hive_utils.dart';
 
+import '../modules/im/init/im_init.dart';
 import '../modules/wallet/security/wallet_security.dart';
 
 
@@ -12,7 +13,7 @@ class AppInit {
     await WalletSecurity().init();
     await AccountManager().init();
     HiveUtils.initHive();
-    // await ImInit().init();
+    await ImInit().init();
   }
 
 

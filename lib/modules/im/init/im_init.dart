@@ -21,7 +21,7 @@ class ImInit {
     final account = AccountManager().currentAccount;
 
     if (account != null) {
-      await ImService.loginIm(account.userId);
+      await ImService.loginIm(account.id.toLowerCase());
     }
   }
 }

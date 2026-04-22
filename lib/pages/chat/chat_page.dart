@@ -47,7 +47,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    // fetchData();
+    fetchData();
   }
 
   Future<void> fetchData() async {

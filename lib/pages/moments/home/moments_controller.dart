@@ -36,9 +36,11 @@ class MomentsController extends ChangeNotifier {
 
   int _page = 1;
   final int _pageSize = 10;
-  bool _loading = false;
+  bool _initialLoading = false; // ⭐ 首屏 loading
+  bool _loading = false;        // ⭐ 上拉 loading
   bool _hasMore = true;
 
+  bool get initialLoading => _initialLoading;
   bool get loading => _loading;
   bool get hasMore => _hasMore;
 
@@ -47,40 +49,68 @@ class MomentsController extends ChangeNotifier {
     _items.clear();
     _page = 1;
     _hasMore = true;
-    await fetchMore();
+
+    _initialLoading = true;
+    notifyListeners();
+
+    try {
+      final data = await _fetchData();
+
+      if (data.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _items.addAll(data);
+      _page++;
+    } finally {
+      _initialLoading = false;
+      notifyListeners();
+    }
+
     _getFollowList();
     _getBlockList();
   }
 
-  /// 分页加载
+  /// 上拉加载
   Future<void> fetchMore() async {
     if (_loading || !_hasMore) return;
 
     _loading = true;
     notifyListeners();
 
-    /// 👉 TODO: 换成你的真实接口
+    try {
+      final data = await _fetchData();
+
+      if (data.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _items.addAll(data);
+      _page++;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 下拉刷新
+  Future<void> refresh() async {
+    _page = 1;
+    _hasMore = true;
+
     final data = await _fetchData();
+
+    _items
+      ..clear()
+      ..addAll(data);
 
     if (data.length < _pageSize) {
       _hasMore = false;
     }
 
-    _items.addAll(data);
     _page++;
 
-    _loading = false;
     notifyListeners();
-  }
-
-  /// 下拉刷新
-  Future<void> refresh() async {
-    _items.clear();
-    _page = 1;
-    _hasMore = true;
-    notifyListeners();
-
-    await fetchMore();
   }
 
   /// 点赞

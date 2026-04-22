@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
-import 'package:paracosm/modules/account/service/account_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../im/service/im_service.dart';
@@ -107,6 +106,15 @@ class AccountManager extends ChangeNotifier {
         : null;
 
     // 🔔通知全局监听者：删除账号
+    notifyListeners();
+  }
+
+  /// 更新用户信息
+  Future<void> updateAccountUserInfo(String nickname,String avatar) async {
+    if (_currentAccount == null) return;
+    _currentAccount?.nickname = nickname;
+    _currentAccount?.avatar = avatar;
+    AccountDao().updateAccount(_currentAccount!);
     notifyListeners();
   }
 }

@@ -9,6 +9,9 @@ class AccountModel {
   String avatar;
   String token;
 
+  String get name => nickname.isNotEmpty ? nickname
+      : (id.length > 8 ? id.substring(id.length - 8) : id);
+
   AccountModel({
     required this.id,
     required this.userId,

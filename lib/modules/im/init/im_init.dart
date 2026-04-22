@@ -1,5 +1,6 @@
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import '../manager/im_engine_manager.dart';
+import '../manager/im_user_manager.dart';
 import '../service/im_service.dart';
 
 class ImInit {
@@ -22,6 +23,13 @@ class ImInit {
 
     if (account != null) {
       await ImService.loginIm(account.id.toLowerCase());
+      getUserInfo();
     }
+  }
+
+  Future<void> getUserInfo() async {
+    final profile = await ImUserManager().getMyUserProfile();
+    if (profile == null) return;
+    AccountManager().updateAccountUserInfo(profile.name ?? '', profile.portraitUri ?? '');
   }
 }

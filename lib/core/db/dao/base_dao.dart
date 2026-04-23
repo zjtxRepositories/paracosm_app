@@ -35,7 +35,7 @@ abstract class BaseDao {
         bool useUserDB = false,
       }) async {
     final db = useUserDB ? await userDB : await globalDB;
-    print('use-----$useUserDB');
+    // print('use-----$useUserDB');
     _log('INSERT INTO $table -> $data');
 
     return await db.insert(table, data,conflictAlgorithm: ConflictAlgorithm.replace);

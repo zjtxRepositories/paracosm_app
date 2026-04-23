@@ -18,30 +18,20 @@ class AccountService {
     final wallet = await WalletManager.createWallet(mnemonic: mnemonic,password: password);
 
     /// 2 登录
-    final loginResp = await UserService.login(wallet.id);
-
-    /// 3 创建账号
-    final account =
-    await AccountManager().createAccount(
-      wallet: wallet,
-      user: loginResp,
-    );
-    print('account---------${account.id}');
-
-    await _save(wallet, account);
+    final account = await login(wallet);
     return account;
   }
 
-  static Future login(WalletModel wallet, AccountModel account) async {
-    final loginResp = await UserService.login(wallet.id);
+  static Future<AccountModel> login(WalletModel wallet) async {
+    final loginResp = await UserService.login(wallet.id.toLowerCase());
     final account =
     await AccountManager().createAccount(
       wallet: wallet,
       user: loginResp,
     );
     print('account---------${account.id}');
-
     await _save(wallet, account);
+    return account;
   }
 
 
@@ -49,7 +39,7 @@ class AccountService {
     await AppConfigDao().setCurrentUser(wallet.id);
     await AccountDao().insertAccount(account);
     await WalletDao().insertWallet(wallet);
-    await ImService.switchAccount(wallet.id);
+    await ImService.switchAccount(account.accountId);
   }
 
 

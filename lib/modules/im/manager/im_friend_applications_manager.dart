@@ -4,6 +4,11 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'im_engine_manager.dart';
 
 class ImFriendApplicationsManager {
+  ImFriendApplicationsManager._internal();
+  static final ImFriendApplicationsManager _instance =
+  ImFriendApplicationsManager._internal();
+
+  factory ImFriendApplicationsManager() => _instance;
 
   final _controller = StreamController<List<RCIMIWFriendApplicationInfo>>.broadcast();
 
@@ -48,7 +53,6 @@ class ImFriendApplicationsManager {
       debugPrint("好友申请变更: $userId $status");
     };
 
-    fetch();
   }
 
   /// =========================
@@ -79,7 +83,7 @@ class ImFriendApplicationsManager {
         _pageToken = page?.pageToken;
 
         _controller.add(_list);
-
+        print('获取好友申请:${_list.length}');
         completer.complete();
       },
 

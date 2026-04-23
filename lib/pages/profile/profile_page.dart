@@ -199,7 +199,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: AppColors.primary, // 亮绿色边框
               ),
               child: UserAvatarWidget(
-                userId: accountManager.currentAccount?.id ,
+                userId: accountManager.currentAccount?.accountId ,
                 avatarUrl: accountManager.currentAccount?.avatar,
               )
             ),

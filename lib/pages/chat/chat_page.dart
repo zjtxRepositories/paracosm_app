@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
@@ -18,6 +20,7 @@ import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:paracosm/widgets/chat/quick_index_bar.dart';
 import 'package:paracosm/widgets/chat/contact_item.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import '../../modules/im/manager/im_connection_manager.dart';
 import '../../modules/im/manager/im_friend_applications_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
@@ -35,7 +38,10 @@ class _ChatPageState extends State<ChatPage> {
   bool _isChatSelected = true;
   int _selectedFilterIndex = 0;
   final ScrollController _contactScrollController = ScrollController();
-  int _friendApplicationUnhandledCount= 2;
+  int _friendApplicationUnhandledCount= 0;
+
+  late StreamSubscription _imConnectSub;
+
   List<RCIMIWConversation> _conversations = [];
   List<RCIMIWFriendInfo> _friends = [];
   List<RCIMIWGroupInfo> _groups = [];
@@ -48,22 +54,30 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    fetchData();
+    initListener();
   }
 
+  void initListener() {
+    _imConnectSub = ImConnectionManager().eventStream.listen((event) async {
+      print('连接------');
+      if (event == ImEvent.connected) {
+        await fetchData();
+      }
+    });
+    ImFriendApplicationsManager().stream.listen((list) {
+      print("好友申请列表更新: ${list.length}");
+      setState(() {
+        _friendApplicationUnhandledCount = ImFriendApplicationsManager().unhandledCount;
+      });
+    });
+  }
   Future<void> fetchData() async {
     await fetchFriendApplicationData();
   }
 
   Future<void> fetchFriendApplicationData() async {
     final manager = ImFriendApplicationsManager();
-    manager.stream.listen((list) {
-      print("好友申请列表更新: ${list.length}");
-      setState(() {
-        _friendApplicationUnhandledCount = manager.unhandledCount;
-      });
-    });
-
+    manager.fetch();
     setState(() {
       _friendApplicationUnhandledCount = manager.unhandledCount;
     });

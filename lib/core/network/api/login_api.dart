@@ -17,7 +17,7 @@ class LoginApi {
       },
       fromJson: (json) => UserInfo.fromJson(json),
     );
-    print('login-------${res.token}--${res.userId}');
+    // print('login-------${res.token}--${res.userId}');
     return res;
   }
 

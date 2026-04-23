@@ -20,7 +20,7 @@ class IMEngineManager {
 
   RCIMIWEngine? _engine;
 
-  String? _userId;
+  String? _accountId;
 
   /// 初始化 SDK
   Future<void> init() async {
@@ -28,13 +28,14 @@ class IMEngineManager {
       await disconnect();
     }
     RCIMIWEngineOptions options = RCIMIWEngineOptions.create();
+    options.areaCode = RCIMIWAreaCode.sg;
     RCIMIWEngine engine = await RCIMIWEngine.create(ImConfig.appKey, options);
     _engine = engine;
   }
 
   /// 连接 IM
-  Future<void> connect(String token, String userId) async {
-    _userId = userId;
+  Future<void> connect(String token, String accountId) async {
+    _accountId = accountId;
 
     RCIMIWConnectCallback? callback = RCIMIWConnectCallback(
         onDatabaseOpened: (int? code) {
@@ -42,7 +43,8 @@ class IMEngineManager {
         },
         onConnected: (int? code, String? userId) {
 //...
-        });
+        },
+        );
 
      await _engine?.connect(token, 15, callback: callback);
 
@@ -51,10 +53,10 @@ class IMEngineManager {
   /// 断开连接
   Future<void> disconnect() async {
      await _engine?.disconnect(true);
-    _userId = null;
+    _accountId = null;
   }
 
-  String? get currentUserId => _userId;
+  String? get currentAccountId => _accountId;
   RCIMIWEngine? get engine => _engine;
 
 }

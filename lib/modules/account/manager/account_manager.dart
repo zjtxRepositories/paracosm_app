@@ -55,10 +55,10 @@ class AccountManager extends ChangeNotifier {
     _currentWallet = wallet;
     _currentAccount = account;
 
-    // 保存到本地数据库
-    await AccountDao().insertAccount(account);
-    await WalletDao().insertWallet(wallet);
-    await AppConfigDao().setCurrentUser(account.id);
+    // // 保存到本地数据库
+    // await AccountDao().insertAccount(account);
+    // await WalletDao().insertWallet(wallet);
+    // await AppConfigDao().setCurrentUser(account.id);
 
     // 🔔通知全局监听者：新增账号
     notifyListeners();
@@ -76,7 +76,7 @@ class AccountManager extends ChangeNotifier {
     if (_currentAccount != null) {
       await AppConfigDao().setCurrentUser(accountId);
       _currentWallet = await WalletDao().getWalletById(accountId);
-      await ImService.switchAccount(_currentAccount!.id);
+      await ImService.switchAccount(_currentAccount!.accountId);
       WalletManager.unlock(walletId: accountId);
 
       // 🔔通知全局监听者：切换账号

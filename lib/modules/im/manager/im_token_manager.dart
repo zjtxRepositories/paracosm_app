@@ -1,29 +1,40 @@
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../../core/network/api/rong_get_token_api.dart';
 
 class ImTokenManager {
-  static const _cacheKey = 'im_token';
+  static SharedPreferences? _sp;
 
   static String? _token;
+  static String? _currentUserId;
 
-  /// 初始化（App启动时调用）
+  static String _cacheKey(String userId) => 'im_token_$userId';
+
+  /// 初始化（App启动调用一次）
   static Future<void> init() async {
-    final sp = await SharedPreferences.getInstance();
-    _token = sp.getString(_cacheKey);
+    _sp ??= await SharedPreferences.getInstance();
   }
 
-  /// 获取 Token（优先缓存）
+  /// 获取 Token
   static Future<String?> getToken({
     required String userId,
     required String name,
     String? portrait,
     bool forceRefresh = false,
   }) async {
+    await init();
+
+    // 👉 用户切换时，重新读取缓存
+    if (_currentUserId != userId) {
+      _currentUserId = userId;
+      _token = _sp!.getString(_cacheKey(userId));
+    }
+
+    // 👉 有缓存直接返回
     if (!forceRefresh && _token != null && _token!.isNotEmpty) {
       return _token;
     }
 
+    // 👉 请求新 token
     final token = await RongGetTokenApi.getToken(
       userId: userId,
       name: name,
@@ -32,18 +43,21 @@ class ImTokenManager {
 
     if (token != null) {
       _token = token;
-
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString(_cacheKey, token);
+      await _sp!.setString(_cacheKey(userId), token);
     }
 
     return token;
   }
 
-  /// 清除 Token（退出登录用）
-  static Future<void> clear() async {
-    _token = null;
-    final sp = await SharedPreferences.getInstance();
-    await sp.remove(_cacheKey);
+  /// 清除当前用户 Token
+  static Future<void> clear(String userId) async {
+    await init();
+
+    await _sp!.remove(_cacheKey(userId));
+
+    if (_currentUserId == userId) {
+      _token = null;
+      _currentUserId = null;
+    }
   }
 }

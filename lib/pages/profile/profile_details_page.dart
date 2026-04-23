@@ -5,6 +5,7 @@ import 'package:paracosm/modules/wallet/security/wallet_security.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
@@ -34,6 +35,7 @@ class ProfileDetailsPage extends StatefulWidget {
 class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   List<AccountModel> _accounts = [];
   WalletModel? _walletModel;
+  AccountModel? _account;
   Map<String, WalletModel>? _walletMap;
 
   @override
@@ -48,6 +50,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
     final manager = AccountManager();
     _walletModel = manager.currentWallet;
     _accounts = manager.accounts;
+    _account = manager.currentAccount;
     setState(() {});
   }
 
@@ -213,14 +216,11 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       child: Row(
         children: [
           // 用户头像
-          ClipRRect(
+          UserAvatarWidget(
+            userId: _account?.accountId,
+            avatarUrl: _account?.avatar,
+            size: 44,
             borderRadius: BorderRadius.circular(11),
-            child: Image.asset(
-              'assets/images/chat/avatar.png',
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-            ),
           ),
           const SizedBox(width: 12),
           // 用户信息
@@ -229,7 +229,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Jenny Wilson',
+                  _account?.name ?? '',
                   style: AppTextStyles.h1.copyWith(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -246,16 +246,17 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
                       fit: BoxFit.cover,
                     ),
                     const SizedBox(width: 2),
-                    Expanded(
+                    SizedBox(
+                      width: 128,
                       child: Text(
-                        '0X5E4F3A2689B11EE4...',
+                        _account?.accountId ?? '',
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
                           color: AppColors.grey400,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                    )
                   ],
                 ),
               ],

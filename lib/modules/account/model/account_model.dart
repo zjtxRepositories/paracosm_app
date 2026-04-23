@@ -9,8 +9,10 @@ class AccountModel {
   String avatar;
   String token;
 
+  String get accountId => id.toLowerCase();
+
   String get name => nickname.isNotEmpty ? nickname
-      : (id.length > 8 ? id.substring(id.length - 8) : id);
+      : (accountId.length > 8 ? accountId.substring(accountId.length - 8) : accountId);
 
   AccountModel({
     required this.id,

@@ -1,5 +1,6 @@
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import '../manager/im_engine_manager.dart';
+import '../manager/im_token_manager.dart';
 import '../manager/im_user_manager.dart';
 import '../service/im_service.dart';
 
@@ -17,12 +18,11 @@ class ImInit {
     IMEngineManager().friendApplication.initListener();
     IMEngineManager().user.initListener();
 
-
     /// 3. 自动登录
     final account = AccountManager().currentAccount;
 
     if (account != null) {
-      await ImService.loginIm(account.id.toLowerCase());
+      await ImService.loginIm(account.accountId);
       getUserInfo();
     }
   }

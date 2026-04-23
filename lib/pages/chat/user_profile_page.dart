@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/models/user_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -8,12 +10,13 @@ import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/manager/im_user_manager.dart';
-import '../../widgets/common/app_network_image.dart';
 
 /// 用户资料页面
 class UserProfilePage extends StatefulWidget {
@@ -30,6 +33,8 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   UserModel? _user;
+  bool _isSelf= false;
+  bool _isFriend = false;
 
   @override
   void initState() {
@@ -39,18 +44,25 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> fetchData() async {
     final manager = ImUserManager();
-    final currentUserId = AccountManager().currentAccount?.id;
-
+    final currentUserId = AccountManager().currentAccount?.accountId;
+    print('currentUserId----${currentUserId?.toLowerCase()}');
     RCIMIWUserProfile? profile;
     try {
       if (widget.userId == currentUserId) {
         profile = await manager.getMyUserProfile();
+        _isSelf = true;
       }
       else {
         final result =
             await manager.getUserProfiles([widget.userId]) ?? [];
         if (result.isNotEmpty) {
           profile = result.first;
+        }
+        final List<RCIMIWFriendInfo> friends = await ImFriendManager().getFriendsInfo([widget.userId]) ?? [];
+        if (friends.isNotEmpty){
+          final friend = friends.first;
+          profile?.name = friend.remark ?? friend.name;
+          _isFriend = true;
         }
       }
       if (profile == null) return;
@@ -72,16 +84,28 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 显示添加好友弹窗
   void _showAddFriendModal() {
+    if (_user == null) return;
+    String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX", _user?.name ?? '');
+    print('initialText---$initialText');
+    TextEditingController controller = TextEditingController(text: initialText);
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatProfileAddFriend,
       confirmText: AppLocalizations.of(context)!.commonConfirm,
-      onConfirm: () {
-        // TODO: 处理发送好友申请逻辑
-        Navigator.pop(context);
+      onConfirm: () async {
+        AppLoading.show();
+        final result = await ImFriendManager().addFriend(userId: _user!.profile.userId ?? '',extra: controller.text);
+        AppLoading.dismiss();
+        if (!result.success){
+          AppToast.show('发送好友申请失败！');
+          return;
+        }
+        AppToast.show('发送好友申请成功！');
+        context.pop();
       },
       child: _AddFriendInputWrapper(
-        initialText: AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder,
+        initialText: initialText,
+        controller: controller,
       ),
     );
   }
@@ -122,7 +146,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   const SizedBox(height: 24),
                   _buildActionRow(),
                   const SizedBox(height: 40),
-                  _buildOptionList(),
+                  _isFriend ? _buildOptionList() :SizedBox(),
                 ],
               ),
             ),
@@ -158,12 +182,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Image.asset(
-        //   'assets/images/common/copy-grey.png',
-        //   width: 16,
-        //   height: 16,
-        // ),
-        // const SizedBox(width: 2),
+        Image.asset(
+          'assets/images/common/copy-grey.png',
+          width: 16,
+          height: 16,
+        ),
+        const SizedBox(width: 2),
         SizedBox(
           width: 128,
           child: Text(
@@ -182,16 +206,46 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 构建快捷操作按钮行
   Widget _buildActionRow() {
+    final items = _isFriend
+        ? [
+      _buildActionItem(AppLocalizations.of(context)!.chatProfileMessage,
+          'assets/images/common/msg.png',(){}),
+      _buildActionItem(AppLocalizations.of(context)!.chatProfileCall,
+          'assets/images/common/call.png',(){}),
+      _buildActionItem(AppLocalizations.of(context)!.chatProfileVideo,
+          'assets/images/common/video-dark.png',(){}),
+      _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment,
+          'assets/images/common/moment.png',(){}),
+    ]
+        : [
+      !_isSelf
+          ? _buildActionItem(
+          AppLocalizations.of(context)!.chatProfileMessage,
+          'assets/images/common/msg.png',(){})
+          : _buildActionItem('头像',
+          'assets/images/common/msg.png',(){}),
+
+      _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment,
+          'assets/images/common/moment.png',(){}),
+    ];
+    if (items.length == 2) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            items[0],
+            const SizedBox(width: 60),
+            items[1],
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildActionItem(AppLocalizations.of(context)!.chatProfileMessage, 'assets/images/common/msg.png'),
-          _buildActionItem(AppLocalizations.of(context)!.chatProfileCall, 'assets/images/common/call.png'),
-          _buildActionItem(AppLocalizations.of(context)!.chatProfileVideo, 'assets/images/common/video-dark.png'),
-          _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment, 'assets/images/common/moment.png'),
-        ],
+        children: items,
       ),
     );
   }
@@ -219,7 +273,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildAddFriendButton() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: AppButton(
+      child: _isFriend ?
+      AppButton(
+        text: AppLocalizations.of(context)!.chatProfileDelete,
+        textColor: AppColors.error,
+        border: BorderSide(color:  AppColors.error),
+        onPressed: _showAddFriendModal,
+      ):
+      AppButton(
         text: AppLocalizations.of(context)!.chatProfileAddFriend,
         textColor: Colors.white,
         backgroundColor: AppColors.grey900,
@@ -243,20 +304,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   /// 构建单个快捷操作项
-  Widget _buildActionItem(String label, String iconPath) {
-    return Column(
-      children: [
-        Image.asset(iconPath, width: 48, height: 48),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.grey900,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+  Widget _buildActionItem(String label, String iconPath, GestureTapCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Image.asset(iconPath, width: 48, height: 48),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey900,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -315,8 +379,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 /// 添加好友申请输入框包装组件，管理自身状态
 class _AddFriendInputWrapper extends StatefulWidget {
   final String initialText;
+  final TextEditingController controller;
 
-  const _AddFriendInputWrapper({required this.initialText});
+  const _AddFriendInputWrapper({required this.initialText, required this.controller});
 
   @override
   State<_AddFriendInputWrapper> createState() => _AddFriendInputWrapperState();
@@ -329,7 +394,7 @@ class _AddFriendInputWrapperState extends State<_AddFriendInputWrapper> {
   @override
   void initState() {
     super.initState();
-    controller = TextEditingController(text: widget.initialText);
+    controller = widget.controller;
     focusNode = FocusNode();
   }
 
@@ -431,7 +496,7 @@ class _AddFriendInputState extends State<_AddFriendInput> {
       height: 240,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.grey100,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isFocused ? AppColors.grey900 : AppColors.grey100,

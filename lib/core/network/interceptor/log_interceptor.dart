@@ -47,7 +47,7 @@ class LogInterceptor extends Interceptor {
     if (currentAccount != null) {
       final wallet = AccountManager().currentWallet;
       await AccountManager().deleteAccount(currentAccount.id);
-      await AccountService.login(wallet!, currentAccount);
+      await AccountService.login(wallet!);
     }
 
     print('已处理 token 过期');

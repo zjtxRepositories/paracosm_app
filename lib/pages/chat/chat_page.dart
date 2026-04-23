@@ -3,12 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
-import 'package:paracosm/modules/wallet/security/wallet_security.dart';
-import 'package:paracosm/pages/chat/friend_request_page.dart';
+import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/chat_list_item.dart';
 import 'package:paracosm/widgets/chat/system_notification_item.dart';
@@ -36,13 +34,6 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _contactScrollController = ScrollController();
   int _friendApplicationUnhandledCount= 2;
   List<RCIMIWConversation> _conversations = [];
-  List<RCIMIWFriendInfo> _friends = [];
-  List<RCIMIWGroupInfo> _groups = [];
-  final List<List<RCIMIWConversationType>> _conversationTypes = [
-    RCIMIWConversationType.values,
-    [RCIMIWConversationType.private,RCIMIWConversationType.group],
-    [RCIMIWConversationType.system],
-  ];
 
   @override
   void initState() {
@@ -51,13 +42,14 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> fetchData() async {
+    await fetchConversationData();
     await fetchFriendApplicationData();
   }
 
   Future<void> fetchFriendApplicationData() async {
     final manager = ImFriendApplicationsManager();
     manager.stream.listen((list) {
-      print("好友申请列表更新: ${list.length}");
+      debugPrint("好友申请列表更新: ${list.length}");
       setState(() {
         _friendApplicationUnhandledCount = manager.unhandledCount;
       });
@@ -81,9 +73,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> fetchContactData() async {
     final manager = ImFriendManager();
     manager.stream.listen((list) {
-      setState(() {
-        _friends = list;
-      });
+      setState(() {});
     });
     await manager.fetchFriends();
   }
@@ -92,9 +82,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> fetchGroupData() async {
     final manager = ImGroupManager();
     manager.stream.listen((list) {
-      setState(() {
-        _groups = list;
-      });
+      setState(() {});
     });
     await manager.getAllJoinedGroups();
   }
@@ -245,6 +233,40 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建聊天列表视图
   Widget _buildChatView() {
+    if (_conversations.isNotEmpty) {
+      final filteredConversations = _filterConversations();
+      return Column(
+        children: [
+          _buildFriendRequestCard(),
+          _buildFilterBar(),
+          Expanded(
+            child: filteredConversations.isEmpty
+                ? AppEmptyView(
+                    text: AppLocalizations.of(context)!.chatSearchNoData,
+                    bottomOffset: 50,
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: filteredConversations.length,
+                    itemBuilder: (context, index) {
+                      final conversation = filteredConversations[index];
+                      final title = _conversationTitle(conversation);
+                      return ChatListItem(
+                        title: title,
+                        subtitle: _conversationSubtitle(conversation),
+                        time: _conversationTime(conversation),
+                        unreadCount: conversation.unreadCount ?? 0,
+                        avatars: _conversationAvatars(conversation),
+                        isMuted: false,
+                        onTap: () => _navigateToConversationDetail(conversation, title),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      );
+    }
+
     // 简单的过滤逻辑，为了演示切换 Tab 时的空状态效果
     // 0: All, 1: Message, 2: DAO, 3: Club, 4: Others
     final filteredChats = _mockChats.where((chat) {
@@ -522,6 +544,72 @@ class _ChatPageState extends State<ChatPage> {
   void _navigateToDetail(String title) {
     final encodedName = Uri.encodeComponent(title);
     context.push('/chat-detail/$encodedName');
+  }
+
+  void _navigateToConversationDetail(
+    RCIMIWConversation conversation,
+    String title,
+  ) {
+    final encodedName = Uri.encodeComponent(title);
+    context.push(
+      '/chat-detail/$encodedName',
+      extra: ChatSessionArgs(
+        targetId: conversation.targetId ?? '',
+        conversationType:
+            conversation.conversationType ?? RCIMIWConversationType.private,
+        name: title,
+        channelId: conversation.channelId,
+        isGroup: conversation.conversationType == RCIMIWConversationType.group,
+      ),
+    );
+  }
+
+  List<RCIMIWConversation> _filterConversations() {
+    if (_selectedFilterIndex == 0) return _conversations;
+    if (_selectedFilterIndex == 1) {
+      return _conversations.where((conversation) {
+        final type = conversation.conversationType;
+        return type == RCIMIWConversationType.private ||
+            type == RCIMIWConversationType.group ||
+            type == RCIMIWConversationType.system;
+      }).toList();
+    }
+    return const [];
+  }
+
+  String _conversationTitle(RCIMIWConversation conversation) {
+    final lastMessage = conversation.lastMessage;
+    final userInfoName = lastMessage?.userInfo?.name;
+    if (userInfoName != null && userInfoName.isNotEmpty) {
+      return userInfoName;
+    }
+    return conversation.targetId ?? 'Chat';
+  }
+
+  String _conversationSubtitle(RCIMIWConversation conversation) {
+    final lastMessage = conversation.lastMessage;
+    if (lastMessage is RCIMIWTextMessage) {
+      return lastMessage.text ?? '';
+    }
+    return '[暂不支持的消息类型]';
+  }
+
+  String _conversationTime(RCIMIWConversation conversation) {
+    final timestamp =
+        conversation.lastMessage?.sentTime ?? conversation.operationTime;
+    if (timestamp == null) return '';
+    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  List<String>? _conversationAvatars(RCIMIWConversation conversation) {
+    final portrait = conversation.lastMessage?.userInfo?.portrait;
+    if (portrait == null || portrait.isEmpty) {
+      return ['assets/images/chat/avatar.png'];
+    }
+    return [portrait];
   }
 
   /// 构建自定义导航栏

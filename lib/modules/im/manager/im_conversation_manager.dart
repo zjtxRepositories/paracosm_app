@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'im_message_manager.dart';
 import 'im_engine_manager.dart';
 
 class ImConversationManager {
@@ -37,6 +38,7 @@ class ImConversationManager {
 
   bool _inited = false;
   bool _loaded = false;
+  StreamSubscription<RCIMIWMessage>? _messageSubscription;
 
   /// =========================
   /// 初始化监听（只执行一次）
@@ -47,13 +49,9 @@ class ImConversationManager {
 
     final engine = IMEngineManager().engine;
 
-    /// 新消息
-    engine?.onMessageReceived =
-        (RCIMIWMessage? message, int? left, bool? offline, bool? hasPackage) {
-      if (message == null) return;
-
-      _onNewMessage(message);
-    };
+    _messageSubscription ??= ImMessageManager().messageStream.listen(
+      handleIncomingMessage,
+    );
 
     /// 会话同步完成
     engine?.onRemoteConversationListSynced = (int? code) {
@@ -154,7 +152,7 @@ class ImConversationManager {
   /// =========================
   /// 新消息处理（🔥核心）
   /// =========================
-  void _onNewMessage(RCIMIWMessage msg) {
+  void handleIncomingMessage(RCIMIWMessage msg) {
     bool hit = false;
 
     for (var entry in _tabCache.entries) {
@@ -326,6 +324,8 @@ class ImConversationManager {
   }
 
   void dispose() {
+    _messageSubscription?.cancel();
+    _messageSubscription = null;
     _controller.close();
   }
 }

@@ -1,6 +1,5 @@
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_gas_service.dart';
-import 'package:web3dart/contracts.dart';
-import 'package:web3dart/credentials.dart';
+import 'package:flutter/foundation.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
@@ -10,6 +9,16 @@ import '../client/evm_client_manager.dart';
 import '../evm_service.dart';
 
 class EvmTransactionService {
+  static bool _shouldUseEip1559(
+    ChainAccount chain,
+    BlockInformation latestBlock,
+  ) {
+    const legacyOnlyChains = {56, 97};
+    if (legacyOnlyChains.contains(chain.chainId)) {
+      return false;
+    }
+    return latestBlock.baseFeePerGas != null;
+  }
 
   /// =========================
   /// 🚀 转账入口
@@ -24,9 +33,19 @@ class EvmTransactionService {
   }) async {
     if (!EvmService.isValidAddress(to)) throw '地址不合法';
 
-    final privateKey =
-    EvmService.getPrivateKeyByAddress(chain.address);
+    final privateKey = EvmService.getPrivateKeyByAddress(chain.address);
     if (privateKey == null) throw '没有找到该钱包！';
+
+    if ((customData ?? '').isNotEmpty) {
+      return sendContractTransaction(
+        chain: chain,
+        privateKey: privateKey,
+        to: to,
+        amountWei: amountWei,
+        customData: customData!,
+        gasFee: gasFee,
+      );
+    }
 
     if ((contractAddress ?? '').isEmpty) {
       return sendNativeTransaction(
@@ -49,6 +68,68 @@ class EvmTransactionService {
   }
 
   /// =========================
+  /// 合约调用
+  /// =========================
+  static Future<String> sendContractTransaction({
+    required ChainAccount chain,
+    required String privateKey,
+    required String to,
+    required BigInt amountWei,
+    required String customData,
+    GasFee? gasFee,
+  }) async {
+    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (
+      client,
+    ) async {
+      final credentials = EthPrivateKey.fromHex(privateKey);
+      final from = credentials.address;
+
+      final nonce = await _getSafeNonce(client, from.hex);
+      final gas = gasFee ?? (await EvmGasService.getGasLevels(chain)).medium;
+
+      final gasLimit = await estimateGas(
+        client,
+        from: from.hex,
+        to: to,
+        value: amountWei,
+        data: customData,
+      );
+
+      final latestBlock = await client.getBlockInformation();
+      final supports1559 = _shouldUseEip1559(chain, latestBlock);
+
+      final maxPriorityFee = supports1559
+          ? (gas.maxPriorityFeePerGas > BigInt.zero
+                ? gas.maxPriorityFeePerGas
+                : BigInt.from(1000000000))
+          : null;
+      final legacyGasPrice = gas.gasPrice ?? gas.maxFeePerGas;
+
+      final tx = Transaction(
+        from: from,
+        to: EthereumAddress.fromHex(to),
+        value: EtherAmount.inWei(amountWei),
+        data: hexToBytes(customData),
+        nonce: nonce,
+        maxGas: gasLimit.toInt(),
+        gasPrice: supports1559 ? null : EtherAmount.inWei(legacyGasPrice),
+        maxFeePerGas: supports1559 ? EtherAmount.inWei(gas.maxFeePerGas) : null,
+        maxPriorityFeePerGas: supports1559
+            ? EtherAmount.inWei(maxPriorityFee!)
+            : null,
+      );
+
+      final signed = await client.signTransaction(
+        credentials,
+        tx,
+        chainId: chain.chainId,
+      );
+
+      return client.sendRawTransaction(signed);
+    });
+  }
+
+  /// =========================
   /// 原生转账
   /// =========================
   static Future<String> sendNativeTransaction({
@@ -58,7 +139,9 @@ class EvmTransactionService {
     required BigInt amountWei,
     GasFee? gasFee,
   }) async {
-    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (client) async {
+    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (
+      client,
+    ) async {
       final credentials = EthPrivateKey.fromHex(privateKey);
       final from = credentials.address;
 
@@ -73,13 +156,14 @@ class EvmTransactionService {
       );
 
       final latestBlock = await client.getBlockInformation();
-      final supports1559 = latestBlock.baseFeePerGas != null;
+      final supports1559 = _shouldUseEip1559(chain, latestBlock);
 
       final maxPriorityFee = supports1559
           ? (gas.maxPriorityFeePerGas > BigInt.zero
-          ? gas.maxPriorityFeePerGas
-          : BigInt.from(1000000000))
+                ? gas.maxPriorityFeePerGas
+                : BigInt.from(1000000000))
           : null;
+      final legacyGasPrice = gas.gasPrice ?? gas.maxFeePerGas;
 
       final tx = Transaction(
         from: from,
@@ -87,11 +171,8 @@ class EvmTransactionService {
         value: EtherAmount.inWei(amountWei),
         nonce: nonce,
         maxGas: gasLimit.toInt(),
-        gasPrice:
-        supports1559 ? null : EtherAmount.inWei(gas.gasPrice!),
-        maxFeePerGas: supports1559
-            ? EtherAmount.inWei(gas.maxFeePerGas)
-            : null,
+        gasPrice: supports1559 ? null : EtherAmount.inWei(legacyGasPrice),
+        maxFeePerGas: supports1559 ? EtherAmount.inWei(gas.maxFeePerGas) : null,
         maxPriorityFeePerGas: supports1559
             ? EtherAmount.inWei(maxPriorityFee!)
             : null,
@@ -118,7 +199,9 @@ class EvmTransactionService {
     required BigInt amount,
     GasFee? gasFee,
   }) async {
-    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (client) async {
+    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (
+      client,
+    ) async {
       final credentials = EthPrivateKey.fromHex(privateKey);
       final from = credentials.address;
 
@@ -127,13 +210,11 @@ class EvmTransactionService {
         EthereumAddress.fromHex(contractAddress),
       );
 
-      final data = Transaction
-          .callContract(
+      final data = Transaction.callContract(
         contract: contract,
         function: contract.function('transfer'),
         parameters: [EthereumAddress.fromHex(to), amount],
-      )
-          .data!;
+      ).data!;
 
       final nonce = await _getSafeNonce(client, from.hex);
       final gas = gasFee ?? (await EvmGasService.getGasLevels(chain)).medium;
@@ -147,13 +228,14 @@ class EvmTransactionService {
       );
 
       final latestBlock = await client.getBlockInformation();
-      final supports1559 = latestBlock.baseFeePerGas != null;
+      final supports1559 = _shouldUseEip1559(chain, latestBlock);
 
       final maxPriorityFee = supports1559
           ? (gas.maxPriorityFeePerGas > BigInt.zero
-          ? gas.maxPriorityFeePerGas
-          : BigInt.from(1000000000))
+                ? gas.maxPriorityFeePerGas
+                : BigInt.from(1000000000))
           : null;
+      final legacyGasPrice = gas.gasPrice ?? gas.maxFeePerGas;
 
       final tx = Transaction(
         from: from,
@@ -161,11 +243,8 @@ class EvmTransactionService {
         data: data,
         nonce: nonce,
         maxGas: gasLimit.toInt(),
-        gasPrice:
-        supports1559 ? null : EtherAmount.inWei(gas.gasPrice!),
-        maxFeePerGas: supports1559
-            ? EtherAmount.inWei(gas.maxFeePerGas)
-            : null,
+        gasPrice: supports1559 ? null : EtherAmount.inWei(legacyGasPrice),
+        maxFeePerGas: supports1559 ? EtherAmount.inWei(gas.maxFeePerGas) : null,
         maxPriorityFeePerGas: supports1559
             ? EtherAmount.inWei(maxPriorityFee!)
             : null,
@@ -181,8 +260,6 @@ class EvmTransactionService {
     });
   }
 
-
-
   /// =========================
   /// nonce（修复）
   /// =========================
@@ -196,7 +273,8 @@ class EvmTransactionService {
   /// =========================
   /// gas limit
   /// =========================
-  static Future<BigInt> estimateGas(Web3Client client, {
+  static Future<BigInt> estimateGas(
+    Web3Client client, {
     required String from,
     required String to,
     required BigInt value,
@@ -226,55 +304,52 @@ class EvmTransactionService {
     int confirmations = 1,
     Duration pollInterval = const Duration(seconds: 5),
   }) async {
-    return EvmClientManager.withFallback(
-      chain.chainId,
-      chain.nodes,
-          (client) async {
-        TransactionReceipt? receipt;
+    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (
+      client,
+    ) async {
+      TransactionReceipt? receipt;
 
-        while (true) {
-          try {
-            receipt = await client.getTransactionReceipt(txHash);
+      while (true) {
+        try {
+          receipt = await client.getTransactionReceipt(txHash);
 
-            if (receipt != null) {
-              final latestBlock = await client.getBlockNumber();
+          if (receipt != null) {
+            final latestBlock = await client.getBlockNumber();
 
-              final txConfirmations =
-                  latestBlock - receipt.blockNumber.blockNum + 1;
+            final txConfirmations =
+                latestBlock - receipt.blockNumber.blockNum + 1;
 
-              if (txConfirmations >= confirmations) {
-                return receipt;
-              }
+            if (txConfirmations >= confirmations) {
+              return receipt;
             }
-          } catch (e) {
-            print('waitForTransaction error: $e');
           }
-
-          await Future.delayed(pollInterval);
+        } catch (e) {
+          debugPrint('waitForTransaction error: $e');
         }
-      },
-    );
+
+        await Future.delayed(pollInterval);
+      }
+    });
   }
 
   /// =========================
   /// 交易详情
   /// =========================
   static Future<TransactionInformation?> getTransactionDetail(
-      ChainAccount chain,
-      String txHash,) async {
-    return EvmClientManager.withFallback(
-      chain.chainId,
-      chain.nodes,
-          (client) async {
-        try {
-          final tx = await client.getTransactionByHash(txHash);
-          return tx;
-        } catch (e) {
-          print('getTransactionDetail error: $e');
-          return null;
-        }
-      },
-    );
+    ChainAccount chain,
+    String txHash,
+  ) async {
+    return EvmClientManager.withFallback(chain.chainId, chain.nodes, (
+      client,
+    ) async {
+      try {
+        final tx = await client.getTransactionByHash(txHash);
+        return tx;
+      } catch (e) {
+        debugPrint('getTransactionDetail error: $e');
+        return null;
+      }
+    });
   }
 }
 

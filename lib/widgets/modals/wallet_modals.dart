@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/widgets/common/app_chain_selector.dart';
 import 'package:paracosm/widgets/modals/wallet_select_token_modal.dart';
 import 'package:paracosm/widgets/modals/wallet_switcher_modal.dart';
@@ -27,13 +26,11 @@ class WalletModals {
   }) {
     AppModal.show(
       context,
-      title: AppLocalizations.of(context)!
-          .profileProfileDetailsChooseNetwork,
+      title: AppLocalizations.of(context)!.profileProfileDetailsChooseNetwork,
       confirmText: null,
       onConfirm: () {},
       child: AppNetworkSelector(
-        initialNetwork:
-        wallet.currentChain ?? wallet.chains.first,
+        initialNetwork: wallet.currentChain ?? wallet.chains.first,
         networks: wallet.chains,
         onSelected: (network) async {
           WalletManager.switchChain(wallet.id, network.chainId);
@@ -65,6 +62,7 @@ class WalletModals {
       ),
     );
   }
+
   /// =========================
   /// 代币选择
   /// =========================
@@ -90,27 +88,37 @@ class WalletModals {
     );
   }
 
-
   /// =========================
   /// 密码输入
   /// =========================
-  static void showPasswordModal({
+  static Future<void> showPasswordModal({
     required BuildContext context,
     required String title,
-    required Function(String password) onConfirm,
+    required Future<void> Function(String password) onConfirm,
+    Future<bool> Function(String password)? onValidate,
+    VoidCallback? onCancel,
   }) {
     final passwordController = TextEditingController();
     bool isObscure = true;
 
-    AppModal.show(
+    return AppModal.show(
       context,
       title: title,
-      confirmText:
-      AppLocalizations.of(context)!
-          .profileProfileDetailsConfirm,
-      onConfirm: () {
-        onConfirm(passwordController.text);
-        context.pop();
+      confirmText: AppLocalizations.of(context)!.profileProfileDetailsConfirm,
+      cancelText: AppLocalizations.of(context)!.commonCancel,
+      onCancel: onCancel,
+      onConfirm: () async {
+        final password = passwordController.text;
+        if (onValidate != null) {
+          final isValid = await onValidate(password);
+          if (!isValid) {
+            return;
+          }
+        }
+        if (context.mounted) {
+          context.pop();
+        }
+        await onConfirm(password);
       },
       child: StatefulBuilder(
         builder: (context, setModalState) {
@@ -123,35 +131,27 @@ class WalletModals {
               Container(
                 height: 52,
                 decoration: BoxDecoration(
-                  color: isEmpty
-                      ? AppColors.grey100
-                      : Colors.white,
+                  color: isEmpty ? AppColors.grey100 : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isEmpty
-                        ? Colors.transparent
-                        : AppColors.grey900,
+                    color: isEmpty ? Colors.transparent : AppColors.grey900,
                   ),
                 ),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: passwordController,
                         obscureText: isObscure,
-                        onChanged: (_) =>
-                            setModalState(() {}),
-                        decoration:
-                        const InputDecoration(
+                        onChanged: (_) => setModalState(() {}),
+                        decoration: const InputDecoration(
                           border: InputBorder.none,
                         ),
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => setModalState(
-                              () => isObscure = !isObscure),
+                      onTap: () => setModalState(() => isObscure = !isObscure),
                       child: Image.asset(
                         isObscure
                             ? 'assets/images/common/eye-off-line.png'
@@ -174,13 +174,13 @@ class WalletModals {
   /// 钱包管理
   /// =========================
   static void showWalletSwitcher(
-      BuildContext context, {
-        required List<AccountModel> accounts,
-        required Map<String, WalletModel> walletMap,
-        required String currentWalletId,
-        required Future<void> Function(String address) onSwitch,
-        required VoidCallback onAddWallet,
-      }) {
+    BuildContext context, {
+    required List<AccountModel> accounts,
+    required Map<String, WalletModel> walletMap,
+    required String currentWalletId,
+    required Future<void> Function(String address) onSwitch,
+    required VoidCallback onAddWallet,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     AppModal.show(
       context,
@@ -201,15 +201,15 @@ class WalletModals {
   /// 转账-支付详情
   /// =========================
   static void showPaymentDetails(
-      BuildContext context, {
-        required String amount,
-        required String logo,
-        required String absenteeism,
-        required String from,
-        required String to,
-        required VoidCallback onConfirm,
-      }) {
-    Widget _buildDetailRow(String label, String value) {
+    BuildContext context, {
+    required String amount,
+    required String logo,
+    required String absenteeism,
+    required String from,
+    required String to,
+    required VoidCallback onConfirm,
+  }) {
+    Widget buildDetailRow(String label, String value) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -222,7 +222,9 @@ class WalletModals {
             ),
           ),
           Text(
-            value.length > 20 ? '${value.substring(0, 8)}...${value.substring(value.length - 4)}' : value,
+            value.length > 20
+                ? '${value.substring(0, 8)}...${value.substring(value.length - 4)}'
+                : value,
             style: AppTextStyles.body.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -232,6 +234,7 @@ class WalletModals {
         ],
       );
     }
+
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.profileTransferPaymentDetails,
@@ -274,20 +277,15 @@ class WalletModals {
           ),
           const SizedBox(height: 24),
           // 分割线
-          Container(
-            height: 1,
-            color: AppColors.grey100,
-          ),
+          Container(height: 1, color: AppColors.grey100),
           const SizedBox(height: 16),
           // 地址详情
-          _buildDetailRow('From', from),
+          buildDetailRow('From', from),
           const SizedBox(height: 12),
-          _buildDetailRow('To',to),
+          buildDetailRow('To', to),
           const SizedBox(height: 16),
         ],
       ),
     );
   }
-
-
 }

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -25,9 +27,16 @@ class DAppWeb3Service implements EthWeb3Handler {
   final InAppWebViewController controller;
   WalletModel wallet;
   final BuildContext context;
+  final bool Function(String host) isSessionHostAuthorized;
+  final void Function(String host) authorizeSessionHost;
 
   DAppWeb3Service(
-      this.controller,this.wallet, {required this.context});
+    this.controller,
+    this.wallet, {
+    required this.context,
+    required this.isSessionHostAuthorized,
+    required this.authorizeSessionHost,
+  });
 
   // =========================================================
   // WebView
@@ -39,40 +48,63 @@ class DAppWeb3Service implements EthWeb3Handler {
 
   @override
   void emit(String event, data) {
-    controller.evaluateJavascript(source: '''
+    controller.evaluateJavascript(
+      source:
+          '''
       window.ethereum?.emit?.('$event', ${jsonEncode(data)});
-    ''');
+    ''',
+    );
   }
+
+  bool _isAuthorizedHost(String host) {
+    return isSessionHostAuthorized(host) || DAppAccountAuthHive.checkAuth(host);
+  }
+
+  void _ensureContextMounted() {
+    if (!context.mounted) {
+      throw StateError('DApp context is no longer mounted');
+    }
+  }
+
   Future<String> get _favicon async {
     final favicons = await controller.getFavicons();
-    return favicons.firstOrNull?.rel ?? '';
+    return favicons.firstOrNull?.url.toString() ?? '';
   }
+
   // =========================================================
   // sign message (兼容 MetaMask 参数顺序)
   // =========================================================
   Future<String> _signMessage(String data, bool personal) async {
     final uri = await controller.getUrl();
     final host = uri?.host ?? '';
+    final faviconUrl = await _favicon;
 
     final address = ethChain.address;
 
     // 1. 授权检查
-    if (!DAppAccountAuthHive.checkAuth(host)) {
+    if (!_isAuthorizedHost(host)) {
       throw Exception('Unauthorized DApp');
     }
 
     // 2. UI确认
-    final approved = await DAppModalService.showSign(
-      context: context,
-      message: data,
-      address: address,
-    ) ?? false;
+    _ensureContextMounted();
+    final approved =
+        await DAppModalService.showSign(
+          context: context,
+          message: data,
+          address: address,
+          host: host,
+          faviconUrl: faviconUrl,
+          walletLabel: ethChain.name,
+        ) ??
+        false;
 
     if (!approved) {
       throw Exception('User rejected signature');
     }
 
     // 3. 密码验证
+    _ensureContextMounted();
     final passwordOk = await DAppModalService.showPassword(context: context);
     if (!passwordOk) {
       throw Exception('Password verification failed');
@@ -91,37 +123,52 @@ class DAppWeb3Service implements EthWeb3Handler {
   // =========================================================
   // sign message (兼容 MetaMask 参数顺序)
   // =========================================================
-  Future<String> _signTypeData(String jsonData, TypedDataVersion version) async {
+  Future<String> _signTypeData(
+    String jsonData,
+    TypedDataVersion version,
+  ) async {
     final uri = await controller.getUrl();
     final host = uri?.host ?? '';
+    final faviconUrl = await _favicon;
 
     final address = ethChain.address;
 
     // 1. 授权检查
-    if (!DAppAccountAuthHive.checkAuth(host)) {
+    if (!_isAuthorizedHost(host)) {
       throw Exception('Unauthorized DApp');
     }
     final decoded = jsonDecode(jsonData);
     final pretty = const JsonEncoder.withIndent('  ').convert(decoded);
     // 2. UI确认
-    final approved = await DAppModalService.showSign(
-      context: context,
-      message: pretty,
-      address: address,
-    ) ?? false;
+    _ensureContextMounted();
+    final approved =
+        await DAppModalService.showSign(
+          context: context,
+          message: pretty,
+          address: address,
+          host: host,
+          faviconUrl: faviconUrl,
+          walletLabel: ethChain.name,
+        ) ??
+        false;
 
     if (!approved) {
       throw Exception('User rejected signature');
     }
 
     // 3. 密码验证
+    _ensureContextMounted();
     final passwordOk = await DAppModalService.showPassword(context: context);
     if (!passwordOk) {
       throw Exception('Password verification failed');
     }
 
     // 4. 执行签名
-    final signature = await EvmFacade.signTypedDataRaw(address, jsonData, version);
+    final signature = await EvmFacade.signTypedDataRaw(
+      address,
+      jsonData,
+      version,
+    );
 
     return signature;
   }
@@ -142,22 +189,19 @@ class DAppWeb3Service implements EthWeb3Handler {
         ? _parseHex(data['value'])
         : BigInt.zero;
 
-    final dataHex = data['data'];
-    final isContractCall = data['data'] != null;
-
     return await EvmFacade.send(
       chain: chain,
       to: to,
       amountWei: value,
-      contractAddress: isContractCall ? to : null,
+      contractAddress: null,
       customData: data['data'],
     );
   }
 
   String _formatEth(BigInt value) {
-    return EtherAmount.inWei(value)
-        .getValueInUnit(EtherUnit.ether)
-        .toStringAsFixed(6);
+    return EtherAmount.inWei(
+      value,
+    ).getValueInUnit(EtherUnit.ether).toStringAsFixed(6);
   }
 
   BigInt _parseHex(String? value) {
@@ -182,7 +226,7 @@ class DAppWeb3Service implements EthWeb3Handler {
       return await ethRequestAccounts();
     }
     String host = (await controller.getUrl())!.host;
-    if (DAppAccountAuthHive.checkAuth(host)) {
+    if (_isAuthorizedHost(host)) {
       return [ethChain.address.toLowerCase()];
     }
     return [];
@@ -194,21 +238,80 @@ class DAppWeb3Service implements EthWeb3Handler {
     final uri = (await controller.getUrl())!;
     final title = (await controller.getTitle()) ?? '';
     final String host = uri.host;
+    final accounts = [ethChain.address.toLowerCase()];
+    debugPrint('ethRequestAccounts host=$host title=$title accounts=$accounts');
+
     /// 已授权
-    if (DAppAccountAuthHive.checkAuth(host)) {
-      return [ethChain.address.toLowerCase()];
+    if (_isAuthorizedHost(host)) {
+      debugPrint('ethRequestAccounts host=$host already authorized');
+      _emitConnected(accounts);
+      return accounts;
     }
-    final result =
-    await DAppModalService.showConnect(
-        context: context,
-        host: host,
-        title: title,
-        faviconUrl: faviconUrl,
-        uri: uri.toString()) ?? false;
-    if (!result){
+    _ensureContextMounted();
+    debugPrint('ethRequestAccounts showing connect modal host=$host');
+    final result = await DAppModalService.showConnect(
+      context: context,
+      host: host,
+      title: title,
+      faviconUrl: faviconUrl,
+      uri: uri.toString(),
+    );
+    debugPrint(
+      'ethRequestAccounts modal result host=$host approved=${result?.approved} remember=${result?.remember}',
+    );
+    if (result == null || !result.approved) {
       throw EthHandlerException("Request account rejected");
     }
-    return [ethChain.address.toLowerCase()];
+    authorizeSessionHost(host);
+    if (result.remember) {
+      DAppAccountAuthHive.add(host);
+    }
+    _emitConnected(accounts);
+    return accounts;
+  }
+
+  List<Map<String, dynamic>> _ethAccountPermissions(List<String> accounts) {
+    return [
+      {
+        'parentCapability': 'eth_accounts',
+        'caveats': [
+          {'type': 'restrictReturnedAccounts', 'value': accounts},
+        ],
+      },
+    ];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> walletGetPermissions() async {
+    final uri = await controller.getUrl();
+    final host = uri?.host ?? '';
+    debugPrint('walletGetPermissions host=$host');
+    if (!_isAuthorizedHost(host)) {
+      debugPrint('walletGetPermissions unauthorized host=$host');
+      return [];
+    }
+
+    final permissions = _ethAccountPermissions([
+      ethChain.address.toLowerCase(),
+    ]);
+    debugPrint('walletGetPermissions permissions=$permissions');
+    return permissions;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> walletRequestPermissions([
+    Map? data,
+  ]) async {
+    final request = data ?? const {};
+    debugPrint('walletRequestPermissions request=$request');
+    if (request.isNotEmpty && !request.containsKey('eth_accounts')) {
+      throw EthHandlerException('Only eth_accounts permission is supported');
+    }
+
+    final accounts = await ethRequestAccounts();
+    final permissions = _ethAccountPermissions(accounts);
+    debugPrint('walletRequestPermissions permissions=$permissions');
+    return permissions;
   }
 
   @override
@@ -217,10 +320,23 @@ class DAppWeb3Service implements EthWeb3Handler {
       return (await ethRequestAccounts()).first;
     }
     String host = (await controller.getUrl())!.host;
-    if (DAppAccountAuthHive.checkAuth(host)) {
+    if (_isAuthorizedHost(host)) {
       return ethChain.address.toLowerCase();
     }
     return '';
+  }
+
+  void _emitConnected(List<String> accounts) {
+    emit(EthEvents.connect, {'chainId': ethChainId()});
+    emit(EthEvents.accountsChanged, accounts);
+    emit(EthEvents.chainChanged, ethChainId());
+  }
+
+  Future<void> _switchToChain(int chainId) async {
+    await WalletManager.switchChain(wallet.id, chainId);
+    wallet = AccountManager().currentWallet!;
+    emit(EthEvents.accountsChanged, [ethChain.address.toLowerCase()]);
+    emit(EthEvents.chainChanged, ethChainId());
   }
 
   @override
@@ -244,7 +360,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   }
 
   @override
-  Future<String> personalSign(String data){
+  Future<String> personalSign(String data) {
     return _signMessage(data, true);
   }
 
@@ -262,17 +378,18 @@ class DAppWeb3Service implements EthWeb3Handler {
       final String from = data['from'];
       final String to = data['to'] ?? '';
 
-      final BigInt value =
-      data['value'] == null ? BigInt.zero : hexToInt(data['value']);
+      final BigInt value = data['value'] == null
+          ? BigInt.zero
+          : hexToInt(data['value']);
 
-      final BigInt? gas =
-      data['gas'] == null ? null : hexToInt(data['gas']);
+      final BigInt? gas = data['gas'] == null ? null : hexToInt(data['gas']);
+      final String? callData = data['data'];
+      final bool isContractCall = callData != null && callData.isNotEmpty;
 
       /// =========================
       /// 2. 权限校验（必须有）
       /// =========================
-      final hasPermission =
-      DAppAccountAuthHive.checkAuth(origin);
+      final hasPermission = _isAuthorizedHost(origin);
 
       if (!hasPermission) {
         throw Exception('Unauthorized DApp');
@@ -287,14 +404,20 @@ class DAppWeb3Service implements EthWeb3Handler {
       /// =========================
       /// 4. 交易确认弹窗
       /// =========================
-      final approved = await DAppModalService.showTransaction(
-        context: context,
-        amount: amount,
-        logo: logo,
-        from: from,
-        to: to,
-        gasLimit: gas
-      ) ??
+      _ensureContextMounted();
+      final approved =
+          await DAppModalService.showTransaction(
+            context: context,
+            amount: amount,
+            logo: logo,
+            from: from,
+            to: to,
+            walletLabel: ethChain.name,
+            feeDescription: gas == null ? null : 'Estimated by gas limit',
+            gasLimit: gas,
+            isContractCall: isContractCall,
+            data: callData,
+          ) ??
           false;
 
       if (!approved) {
@@ -304,8 +427,8 @@ class DAppWeb3Service implements EthWeb3Handler {
       /// =========================
       /// 5. 密码校验
       /// =========================
-      final passwordOk =
-      await DAppModalService.showPassword(context: context);
+      _ensureContextMounted();
+      final passwordOk = await DAppModalService.showPassword(context: context);
 
       if (!passwordOk) {
         throw Exception('Password verification failed');
@@ -318,7 +441,7 @@ class DAppWeb3Service implements EthWeb3Handler {
 
       return txHash;
     } catch (e) {
-      print('ethSendTransaction error: $e');
+      debugPrint('ethSendTransaction error: $e');
       rethrow;
     }
   }
@@ -342,26 +465,29 @@ class DAppWeb3Service implements EthWeb3Handler {
       final decimals = native['decimals'] ?? 18;
       final name = native['name'] ?? chainName;
 
-      final rpcUrls = (data['rpcUrls'] as List?)
-          ?.cast<String>()
-          .where((e) => e.startsWith('http'))
-          .toList() ??
+      final rpcUrls =
+          (data['rpcUrls'] as List?)
+              ?.cast<String>()
+              .where((e) => e.startsWith('http'))
+              .toList() ??
           [];
 
       if (rpcUrls.isEmpty) {
         throw 'rpcUrls empty';
       }
 
-      final blockExplorerUrls =
-      (data['blockExplorerUrls'] as List?)?.cast<String>();
+      final blockExplorerUrls = (data['blockExplorerUrls'] as List?)
+          ?.cast<String>();
 
       final blockExplorerUrl =
-      (blockExplorerUrls != null && blockExplorerUrls.isNotEmpty)
+          (blockExplorerUrls != null && blockExplorerUrls.isNotEmpty)
           ? blockExplorerUrls.first
           : null;
 
       final favicons = await controller.getFavicons();
-      final faviconUrl = favicons.isNotEmpty ? favicons.first.url.toString() : '';
+      final faviconUrl = favicons.isNotEmpty
+          ? favicons.first.url.toString()
+          : '';
 
       final url = (await controller.getUrl())?.toString() ?? '';
 
@@ -369,20 +495,26 @@ class DAppWeb3Service implements EthWeb3Handler {
       // ⚠️ 已存在检查
       // =========================
       if (wallet.hasChain(chainId)) {
-        return '$chainName 已存在';
+        if (wallet.currentChain?.chainId != chainId) {
+          await _switchToChain(chainId);
+        }
+        return '$chainName 已切换';
       }
 
       // =========================
       // ⚠️ 用户确认（关键）
       // =========================
-      final approved = await DAppAddChainSheet.show(
-        context,
-        name: chainName,
-        chainId: chainId,
-        rpc: rpcUrls.first,
-        symbol: symbol,
-        origin: url,
-      ) ?? false;
+      _ensureContextMounted();
+      final approved =
+          await DAppAddChainSheet.show(
+            context,
+            name: chainName,
+            chainId: chainId,
+            rpc: rpcUrls.first,
+            symbol: symbol,
+            origin: url,
+          ) ??
+          false;
 
       if (!approved) {
         throw 'User rejected';
@@ -410,7 +542,7 @@ class DAppWeb3Service implements EthWeb3Handler {
             logo: faviconUrl,
             coinId: symbol.toLowerCase(),
             chainId: chainId,
-          )
+          ),
         ],
       );
 
@@ -418,26 +550,26 @@ class DAppWeb3Service implements EthWeb3Handler {
       // 保存
       // =========================
       await WalletManager.addChain(wallet.id, chain);
+      await _switchToChain(chainId);
 
-      return '$chainName 已添加';
+      return '$chainName 已添加并切换';
     } catch (e, s) {
       debugPrintStack(label: e.toString(), stackTrace: s);
       throw '链详情不完整';
     }
   }
 
-
   @override
-  Future<String> walletWatchAsset(Map data) =>
-      throw UnimplementedError();
+  Future<String> walletWatchAsset(Map data) => throw UnimplementedError();
 
   @override
   Future<String> walletSwitchEthereumChain(Map data) async {
     final chainId = hexToDartInt(data['chainId']);
-     WalletManager.switchChain(wallet.id, chainId);
-    wallet = AccountManager().currentWallet!;
+    await _switchToChain(chainId);
+    _ensureContextMounted();
     final l10n = AppLocalizations.of(context)!;
-    final name = wallet.name ??
+    final name =
+        wallet.name ??
         '${l10n.profileProfileDetailsWallet} ${wallet.aIndex + 1}';
     return "$name 已切换";
   }
@@ -458,8 +590,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   }
 
   @override
-  Future<String> ethSignTypedDataUint8List(
-      Uint8List message, String data)=>
+  Future<String> ethSignTypedDataUint8List(Uint8List message, String data) =>
       throw UnimplementedError();
 
   @override
@@ -484,7 +615,7 @@ class DAppWeb3Service implements EthWeb3Handler {
     final block = await EvmClientManager.withFallback(
       ethChain.chainId,
       ethChain.nodes,
-          (client) => client.getBlockNumber(),
+      (client) => client.getBlockNumber(),
     );
     return '0x${block.toRadixString(16)}';
   }

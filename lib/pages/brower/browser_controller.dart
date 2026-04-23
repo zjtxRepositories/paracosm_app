@@ -40,7 +40,7 @@ class _BrowserControllerState extends State<BrowserController> {
   final _progress = 0.obs;
   final _canGoBack = false.obs;
 
-  late InAppWebViewController _controller;
+  InAppWebViewController? _controller;
 
   @override
   void initState() {
@@ -53,6 +53,13 @@ class _BrowserControllerState extends State<BrowserController> {
     widget.onWebViewCreated?.call(controller);
   }
 
+  bool _isTrustedDevHost(String? host) {
+    if (host == null || host.isEmpty) {
+      return false;
+    }
+    return host == 'test-frp.zjtxy.top' || host.endsWith('.zjtxy.top');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,25 +67,29 @@ class _BrowserControllerState extends State<BrowserController> {
         leading: Obx(() {
           return _canGoBack.value
               ? BackButton(
-            onPressed: () => _controller.goBack(),
-          )
-              : CloseButton(
-            onPressed: () => Get.back(),
-          );
+                  onPressed: _controller == null
+                      ? null
+                      : () => _controller?.goBack(),
+                )
+              : CloseButton(onPressed: () => Get.back());
         }),
         title: Obx(() => Text(_title.value)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _controller.reload(),
+            onPressed: _controller == null ? null : () => _controller?.reload(),
           ),
         ],
       ),
       body: Stack(
         children: [
           InAppWebView(
-            initialUrlRequest:
-            URLRequest(url: WebUri.uri(Uri.parse(widget.url))),
+            initialUrlRequest: URLRequest(
+              url: WebUri.uri(Uri.parse(widget.url)),
+            ),
+            initialSettings: InAppWebViewSettings(
+              mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+            ),
             initialUserScripts: widget.scripts,
             onWebViewCreated: _handleWebViewCreated,
             onProgressChanged: (_, progress) {
@@ -91,10 +102,27 @@ class _BrowserControllerState extends State<BrowserController> {
               }
               widget.onTitleChanged?.call(title);
             },
-            onUpdateVisitedHistory: (controller, _, __) async {
+            onUpdateVisitedHistory: (controller, url, isReload) async {
               final canGoBack = await controller.canGoBack();
               _canGoBack.value = canGoBack;
               widget.onCanGoBack?.call(canGoBack);
+            },
+            onConsoleMessage: (_, consoleMessage) {
+              debugPrint(
+                'DApp console [${consoleMessage.messageLevel}]: ${consoleMessage.message}',
+              );
+            },
+            onReceivedServerTrustAuthRequest: (_, challenge) async {
+              final host = challenge.protectionSpace.host;
+              if (_isTrustedDevHost(host)) {
+                debugPrint('WebView trust challenge proceed for host=$host');
+                return ServerTrustAuthResponse(
+                  action: ServerTrustAuthResponseAction.PROCEED,
+                );
+              }
+              return ServerTrustAuthResponse(
+                action: ServerTrustAuthResponseAction.CANCEL,
+              );
             },
           ),
 

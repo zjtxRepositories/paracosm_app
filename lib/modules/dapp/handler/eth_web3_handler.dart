@@ -50,6 +50,10 @@ abstract class EthWeb3Handler {
 
   Future<List<String>> ethRequestAccounts();
 
+  Future<List<Map<String, dynamic>>> walletGetPermissions();
+
+  Future<List<Map<String, dynamic>>> walletRequestPermissions([Map? data]);
+
   Future<String> ethBlockNumber();
 
   /// ===== 签名 =====
@@ -63,10 +67,7 @@ abstract class EthWeb3Handler {
 
   Future<String> ethSignTypedDataV4(String data);
 
-  Future<String> ethSignTypedDataUint8List(
-      Uint8List message,
-      String data,
-      );
+  Future<String> ethSignTypedDataUint8List(Uint8List message, String data);
 
   Future<String> personalEcRecover(Map data);
 

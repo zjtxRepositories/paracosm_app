@@ -18,6 +18,8 @@ class DAppAccountAuthHive {
         .trim();
   }
 
+  static String normalizeHost(String host) => _normalize(host);
+
   // =========================
   // 获取全部授权
   // =========================

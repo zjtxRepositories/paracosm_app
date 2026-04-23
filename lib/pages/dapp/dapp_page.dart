@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/dapp/dapp_account_auth_hive.dart';
 import 'package:paracosm/pages/brower/browser_controller.dart';
 import '../../modules/dapp/dapp_web3_service.dart';
 import '../../modules/dapp/handler/eth_web3_handler.dart';
@@ -24,7 +25,17 @@ class _DAppPageState extends State<DAppPage> {
   late EthWebViewHandler _handler;
 
   UnmodifiableListView<UserScript>? _scripts;
+  final Set<String> _sessionAuthorizedHosts = <String>{};
   bool _ready = false;
+
+  bool _isHostAuthorized(String host) {
+    final normalizedHost = DAppAccountAuthHive.normalizeHost(host);
+    return _sessionAuthorizedHosts.contains(normalizedHost);
+  }
+
+  void _authorizeHost(String host) {
+    _sessionAuthorizedHosts.add(DAppAccountAuthHive.normalizeHost(host));
+  }
 
   // =========================================================
   // step 1: init scripts BEFORE WebView build
@@ -34,22 +45,31 @@ class _DAppPageState extends State<DAppPage> {
     if (wallet == null) return;
 
     // 1. create dummy controller will be replaced later
-    final tempController = InAppWebViewController.fromPlatform(platform: PlatformInAppWebViewController.static());
+    final tempController = InAppWebViewController.fromPlatform(
+      platform: PlatformInAppWebViewController.static(),
+    );
 
-    _web3Service = DAppWeb3Service(tempController, wallet, context: context);
+    _web3Service = DAppWeb3Service(
+      tempController,
+      wallet,
+      context: context,
+      isSessionHostAuthorized: _isHostAuthorized,
+      authorizeSessionHost: _authorizeHost,
+    );
 
     _handler = MetaMaskHandler(_web3Service);
 
     final scripts = await _handler.injectScripts();
     _scripts = UnmodifiableListView(
       scripts.map(
-            (e) => UserScript(
+        (e) => UserScript(
           source: e,
           injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
         ),
       ),
     );
 
+    if (!mounted) return;
     setState(() {
       _ready = true;
     });
@@ -59,8 +79,13 @@ class _DAppPageState extends State<DAppPage> {
   // step 2: bind real webview controller
   // =========================================================
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
-    _web3Service = DAppWeb3Service(controller,
-       AccountManager().currentWallet!, context: context);
+    _web3Service = DAppWeb3Service(
+      controller,
+      AccountManager().currentWallet!,
+      context: context,
+      isSessionHostAuthorized: _isHostAuthorized,
+      authorizeSessionHost: _authorizeHost,
+    );
 
     _handler = MetaMaskHandler(_web3Service);
 
@@ -84,9 +109,7 @@ class _DAppPageState extends State<DAppPage> {
   @override
   Widget build(BuildContext context) {
     if (!_ready || _scripts == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return BrowserController(

@@ -61,7 +61,7 @@ class ImUserManager {
       userIds,
       callback: IRCIMIWGetUserProfilesCallback(
         onSuccess: (List<RCIMIWUserProfile>? userProfiles) {
-          debugPrint('getUserProfiles success');
+          debugPrint('getUserProfiles success---${userProfiles?.length}');
           completer.complete(userProfiles);
         },
         onError: (int? code) {

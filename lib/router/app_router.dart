@@ -366,7 +366,12 @@ class AppRouter {
       GoRoute(
         path: '/chat-search',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const ChatSearchPage(),
+        builder: (context, state) {
+          final type = state.extra as ChatSearchType?;
+          return ChatSearchPage(
+            type: type ?? ChatSearchType.all,
+          );
+        },
       ),
       // 好友申请页
       GoRoute(
@@ -376,13 +381,12 @@ class AppRouter {
       ),
       // 用户资料页
       GoRoute(
-        path: '/user-profile/:name',
+        path: '/user-profile',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = state.pathParameters['name'] ?? 'User';
+          final userId = state.extra as String?;
           return UserProfilePage(
-            name: name,
-            avatarPath: 'assets/images/chat/avatar.png', // 这里暂时写死，后续可以从 state 传参
+            userId: userId ?? '',
           );
         },
       ),
@@ -407,8 +411,7 @@ class AppRouter {
         path: '/dapp',
         builder: (context, state) {
           final dApp = state.extra as DAppHive?;
-          // print('data--------$mnemonic');
-          return dApp == null ? SizedBox() : DAppPage(dapp: dApp,);
+          return dApp == null ? SizedBox() : DAppPage(dapp: dApp);
         },
       ),
       // 个人资料详情页

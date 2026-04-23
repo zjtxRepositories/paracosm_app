@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:k_chart_plus/k_chart_plus.dart';
+import 'package:paracosm/core/network/models/user_model.dart';
+import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
@@ -8,15 +13,21 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
+
+import '../../modules/im/result/im_result.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
+import '../../widgets/common/app_network_image.dart';
 
 enum ChatSearchType {
   all,
   user,
   group,
   message,
+  browser,
 }
 
 /// 聊天搜索页面
@@ -32,78 +43,117 @@ class ChatSearchPage extends StatefulWidget {
 }
 
 class _ChatSearchPageState extends State<ChatSearchPage> {
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController(text: '0xe6590a740a45bc2b4d4996a85ab4a2ad371fbb6b');
+
+  Timer? _debounce;
+
   String _searchQuery = '';
   bool get _isSearching => _searchQuery.isNotEmpty;
   ChatSearchType get _type => widget.type;
 
-  // 模拟搜索结果数据
-  final List<Map<String, dynamic>> _mockUsers = [
-    {
-      'name': 'John Bonzales',
-      'subtitle': 'Hi, What are you doning?',
-      'avatar': 'assets/images/chat/avatar.png',
-    },
-    {
-      'name': 'Kristen',
-      'subtitle': 'Hi, What are you doning?',
-      'avatar': 'assets/images/chat/avatar.png',
-    },
-  ];
+  List<RCIMIWUserProfile> _users = [];
+  List<RCIMIWGroupInfo> _groups = [];
+  List<RCIMIWMessage> _messages = [];
 
-  final List<Map<String, dynamic>> _mockGroups = [
-    {
-      'name': 'PARACOSM Group - B',
-      'id': '',
-      'avatars': List.filled(4, 'assets/images/chat/avatar.png'),
-    },
-    {
-      'name': 'PARACOSM Group - B',
-      'id': '24Block902ad2',
-      'avatars': List.filled(4, 'assets/images/chat/avatar.png'),
-    },
-  ];
+  String _getHintText() {
+    final l10n = AppLocalizations.of(context)!;
 
-  final List<Map<String, dynamic>> _mockMessages = [
-    {
-      'name': 'John Gonzales',
-      'subtitle': 'Hi, Baby-What are you doning?',
-      'avatar': 'assets/images/chat/avatar.png',
-    },
-    {
-      'name': 'Kristen',
-      'subtitle': 'Hi, Baby-What are you doning?',
-      'avatar': 'assets/images/chat/avatar.png',
-    },
-  ];
+    switch (_type) {
+      case ChatSearchType.all:
+        return l10n.chatSearchHint; // 默认：搜索
+      case ChatSearchType.user:
+        return l10n.chatSearchUser; // 搜索用户
+      case ChatSearchType.group:
+        return l10n.chatSearchGroup; // 搜索群聊
+      case ChatSearchType.message:
+        return l10n.chatSearchMessage; // 搜索消息
+      case ChatSearchType.browser:
+        return l10n.chatSearchBrowser; // 搜索网页
+    }
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> searchUserData(String keyword) async {
-    final users = await ImUserManager().getUserProfiles([keyword]);
-    setState(() {
+  Future<void> _handleSearch(String keyword) async {
+    if (keyword.isEmpty) {
+      setState(() {
+        _users = [];
+        _groups = [];
+        _messages = [];
+      });
+      return;
+    }
+    try {
+      List<RCIMIWUserProfile> users = [];
+      List<RCIMIWGroupInfo> groups = [];
+      List<RCIMIWMessage> messages = [];
+      print('get======$keyword');
+      switch (_type) {
+        case ChatSearchType.all:
+          final results = await Future.wait([
+            ImUserManager().getUserProfiles([keyword]),
+            ImGroupManager().searchJoinedGroups(keyword: keyword),
+            ImMessageManager().searchMessages(
+              type: RCIMIWConversationType.private,
+              targetId: '',
+              keyword: keyword,
+              startTime: 0,
+              count: 50,
+            ),
+          ]);
 
-    });
+          users = (results[0] as List<RCIMIWUserProfile>? ?? []);
+          final groupResult = results[1] as RCIMIWPagingQueryResult<RCIMIWGroupInfo>?;
+          groups = groupResult?.data ?? [];
+          final messageResult = results[2] as ImResult<List<RCIMIWMessage>>;
+          messages = messageResult.data ?? [];
+
+          break;
+
+        case ChatSearchType.user:
+          users = await ImUserManager().getUserProfiles([keyword]) ?? [];
+          break;
+
+        case ChatSearchType.group:
+          final result =
+          await ImGroupManager().searchJoinedGroups(keyword: keyword);
+          groups = result?.data ?? [];
+          break;
+
+        case ChatSearchType.message:
+          final result  = await ImMessageManager().searchMessages(
+            type: RCIMIWConversationType.private,
+            targetId: '',
+            keyword: keyword,
+            startTime: 0,
+            count: 50,
+          );
+          messages = result.data ?? [];
+          break;
+
+        case ChatSearchType.browser:
+          break;
+      }
+
+      setState(() {
+        _users = users;
+        _groups = groups;
+        _messages = messages;
+      });
+    } catch (e) {
+      setState(() {
+        _users = [];
+        _groups = [];
+        _messages = [];
+      });
+    }
   }
 
-  Future<void> searchGroupData(String keyword) async {
-    final groups = await ImGroupManager().searchJoinedGroups(keyword: keyword);
-    setState(() {
-
-    });
-  }
-
-  Future<void> searchMessageData(String keyword) async {
-    final messages = await ImMessageManager().searchMessages(
-        type: RCIMIWConversationType.private, targetId: '', keyword: keyword, startTime: 0, count: 50);
-    setState(() {
-
-    });
-  }
   @override
   Widget build(BuildContext context) {
     return AppPage(
@@ -130,10 +180,16 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
             child: AppSearchInput(
               controller: _searchController,
               autofocus: true,
-              hintText: AppLocalizations.of(context)!.chatSearchHint,
+              hintText: _getHintText(),
               onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
+                _debounce?.cancel();
+
+                _debounce = Timer(const Duration(milliseconds: 300), () {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+
+                  _handleSearch(value.toLowerCase());
                 });
               },
             ),
@@ -185,10 +241,10 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchUser),
-                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchGroup),
-                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchMessage),
-                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchBrowser),
+                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchUser,ChatSearchType.user),
+                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchGroup,ChatSearchType.group),
+                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchMessage,ChatSearchType.message),
+                _buildCategoryItem(AppLocalizations.of(context)!.chatSearchBrowser,ChatSearchType.browser),
               ],
             ),
           ),
@@ -224,33 +280,21 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
 
   /// 构建搜索结果视图
   Widget _buildResultView() {
-    final filteredUsers = _mockUsers
-        .where((u) => u['name'].toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-    final filteredGroups = _mockGroups
-        .where((g) => g['name'].toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-    final filteredMessages = _mockMessages
-        .where((m) =>
-            m['name'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            m['subtitle'].toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-
-    if (filteredUsers.isEmpty &&
-        filteredGroups.isEmpty &&
-        filteredMessages.isEmpty) {
+    if (_users.isEmpty &&
+        _groups.isEmpty &&
+        _messages.isEmpty) {
       return _buildEmptyView();
     }
 
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        if (filteredUsers.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchUser),
-        ...filteredUsers.map((user) => _buildUserItem(user)),
-        if (filteredGroups.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchGroup),
-        ...filteredGroups.map((group) => _buildGroupItem(group)),
-        if (filteredMessages.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchMessage),
-        ...filteredMessages.map((msg) => _buildMessageItem(msg)),
+        if (_users.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchUser),
+        ..._users.map((user) => _buildUserItem(user)),
+        if (_groups.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchGroup),
+        ..._groups.map((group) => _buildGroupItem(group)),
+        if (_messages.isNotEmpty) _buildSectionHeader(AppLocalizations.of(context)!.chatSearchMessage),
+        ..._messages.map((msg) => _buildMessageItem(msg)),
       ],
     );
   }
@@ -263,18 +307,23 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   }
 
   /// 构建分类入口项
-  Widget _buildCategoryItem(String label) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.primaryLight,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+  Widget _buildCategoryItem(String label,ChatSearchType type) {
+    return GestureDetector(
+      onTap: (){
+        context.push('/chat-search',extra: type);
+      },
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.primaryLight,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -294,11 +343,11 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   }
 
   /// 构建用户搜索项
-  Widget _buildUserItem(Map<String, dynamic> user) {
+  Widget _buildUserItem(RCIMIWUserProfile user) {
+    final userModel = UserModel(profile: user);
     return GestureDetector(
       onTap: () {
-        final encodedName = Uri.encodeComponent(user['name']);
-        context.push('/user-profile/$encodedName');
+        context.push('/user-profile',extra: user.userId);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -307,17 +356,12 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  image: DecorationImage(
-                    image: AssetImage(user['avatar']),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              child: UserAvatarWidget(
+                userId: user.userId,
+                avatarUrl: user.portraitUri,
+                size: 48,
+                borderRadius: BorderRadius.circular(10),
+              )
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -332,7 +376,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHighlightText(
-                      user['name'],
+                      userModel.name,
                       _searchQuery,
                       style: AppTextStyles.body.copyWith(
                         color: AppColors.grey900,
@@ -341,7 +385,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      user['subtitle'],
+                      ellipsisMiddle(user.userId ?? ''),
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.grey700,
                         fontSize: 12,
@@ -360,11 +404,11 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   }
 
   /// 构建群聊搜索项
-  Widget _buildGroupItem(Map<String, dynamic> group) {
+  Widget _buildGroupItem(RCIMIWGroupInfo group) {
     return GestureDetector(
       onTap: () {
-        final encodedName = Uri.encodeComponent(group['name']);
-        context.push('/group-details/$encodedName');
+        // final encodedName = Uri.encodeComponent(group['name']);
+        // context.push('/group-details/$encodedName');
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -373,7 +417,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              child: _buildGroupAvatar(group['avatars']),
+              child: _buildGroupAvatar(group),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -388,17 +432,17 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHighlightText(
-                      group['name'],
+                      group.groupName ?? '',
                       _searchQuery,
                       style: AppTextStyles.body.copyWith(
                         color: AppColors.grey900,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (group['id'].isNotEmpty) ...[
+                    if (group.groupId != null) ...[
                       const SizedBox(height: 4),
                       _buildHighlightText(
-                        'ID : ${group['id']}',
+                        'ID : ${group.groupId}',
                         _searchQuery,
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.grey400,
@@ -417,7 +461,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   }
 
   /// 构建消息搜索项
-  Widget _buildMessageItem(Map<String, dynamic> msg) {
+  Widget _buildMessageItem(RCIMIWMessage msg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       color: Colors.white,
@@ -425,15 +469,13 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                image: DecorationImage(
-                  image: AssetImage(msg['avatar']),
-                  fit: BoxFit.cover,
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child:AppNetworkImage(
+                url: msg.userInfo?.portrait ?? '',
+                width: 48,
+                height: 48,
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -450,7 +492,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    msg['name'],
+                    msg.userInfo?.name ?? '',
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey900,
                       fontWeight: FontWeight.w500,
@@ -458,7 +500,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
                   ),
                   const SizedBox(height: 4),
                   _buildHighlightText(
-                    msg['subtitle'],
+                    'content',
                     _searchQuery,
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.grey400,
@@ -475,32 +517,8 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
   }
 
   /// 构建群聊 4-grid 头像
-  Widget _buildGroupAvatar(List<String> avatars) {
-    return Container(
-      width: 44,
-      height: 44,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: GridView.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 1,
-        crossAxisSpacing: 1,
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        children: avatars
-            .take(4)
-            .map(
-              (avatar) => ClipRRect(
-                borderRadius: BorderRadius.circular(1),
-                child: Image.asset(avatar, fit: BoxFit.cover),
-              ),
-            )
-            .toList(),
-      ),
-    );
+  Widget _buildGroupAvatar(RCIMIWGroupInfo group) {
+    return GroupAvatarWidget(group: group,);
   }
 
   /// 构建带高亮显示的文本

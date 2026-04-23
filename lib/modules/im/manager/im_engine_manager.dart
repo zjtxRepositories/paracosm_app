@@ -24,6 +24,9 @@ class IMEngineManager {
 
   /// 初始化 SDK
   Future<void> init() async {
+    if (_engine != null){
+      await disconnect();
+    }
     RCIMIWEngineOptions options = RCIMIWEngineOptions.create();
     RCIMIWEngine engine = await RCIMIWEngine.create(ImConfig.appKey, options);
     _engine = engine;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../throttle.dart';
@@ -21,6 +22,7 @@ class MetaMaskHandler extends EthWebViewHandler {
 
   @override
   void handle(List<dynamic> arguments) {
+    debugPrint('DApp handler raw arguments: $arguments');
     final args = jsonDecode(arguments.first);
 
     if (args['name'] != 'metamask-provider') return;
@@ -38,8 +40,13 @@ class MetaMaskHandler extends EthWebViewHandler {
 
   /// ===== 核心分发 =====
   void _handleRequest(
-      int id, String origin, String method, List<dynamic>? params) async {
-    print('Method-----$method');
+    int id,
+    String origin,
+    String method,
+    List<dynamic>? params,
+  ) async {
+    debugPrint('DApp method: $method');
+
     /// ===== fallback（兼容旧实现）=====
     switch (method) {
       case 'metamask_getProviderState':
@@ -51,15 +58,25 @@ class MetaMaskHandler extends EthWebViewHandler {
         break;
 
       case 'eth_coinbase':
-        handleMethod(id, origin, web3handler.ethCoinbase);
+        handleMethod(id, origin, () => web3handler.ethCoinbase(false));
         break;
 
       case 'eth_accounts':
-        handleMethod(id, origin, web3handler.ethAccounts);
+        handleMethod(id, origin, () => web3handler.ethAccounts(false));
         break;
 
       case 'eth_requestAccounts':
-        handleMethod(id,origin, web3handler.ethRequestAccounts);
+        handleMethod(id, origin, web3handler.ethRequestAccounts);
+        break;
+      case 'wallet_getPermissions':
+        handleMethod(id, origin, web3handler.walletGetPermissions);
+        break;
+      case 'wallet_requestPermissions':
+        handleMethod(
+          id,
+          origin,
+          () => web3handler.walletRequestPermissions(params?.first),
+        );
         break;
 
       case 'eth_blockNumber':
@@ -67,10 +84,18 @@ class MetaMaskHandler extends EthWebViewHandler {
         break;
 
       case 'wallet_addEthereumChain':
-        handleMethod(id, origin, () => web3handler.walletAddEthereumChain(params!.first));
+        handleMethod(
+          id,
+          origin,
+          () => web3handler.walletAddEthereumChain(params!.first),
+        );
         break;
       case 'wallet_switchEthereumChain':
-        handleMethod(id, origin, () => web3handler.walletSwitchEthereumChain(params!.first));
+        handleMethod(
+          id,
+          origin,
+          () => web3handler.walletSwitchEthereumChain(params!.first),
+        );
         break;
       case 'net_version':
         handleMethod(id, origin, () => web3handler.ethChain.chainId);
@@ -78,31 +103,61 @@ class MetaMaskHandler extends EthWebViewHandler {
       case 'eth_sign':
         Throttle.throttle(
           tag: 'dAppEthSign',
-          func: () => handleMethod(id, origin, () => web3handler.ethSign(params!.first)),
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.ethSign(params!.first),
+          ),
         );
         break;
       case 'personal_sign':
         Throttle.throttle(
           tag: 'dAppPersonalSign',
-          func: () => handleMethod(id, origin, () => web3handler.personalSign(params!.first)),
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.personalSign(params!.first),
+          ),
         );
         break;
       case 'eth_signTypedData':
         Throttle.throttle(
           tag: 'dAppSignTypedData',
-          func: () => handleMethod(id, origin, () => web3handler.ethSignTypedData(params![1])),
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.ethSignTypedData(params![1]),
+          ),
         );
         break;
       case 'eth_signTypedData_v3':
         Throttle.throttle(
           tag: 'dAppSignTypedDataV3',
-          func: () => handleMethod(id, origin, () => web3handler.ethSignTypedDataV3(params![1])),
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.ethSignTypedDataV3(params![1]),
+          ),
         );
         break;
       case 'eth_signTypedData_v4':
         Throttle.throttle(
           tag: 'dAppSignTypedDataV4',
-          func: () => handleMethod(id, origin, () => web3handler.ethSignTypedDataV4(params![1])),
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.ethSignTypedDataV4(params![1]),
+          ),
+        );
+        break;
+      case 'eth_sendTransaction':
+        Throttle.throttle(
+          tag: 'dAppSendTransaction',
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.ethSendTransaction(params!.first),
+          ),
         );
         break;
       case 'metamask_logWeb3ShimUsage':
@@ -110,8 +165,12 @@ class MetaMaskHandler extends EthWebViewHandler {
         break;
       case 'wallet_watchAsset':
         Throttle.throttle(
-          tag: 'dAppSignTypedDataV4',
-          func: () => handleMethod(id, origin, () => web3handler.walletWatchAsset(params!.first)),
+          tag: 'dAppWatchAsset',
+          func: () => handleMethod(
+            id,
+            origin,
+            () => web3handler.walletWatchAsset(params!.first),
+          ),
         );
         break;
       case 'eth_call':
@@ -136,7 +195,7 @@ class MetaMaskHandler extends EthWebViewHandler {
       return {
         'accounts': await web3handler.ethAccounts(false),
         'chainId': web3handler.ethChainId(),
-        'networkVersion': web3handler.ethChainId(),
+        'networkVersion': web3handler.ethChain.chainId.toString(),
         'isUnlocked': true,
       };
     });
@@ -146,56 +205,68 @@ class MetaMaskHandler extends EthWebViewHandler {
   void handleMethod(int id, String origin, FutureOr Function() fn) async {
     try {
       final result = await Future.sync(fn);
+      debugPrint('DApp response success: id=$id origin=$origin result=$result');
       sendResponse(id, result, origin);
     } catch (e) {
+      debugPrint('DApp response error: id=$id origin=$origin error=$e');
       sendError(id, e, origin);
     }
   }
 
   /// ===== JS通信 =====
   void postMessage(Map msg, String origin) {
-    final js = '''
-      window.postMessage(${json.encode(msg)}, '$origin');
+    final targetOrigin = _targetOrigin(origin);
+    debugPrint(
+      'DApp postMessage targetOrigin=$targetOrigin payload=${json.encode(msg)}',
+    );
+    final js =
+        '''
+      window.postMessage(${json.encode(msg)}, '$targetOrigin');
     ''';
     web3handler.evaluateJavascript(js);
   }
 
   void sendResponse(int id, dynamic result, [String origin = '*']) {
     postMessage({
-      'data': {
-        'id': id,
-        'jsonrpc': '2.0',
-        'result': result,
-      },
-      'name': 'metamask-provider'
+      'data': {'id': id, 'jsonrpc': '2.0', 'result': result},
+      'name': 'metamask-provider',
     }, origin);
   }
 
   void sendError(int id, dynamic error, [String origin = '*']) {
-    final err = error is Map
-        ? error
-        : _rpcError(-32000, error.toString());
+    final err = error is Map ? error : _rpcError(-32000, error.toString());
 
     postMessage({
-      'data': {
-        'id': id,
-        'jsonrpc': '2.0',
-        'error': err,
-      },
-      'name': 'metamask-provider'
+      'data': {'id': id, 'jsonrpc': '2.0', 'error': err},
+      'name': 'metamask-provider',
     }, origin);
   }
 
   Map _rpcError(int code, String message) {
-    return {
-      'code': code,
-      'message': message,
-    };
+    return {'code': code, 'message': message};
+  }
+
+  String _targetOrigin(String origin) {
+    if (origin == '*' || origin.isEmpty) {
+      return '*';
+    }
+
+    final uri = Uri.tryParse(origin);
+    if (uri == null) {
+      return '*';
+    }
+
+    if (!uri.hasScheme || uri.host.isEmpty) {
+      return '*';
+    }
+
+    return uri.origin;
   }
 
   /// ===== 事件（关键）=====
   void emit(String event, dynamic data) {
-    final js = '''
+    final js =
+        '''
       window.ethereum?.emit?.('$event', ${jsonEncode(data)});
     ''';
     web3handler.evaluateJavascript(js);

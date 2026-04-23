@@ -77,6 +77,37 @@
     ]
   },
   {
+    "name": "BNB Chain Testnet",
+    "chainName": "BNB Chain Testnet",
+    "chainId": 97,
+    "symbol": "TBNB",
+    "coinName": "TBNB",
+    "decimals": 18,
+    "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
+    "coinIndex": 60,
+    "coinId": "binancecoin",
+    "chainType": "evm",
+    "nodes": [
+      "https://bsc-testnet-rpc.publicnode.com"
+    ],
+    "txApiUrl": "https://api.bscscan.com/api",
+    "explorer": "https://testnet.bscscan.com/",
+    "explorerTxUrl": "https://testnet.bscscan.com/tx/",
+    "explorerAddressUrl": "https://testnet.bscscan.com/address/",
+    "tokens": [
+      {
+        "symbol": "TBNB",
+        "address": "",
+        "decimals": 18,
+        "name": "TBNB",
+        "coinId": "binancecoin",
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
+        "native": 1
+
+      }
+    ]
+  },
+  {
     "name": "Solana",
     "chainName": "Solana Mainnet Beta",
     "chainId": 101,

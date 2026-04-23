@@ -56,7 +56,7 @@ class IMEngineManager {
     _accountId = null;
   }
 
-  String? get currentAccountId => _accountId;
+  String? get currentUserId => _accountId;
   RCIMIWEngine? get engine => _engine;
 
 }

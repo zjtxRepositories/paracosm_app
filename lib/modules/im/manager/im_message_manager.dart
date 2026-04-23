@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -7,11 +8,23 @@ import '../result/im_result.dart';
 import 'im_engine_manager.dart';
 
 class ImMessageManager  {
+  static final ImMessageManager _instance = ImMessageManager._internal();
+  factory ImMessageManager() => _instance;
+  ImMessageManager._internal();
+
+  final _messageController = StreamController<RCIMIWMessage>.broadcast();
+  Stream<RCIMIWMessage> get messageStream => _messageController.stream;
+
+  bool _inited = false;
 
   void initListener() {
+    if (_inited) return;
+    _inited = true;
+
     final engine = IMEngineManager().engine;
     engine?.onMessageReceived = (RCIMIWMessage? message, int? left, bool? offline, bool? hasPackage) {
-//...
+      if (message == null) return;
+      onMessageReceived(message);
     };
 
     engine?.onRemoteMessageRecalled = (RCIMIWMessage? message) {
@@ -32,17 +45,26 @@ class ImMessageManager  {
 
   /// 接收消息
   void onMessageReceived(RCIMIWMessage message) {
-    print("收到消息: ${message.messageId}");
-
+    debugPrint("收到消息: ${message.messageId}");
+    _messageController.add(message);
   }
 
   /// 发送文本消息
   Future<void> sendTextMessage({
+    required RCIMIWConversationType type,
     required String targetId,
+    String? channelId,
     required String content,
   }) async {
-
-    final textMsg = RCIMIWMessage.fromJson({});
+    final textMsg = await IMEngineManager().engine?.createTextMessage(
+      type,
+      targetId,
+      channelId,
+      content,
+    );
+    if (textMsg == null) {
+      throw Exception("文本消息创建失败");
+    }
     RCIMIWSendMessageCallback? callback = RCIMIWSendMessageCallback(
         onMessageSaved: (RCIMIWMessage? message) {
 //...
@@ -59,7 +81,7 @@ class ImMessageManager  {
   }
 
   /// 获取历史消息
-  Future<void> getMessages({
+  Future<List<RCIMIWMessage>> getMessages({
     required RCIMIWConversationType type,
     required String targetId,
     required int sentTime,
@@ -68,19 +90,22 @@ class ImMessageManager  {
     required int count,
     String? channelId,
   }) async {
+    final completer = Completer<List<RCIMIWMessage>>();
 
     IRCIMIWGetMessagesCallback? callback = IRCIMIWGetMessagesCallback(
         onSuccess: (List<RCIMIWMessage>? t, int? syncTimestamp, bool? hasMoreMsg) {
-//...
+          completer.complete(t ?? []);
         }, onError: (int? code) {
-//...
+          completer.completeError(Exception("获取消息失败: $code"));
     });
 
     final code = await IMEngineManager().engine?.getMessages(type, targetId, channelId, sentTime, order, policy, count,callback: callback);
 
-    if (code != RCIMIWErrorCode.success) {
+    if (code != 0) {
       throw Exception("发送失败: $code");
     }
+
+    return completer.future;
   }
 
   /// 删除消息
@@ -165,5 +190,9 @@ class ImMessageManager  {
   }) async {
     final code = await IMEngineManager().engine?.sendGroupReadReceiptResponse(targetId, channelId, messages);
     return code == 0;
+  }
+
+  void dispose() {
+    _messageController.close();
   }
 }

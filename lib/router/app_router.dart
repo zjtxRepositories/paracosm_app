@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/models/dApp_hive.dart';
-import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -14,6 +13,7 @@ import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
 import 'package:paracosm/pages/chat/chat_detail_page.dart';
+import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';
 import 'package:paracosm/pages/chat/group_information_page.dart';
@@ -324,8 +324,12 @@ class AppRouter {
         path: '/chat-detail/:name',
         parentNavigatorKey: rootNavigatorKey, // 显式指定使用根导航器
         builder: (context, state) {
-          final name = state.pathParameters['name'] ?? 'Chat';
-          return ChatDetailPage(name: name);
+          final args = state.extra as ChatSessionArgs?;
+          if (args == null) {
+            final name = state.pathParameters['name'] ?? 'Chat';
+            return ChatDetailPage.missingArgs(fallbackName: name);
+          }
+          return ChatDetailPage(sessionArgs: args);
         },
       ),
       // 会话详情页

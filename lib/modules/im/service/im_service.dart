@@ -31,7 +31,7 @@ class ImService {
 
   /// token失效刷新（自动重连）
   static Future<void> refreshToken() async {
-    final accountId = IMEngineManager().currentAccountId;
+    final accountId = IMEngineManager().currentUserId;
     if (accountId == null) return;
     await IMEngineManager().disconnect();
     await ImTokenManager.clear(accountId);
@@ -40,7 +40,7 @@ class ImService {
 
   /// 重新连接
   static Future<void> reconnect() async {
-    final accountId = IMEngineManager().currentAccountId;
+    final accountId = IMEngineManager().currentUserId;
     if (accountId == null) return;
     await loginIm(accountId);
   }

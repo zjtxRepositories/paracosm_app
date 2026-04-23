@@ -18,8 +18,7 @@ class AccountService {
     final wallet = await WalletManager.createWallet(mnemonic: mnemonic,password: password);
 
     /// 2 登录
-    final account = await login(wallet);
-    return account;
+    return await login(wallet);
   }
 
   static Future<AccountModel> login(WalletModel wallet) async {
@@ -29,8 +28,6 @@ class AccountService {
       wallet: wallet,
       user: loginResp,
     );
-    print('account---------${account.id}');
-    await _save(wallet, account);
     return account;
   }
 
@@ -42,5 +39,8 @@ class AccountService {
     await ImService.switchAccount(account.accountId);
   }
 
+  static Future<void> loginOut(String id) async {
+    await AccountManager().deleteAccount(id);
+  }
 
 }

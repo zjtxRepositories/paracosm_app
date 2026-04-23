@@ -1,19 +1,12 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:paracosm/modules/wallet/chains/evm/evm_chain_service.dart';
-import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
-import 'package:web3dart/web3dart.dart';
-
-import '../../core/util/double_util.dart';
 import '../../modules/wallet/chains/service/portfolio_service.dart';
 import '../../modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/transaction_model.dart';

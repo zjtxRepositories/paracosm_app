@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:paracosm/core/network/models/user_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
@@ -14,9 +17,14 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
+import '../../core/network/api/upload_file_api.dart';
+import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
+import '../../widgets/common/image_picker_sheet.dart';
 
 /// 用户资料页面
 class UserProfilePage extends StatefulWidget {
@@ -45,7 +53,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> fetchData() async {
     final manager = ImUserManager();
     final currentUserId = AccountManager().currentAccount?.accountId;
-    print('currentUserId----${currentUserId?.toLowerCase()}');
+    print('currentUserId----${currentUserId?.toLowerCase()}--${widget.userId}');
     RCIMIWUserProfile? profile;
     try {
       if (widget.userId == currentUserId) {
@@ -82,11 +90,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
     super.dispose();
   }
 
+  Future<void> toggleChat() async {
+    if (!_isFriend){
+      AppToast.show('请添加好友！');
+      return;
+    }
+
+  }
+
+  Future<void> toggleMoment() async {
+    context.push('/moment-user-profile');
+  }
+
   /// 显示添加好友弹窗
   void _showAddFriendModal() {
     if (_user == null) return;
     String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX", _user?.name ?? '');
-    print('initialText---$initialText');
     TextEditingController controller = TextEditingController(text: initialText);
     AppModal.show(
       context,
@@ -112,18 +131,94 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 显示设置备注弹窗
   void _showSetNoteNameModal() {
+    if (_user == null) return;
+    TextEditingController controller = TextEditingController(text: _user!.profile.name ?? '');
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatProfileSetNote,
       confirmText: AppLocalizations.of(context)!.chatProfileSave,
-      onConfirm: () {
-        // TODO: 处理保存逻辑
-        Navigator.pop(context);
+      onConfirm: () async {
+        AppLoading.show();
+        _user!.profile.name = controller.text;
+        final result = await ImUserManager().updateMyUserProfile(userProfile: _user!.profile);
+        AppLoading.dismiss();
+        if (!result){
+          AppToast.show('设置备注失败！');
+          return;
+        }
+        context.pop();
+        setState(() {});
       },
       child: _SetNoteNameInputWrapper(
-        initialText: _user?.name ?? '',
+        controller: controller,
       ),
     );
+  }
+
+  /// 修改名称
+  void _showSetNameModal() {
+    if (_user == null) return;
+    TextEditingController controller = TextEditingController(text: _user!.profile.name ?? '');
+    AppModal.show(
+      context,
+      title: '修改名称',
+      confirmText: AppLocalizations.of(context)!.chatProfileSave,
+      onConfirm: () async {
+        AppLoading.show();
+        _user!.profile.name = controller.text;
+        final result = await ImUserManager().updateMyUserProfile(userProfile: _user!.profile);
+        AppLoading.dismiss();
+        if (!result){
+          AppToast.show('修改名称失败！');
+          return;
+        }
+        setState(() {});
+        context.pop();
+        AccountManager().updateAccountUserInfo(_user!.profile.name ?? '', _user!.profile.portraitUri ?? '');
+      },
+      child: _SetNoteNameInputWrapper(
+        controller: controller,
+      ),
+    );
+  }
+
+  /// 设置头像
+  Future<void> _showPickAvatarAction() async {
+    final path = await ImagePickerSheet.show(context);
+    print('path-----$path');
+    if (path == null) return;
+
+    await _handleImage(path);
+  }
+
+  Future<void> _handleImage(String path) async {
+    try {
+      AppLoading.show();
+
+      final compressed =
+      await MediaHandleUtil.compressedImageQuality(path);
+
+      final url = await UploadFileApi.uploadFileByPath(compressed);
+
+      if (url == null || url.isEmpty) {
+        AppToast.show('上传失败');
+        return;
+      }
+
+      _user!.profile.portraitUri = url;
+
+      final result = await ImUserManager()
+          .updateMyUserProfile(userProfile: _user!.profile);
+
+      if (!result) {
+        AppToast.show('修改头像失败');
+        return;
+      }
+      setState(() {});
+      AccountManager().updateAccountUserInfo(_user!.profile.name ?? '', _user!.profile.portraitUri ?? '');
+    } finally {
+      AppLoading.dismiss();
+    }
   }
 
   @override
@@ -182,10 +277,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset(
-          'assets/images/common/copy-grey.png',
-          width: 16,
-          height: 16,
+        GestureDetector(
+          onTap: () async {
+            final text = _user?.profile.userId ?? '';
+            await Clipboard.setData(ClipboardData(text: text));
+            AppToast.show(AppLocalizations.of(context)!.commonCopied);
+          },
+          child: Image.asset(
+            'assets/images/common/copy-grey.png',
+            width: 16,
+            height: 16,
+          ),
         ),
         const SizedBox(width: 2),
         SizedBox(
@@ -221,12 +323,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
       !_isSelf
           ? _buildActionItem(
           AppLocalizations.of(context)!.chatProfileMessage,
-          'assets/images/common/msg.png',(){})
+          'assets/images/common/msg.png',toggleChat)
           : _buildActionItem('头像',
-          'assets/images/common/msg.png',(){}),
+          'assets/images/common/camera.png',_showPickAvatarAction),
 
       _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment,
-          'assets/images/common/moment.png',(){}),
+          'assets/images/common/moment.png',toggleMoment),
     ];
     if (items.length == 2) {
       return Padding(
@@ -273,7 +375,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildAddFriendButton() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: _isFriend ?
+      child: _isFriend  ?
       AppButton(
         text: AppLocalizations.of(context)!.chatProfileDelete,
         textColor: AppColors.error,
@@ -281,10 +383,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
         onPressed: _showAddFriendModal,
       ):
       AppButton(
-        text: AppLocalizations.of(context)!.chatProfileAddFriend,
+        text: _isSelf ? 'Modify nickname' : AppLocalizations.of(context)!.chatProfileAddFriend,
         textColor: Colors.white,
         backgroundColor: AppColors.grey900,
-        onPressed: _showAddFriendModal,
+        onPressed:_isSelf ? _showSetNameModal : _showAddFriendModal,
       ),
     );
   }
@@ -374,6 +476,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
   }
+
 }
 
 /// 添加好友申请输入框包装组件，管理自身状态
@@ -416,9 +519,9 @@ class _AddFriendInputWrapperState extends State<_AddFriendInputWrapper> {
 
 /// 设置备注名称输入框包装组件，管理自身状态
 class _SetNoteNameInputWrapper extends StatefulWidget {
-  final String initialText;
+  final TextEditingController controller;
 
-  const _SetNoteNameInputWrapper({required this.initialText});
+  const _SetNoteNameInputWrapper({required this.controller});
 
   @override
   State<_SetNoteNameInputWrapper> createState() =>
@@ -432,7 +535,7 @@ class _SetNoteNameInputWrapperState extends State<_SetNoteNameInputWrapper> {
   @override
   void initState() {
     super.initState();
-    controller = TextEditingController(text: widget.initialText);
+    controller = widget.controller;
     focusNode = FocusNode();
   }
 

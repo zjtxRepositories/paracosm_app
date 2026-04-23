@@ -1,8 +1,9 @@
 import 'package:get/get_navigation/src/root/parse_route.dart';
-import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/chains/model/coin_market_model.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+
+import '../../../util/string_util.dart';
 
 class TokenModel {
 

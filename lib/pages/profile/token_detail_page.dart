@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/service/block_chain_service.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
-import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/common/app_network_selector.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../../modules/wallet/model/trade_model.dart';
+import '../../util/string_util.dart';
 
 /// 代币详情页面 (Token Detail Page)
 class TokenDetailPage extends StatefulWidget {

@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
-import 'package:paracosm/core/util/string_util.dart';
 import '../../core/network/models/social_media_model.dart';
+import '../../util/string_util.dart';
 import '../../widgets/common/app_action_pop_menu.dart';
 
 class MomentPostCard extends StatelessWidget {

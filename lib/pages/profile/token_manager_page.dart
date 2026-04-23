@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
-
-import '../../core/util/string_util.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../util/string_util.dart';
 import '../../widgets/base/app_page.dart';
 import '../../widgets/common/app_network_image.dart';
 import '../../widgets/common/app_search_input.dart';

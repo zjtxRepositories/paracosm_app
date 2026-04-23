@@ -12,10 +12,10 @@ import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../core/db/dao/wallet_dao.dart';
-import '../../core/util/string_util.dart';
 import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/chains/service/portfolio_service.dart';
 import '../../modules/wallet/service/mnemonic_service.dart';
+import '../../util/string_util.dart';
 import '../../widgets/common/app_modal.dart';
 import '../../widgets/common/app_network_image.dart';
 

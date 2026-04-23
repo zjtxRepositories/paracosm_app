@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/security/wallet_security.dart';
@@ -7,22 +10,14 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
-import 'package:paracosm/widgets/common/app_checkbox.dart';
-import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/common/app_network_selector.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
-
 import '../../core/db/dao/wallet_dao.dart';
-import '../../core/util/string_util.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../modules/account/model/account_model.dart';
-import '../../modules/wallet/chains/service/portfolio_service.dart';
-import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../widgets/common/app_loading.dart';
-import '../../widgets/common/app_network_image.dart';
 
 /// 个人资料详情页面
 class ProfileDetailsPage extends StatefulWidget {
@@ -33,6 +28,7 @@ class ProfileDetailsPage extends StatefulWidget {
 }
 
 class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
+  final accountManager = AccountManager();
   List<AccountModel> _accounts = [];
   WalletModel? _walletModel;
   AccountModel? _account;
@@ -44,13 +40,23 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
     super.initState();
     fetchData();
     fetchWalletData();
+    accountManager.addListener(_onAccountChanged);
+  }
+
+  @override
+  void dispose() {
+    accountManager.removeListener(_onAccountChanged);
+    super.dispose();
+  }
+
+  void _onAccountChanged() {
+    fetchData();
   }
 
   Future<void> fetchData() async {
-    final manager = AccountManager();
-    _walletModel = manager.currentWallet;
-    _accounts = manager.accounts;
-    _account = manager.currentAccount;
+    _walletModel = accountManager.currentWallet;
+    _accounts = accountManager.accounts;
+    _account = accountManager.currentAccount;
     setState(() {});
   }
 
@@ -123,7 +129,6 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         currentWalletId: _walletModel!.id,
         onSwitch: (address) async {
           await AccountManager().switchAccount(address);
-          await fetchData();
         },
         onAddWallet: (){
           context.push('/wallet-manager'); // 跳转到钱包管理页
@@ -216,11 +221,16 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       child: Row(
         children: [
           // 用户头像
-          UserAvatarWidget(
-            userId: _account?.accountId,
-            avatarUrl: _account?.avatar,
-            size: 44,
-            borderRadius: BorderRadius.circular(11),
+          GestureDetector(
+            onTap: (){
+              context.push('/user-profile',extra:_account?.accountId);
+            },
+            child: UserAvatarWidget(
+              userId: _account?.accountId,
+              avatarUrl: _account?.avatar,
+              size: 44,
+              borderRadius: BorderRadius.circular(11),
+            ),
           ),
           const SizedBox(width: 12),
           // 用户信息
@@ -239,11 +249,18 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
                 const SizedBox(height: 1),
                 Row(
                   children: [
-                    Image.asset(
-                      'assets/images/common/copy-grey.png',
-                      width: 16,
-                      height: 16,
-                      fit: BoxFit.cover,
+                    GestureDetector(
+                      onTap: () async {
+                        final text = _account?.accountId ?? '';
+                        await Clipboard.setData(ClipboardData(text: text));
+                        AppToast.show(AppLocalizations.of(context)!.commonCopied);
+                      },
+                      child: Image.asset(
+                        'assets/images/common/copy-grey.png',
+                        width: 16,
+                        height: 16,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                     const SizedBox(width: 2),
                     SizedBox(

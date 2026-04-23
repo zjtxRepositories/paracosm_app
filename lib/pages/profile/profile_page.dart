@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
@@ -10,16 +12,11 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
-
-import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/common/app_network_selector.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
-
-import '../../core/util/string_util.dart';
 import '../../modules/account/manager/account_manager.dart';
-import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/chains/model/coin_market_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
+import '../../util/string_util.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 个人中心页面 (钱包首页)
@@ -32,6 +29,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late final AccountManager accountManager;
+
   bool _isBalanceVisible = true; // 控制余额显示/隐藏的状态
 
   WalletModel? _walletModel;

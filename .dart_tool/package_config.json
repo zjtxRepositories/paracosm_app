@@ -284,6 +284,30 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "file_selector_linux",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file_selector_linux-0.9.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
+    },
+    {
+      "name": "file_selector_macos",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file_selector_macos-0.9.5",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
+      "name": "file_selector_platform_interface",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file_selector_platform_interface-2.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
+      "name": "file_selector_windows",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file_selector_windows-0.9.3+5",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
+    },
+    {
       "name": "fixnum",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/fixnum-1.1.1",
       "packageUri": "lib/",
@@ -408,6 +432,12 @@
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_native_splash-2.4.7",
       "packageUri": "lib/",
       "languageVersion": "3.0"
+    },
+    {
+      "name": "flutter_plugin_android_lifecycle",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_plugin_android_lifecycle-2.0.34",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
     },
     {
       "name": "flutter_riverpod",
@@ -558,6 +588,54 @@
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image-4.8.0",
       "packageUri": "lib/",
       "languageVersion": "3.0"
+    },
+    {
+      "name": "image_picker",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker-1.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
+      "name": "image_picker_android",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_android-0.8.13+16",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
+      "name": "image_picker_for_web",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_for_web-3.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
+    },
+    {
+      "name": "image_picker_ios",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_ios-0.8.13+6",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
+    },
+    {
+      "name": "image_picker_linux",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_linux-0.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "image_picker_macos",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_macos-0.2.2+1",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
+      "name": "image_picker_platform_interface",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_platform_interface-2.11.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
+      "name": "image_picker_windows",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/image_picker_windows-0.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
     },
     {
       "name": "intl",

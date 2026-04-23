@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-import '../../../core/util/double_util.dart';
+import '../../../util/double_util.dart';
 
 class TransactionModel {
   final String hash;

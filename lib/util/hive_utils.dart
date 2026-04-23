@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../modules/dapp/dapp_account_auth_hive.dart';
+import '../modules/dapp/dapp_account_auth_hive.dart';
 
 class HiveUtils {
   static const hiveSecureKey = 'hiveSecureKey';

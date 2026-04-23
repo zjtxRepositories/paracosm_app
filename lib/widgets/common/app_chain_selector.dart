@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../util/string_util.dart';
 import 'app_network_image.dart';
 
 class AppChainSelector extends StatefulWidget {

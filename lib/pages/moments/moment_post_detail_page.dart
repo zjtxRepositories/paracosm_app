@@ -4,11 +4,8 @@ import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/core/network/models/social_Invitation_model.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
-import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
-
-import '../../core/network/models/social_review_model.dart';
-import '../../core/util/string_util.dart';
+import '../../util/string_util.dart';
 import 'comment_composer_bar.dart';
 import 'home/moments_controller.dart';
 import 'moment_comments_section.dart';

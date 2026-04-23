@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/core/network/models/user_model.dart';
-import 'package:paracosm/core/util/string_util.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
@@ -19,6 +18,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 import '../../modules/im/result/im_result.dart';
+import '../../util/string_util.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
 import '../../widgets/common/app_network_image.dart';
 

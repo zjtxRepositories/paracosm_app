@@ -87,7 +87,6 @@ class ImFriendManager {
   /// =========================
   Future<void> fetchFriends() async {
     final completer = Completer<void>();
-
     final callback = IRCIMIWGetFriendsCallback(
       onSuccess: (list) {
         _friends.clear();
@@ -95,6 +94,7 @@ class ImFriendManager {
         _friends.addAll(list ?? []);
 
         _notify();
+        debugPrint("获取好友: ${_friends.length}");
 
         completer.complete();
       },

@@ -100,36 +100,44 @@ class BitcoinService {
   /// =========================
   /// Blockchain 初始化
   /// =========================
-  static Future<void> _initBlockchain() async {
+  static Future<Blockchain?> _initBlockchain() async {
     final node = await ElectrumNodeManager().getNode(testnet: false);
 
-    // 👉 自动补协议（关键）
     final url = node.startsWith("ssl://") || node.startsWith("tcp://")
         ? node
         : "ssl://$node";
 
-    _currentNode = url;
+    print("🌐 Electrum URL => $url");
 
-    print("Electrum URL => $url"); // 一定要打日志！
-
-    _blockchain = await Blockchain.create(
-      config: BlockchainConfig.electrum(
-        config: ElectrumConfig(
-          url: url,
-          retry: 3,
-          timeout: 30,
-          stopGap: BigInt.from(50),
-          validateDomain: false,
+    try {
+      final blockchain = await Blockchain.create(
+        config: BlockchainConfig.electrum(
+          config: ElectrumConfig(
+            url: url,
+            retry: 1,
+            timeout: 5,
+            stopGap: BigInt.from(50),
+            validateDomain: false,
+          ),
         ),
-      ),
-    );
+      ).timeout(const Duration(seconds: 10));
+
+      _blockchain = blockchain;
+      _currentNode = url;
+
+      return blockchain;
+    } catch (e) {
+      print("❌ blockchain init failed: $e");
+      return null;
+    }
   }
 
-  static Future<Blockchain> _getBlockchain() async {
+  static Future<Blockchain?> _getBlockchain() async {
     if (_blockchain != null) return _blockchain!;
     await _initBlockchain()
         .timeout(const Duration(seconds: 10)); // ✅ 防卡死
-    return _blockchain!;
+    print('_blockchain--$_blockchain');
+    return _blockchain;
   }
 
   /// =========================
@@ -141,6 +149,7 @@ class BitcoinService {
     if (wallet == null) throw Exception("Wallet not found");
 
     final blockchain = await _getBlockchain();
+    if (blockchain == null) throw Exception("blockchain error");
 
     try {
       await wallet.sync(blockchain: blockchain);
@@ -149,7 +158,9 @@ class BitcoinService {
         ElectrumNodeManager().markFailed(_currentNode!);
       }
       await _initBlockchain();
-      await wallet.sync(blockchain: _blockchain!);
+      if (_blockchain != null){
+        await wallet.sync(blockchain: _blockchain!);
+      }
     }
   }
 
@@ -159,6 +170,7 @@ class BitcoinService {
   static Future<void> sync(String mnemonic, {int account = 0}) async {
     final wallet = await getOrCreateWallet(mnemonic, account: account);
     final blockchain = await _getBlockchain();
+    if (blockchain == null) throw Exception("blockchain error");
 
     try {
       await wallet.sync(blockchain: blockchain);
@@ -167,7 +179,9 @@ class BitcoinService {
         ElectrumNodeManager().markFailed(_currentNode!);
       }
       await _initBlockchain();
-      await wallet.sync(blockchain: _blockchain!);
+      if (_blockchain != null) {
+        await wallet.sync(blockchain: _blockchain!);
+      }
     }
   }
 

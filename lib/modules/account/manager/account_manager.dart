@@ -29,20 +29,15 @@ class AccountManager extends ChangeNotifier {
   /// 初始化
   /// =========================
   Future<void> init() async {
-    accounts = await AccountDao().getAccounts();
-
     final accountId = await AppConfigDao().getCurrentUser();
-
     if (accountId != null && accountId.isNotEmpty) {
       final account = await AccountDao().getAccountById(accountId);
 
       if (account != null) {
         _currentAccount = account;
         _currentWallet = await WalletDao().getWalletById(accountId);
-
         await WalletManager.unlock(walletId: accountId);
-
-        await ImService.loginIm(account.accountId);
+        accounts = await AccountDao().getAccounts();
       }
     }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -61,6 +60,8 @@ import 'package:paracosm/pages/wallet/wallet_import_password_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_tips_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_private_key_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_risk_page.dart';
+
+import '../core/models/dApp_hive.dart';
 
 /// 全局路由配置类
 class AppRouter {

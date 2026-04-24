@@ -1,9 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../core/network/models/media_item.dart';
+import '../../core/models/media_item.dart';
 import '../../modules/manager/media_cache_manager.dart';
 
 class AppMediaGallery extends StatefulWidget {

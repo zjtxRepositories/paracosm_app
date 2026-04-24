@@ -103,12 +103,19 @@ class BitcoinService {
   static Future<void> _initBlockchain() async {
     final node = await ElectrumNodeManager().getNode(testnet: false);
 
-    _currentNode = node;
+    // 👉 自动补协议（关键）
+    final url = node.startsWith("ssl://") || node.startsWith("tcp://")
+        ? node
+        : "ssl://$node";
+
+    _currentNode = url;
+
+    print("Electrum URL => $url"); // 一定要打日志！
 
     _blockchain = await Blockchain.create(
       config: BlockchainConfig.electrum(
         config: ElectrumConfig(
-          url: node,
+          url: url,
           retry: 3,
           timeout: 30,
           stopGap: BigInt.from(50),
@@ -120,7 +127,8 @@ class BitcoinService {
 
   static Future<Blockchain> _getBlockchain() async {
     if (_blockchain != null) return _blockchain!;
-    await _initBlockchain();
+    await _initBlockchain()
+        .timeout(const Duration(seconds: 10)); // ✅ 防卡死
     return _blockchain!;
   }
 

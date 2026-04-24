@@ -9,7 +9,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 
-import '../../../core/network/models/media_item.dart';
+import '../../../core/models/media_item.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 
 class NewPostPage extends StatefulWidget {

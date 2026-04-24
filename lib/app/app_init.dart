@@ -12,8 +12,8 @@ class AppInit {
     await ConfigService().init();
     await WalletSecurity().init();
     await AccountManager().init();
+    ImInit().init();
     HiveUtils.initHive();
-    await ImInit().init();
   }
 
 

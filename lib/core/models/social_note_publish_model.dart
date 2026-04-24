@@ -1,5 +1,5 @@
 
-import 'package:paracosm/core/network/models/social_media_model.dart';
+import 'package:paracosm/core/models/social_media_model.dart';
 
 class SocialNotePublishModel {
   SocialNotePublishModel({

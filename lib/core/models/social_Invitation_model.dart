@@ -1,6 +1,6 @@
 
-import 'package:paracosm/core/network/models/social_media_model.dart';
-import 'package:paracosm/core/network/models/social_review_model.dart';
+import 'package:paracosm/core/models/social_media_model.dart';
+import 'package:paracosm/core/models/social_review_model.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 
 class SocialInvitationModel {

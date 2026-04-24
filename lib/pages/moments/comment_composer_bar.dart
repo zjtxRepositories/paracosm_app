@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/network/models/social_Invitation_model.dart';
+import '../../core/models/social_Invitation_model.dart';
 import '../../theme/app_colors.dart';
 
 class CommentComposerBar extends StatefulWidget {

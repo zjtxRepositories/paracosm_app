@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/api/dapp_list_api.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
-import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/theme/app_colors.dart';
-import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
+import '../../core/models/dApp_hive.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 发现页面

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
-import 'package:paracosm/core/network/models/user_model.dart';
+import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';

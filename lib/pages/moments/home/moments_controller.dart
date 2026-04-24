@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/network/models/social_Invitation_model.dart';
-import 'package:paracosm/core/network/models/social_media_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import '../../../core/models/social_Invitation_model.dart';
+import '../../../core/models/social_media_model.dart';
 import '../../../core/network/api/social_circle_note_api.dart';
 import '../../../core/network/api/social_circle_user_api.dart';
 import '../../../theme/app_colors.dart';

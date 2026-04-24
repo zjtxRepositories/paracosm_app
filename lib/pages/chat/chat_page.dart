@@ -58,29 +58,31 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void initListener() {
+    print('连接------1');
     _imConnectSub = ImConnectionManager().eventStream.listen((event) async {
-      print('连接------');
+      print('连接------2');
       if (event == ImEvent.connected) {
-        await fetchData();
+         fetchData();
       }
     });
-    ImFriendApplicationsManager().stream.listen((list) {
-      print("好友申请列表更新: ${list.length}");
-      setState(() {
-        _friendApplicationUnhandledCount = ImFriendApplicationsManager().unhandledCount;
-      });
-    });
+
   }
   Future<void> fetchData() async {
     await fetchFriendApplicationData();
+    await fetchConversationData();
+    await fetchContactData();
+    await fetchGroupData();
   }
 
   Future<void> fetchFriendApplicationData() async {
     final manager = ImFriendApplicationsManager();
-    manager.fetch();
-    setState(() {
-      _friendApplicationUnhandledCount = manager.unhandledCount;
+    manager.stream.listen((list) {
+      print("好友申请列表更新: ${list.length}");
+      setState(() {
+        _friendApplicationUnhandledCount = manager.unhandledCount;
+      });
     });
+    manager.fetch();
   }
 
   Future<void> fetchConversationData() async {

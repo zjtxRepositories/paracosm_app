@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/network/models/social_review_model.dart';
+import '../../core/models/social_review_model.dart';
 import '../../theme/app_colors.dart';
 import '../../util/string_util.dart';
 

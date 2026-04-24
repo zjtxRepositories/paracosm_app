@@ -1,6 +1,6 @@
 import 'package:video_player/video_player.dart';
 
-import '../../core/network/models/media_item.dart';
+import '../../core/models/media_item.dart';
 
 class MediaCacheManager {
   static final Map<int, VideoPlayerController> _videoCache = {};

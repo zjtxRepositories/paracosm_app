@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/friend_application_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../modules/im/manager/im_friend_applications_manager.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
 
 /// 好友申请页面
 class FriendRequestPage extends StatefulWidget {
@@ -15,143 +23,43 @@ class FriendRequestPage extends StatefulWidget {
 }
 
 class _FriendRequestPageState extends State<FriendRequestPage> {
-  // 模拟待处理数据
-  final List<Map<String, String>> _newRequests = [
-    {
-      'name': 'Jesseny',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'I\'m asking you to add me',
-    },
-    {
-      'name': 'Wade Warren',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'Hello~',
-    },
-    {
-      'name': 'Wade Warren',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-    },
-  ];
-
-  // 模拟已处理数据
-  final List<Map<String, dynamic>> _processedRequests = [
-    {
-      'name': 'Leslie Alexander',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-      'status': 'Added',
-      'isSent': false,
-    },
-    {
-      'name': 'Jenny Wilson',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-      'status': 'Added',
-      'isSent': true,
-    },
-    {
-      'name': 'Jerome Bell',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-      'status': 'Expired',
-      'isSent': false,
-    },
-    {
-      'name': 'Marvin McKinney',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-      'status': 'Expired',
-      'isSent': true,
-    },
-    {
-      'name': 'Eleanor Pena',
-      'avatar': 'assets/images/chat/avatar.png',
-      'msg': 'This is a long example of ..',
-      'status': 'Rejected',
-      'isSent': false,
-    },
-  ];
+  List<RCIMIWFriendApplicationInfo> _newRequests = [];
+  List<RCIMIWFriendApplicationInfo> _processedRequests = [];
+  final manager = ImFriendApplicationsManager();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // 初始化时将硬编码的状态值替换为对应的国际化字符串
-    for (var req in _processedRequests) {
-      if (req['status'] == 'Added') {
-        req['status'] = AppLocalizations.of(context)!.chatRequestStatusAdded;
-      } else if (req['status'] == 'Expired') {
-        req['status'] = AppLocalizations.of(context)!.chatRequestStatusExpired;
-      } else if (req['status'] == 'Rejected') {
-        req['status'] = AppLocalizations.of(context)!.chatRequestStatusRejected;
-      }
-    }
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    fetchFriendApplicationData();
+  }
+
+  Future<void> fetchFriendApplicationData() async {
+    manager.stream.listen((list) {
+      setState(() {
+        _newRequests = manager.list;
+      });
+    });
+    manager.fetch();
   }
 
   /// 显示同意确认弹窗
-  void _showAgreeConfirmModal(Map<String, String> req) {
-    AppModal.show(
-      context,
-      title: req['name']!,
-      titleWidget: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.asset(
-              req['avatar']!,
-              width: 24,
-              height: 24,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            req['name']!,
-            style: AppTextStyles.h2.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.grey900,
-            ),
-          ),
-        ],
-      ),
-      confirmText: AppLocalizations.of(context)!.chatRequestAgree,
-      confirmColor: const Color(0xFF12B76A),
-      cancelText: AppLocalizations.of(context)!.chatRequestReject,
-      cancelColor: AppColors.error,
-      cancelTextColor: Colors.white,
-      confirmWidth: 161,
-      cancelWidth: 161,
-      child: _AgreeRequestInputWrapper(
-        initialText: req['msg']!,
-      ),
-      onConfirm: () {
-        setState(() {
-          _newRequests.remove(req);
-          _processedRequests.insert(0, {
-            ...req,
-            'status': AppLocalizations.of(context)!.chatRequestStatusAdded,
-            'isSent': false,
-          });
-        });
-        Navigator.pop(context);
-      },
-      onCancel: () {
-        setState(() {
-          _newRequests.remove(req);
-          _processedRequests.insert(0, {
-            ...req,
-            'status': AppLocalizations.of(context)!.chatRequestStatusRejected,
-            'isSent': false,
-          });
-        });
-        Navigator.pop(context);
-      },
-    );
+  Future<void> _showAgreeConfirmModal(FriendApplicationModel model) async {
+    AppLoading.show();
+    final isOk = await manager.acceptFriendApplication(model.info.userId ?? '');
+    AppLoading.dismiss();
+    if (isOk){
+      AppToast.show('请求失败');
+      return;
+    }
+    model.info.applicationStatus = RCIMIWFriendApplicationStatus.accepted;
+    _newRequests.remove(model.info);
+    _processedRequests.insert(0, model.info);
+    setState(() {});
   }
 
   /// 显示拒绝确认弹窗
-  void _showRejectConfirmModal(Map<String, String> req) {
+  void _showRejectConfirmModal(FriendApplicationModel model) {
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatRequestHint,
@@ -167,18 +75,20 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
         height: 120,
         fit: BoxFit.contain,
       ),
-      onConfirm: () {
-        setState(() {
-          _newRequests.remove(req);
-          _processedRequests.insert(0, {
-            ...req,
-            'status': AppLocalizations.of(context)!.chatRequestStatusRejected,
-            'isSent': false,
-          });
-        });
-        Navigator.pop(context);
-      },
-    );
+      onConfirm: () async {
+        context.pop();
+        AppLoading.show();
+        final isOk = await manager.refuseFriendApplication(model.info.userId ?? '');
+        AppLoading.dismiss();
+        if (isOk){
+          AppToast.show('请求失败');
+          return;
+        }
+        model.info.applicationStatus = RCIMIWFriendApplicationStatus.refused;
+        _newRequests.remove(model.info);
+        _processedRequests.insert(0, model.info);
+        setState(() {});
+      });
   }
 
   @override
@@ -189,10 +99,10 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           const SizedBox(height: 16),
-          _buildSectionTitle(AppLocalizations.of(context)!.chatRequestNew),
+          _newRequests.isNotEmpty ?  _buildSectionTitle(AppLocalizations.of(context)!.chatRequestNew) : SizedBox(),
           ..._newRequests.map((req) => _buildNewRequestItem(req)),
-          const SizedBox(height: 24),
-          _buildSectionTitle(AppLocalizations.of(context)!.chatRequestProcessed),
+          _newRequests.isNotEmpty ? const SizedBox(height: 24) : SizedBox(),
+          _processedRequests.isNotEmpty ?  _buildSectionTitle(AppLocalizations.of(context)!.chatRequestProcessed) : SizedBox(),
           ..._processedRequests.map((req) => _buildProcessedItem(req)),
           const SizedBox(height: 20),
         ],
@@ -215,15 +125,18 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   }
 
   /// 构建待处理申请项
-  Widget _buildNewRequestItem(Map<String, String> req) {
+  Widget _buildNewRequestItem(RCIMIWFriendApplicationInfo req) {
+    final model = FriendApplicationModel(info: req);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ClipRRect(
+          UserAvatarWidget(
+            userId: req.userId,
+            avatarUrl: req.portrait,
+            size: 44,
             borderRadius: BorderRadius.circular(10),
-            child: Image.asset(req['avatar']!, width: 44, height: 44),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -241,26 +154,31 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          req['name']!,
+                          model.name,
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.grey900,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          req['msg']!,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.grey400,
-                            fontSize: 12,
+                        SizedBox(
+                          width: 180,
+                          child: Text(
+                            model.info.remark ?? '',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.grey400,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ),
                   const SizedBox(width: 16),
                   GestureDetector(
-                    onTap: () => _showRejectConfirmModal(req),
+                    onTap: () => _showRejectConfirmModal(model),
                     child: Image.asset(
                       'assets/images/chat/refuse.png',
                       width: 40,
@@ -270,7 +188,7 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => _showAgreeConfirmModal(req),
+                    onTap: () => _showAgreeConfirmModal(model),
                     child: Image.asset(
                       'assets/images/chat/agree.png',
                       width: 40,
@@ -288,23 +206,32 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   }
 
   /// 构建已处理申请项
-  Widget _buildProcessedItem(Map<String, dynamic> req) {
-    final String status = req['status'] ?? '';
-    final String statusText = switch (status) {
-      'Added' => AppLocalizations.of(context)!.chatRequestStatusAdded,
-      'Expired' => AppLocalizations.of(context)!.chatRequestStatusExpired,
-      'Rejected' => AppLocalizations.of(context)!.chatRequestStatusRejected,
-      _ => status,
+  Widget _buildProcessedItem(RCIMIWFriendApplicationInfo req) {
+    final statusText = switch (req.applicationStatus) {
+      RCIMIWFriendApplicationStatus.accepted =>
+      AppLocalizations.of(context)!.chatRequestStatusAdded,
+
+      RCIMIWFriendApplicationStatus.expired =>
+      AppLocalizations.of(context)!.chatRequestStatusExpired,
+
+      RCIMIWFriendApplicationStatus.refused =>
+      AppLocalizations.of(context)!.chatRequestStatusRejected,
+      RCIMIWFriendApplicationStatus.unhandled => '',
+
+      null => '',
     };
+    final model = FriendApplicationModel(info: req);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ClipRRect(
+          UserAvatarWidget(
+            userId: req.userId,
+            avatarUrl: req.portrait,
+            size: 44,
             borderRadius: BorderRadius.circular(10),
-            child: Image.asset(req['avatar']!, width: 44, height: 44),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -322,7 +249,7 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          req['name']!,
+                          model.name,
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.grey900,
                             fontWeight: FontWeight.w500,
@@ -330,7 +257,7 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          req['msg']!,
+                          req.remark ?? '',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.grey400,
                             fontSize: 12,
@@ -342,7 +269,7 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                   const SizedBox(width: 8),
                   Row(
                     children: [
-                      if (req['isSent'] == true) ...[
+                      if (req.applicationType == RCIMIWFriendApplicationType.sent) ...[
                         Image.asset(
                           'assets/images/chat/go.png',
                           width: 16,

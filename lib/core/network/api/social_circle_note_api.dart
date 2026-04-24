@@ -1,9 +1,9 @@
 
 
 import '../../../modules/account/manager/account_manager.dart';
+import '../../models/social_Invitation_model.dart';
 import '../client/base_client.dart';
-import '../models/social_Invitation_model.dart';
-import '../models/social_note_publish_model.dart';
+import '../../models/social_note_publish_model.dart';
 import 'api_paths.dart';
 
 class SocialCircleNoteApi {

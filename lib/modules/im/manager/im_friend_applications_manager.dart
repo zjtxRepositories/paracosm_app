@@ -15,6 +15,7 @@ class ImFriendApplicationsManager {
   Stream<List<RCIMIWFriendApplicationInfo>> get stream => _controller.stream;
 
   final List<RCIMIWFriendApplicationInfo> _list = [];
+  List<RCIMIWFriendApplicationInfo> get list => _list;
 
   String? _pageToken;
 
@@ -59,7 +60,6 @@ class ImFriendApplicationsManager {
   /// 拉取好友申请（分页）
   /// =========================
   Future<void> fetch({bool loadMore = false}) async {
-
     final option = RCIMIWPagingQueryOption.create(
       pageToken: loadMore ? (_pageToken ?? '') : '',
       count: 100,
@@ -113,31 +113,55 @@ class ImFriendApplicationsManager {
   /// =========================
   /// 同意加为好友
   /// =========================
-  Future<void> acceptFriendApplication(String userId) async {
-    final IRCIMIWOperationCallback callback = IRCIMIWOperationCallback(
-      onSuccess: () => debugPrint('acceptFriendApplication success'),
-      onError: (int? code) => debugPrint('acceptFriendApplication failed => $code'),
-    );
+  Future<bool> acceptFriendApplication(String userId) async {
+    final completer = Completer<bool>();
 
     await IMEngineManager().engine?.acceptFriendApplication(
       userId,
-      callback: callback,
+      callback: IRCIMIWOperationCallback(
+        onSuccess: () {
+          debugPrint('acceptFriendApplication success');
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+        onError: (int? code) {
+          debugPrint('acceptFriendApplication failed => $code');
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+      ),
     );
+
+    return completer.future;
   }
 
   /// =========================
   /// 拒绝加为好友
   /// =========================
-  Future<void> refuseFriendApplication(String userId) async {
-    final IRCIMIWOperationCallback callback = IRCIMIWOperationCallback(
-      onSuccess: () => debugPrint('refuse success'),
-      onError: (int? code) => debugPrint('refuse failed => $code'),
-    );
+  Future<bool> refuseFriendApplication(String userId) async {
+    final completer = Completer<bool>();
 
     await IMEngineManager().engine?.refuseFriendApplication(
       userId,
-      callback: callback,
+      callback: IRCIMIWOperationCallback(
+        onSuccess: () {
+          debugPrint('refuse success');
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+        onError: (int? code) {
+          debugPrint('refuse failed => $code');
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+      ),
     );
+
+    return completer.future;
   }
 
   /// =========================

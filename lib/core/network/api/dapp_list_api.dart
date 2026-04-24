@@ -1,6 +1,6 @@
 
 import 'package:dio/dio.dart';
-import 'package:paracosm/core/network/models/dApp_hive.dart';
+import '../../models/dApp_hive.dart';
 import '../config/network_config.dart';
 import 'api_paths.dart';
 

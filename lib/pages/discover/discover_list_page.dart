@@ -5,7 +5,7 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
-import '../../core/network/models/dApp_hive.dart';
+import '../../core/models/dApp_hive.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 发现列表页面 (例如：New arrivals, Defi 等详情列表)

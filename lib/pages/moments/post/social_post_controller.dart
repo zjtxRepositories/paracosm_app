@@ -7,11 +7,11 @@ import 'package:image/image.dart' as img;
 
 import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
-import 'package:paracosm/core/network/models/social_media_model.dart';
-import 'package:paracosm/core/network/models/social_note_publish_model.dart';
+import 'package:paracosm/core/models/social_note_publish_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/util/media_handle_util.dart';
-import '../../../core/network/models/media_item.dart';
+import '../../../core/models/media_item.dart';
+import '../../../core/models/social_media_model.dart';
 import '../../../modules/account/manager/account_manager.dart';
 
 

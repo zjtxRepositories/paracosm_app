@@ -6,8 +6,8 @@ import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
 import 'package:video_compress/video_compress.dart';
 
+import '../core/models/social_media_model.dart';
 import '../core/network/api/upload_file_api.dart';
-import '../core/network/models/social_media_model.dart';
 import 'package:image/image.dart' as img;
 
 /// =========================

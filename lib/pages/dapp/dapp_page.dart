@@ -3,10 +3,10 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/dapp/dapp_account_auth_hive.dart';
 import 'package:paracosm/pages/brower/browser_controller.dart';
+import '../../core/models/dApp_hive.dart';
 import '../../modules/dapp/dapp_web3_service.dart';
 import '../../modules/dapp/handler/eth_web3_handler.dart';
 import '../../modules/dapp/handler/metamask_handler.dart';

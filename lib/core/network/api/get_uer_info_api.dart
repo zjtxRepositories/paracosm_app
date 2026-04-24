@@ -1,7 +1,5 @@
 
-import 'package:paracosm/core/crypto/crypto_util.dart';
 import 'package:paracosm/core/network/client/http_client.dart';
-import 'package:paracosm/core/network/models/dApp_hive.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 import 'api_paths.dart';
 

@@ -188,15 +188,15 @@ class AppRouter {
         },
       ),
       // 备份风险确认页
-      GoRoute(
-        path: '/wallet-backup-risk',
-        builder: (context, state) {
-          final data = state.extra as Map<String, dynamic>?;
-          final password = data?['password'];
-          final nextPath = state.uri.queryParameters['nextPath'] ?? '/wallet-create-step2';
-          return WalletBackupRiskPage(nextPath: nextPath, password: password);
-        },
-      ),
+      // GoRoute(
+      //   path: '/wallet-backup-risk',
+      //   builder: (context, state) {
+      //     final data = state.extra as Map<String, dynamic>?;
+      //     final password = data?['password'];
+      //     final nextPath = state.uri.queryParameters['nextPath'] ?? '/wallet-create-step2';
+      //     return WalletBackupRiskPage(nextPath: nextPath, password: password);
+      //   },
+      // ),
       // 消息中心页
       GoRoute(
         path: '/message-center',
@@ -222,7 +222,7 @@ class AppRouter {
           return data == null ? SizedBox() : MomentPostDetailPage(item: item, isFollowing: isFollowing, isBlock: isBlock,);
         },
       ),
-      
+
       GoRoute(
         path: '/moment-user-profile',
         parentNavigatorKey: rootNavigatorKey,
@@ -292,7 +292,7 @@ class AppRouter {
           ),
         ],
       ),
-      
+
       // 群聊详情页
       GoRoute(
         path: '/group-details/:name',

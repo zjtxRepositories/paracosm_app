@@ -32,7 +32,7 @@ class AppSearchInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 36,
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16,vertical: 7),
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.topBg, // 使用背景色
         borderRadius: BorderRadius.circular(28), // 圆角
@@ -48,55 +48,57 @@ class AppSearchInput extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: TextField(
-              controller: controller,
-              autofocus: autofocus,
-              onChanged: onChanged,
-              onSubmitted: onSubmitted,
-              textAlignVertical: TextAlignVertical.center,
-              cursorHeight: 18, // 限制光标高度，防止撑开
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.grey900,
-                fontSize: 14,
-                height: 1.2, // 调整行高
-              ),
-              decoration: InputDecoration(
-                hintText: hintText ?? 'Search by alias, name, or address',
-                hintStyle: AppTextStyles.body.copyWith(
-                  color: AppColors.grey400,
+            child: Center(
+              child: TextField(
+                controller: controller,
+                autofocus: autofocus,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                textAlignVertical: TextAlignVertical.center,
+                cursorHeight: 18, // 限制光标高度，防止撑开
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.grey900,
                   fontSize: 14,
-                  height: 1.2,
+                  height: 1.2, // 调整行高
                 ),
-                border: InputBorder.none,
-                isCollapsed: true, // 使用 collapsed 减少默认内边距干扰
-                contentPadding: const EdgeInsets.symmetric(vertical: 4), // 手动控制垂直内边距
-                suffixIconConstraints: const BoxConstraints(
-                  minHeight: 24,
-                  minWidth: 24,
-                ),
-                suffixIcon: controller != null
-                    ? ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: controller!,
-                        builder: (context, value, child) {
-                          if (value.text.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return GestureDetector(
-                            onTap: () {
-                              controller!.clear();
-                              onChanged?.call('');
-                            },
-                            child: const Icon(
-                              Icons.close,
-                              color: AppColors.grey400,
-                              size: 20,
-                            ),
-                          );
+                decoration: InputDecoration(
+                  hintText: hintText ?? 'Search by alias, name, or address',
+                  hintStyle: AppTextStyles.body.copyWith(
+                    color: AppColors.grey400,
+                    fontSize: 14,
+                    height: 1.2,
+                  ),
+                  border: InputBorder.none,
+                  isCollapsed: true, // 使用 collapsed 减少默认内边距干扰
+                  contentPadding: const EdgeInsets.symmetric(vertical: 4), // 手动控制垂直内边距
+                  suffixIconConstraints: const BoxConstraints(
+                    minHeight: 24,
+                    minWidth: 24,
+                  ),
+                  suffixIcon: controller != null
+                      ? ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: controller!,
+                    builder: (context, value, child) {
+                      if (value.text.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return GestureDetector(
+                        onTap: () {
+                          controller!.clear();
+                          onChanged?.call('');
                         },
-                      )
-                    : null,
+                        child: const Icon(
+                          Icons.close,
+                          color: AppColors.grey400,
+                          size: 20,
+                        ),
+                      );
+                    },
+                  )
+                      : null,
+                ),
               ),
-            ),
+            )
           ),
         ],
       ),

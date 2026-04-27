@@ -5,30 +5,23 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
-import 'package:paracosm/widgets/common/app_action_sheet.dart';
+import 'package:paracosm/widgets/common/app_button.dart';
 
 /// 个人主页详情页
 /// 保留社区详情页的主体结构，只显示看板下面的内容列表，移除 TabController 和其他 Tab 区域。
 class MomentUserProfilePage extends StatefulWidget {
   final String communityName;
-  final String mode;
 
-  const MomentUserProfilePage({
-    super.key,
-    this.communityName = 'Kristen',
-    this.mode = 'friend',
-  });
+  const MomentUserProfilePage({super.key, this.communityName = 'Kristen'});
 
   @override
   State<MomentUserProfilePage> createState() => _MomentUserProfilePageState();
 }
 
 class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
-
-  static const double _sendMomentSize = 80;
+  static const double _sendMomentSize = 44;
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
-  bool get _isSelf => widget.mode == 'self';
 
   @override
   void didChangeDependencies() {
@@ -87,7 +80,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
                               _buildAvatarAndJoinAction(context, l10n),
                               const SizedBox(height: 16),
                               _buildCommunityTitleAndAddress(),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 4),
                               _buildFollowStats(),
                               const SizedBox(height: 16),
                               const Divider(
@@ -107,8 +100,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               ),
             ),
           ),
-
-          if (_isSelf && _sendMomentOffset != null)
+          if (_sendMomentOffset != null)
             Positioned(
               left: _sendMomentOffset!.dx,
               top: _sendMomentOffset!.dy,
@@ -142,8 +134,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 自定义导航栏
   Widget _buildCustomHeader(BuildContext context) {
-
-    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
@@ -177,12 +167,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
                     items: [
                       AppActionPopMenuItem(
                         icon: 'assets/images/moments/block.png',
-                        label: l10n.translate('moments_block_this_user'),
+                        label: 'Block this user',
                         onTap: () {},
                       ),
                       AppActionPopMenuItem(
                         icon: 'assets/images/moments/report.png',
-                        label: l10n.translate('moments_report'),
+                        label: 'Report',
                         onTap: () {},
                         showDivider: false,
                       ),
@@ -204,48 +194,29 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 头像与操作按钮
   Widget _buildAvatarAndJoinAction(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+      BuildContext context,
+      AppLocalizations l10n,
+      ) {
     return SizedBox(
       height: 64,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          Positioned(top: -16, left: 0, child: _buildGridAvatar()),
           Positioned(
-            top: -16,
-            left: 0,
-            child: _buildProfileAvatar(showPhotoIcon: _isSelf),
-          ),
-          if (!_isSelf)
-            Positioned(
-              right: 0,
-              bottom: 16,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 85),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.grey900,
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                      child: Text(
-                        l10n.translate('moments_follow'),
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            bottom: 16,
+            right: 0,
+            child: AppButton(
+              text:'Follow',
+              onPressed: () {},
+              width: 85,
+              height: 28,
+              borderRadius: 28,
+              backgroundColor: AppColors.grey900,
+              textColor: AppColors.white,
+              fontSize: 12,
             ),
+          ),
         ],
       ),
     );
@@ -261,132 +232,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   /// 社区标题和地址
-  Widget _buildProfileAvatar({required bool showPhotoIcon}) {
-    final avatar = SizedBox(
-      width: 64,
-      height: 64,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: Image.asset('assets/images/chat/avatar.png', fit: BoxFit.cover),
-          ),
-          if (showPhotoIcon)
-            Positioned(
-              right: -8,
-              bottom: -8,
-              child: Image.asset(
-                'assets/images/community/photo.png',
-                width: 24,
-                height: 24,
-              ),
-            ),
-        ],
-      ),
-    );
-
-    if (!showPhotoIcon) {
-      return avatar;
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _showSelfAvatarSheet,
-      child: avatar,
-    );
-  }
-
-  void _showSelfAvatarSheet() {
-    AppActionSheet.show(
-      context,
-      items: [
-        AppActionSheetItem(
-          label: '从默认头像选择',
-          onTap: () {},
-        ),
-        AppActionSheetItem(
-          label: '从手机相册选择',
-          onTap: () {},
-        ),
-      ],
-      cancelText: '取消',
-    );
-  }
-
   Widget _buildCommunityTitleAndAddress() {
-    if (_isSelf) {
-      return _buildSelfCommunityTitleAndAddress();
-    }
-
-    return _buildFriendCommunityTitleAndAddress();
-  }
-
-  Widget _buildSelfCommunityTitleAndAddress() {
-    final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              widget.communityName,
-              style: AppTextStyles.h1.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.grey900,
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                context.push(
-                  '/user-profile/${Uri.encodeComponent(widget.communityName)}?mode=self',
-                );
-              },
-              child: Image.asset(
-                'assets/images/moments/edit.png',
-                width: 16,
-                height: 16,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            border: Border.all(color: AppColors.grey200, width: 1),
-            borderRadius: BorderRadius.circular(61),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/moments/copy.png',
-                width: 12,
-                height: 12,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.communityMockAddressDetail,
-                style: AppTextStyles.body.copyWith(
-                  fontSize: 10,
-                  color: AppColors.grey900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFriendCommunityTitleAndAddress() {
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,17 +283,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 关注数与粉丝数
   Widget _buildFollowStats() {
-    final l10n = AppLocalizations.of(context)!;
-    if (_isSelf) {
-      return Row(
-        children: [
-          _buildFollowStatColumn('10', l10n.translate('moments_following')),
-          const SizedBox(width: 24),
-          _buildFollowStatColumn('16,987', l10n.translate('moments_followers')),
-        ],
-      );
-    }
-
     return Row(
       children: [
         Text(
@@ -460,7 +295,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 5),
         Text(
-          l10n.translate('moments_following'),
+          'Following',
           style: AppTextStyles.body.copyWith(
             fontSize: 10,
             color: AppColors.grey400,
@@ -477,31 +312,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 5),
         Text(
-          l10n.translate('moments_followers'),
-          style: AppTextStyles.body.copyWith(
-            fontSize: 10,
-            color: AppColors.grey400,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFollowStatColumn(String value, String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.grey900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
+          'Followers',
           style: AppTextStyles.body.copyWith(
             fontSize: 10,
             color: AppColors.grey400,
@@ -513,7 +324,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// Dynamic 区域
   Widget _buildDynamicSection() {
-    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         Image.asset(
@@ -523,7 +333,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 4),
         Text(
-          l10n.translate('moments_dynamic'),
+          'Dynamic',
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -540,15 +350,9 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      itemCount: 3,
+      itemCount: 2,
       separatorBuilder: (context, index) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
-        if (index == 2) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: _NoContentPlaceholder(),
-          );
-        }
         return Column(
           children: [
             _buildPostItem(l10n),
@@ -649,28 +453,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       collectCount: 1,
       commentCount: 12,
       shareCount: 1,
-    );
-  }
-}
-
-class _NoContentPlaceholder extends StatelessWidget {
-  const _NoContentPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Center(
-        child: Text(
-          '-There is no content-',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            color: AppColors.grey400,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ),
     );
   }
 }

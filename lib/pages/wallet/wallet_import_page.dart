@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
@@ -395,8 +395,8 @@ class _WalletImportPageState extends State<WalletImportPage>
                                         ),
                                         unselectedLabelStyle: AppTextStyles.body
                                             .copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                         indicatorSize: TabBarIndicatorSize.tab,
                                         padding: const EdgeInsets.all(4),
                                         tabs: [

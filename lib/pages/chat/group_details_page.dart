@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
@@ -12,10 +11,12 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 /// 完全参考 [session_details_page.dart] 进行样式重构
 class GroupDetailsPage extends StatefulWidget {
   final String groupName;
+  final int memberCount;
 
   const GroupDetailsPage({
     super.key,
     required this.groupName,
+    this.memberCount = 13,
   });
 
   @override
@@ -26,23 +27,78 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isPinned = false;
   bool _isMuted = false;
 
-  final List<Map<String, String>> _members = [
-    {'name': 'Mari..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Jane..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Wad..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Broo..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Jenn..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Guy ..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Jaco..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Robe..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Darle..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Dian..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Dian..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Devo..', 'avatar': 'assets/images/chat/avatar.png'},
-    {'name': 'Floyd..', 'avatar': 'assets/images/chat/avatar.png'},
+  /// 测试数据里同时放好友、星标好友和陌生人，方便点头像后验证资料页状态分支。
+  final List<Map<String, dynamic>> _members = [
+    {
+      'name': 'Mari..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Jane..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'stranger',
+    },
+    {
+      'name': 'Wad..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Broo..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'stranger',
+    },
+    {
+      'name': 'Jenn..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'star',
+      'isStar': true,
+    },
+    {
+      'name': 'Guy ..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Jaco..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Robe..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'stranger',
+    },
+    {
+      'name': 'Darle..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Dian..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
+    {
+      'name': 'Dian..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'star',
+      'isStar': true,
+    },
+    {
+      'name': 'Devo..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'stranger',
+    },
+    {
+      'name': 'Floyd..',
+      'avatar': 'assets/images/chat/avatar.png',
+      'mode': 'friend',
+    },
   ];
 
-  /// 显示清空记录确认弹窗 (参考 session_details_page.dart)
+  /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
     AppModal.show(
       context,
@@ -124,15 +180,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   isFullBorder: true,
                   onTap: () {},
                 ),
-                Container(height: 10, decoration: const BoxDecoration(color: AppColors.grey100)),
-                _buildOptionItem(AppLocalizations.of(context)!.chatSettingSearchHistory, isFullBorder: true, onTap: () {}),
-                Container(height: 10, decoration: const BoxDecoration(color: AppColors.grey100)),
+                Container(
+                  height: 10,
+                  decoration: const BoxDecoration(color: AppColors.grey100),
+                ),
+                _buildOptionItem(
+                  AppLocalizations.of(context)!.chatSettingSearchHistory,
+                  isFullBorder: true,
+                  onTap: () {},
+                ),
+                Container(
+                  height: 10,
+                  decoration: const BoxDecoration(color: AppColors.grey100),
+                ),
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingPin,
                   trailing: GestureDetector(
                     onTap: () => setState(() => _isPinned = !_isPinned),
                     child: Image.asset(
-                      _isPinned ? 'assets/images/common/switch-active.png' : 'assets/images/common/switch-default.png',
+                      _isPinned
+                          ? 'assets/images/common/switch-active.png'
+                          : 'assets/images/common/switch-default.png',
                       width: 52,
                       height: 28,
                     ),
@@ -144,16 +212,41 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   trailing: GestureDetector(
                     onTap: () => setState(() => _isMuted = !_isMuted),
                     child: Image.asset(
-                      _isMuted ? 'assets/images/common/switch-active.png' : 'assets/images/common/switch-default.png',
+                      _isMuted
+                          ? 'assets/images/common/switch-active.png'
+                          : 'assets/images/common/switch-default.png',
                       width: 52,
                       height: 28,
                     ),
                   ),
                 ),
-                Container(height: 10, decoration: const BoxDecoration(color: AppColors.grey100)),
-                _buildOptionItem(AppLocalizations.of(context)!.chatSettingDisband, isFullBorder: true, onTap: () {}),
-                Container(height: 10, decoration: const BoxDecoration(color: AppColors.grey100)),
-                _buildOptionItem(AppLocalizations.of(context)!.chatSettingClearHistory, isFullBorder: true, onTap: _showClearHistoryModal),
+                Container(
+                  height: 10,
+                  decoration: const BoxDecoration(color: AppColors.grey100),
+                ),
+                _buildOptionItem(
+                  AppLocalizations.of(context)!.chatSettingDisband,
+                  isFullBorder: true,
+                  onTap: () {},
+                ),
+                Container(
+                  height: 10,
+                  decoration: const BoxDecoration(color: AppColors.grey100),
+                ),
+                _buildOptionItem(
+                  AppLocalizations.of(context)!.chatSettingClearHistory,
+                  isFullBorder: true,
+                  onTap: _showClearHistoryModal,
+                ),
+                Container(
+                  height: 10,
+                  decoration: const BoxDecoration(color: AppColors.grey100),
+                ),
+                _buildOptionItem(
+                  AppLocalizations.of(context)!.sessionDetailsReport,
+                  isFullBorder: true,
+                  onTap: () {},
+                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -166,26 +259,44 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   /// 构建成员网格 (参考 session_details_page.dart 的 Wrap 结构)
   Widget _buildMemberGrid() {
+    final visibleMembers = _members
+        .take(widget.memberCount.clamp(0, _members.length))
+        .toList();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Wrap(
-        spacing: 28,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ..._members.map((member) => _buildMemberItem(member['name']!, member['avatar']!)),
-          _buildActionMemberItem('assets/images/common/add-member.png'),
-          _buildActionMemberItem('assets/images/common/remove-member.png'),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 28,
+            runSpacing: 12,
+            children: [
+              ...visibleMembers.map((member) => _buildMemberItem(member)),
+              _buildActionMemberItem('assets/images/common/add-member.png'),
+              _buildActionMemberItem('assets/images/common/remove-member.png'),
+            ],
+          ),
         ],
       ),
     );
   }
 
   /// 单个成员项 (参考 session_details_page.dart)
-  Widget _buildMemberItem(String name, String avatarPath) {
+  Widget _buildMemberItem(Map<String, dynamic> member) {
+    final String name = member['name'] as String? ?? 'User';
+    final String avatarPath =
+        member['avatar'] as String? ?? 'assets/images/chat/avatar.png';
+    final String mode = member['mode'] as String? ?? 'friend';
+    final bool isStar = member['isStar'] == true;
+
     return GestureDetector(
       onTap: () {
         final encodedName = Uri.encodeComponent(name);
-        context.push('/user-profile/$encodedName');
+        context.push(
+          '/user-profile/$encodedName?mode=$mode${isStar ? '&star=1' : ''}',
+        );
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -220,14 +331,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          iconPath,
-          width: 44,
-          height: 44,
-          color: AppColors.grey900,
-        ),
+        Image.asset(iconPath, width: 44, height: 44, color: AppColors.grey900),
         const SizedBox(height: 4),
-        const Text('', style: TextStyle(fontSize: 14)), // 占位保持对齐
+        const Text('', style: TextStyle(fontSize: 14)),
       ],
     );
   }
@@ -242,10 +348,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         children: [
           Text(
             AppLocalizations.of(context)!.commonViewMore(2),
-            style: AppTextStyles.caption.copyWith(color: AppColors.grey400, fontSize: 14),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey400,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(width: 4),
-          Image.asset('assets/images/common/next.png', width: 16, height: 16, color: AppColors.grey400),
+          Image.asset(
+            'assets/images/common/next.png',
+            width: 16,
+            height: 16,
+            color: AppColors.grey400,
+          ),
         ],
       ),
     );
@@ -267,10 +381,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         crossAxisSpacing: 1,
         padding: EdgeInsets.zero,
         physics: const NeverScrollableScrollPhysics(),
-        children: List.generate(4, (index) => ClipRRect(
-          borderRadius: BorderRadius.circular(1),
-          child: Image.asset('assets/images/chat/avatar.png', fit: BoxFit.cover),
-        )),
+        children: List.generate(
+          4,
+          (index) => ClipRRect(
+            borderRadius: BorderRadius.circular(1),
+            child: Image.asset(
+              'assets/images/chat/avatar.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -286,20 +406,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        // 如果有副标题，高度自适应
         constraints: const BoxConstraints(minHeight: 56),
         color: Colors.white,
         child: Stack(
           children: [
-            // 底部边框
             Positioned(
               left: isFullBorder ? 0 : 20,
               right: isFullBorder ? 0 : 20,
               bottom: 0,
-              child: Container(
-                height: 0.5,
-                color: AppColors.grey200,
-              ),
+              child: Container(height: 0.5, color: AppColors.grey200),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

@@ -49,37 +49,6 @@ class ImMessageManager  {
     _messageController.add(message);
   }
 
-  /// 发送文本消息
-  Future<void> sendTextMessage({
-    required RCIMIWConversationType type,
-    required String targetId,
-    String? channelId,
-    required String content,
-  }) async {
-    final textMsg = await IMEngineManager().engine?.createTextMessage(
-      type,
-      targetId,
-      channelId,
-      content,
-    );
-    if (textMsg == null) {
-      throw Exception("文本消息创建失败");
-    }
-    RCIMIWSendMessageCallback? callback = RCIMIWSendMessageCallback(
-        onMessageSaved: (RCIMIWMessage? message) {
-//...
-        }, onMessageSent: (int? code, RCIMIWMessage? message) {
-//...
-    });
-
-    final code = await IMEngineManager().engine?.sendMessage(textMsg,callback: callback);
-    
-    if (code != 0) {
-      throw Exception("发送失败: $code");
-    }
-    ImConversationManager().refreshAfterSend(targetId,textMsg);
-  }
-
   /// 获取历史消息
   Future<List<RCIMIWMessage>> getMessages({
     required RCIMIWConversationType type,

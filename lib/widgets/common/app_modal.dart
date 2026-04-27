@@ -44,24 +44,24 @@ class AppModal extends StatelessWidget {
 
   /// 显示弹窗的静态方法
   static Future<void> show(
-    BuildContext context, {
-    required String title,
-    Widget? titleWidget,
-    String? subtitle,
-    String? description,
-    String? confirmText = '确定',
-    String? cancelText,
-    BorderSide? cancelBorder,
-    double? confirmWidth,
-    double? cancelWidth,
-    Color? confirmColor,
-    Color? cancelColor,
-    Color? cancelTextColor,
-    Widget? icon,
-    Widget? child,
-    required VoidCallback onConfirm,
-    VoidCallback? onCancel,
-  }) {
+      BuildContext context, {
+        required String title,
+        Widget? titleWidget,
+        String? subtitle,
+        String? description,
+        String? confirmText = '确定',
+        String? cancelText,
+        BorderSide? cancelBorder,
+        double? confirmWidth,
+        double? cancelWidth,
+        Color? confirmColor,
+        Color? cancelColor,
+        Color? cancelTextColor,
+        Widget? icon,
+        Widget? child,
+        required VoidCallback onConfirm,
+        VoidCallback? onCancel,
+      }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -134,7 +134,7 @@ class AppModal extends StatelessWidget {
                 children: [
                   Expanded(
                     child:
-                        titleWidget ??
+                    titleWidget ??
                         Text(
                           title,
                           style: AppTextStyles.h2.copyWith(
@@ -151,7 +151,7 @@ class AppModal extends StatelessWidget {
                       width: 24,
                       height: 24,
                       errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.close, color: AppColors.grey900),
+                      const Icon(Icons.close, color: AppColors.grey900),
                     ),
                   ),
                 ],

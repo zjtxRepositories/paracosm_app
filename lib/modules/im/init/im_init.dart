@@ -17,6 +17,8 @@ class ImInit {
     IMEngineManager().friend.initListener();
     IMEngineManager().friendApplication.initListener();
     IMEngineManager().user.initListener();
+    IMEngineManager().conversation.initListener();
+    IMEngineManager().group.initListener();
 
     /// 3. 自动登录
     final account = AccountManager().currentAccount;

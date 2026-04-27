@@ -16,6 +16,7 @@ class ChatListItem extends StatefulWidget {
   final String? userId;
   final String? groupId;
   final VoidCallback? onTap;
+  final VoidCallback? onAvatarTap;
 
   const ChatListItem({
     super.key,
@@ -28,6 +29,7 @@ class ChatListItem extends StatefulWidget {
     this.userId,
     this.groupId,
     this.onTap,
+    this.onAvatarTap,
   });
 
   @override
@@ -194,7 +196,11 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                   // 头像部分
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildAvatar(),
+                    child: GestureDetector(
+                      onTap: widget.onAvatarTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildAvatar(),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   // 内容部分

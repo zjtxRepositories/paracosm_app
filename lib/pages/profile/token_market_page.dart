@@ -152,10 +152,13 @@ class _TokenMarketPageState extends State<TokenMarketPage>
 
   /// 构建自定义导航栏
   Widget _buildCustomHeader(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       color: AppColors.white,
-      height: kToolbarHeight,
-      child: Row(
+      padding: EdgeInsets.only(top: topPadding),
+      child: SizedBox(
+        height: kToolbarHeight,
+        child: Row(
         children: [
           // IconButton(
           //   icon: Image.asset(
@@ -187,6 +190,7 @@ class _TokenMarketPageState extends State<TokenMarketPage>
           ),
           const SizedBox(width: 20),
         ],
+        ),
       ),
     );
   }
@@ -424,32 +428,43 @@ class _TokenMarketPageState extends State<TokenMarketPage>
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          ...intervals.map(
-            (item) => GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedInterval = item;
-                  isLine = (item == 'Time');
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  intervalLabels[item] ?? item,
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 14,
-                    fontWeight: _selectedInterval == item
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: _selectedInterval == item
-                        ? AppColors.primary
-                        : AppColors.grey400,
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...intervals.map(
+                    (item) => GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedInterval = item;
+                          isLine = (item == 'Time');
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          intervalLabels[item] ?? item,
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: _selectedInterval == item
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: _selectedInterval == item
+                                ? AppColors.primary
+                                : AppColors.grey400,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
               setState(() {

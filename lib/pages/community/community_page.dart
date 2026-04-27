@@ -55,7 +55,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
       },
       onConfirm: () {
         // TODO: 应用筛选逻辑
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop();
       },
       child: _CommunityFilterBottomSheet(key: filterKey),
     );
@@ -188,7 +188,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
   Widget _buildRecommendedSection() {
     final l10n = AppLocalizations.of(context)!;
     return SizedBox(
-      height:93, // 固定高度以容纳卡片内容
+      height: 110, // 给卡片内部三行内容留足垂直空间
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -541,12 +541,16 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                         // 第一行：社区名称 + 成员数 + 地址信息
                         Row(
                           children: [
-                            Text(
-                              name,
-                              style: AppTextStyles.h2.copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.grey900,
+                            Expanded(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.h2.copyWith(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.grey900,
+                                ),
                               ),
                             ),
                             const Spacer(),

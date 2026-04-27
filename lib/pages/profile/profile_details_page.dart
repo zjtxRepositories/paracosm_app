@@ -504,6 +504,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       ),
       onPressed: () {
         // TODO: 退出登录逻辑
+        context.push('/wallet-start');
       },
     );
   }

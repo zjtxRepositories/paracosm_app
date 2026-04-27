@@ -11,6 +11,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get commonCopy => translate('common_copy');
   String get commonCopied => translate('common_copied');
   String get commonRiskTips => translate('common_risk_tips');
+  String get commonGotIt => translate('common_got_it');
 
   // --- 钱包启动页 ---
   String get walletStartWelcome => translate('wallet_start_welcome');
@@ -156,6 +157,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatProfileCall => translate('chat_profile_call');
   String get chatProfileVideo => translate('chat_profile_video');
   String get chatProfileMoment => translate('chat_profile_moment');
+  String get chatProfileModifyNickname =>
+      translate('chat_profile_modify_nickname');
   String get chatProfileSetNote => translate('chat_profile_set_note');
   String get chatProfileAddBlacklist => translate('chat_profile_add_blacklist');
   String get chatProfileAddFriend => translate('chat_profile_add_friend');
@@ -163,6 +166,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatProfileSave => translate('chat_profile_save');
   String get chatProfileAddFriendPlaceholder =>
       translate('chat_profile_add_friend_placeholder');
+  String get chatProfileSetNotePlaceholder =>
+      translate('chat_profile_set_note_placeholder');
 
   // --- 聊天设置 ---
   String get chatSettingTitle => translate('chat_setting_title');
@@ -176,6 +181,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_setting_search_history');
   String get chatSettingPin => translate('chat_setting_pin');
   String get chatSettingMuteAll => translate('chat_setting_mute_all');
+  String get chatSettingMessageDoNotDisturb =>
+      translate('chat_setting_message_do_not_disturb');
   String get chatSettingDisband => translate('chat_setting_disband');
   String get chatSettingLeave => translate('chat_setting_leave');
   String chatSettingViewMore(int count) => translate(
@@ -203,6 +210,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatDetailHoldToTalk => translate('chat_detail_hold_to_talk');
   String get chatDetailRecordCanceled =>
       translate('chat_detail_record_canceled');
+  String get chatDetailShortSpeech => translate('chat_detail_short_speech');
   String get chatDetailContactCard => translate('chat_detail_contact_card');
 
   // --- 聊天搜索 ---
@@ -570,6 +578,12 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_transfer_more_transaction_info');
   String get profileTransferHideTransactionInfo =>
       translate('profile_transfer_hide_transaction_info');
+  String get profileTransferPaymentAddress =>
+      translate('profile_transfer_payment_address');
+  String get profileTransferMinerFee => translate('profile_transfer_miner_fee');
+  String get profileTransferAbsenteeism =>
+      translate('profile_transfer_absenteeism');
+  String get profileTransferContinue => translate('profile_transfer_continue');
   String get profileTokenNetworkHistory =>
       translate('profile_token_network_history');
   String get profileTokenReceive => translate('profile_token_receive_');

@@ -19,6 +19,7 @@ import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../modules/im/manager/im_connection_manager.dart';
+import '../../modules/im/manager/im_engine_manager.dart';
 import '../../modules/im/manager/im_friend_applications_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
@@ -34,25 +35,25 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey _addButtonKey = GlobalKey();
-  final GlobalKey _contactsStackKey = GlobalKey();
   bool _isChatSelected = true;
   int _selectedFilterIndex = 0;
   final ScrollController _contactScrollController = ScrollController();
-  int _friendApplicationUnhandledCount= 0;
+  int _friendApplicationUnhandledCount = 0;
 
-  late StreamSubscription _imConnectSub;
+  /// =========================
+  /// Stream 管理（避免泄漏）
+  /// =========================
+  final List<StreamSubscription> _subs = [];
 
+  IMEngineManager _engineManager = IMEngineManager();
   List<ConversationModel> _conversations = [];
   List<RCIMIWFriendInfo> _friends = [];
   List<RCIMIWGroupInfo> _groups = [];
-  final List<List<RCIMIWConversationType>> _conversationTypes = [
-    RCIMIWConversationType.values,
-    [RCIMIWConversationType.private],
-    [RCIMIWConversationType.group],
-    [RCIMIWConversationType.system],
-  ];
   Map<int, List<RCIMIWConversation>>? _tabCache;
+
   final resolver = ConversationResolver();
+
+  bool _inited = false;
 
   @override
   void initState() {
@@ -61,78 +62,120 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void initListener() {
-    _imConnectSub = ImConnectionManager().eventStream.listen((event) async {
+    if (_inited) return;
+    _inited = true;
+
+    final sub = _engineManager.connection
+        .eventStream
+        .listen((event) {
       if (event == ImEvent.connected) {
-         fetchData();
+        fetchData();
       }
     });
 
-  }
-  Future<void> fetchData() async {
-     fetchFriendApplicationData();
-     fetchConversationData();
-     fetchContactData();
-     fetchGroupData();
+    _subs.add(sub);
   }
 
-  Future<void> fetchFriendApplicationData() async {
-    final manager = ImFriendApplicationsManager();
-    manager.stream.listen((list) {
-      print("好友申请列表更新: ${list.length}----${manager.unhandledCount}");
+  /// =========================
+  /// 数据入口
+  /// =========================
+  void fetchData() {
+    _fetchFriendApplication();
+    _fetchConversation();
+    _fetchContact();
+    _fetchGroup();
+  }
+
+  /// =========================
+  /// 好友申请（防重复监听）
+  /// =========================
+  void _fetchFriendApplication() {
+    final sub = _engineManager.friendApplication.stream.listen((list) {
+      if (!mounted) return;
+
       setState(() {
-        _friendApplicationUnhandledCount = manager.unhandledCount;
+        _friendApplicationUnhandledCount =
+            _engineManager.friendApplication.unhandledCount;
       });
     });
-    manager.fetch();
+
+    _subs.add(sub);
+
+    _engineManager.friendApplication.fetch();
   }
 
-  Future<void> fetchConversationData() async {
-    final manager = ImConversationManager();
+  /// =========================
+  /// 会话（核心优化）
+  /// =========================
+  void _fetchConversation() {
+    final sub = _engineManager.conversation.stream.listen((map) {
+      if (!mounted) return;
 
-    manager.stream.listen((map) async {
-      _tabCache = manager.tabCache;
-      refreshConversationData();
+      _tabCache = map;
+      _refreshConversation();
     });
 
-    await manager.initAllTabs();
+    _subs.add(sub);
+    // _engineManager.conversation.initAllTabs();
   }
 
-  Future<void> refreshConversationData() async {
-    final list = ImConversationManager().getTabList(_selectedFilterIndex);
-    final models = list
-        .map((e) => ConversationModel(info: e))
-        .toList();
+  /// =========================
+  /// 刷新会话（减少 rebuild）
+  /// =========================
+  void _refreshConversation() {
+    final list =
+    _engineManager.conversation.getTabList(_selectedFilterIndex);
 
-    setState(() {
-      _conversations = models;
-    });
+    _conversations =
+        list.map((e) => ConversationModel(info: e)).toList();
 
-    _resolveConversations(models);
+    if (mounted) {
+      setState(() {});
+    }
+
+    _resolveConversation(_conversations);
   }
 
-  Future<void> fetchContactData() async {
-    final manager = ImFriendManager();
-    manager.stream.listen((list) {
+  /// =========================
+  /// 联系人
+  /// =========================
+  void _fetchContact() {
+    final sub = _engineManager.friend.stream.listen((list) {
+      if (!mounted) return;
+
       setState(() {
         _friends = list;
       });
-      debugPrint("获取好友:--- ${_friends.length}");
     });
-    await manager.fetchFriends();
+
+    _subs.add(sub);
+
+    _engineManager.friend.fetchFriends();
   }
 
+  /// =========================
+  /// 群组
+  /// =========================
+  void _fetchGroup() {
+    final sub = _engineManager.group.stream.listen((list) {
+      if (!mounted) return;
 
-  Future<void> fetchGroupData() async {
-    final manager = ImGroupManager();
-    manager.stream.listen((list) {
       setState(() {
         _groups = list;
       });
     });
-    await manager.getAllJoinedGroups();
+
+    _subs.add(sub);
+
+    _engineManager.group.getAllJoinedGroups();
   }
 
-  Future<void> _resolveConversations(List<ConversationModel> models) async {
+  /// =========================
+  /// 分批解析（防卡顿优化）
+  /// =========================
+  Future<void> _resolveConversation(
+      List<ConversationModel> models,
+      ) async {
     const batchSize = 10;
 
     for (int i = 0; i < models.length; i += batchSize) {
@@ -142,103 +185,22 @@ class _ChatPageState extends State<ChatPage> {
         batch.map((m) => resolver.resolve(m)),
       );
 
-      if (mounted) {
-        setState(() {}); // 👉 触发局部刷新
-      }
+      if (!mounted) return;
+
+      setState(() {}); // 局部刷新
     }
   }
-  // final List<Map<String, dynamic>> _mockChats = [
-  //   {
-  //     'type': 'system',
-  //     'title': 'chat_notification_title', // 使用 key
-  //     'subtitle': 'Linsy: The white paper of this project is a...',
-  //     'time': '10:24',
-  //     'unreadCount': 3,
-  //     'icon': Icons.notifications,
-  //     'iconBgColor': const Color(0xFFF7B500), // 黄色背景
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'John Gonzales',
-  //     'subtitle': 'Hi, What are you doning?',
-  //     'time': '17:48',
-  //     'unreadCount': 4,
-  //     'avatars': ['assets/images/chat/avatar.png'], // 暂用已有的占位图
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'PARACOSM Group',
-  //     'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
-  //     'time': '16:02',
-  //     'unreadCount': 4,
-  //     'avatars': [
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //     ],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'Kristen',
-  //     'subtitle': 'chat_image', // 使用 key
-  //     'time': '16:00',
-  //     'unreadCount': 0,
-  //     'avatars': ['assets/images/chat/avatar.png'],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'Dirac',
-  //     'subtitle': 'You have unread about GameFi?',
-  //     'time': '15:24',
-  //     'unreadCount': 0,
-  //     'isMuted': true,
-  //     'avatars': ['assets/images/chat/avatar.png'],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'Joey',
-  //     'subtitle': 'That\'s right😎',
-  //     'time': '12:09',
-  //     'unreadCount': 0,
-  //     'avatars': ['assets/images/chat/avatar.png'],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'Kristen',
-  //     'subtitle': 'Let\'s play together on the weekend ! Do you a...',
-  //     'time': '10:49',
-  //     'unreadCount': 0,
-  //     'avatars': ['assets/images/chat/avatar.png'],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'John Gonzales',
-  //     'subtitle': 'OK',
-  //     'time': '09:17',
-  //     'unreadCount': 0,
-  //     'avatars': ['assets/images/chat/avatar.png'],
-  //   },
-  //   {
-  //     'type': 'chat',
-  //     'title': 'Work project',
-  //     'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
-  //     'time': 'chat_yesterday', // 使用 key
-  //     'unreadCount': 0,
-  //     'avatars': [
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //       'assets/images/chat/avatar.png',
-  //     ],
-  //   },
-  // ];
 
   @override
   void dispose() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+
     _contactScrollController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return AppPage(
@@ -252,48 +214,6 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建聊天列表视图
   Widget _buildChatView() {
-    // if (_conversations.isNotEmpty) {
-    //   final filteredConversations = _filterConversations();
-    //   return Column(
-    //     children: [
-    //       _buildFriendRequestCard(),
-    //       _buildFilterBar(),
-    //       Expanded(
-    //         child: filteredConversations.isEmpty
-    //             ? AppEmptyView(
-    //                 text: AppLocalizations.of(context)!.chatSearchNoData,
-    //                 bottomOffset: 50,
-    //               )
-    //             : ListView.builder(
-    //                 padding: EdgeInsets.zero,
-    //                 itemCount: filteredConversations.length,
-    //                 itemBuilder: (context, index) {
-    //                   final conversation = filteredConversations[index];
-    //                   final title = _conversationTitle(conversation);
-    //                   return ChatListItem(
-    //                     title: title,
-    //                     subtitle: _conversationSubtitle(conversation),
-    //                     time: _conversationTime(conversation),
-    //                     unreadCount: conversation.unreadCount ?? 0,
-    //                     avatars: _conversationAvatars(conversation),
-    //                     isMuted: false,
-    //                     onTap: () => _navigateToConversationDetail(conversation, title),
-    //                   );
-    //                 },
-    //               ),
-    //       ),
-    //     ],
-    //   );
-    // }
-
-    // 简单的过滤逻辑，为了演示切换 Tab 时的空状态效果
-    // 0: All, 1: Message, 2: DAO, 3: Club, 4: Others
-    // final filteredChats = _conversations.where((chat) {
-    //   if (_selectedFilterIndex == 0) return true; // All
-    //   if (_selectedFilterIndex == 1) return chat['type'] == 'chat' || chat['type'] == 'system'; // Message
-    //   return false; // DAO, Club, Others 暂无数据
-    // }).toList();
-
     return Column(
       children: [
         _buildFriendRequestCard(),
@@ -301,37 +221,38 @@ class _ChatPageState extends State<ChatPage> {
         Expanded(
           child: _conversations.isEmpty
               ? AppEmptyView(
-                  text: AppLocalizations.of(context)!.chatSearchNoData,
-                  bottomOffset: 50, // 调整偏移，视觉更平衡
-                )
+            text: AppLocalizations.of(context)!.chatSearchNoData,
+            bottomOffset: 50, // 调整偏移，视觉更平衡
+          )
               : ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: _conversations.length,
-                  itemBuilder: (context, index) {
-                    final item = _conversations[index];
-                    if (item.info.conversationType == RCIMIWConversationType.system) {
-                      return SystemNotificationItem(
-                        title: AppLocalizations.of(context)!.chatNotificationTitle,
-                        subtitle: 'sub',
-                        time: AppLocalizations.of(context)!.chatYesterday,
-                        unreadCount: 1,
-                        icon: Icons.nat,
-                        // iconBgColor: item['iconBgColor'],
-                        // onTap: () => _navigateToDetail(item['title']),
-                      );
-                    } else {
-                      return ChatListItem(
-                        title: item.title ?? '',
-                        subtitle: item.subtitle ?? '',
-                        time: formatTimeAgo(item.info.operationTime ?? 0),
-                        unreadCount: item.info.unreadCount ?? 0,
-                        avatar: item.portraitUri ?? '',
-                        isMuted: false,
-                        onTap: () => _navigateToDetail(item.title ?? ''),
-                      );
-                    }
-                  },
-                ),
+            padding: EdgeInsets.zero,
+            itemCount: _conversations.length,
+            itemBuilder: (context, index) {
+              final item = _conversations[index];
+              if (item.info.conversationType == RCIMIWConversationType.system) {
+                return SystemNotificationItem(
+                  title: AppLocalizations.of(context)!.chatNotificationTitle,
+                  subtitle: 'sub',
+                  time: AppLocalizations.of(context)!.chatYesterday,
+                  unreadCount: 1,
+                  icon: Icons.nat,
+                  // iconBgColor: item['iconBgColor'],
+                  // onTap: () => _navigateToDetail(item['title']),
+                );
+              } else {
+                return ChatListItem(
+                  title: item.title ?? '',
+                  subtitle: item.subtitle ?? '',
+                  time: formatTimeAgo(item.info.operationTime ?? 0),
+                  unreadCount: item.info.unreadCount ?? 0,
+                  avatar: item.portraitUri ?? '',
+                  userId: item.info.targetId,
+                  isMuted: false,
+                  onTap: () => _navigateToDetail(item.title ?? ''),
+                );
+              }
+            },
+          ),
         ),
       ],
     );
@@ -480,16 +401,16 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _navigateToConversationDetail(
-    RCIMIWConversation conversation,
-    String title,
-  ) {
+      RCIMIWConversation conversation,
+      String title,
+      ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
         targetId: conversation.targetId ?? '',
         conversationType:
-            conversation.conversationType ?? RCIMIWConversationType.private,
+        conversation.conversationType ?? RCIMIWConversationType.private,
         name: title,
         channelId: conversation.channelId,
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
@@ -658,7 +579,7 @@ class _ChatPageState extends State<ChatPage> {
               setState(() {
                 _selectedFilterIndex = index;
               });
-              refreshConversationData();
+              _refreshConversation();
             },
             child: Container(
               margin: EdgeInsets.only(right: 24),
@@ -670,15 +591,15 @@ class _ChatPageState extends State<ChatPage> {
                     filters[index],
                     style: isSelected
                         ? AppTextStyles.bodyMedium.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey900
-                          )
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900
+                    )
                         : AppTextStyles.body.copyWith(
-                            color: AppColors.grey400,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
+                      color: AppColors.grey400,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (isSelected)

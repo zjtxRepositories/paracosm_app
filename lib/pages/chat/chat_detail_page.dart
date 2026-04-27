@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
+import 'package:paracosm/modules/im/manager/im_send_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
@@ -342,8 +343,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           text: message.text == 'canceled'
               ? AppLocalizations.of(context)!.chatDetailCanceled
               : AppLocalizations.of(context)!.chatDetailCallDuration(
-                  message.text ?? '00:00',
-                ),
+            message.text ?? '00:00',
+          ),
           isVideo: message.isVideo,
           isMe: message.isMe,
         );
@@ -439,9 +440,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final args = widget.sessionArgs;
     final text = _inputController.text.trim();
     if (args == null || text.isEmpty) return;
-
     try {
-      await _messageManager.sendTextMessage(
+      await ImSendManager.instance.sendText(
         type: args.conversationType,
         targetId: args.targetId,
         channelId: args.channelId,

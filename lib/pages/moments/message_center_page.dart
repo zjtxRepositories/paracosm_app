@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/theme/app_colors.dart';
+import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/common/app_reply_sheet.dart';
 
 class MessageCenterPage extends StatelessWidget {
   const MessageCenterPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+
+    final l10n = AppLocalizations.of(context)!;
     final items = <_MessageCenterItemData>[
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Jessenny',
-        message: 'Followed you',
+        message: l10n.translate('moments_followed_you'),
         date: '2025/04/17',
-        buttonText: 'Follow',
+        buttonText: l10n.translate('moments_follow'),
         badgeIcon: 'assets/images/moments/center-user.png',
         isActive: true,
         isFilledButton: true,
@@ -55,17 +62,57 @@ class MessageCenterPage extends StatelessWidget {
         badgeIcon: 'assets/images/moments/center-collect.png',
         isFilledButton: true,
       ),
-      const _MessageCenterItemData(
-        name: 'Robert Fox',
-        message: 'Reply: That\'s really well said.',
+      _MessageCenterItemData(
+        name: 'Leslie',
+        message: l10n.translate('moments_followed_you'),
         date: '2025/04/17',
-        buttonText: 'Reply',
+        buttonText: l10n.translate('moments_message'),
+        badgeIcon: 'assets/images/moments/center-user.png',
+      ),
+      _MessageCenterItemData(
+        name: 'Bell',
+        message: l10n.translate('moments_followed_you'),
+        date: '2025/04/17',
+        buttonText: l10n.translate('moments_follow'),
+        badgeIcon: 'assets/images/moments/center-user.png',
+        isFilledButton: true,
+      ),
+      _MessageCenterItemData(
+        name: 'Eleanor Pena',
+        message: l10n.translate('moments_followed_you'),
+        date: '2025/04/17',
+        buttonText: l10n.translate('moments_message'),
+        badgeIcon: 'assets/images/moments/center-user.png',
+      ),
+      _MessageCenterItemData(
+        name: 'Simmons',
+        message: l10n.translate('moments_liked_you'),
+        date: '2025/04/17',
+        buttonText: l10n.translate('moments_reply'),
+        badgeIcon: 'assets/images/moments/center-like.png',
+        isFilledButton: true,
+        isReplyAction: true,
+      ),
+      _MessageCenterItemData(
+        name: 'Wade Warren',
+        message: l10n.translate('moments_collected_you'),
+        date: '2025/04/17',
+        buttonText: l10n.translate('moments_follow'),
+        badgeIcon: 'assets/images/moments/center-collect.png',
+        isFilledButton: true,
+      ),
+      _MessageCenterItemData(
+        name: 'Robert Fox',
+        message: l10n.translate('moments_reply_text'),
+        date: '2025/04/17',
+        buttonText: l10n.translate('moments_reply'),
         badgeIcon: 'assets/images/moments/center-msg.png',
+        isReplyAction: true,
       ),
     ];
 
     return AppPage(
-      title: 'Message Center',
+      title: l10n.translate('moments_message_center_title'),
       showNavBorder: false,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -88,6 +135,7 @@ class _MessageCenterItemData {
   final String badgeIcon;
   final bool isActive;
   final bool isFilledButton;
+  final bool isReplyAction;
 
   const _MessageCenterItemData({
     required this.name,
@@ -97,6 +145,7 @@ class _MessageCenterItemData {
     required this.badgeIcon,
     this.isActive = false,
     this.isFilledButton = false,
+    this.isReplyAction = false,
   });
 }
 
@@ -194,7 +243,7 @@ class _MessageCenterListItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                _buildActionButton(),
+                _buildActionButton(context),
               ],
             ),
           ),
@@ -212,11 +261,24 @@ class _MessageCenterListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton() {
+
+  Widget _buildActionButton(BuildContext context) {
     return _MessageCenterActionButton(
       text: item.buttonText,
       isFilled: item.isFilledButton,
-      onTap: () {},
+      onTap: item.isReplyAction
+          ? () => _showReplySheet(context)
+          : null,
+    );
+  }
+
+  void _showReplySheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    AppReplySheet.show<void>(
+      context,
+      hintText: l10n.translate('moments_reply_hint'),
+      showVoiceButton: false,
+      showBottomAccessoryBar: true,
     );
   }
 }

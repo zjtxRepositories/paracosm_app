@@ -14,7 +14,7 @@ class ImService {
     String last8 = accountId.length > 8 ? accountId.substring(accountId.length - 8) : accountId;
     final token = await ImTokenManager.getToken(userId: accountId, name: last8);
     if (token == null) return;
-    // print('userid-----$userId---$token');
+    print('userid-----$accountId---$token');
     await IMEngineManager().connect(token, accountId);
   }
 

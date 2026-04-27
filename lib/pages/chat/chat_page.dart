@@ -116,7 +116,6 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     _subs.add(sub);
-    // _engineManager.conversation.initAllTabs();
   }
 
   /// =========================

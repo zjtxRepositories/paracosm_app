@@ -39,6 +39,10 @@ class IMEngineManager {
 
   /// 连接 IM
   Future<void> connect(String token, String accountId) async {
+    if (_accountId == accountId && connection.isConnected) return;
+    if (_accountId != accountId){
+      await disconnect();
+    }
     _accountId = accountId;
 
     RCIMIWConnectCallback? callback = RCIMIWConnectCallback(

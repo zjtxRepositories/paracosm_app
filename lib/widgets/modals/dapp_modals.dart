@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../modules/wallet/chains/model/gas_fee.dart';
@@ -8,6 +9,7 @@ import '../../theme/app_text_styles.dart';
 import '../../util/string_util.dart';
 import '../base/app_localizations.dart';
 import '../common/app_network_image.dart';
+import '../common/app_toast.dart';
 import '../slider/td_slider.dart';
 import '../slider/td_slider_theme.dart';
 
@@ -107,6 +109,9 @@ class DappModals {
     String? feeDescription,
     BigInt? gasLimit,
     bool isContractCall = false,
+    String? transactionType,
+    String? approvalAmount,
+    String? approvalSpender,
     String? data,
   }) {
     return showModalBottomSheet<DappTransactionDecision>(
@@ -186,15 +191,22 @@ class DappModals {
                   const SizedBox(height: 24),
                   _divider(),
                   const SizedBox(height: 16),
+                  _field(label: '交易类型', value: transactionType ?? '转账'),
+                  const SizedBox(height: 16),
                   _field(label: 'From', value: from, trailing: walletLabel),
                   const SizedBox(height: 16),
                   _field(label: 'To', value: to),
+                  if (approvalAmount != null && approvalAmount.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _field(label: '授权额度', value: approvalAmount),
+                  ],
                   const SizedBox(height: 16),
                   _field(
                     label: l10n.profileTransferNetworkFees,
                     value: '${l10n.profileTransferGasLimit} $displayGasLimit',
                     trailing: feeDescription,
                     trailingIcon: Icons.chevron_right,
+                    alignValueEnd: true,
                   ),
                   const SizedBox(height: 16),
                   _feeLevelSelector(
@@ -229,8 +241,14 @@ class DappModals {
                     const SizedBox(height: 12),
                     _infoCard(
                       children: [
+                        _detailItem('交易类型', transactionType ?? '转账'),
                         _detailItem('From', from, copyable: true),
                         _detailItem('To', to, copyable: true),
+                        if (approvalAmount != null && approvalAmount.isNotEmpty)
+                          _detailItem('授权额度', approvalAmount),
+                        if (approvalSpender != null &&
+                            approvalSpender.isNotEmpty)
+                          _detailItem('授权地址', approvalSpender, copyable: true),
                         _detailItem(
                           l10n.profileTransferFeeLevel,
                           _feeLevelLabel(l10n, selectedLevel),
@@ -297,6 +315,8 @@ class DappModals {
               const SizedBox(height: 12),
               _centerTitle(host),
               const SizedBox(height: 24),
+              _field(label: '交易类型', value: '签名信息'),
+              const SizedBox(height: 16),
               _labeledCard(label: 'Message', value: message, minHeight: 132),
               const SizedBox(height: 24),
               _divider(),
@@ -378,7 +398,10 @@ class DappModals {
     required BuildContext context,
     required Widget child,
   }) {
-    return SafeArea(
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -407,7 +430,10 @@ class DappModals {
     required VoidCallback onClose,
     required VoidCallback onConfirm,
   }) {
-    return SafeArea(
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -489,13 +515,14 @@ class DappModals {
     required String value,
     String? trailing,
     IconData? trailingIcon,
+    bool alignValueEnd = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle(label, trailing: trailing, trailingIcon: trailingIcon),
         const SizedBox(height: 12),
-        _valueCard(value),
+        _valueCard(value, alignEnd: alignValueEnd),
       ],
     );
   }
@@ -520,31 +547,40 @@ class DappModals {
         ),
         if (trailing != null && trailing.isNotEmpty)
           Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    trailing,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption.copyWith(
-                      fontSize: 12,
-                      color: AppColors.grey400,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      trailing,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 12,
+                        color: AppColors.grey400,
+                      ),
                     ),
                   ),
-                ),
-                if (trailingIcon != null) ...[
-                  const SizedBox(width: 4),
-                  Icon(trailingIcon, size: 20, color: AppColors.grey400),
+                  if (trailingIcon != null) ...[
+                    const SizedBox(width: 4),
+                    Icon(trailingIcon, size: 20, color: AppColors.grey400),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
       ],
     );
   }
 
-  static Widget _valueCard(String value, {double minHeight = 58}) {
+  static Widget _valueCard(
+    String value, {
+    double minHeight = 58,
+    bool alignEnd = false,
+  }) {
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(minHeight: minHeight),
@@ -553,9 +589,10 @@ class DappModals {
         color: AppColors.grey100,
         borderRadius: BorderRadius.circular(12),
       ),
-      alignment: Alignment.centerLeft,
+      alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(
         value,
+        textAlign: alignEnd ? TextAlign.right : TextAlign.left,
         style: AppTextStyles.bodyMedium.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w500,
@@ -907,40 +944,51 @@ class DappModals {
     String value, {
     bool copyable = false,
   }) {
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 12,
-                color: AppColors.grey600,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: copyable
+            ? () async {
+                await Clipboard.setData(ClipboardData(text: value));
+                AppToast.show('已复制');
+              }
+            : null,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 12,
+                  color: AppColors.grey600,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          if (copyable) ...[
-            const Icon(Icons.copy, size: 14, color: AppColors.grey400),
-            const SizedBox(width: 4),
+            const SizedBox(width: 12),
+            if (copyable) ...[
+              const Icon(Icons.copy, size: 14, color: AppColors.grey400),
+              const SizedBox(width: 4),
+            ],
+            Expanded(
+              flex: 2,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey900,
+                ),
+              ),
+            ),
           ],
-          Expanded(
-            flex: 2,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey900,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
+
+    return content;
   }
 }
 

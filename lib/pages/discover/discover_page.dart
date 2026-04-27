@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/api/dapp_list_api.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 import '../../core/models/dApp_hive.dart';
@@ -18,7 +17,6 @@ class DiscoverPage extends StatefulWidget {
 }
 
 class _DiscoverPageState extends State<DiscoverPage> {
-  int _activeTabIndex = 0;
   List<DAppHive> dappList1 = [];
   List<DAppHive> dappList2 = [];
   bool isLoading = true;
@@ -58,15 +56,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
       debugPrint("DiscoverPage error: $e");
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final List<String> tabs = [
-      l10n.discoverTabPopular,
-      l10n.discoverTabRecommend,
-      l10n.discoverTabRecent
-    ];
 
     return AppPage(
       showNav: false, // 使用自定义头部
@@ -78,36 +71,36 @@ class _DiscoverPageState extends State<DiscoverPage> {
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildBanner(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBanner(),
 
-                  _DiscoverSectionHeader(
-                    title: l10n.discoverSectionNewArrivals,
-                    onTap: () => context.push(
-                      '/discover-list/${l10n.discoverSectionNewArrivals}',
-                      extra: dappList1,
+                        _DiscoverSectionHeader(
+                          title: l10n.discoverSectionNewArrivals,
+                          onTap: () => context.push(
+                            '/discover-list/${l10n.discoverSectionNewArrivals}',
+                            extra: dappList1,
+                          ),
+                        ),
+                        _buildNewArrivalsGrid(l10n),
+
+                        const SizedBox(height: 24),
+
+                        _DiscoverSectionHeader(
+                          title: l10n.discoverSectionDefi,
+                          onTap: () => context.push(
+                            '/discover-list/${l10n.discoverSectionDefi}',
+                            extra: dappList1,
+                          ),
+                        ),
+                        _buildDefiGrid(l10n),
+
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
-                  _buildNewArrivalsGrid(l10n),
-
-                  const SizedBox(height: 24),
-
-                  _DiscoverSectionHeader(
-                    title: l10n.discoverSectionDefi,
-                    onTap: () => context.push(
-                      '/discover-list/${l10n.discoverSectionDefi}',
-                      extra: dappList1,
-                    ),
-                  ),
-                  _buildDefiGrid(l10n),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          )
+          ),
         ],
       ),
     );
@@ -180,50 +173,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
-  /// 构建分类标签栏
-  Widget _buildTabBar(List<String> tabs) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: tabs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final title = entry.value;
-          final isActive = _activeTabIndex == index;
-
-          return GestureDetector(
-            onTap: () => setState(() => _activeTabIndex = index),
-            child: Container(
-              margin: const EdgeInsets.only(right: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive ? AppColors.grey900 : AppColors.grey400,
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    width: 12,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: isActive ? AppColors.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(1.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   /// 构建 New arrivals 网格
   Widget _buildNewArrivalsGrid(AppLocalizations l10n) {
     // final items = [
@@ -233,8 +182,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
     //   {'icon': 'assets/images/discover/aelf.png', 'label': l10n.discoverMockAelfLabel},
     // ];
 
-    return _buildItemGrid(dappList1.length > 4
-        ? dappList1.sublist(0, 4).toList() : dappList1);
+    return _buildItemGrid(
+      dappList1.length > 4 ? dappList1.sublist(0, 4).toList() : dappList1,
+    );
   }
 
   /// 构建 Defi 网格
@@ -246,38 +196,39 @@ class _DiscoverPageState extends State<DiscoverPage> {
     //   {'icon': 'assets/images/discover/cartesi.png', 'label': l10n.discoverMockCartesiLabel},
     // ];
 
-    return _buildItemGrid(dappList2.length > 4
-        ? dappList2.sublist(0, 4).toList() : dappList2);
+    return _buildItemGrid(
+      dappList2.length > 4 ? dappList2.sublist(0, 4).toList() : dappList2,
+    );
   }
 
   /// 通用网格构建
   Widget _buildItemGrid(List<DAppHive> items) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.8,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(items.length, (index) {
           final item = items[index];
-          return GestureDetector(
-              onTap: (){
-                context.push('/dapp',extra: item);
-              },
-            child: _DiscoverItem(icon: item.headUrl!, label: item.name ?? ''),
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(left: index == 0 ? 0 : 8),
+              child: GestureDetector(
+                onTap: () {
+                  context.push('/dapp', extra: item);
+                },
+                child: _DiscoverItem(
+                  icon: item.headUrl!,
+                  label: item.name ?? '',
+                ),
+              ),
+            ),
           );
-        },
+        }),
       ),
     );
   }
@@ -330,18 +281,18 @@ class _DiscoverItem extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child:AppNetworkImage(
+          child: AppNetworkImage(
             url: icon,
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w500,
             color: AppColors.black,
           ),

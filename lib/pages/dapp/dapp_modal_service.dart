@@ -39,6 +39,9 @@ class DAppModalService {
     String? feeDescription,
     BigInt? gasLimit,
     bool isContractCall = false,
+    String? transactionType,
+    String? approvalAmount,
+    String? approvalSpender,
     String? data,
   }) {
     return DappModals.showTransactionDetail(
@@ -53,6 +56,9 @@ class DAppModalService {
       feeDescription: feeDescription,
       gasLimit: gasLimit,
       isContractCall: isContractCall,
+      transactionType: transactionType,
+      approvalAmount: approvalAmount,
+      approvalSpender: approvalSpender,
       data: data,
     );
   }

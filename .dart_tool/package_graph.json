@@ -38,6 +38,7 @@
         "shared_preferences",
         "solana",
         "sqflite",
+        "uuid",
         "video_compress",
         "web3dart",
         "wechat_assets_picker"
@@ -155,6 +156,14 @@
       "version": "5.9.3",
       "dependencies": [
         "flutter"
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "4.5.3",
+      "dependencies": [
+        "crypto",
+        "fixnum"
       ]
     },
     {
@@ -742,6 +751,11 @@
       ]
     },
     {
+      "name": "fixnum",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
       "name": "image_picker_windows",
       "version": "0.2.2",
       "dependencies": [
@@ -1165,14 +1179,6 @@
       "dependencies": [
         "stack_trace",
         "stream_channel"
-      ]
-    },
-    {
-      "name": "uuid",
-      "version": "4.5.3",
-      "dependencies": [
-        "crypto",
-        "fixnum"
       ]
     },
     {
@@ -1638,11 +1644,6 @@
     {
       "name": "platform",
       "version": "3.1.6",
-      "dependencies": []
-    },
-    {
-      "name": "fixnum",
-      "version": "1.1.1",
       "dependencies": []
     },
     {

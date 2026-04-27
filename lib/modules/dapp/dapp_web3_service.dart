@@ -81,6 +81,215 @@ class DAppWeb3Service implements EthWeb3Handler {
     throw EthHandlerException('Invalid token decimals');
   }
 
+  String? _normalizeHexData(String? data) {
+    if (data == null || data.isEmpty) return null;
+    final normalized = data.startsWith('0x') ? data : '0x$data';
+    return normalized.toLowerCase();
+  }
+
+  bool _isApproveCall(String? data) {
+    final normalized = _normalizeHexData(data);
+    return normalized != null && normalized.startsWith('0x095ea7b3');
+  }
+
+  bool _isTokenTransferCall(String? data) {
+    final normalized = _normalizeHexData(data);
+    return normalized != null &&
+        (normalized.startsWith('0xa9059cbb') ||
+            normalized.startsWith('0x23b872dd'));
+  }
+
+  String? _slot(String normalizedData, int index) {
+    final start = 10 + index * 64;
+    final end = start + 64;
+    if (normalizedData.length < end) return null;
+    return normalizedData.substring(start, end);
+  }
+
+  BigInt? _slotBigInt(String normalizedData, int index) {
+    final slot = _slot(normalizedData, index);
+    if (slot == null) return null;
+    return BigInt.tryParse(slot, radix: 16);
+  }
+
+  String? _slotAddress(String normalizedData, int index) {
+    final slot = _slot(normalizedData, index);
+    if (slot == null) return null;
+    return '0x${slot.substring(24)}';
+  }
+
+  String? _addressArrayFirstAddress(String normalizedData, int offsetBytes) {
+    final arrayStart = 10 + offsetBytes * 2;
+    final firstItemStart = arrayStart + 64;
+    final firstItemEnd = firstItemStart + 64;
+    if (normalizedData.length < firstItemEnd) return null;
+    final slot = normalizedData.substring(firstItemStart, firstItemEnd);
+    return '0x${slot.substring(24)}';
+  }
+
+  String? _pathBytesTokenAddress(
+    String normalizedData,
+    int offsetBytes, {
+    bool last = false,
+  }) {
+    final pathStart = 10 + offsetBytes * 2;
+    final lengthSlotEnd = pathStart + 64;
+    if (normalizedData.length < lengthSlotEnd) return null;
+    final length = BigInt.tryParse(
+      normalizedData.substring(pathStart, lengthSlotEnd),
+      radix: 16,
+    )?.toInt();
+    if (length == null || length < 20) return null;
+
+    final bytesStart = lengthSlotEnd;
+    final pathHexLength = length * 2;
+    final bytesEnd = bytesStart + pathHexLength;
+    if (normalizedData.length < bytesEnd) return null;
+
+    final pathHex = normalizedData.substring(bytesStart, bytesEnd);
+    if (last) {
+      return '0x${pathHex.substring(pathHex.length - 40)}';
+    }
+    return '0x${pathHex.substring(0, 40)}';
+  }
+
+  _ContractSpend? _contractSpend(String? data) {
+    final normalized = _normalizeHexData(data);
+    if (normalized == null || normalized.length < 10) return null;
+
+    final selector = normalized.substring(0, 10);
+    switch (selector) {
+      case '0x38ed1739': // swapExactTokensForTokens
+      case '0x18cbafe5': // swapExactTokensForETH
+      case '0x5c11d795': // swapExactTokensForTokensSupportingFeeOnTransferTokens
+      case '0x791ac947': // swapExactTokensForETHSupportingFeeOnTransferTokens
+        final amount = _slotBigInt(normalized, 0);
+        final pathOffset = _slotBigInt(normalized, 2)?.toInt();
+        if (amount == null || pathOffset == null) return null;
+        final tokenIn = _addressArrayFirstAddress(normalized, pathOffset);
+        if (tokenIn == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amount);
+
+      case '0x8803dbee': // swapTokensForExactTokens
+      case '0x4a25d94a': // swapTokensForExactETH
+        final amountInMax = _slotBigInt(normalized, 1);
+        final pathOffset = _slotBigInt(normalized, 2)?.toInt();
+        if (amountInMax == null || pathOffset == null) return null;
+        final tokenIn = _addressArrayFirstAddress(normalized, pathOffset);
+        if (tokenIn == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amountInMax);
+
+      case '0x414bf389': // exactInputSingle
+        final tokenIn = _slotAddress(normalized, 0);
+        final amountIn = _slotBigInt(normalized, 5);
+        if (tokenIn == null || amountIn == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amountIn);
+
+      case '0xdb3e2198': // exactOutputSingle
+        final tokenIn = _slotAddress(normalized, 0);
+        final amountInMax = _slotBigInt(normalized, 6);
+        if (tokenIn == null || amountInMax == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amountInMax);
+
+      case '0xc04b8d59': // exactInput
+        final pathOffset = _slotBigInt(normalized, 0)?.toInt();
+        final amountIn = _slotBigInt(normalized, 3);
+        if (pathOffset == null || amountIn == null) return null;
+        final tokenIn = _pathBytesTokenAddress(normalized, pathOffset);
+        if (tokenIn == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amountIn);
+
+      case '0xf28c0498': // exactOutput
+        final pathOffset = _slotBigInt(normalized, 0)?.toInt();
+        final amountInMax = _slotBigInt(normalized, 4);
+        if (pathOffset == null || amountInMax == null) return null;
+        final tokenIn = _pathBytesTokenAddress(
+          normalized,
+          pathOffset,
+          last: true,
+        );
+        if (tokenIn == null) return null;
+        return _ContractSpend(tokenAddress: tokenIn, amount: amountInMax);
+    }
+
+    return null;
+  }
+
+  TokenModel? _tokenByAddress(String address) {
+    final tokenAddress = address.toLowerCase();
+    if (tokenAddress.isEmpty) return null;
+    for (final token in ethChain.tokens) {
+      if (token.address.isNotEmpty &&
+          token.address.toLowerCase() == tokenAddress) {
+        return token;
+      }
+    }
+    return null;
+  }
+
+  BigInt? _tokenTransferAmountValue(String? data) {
+    final normalized = _normalizeHexData(data);
+    if (normalized == null) return null;
+    if (normalized.startsWith('0xa9059cbb')) {
+      if (normalized.length < 138) return null;
+      return BigInt.parse(normalized.substring(74, 138), radix: 16);
+    }
+    if (normalized.startsWith('0x23b872dd')) {
+      if (normalized.length < 202) return null;
+      return BigInt.parse(normalized.substring(138, 202), radix: 16);
+    }
+    return null;
+  }
+
+  String? _approveSpender(String? data) {
+    final normalized = _normalizeHexData(data);
+    if (normalized == null || normalized.length < 74) return null;
+    return '0x${normalized.substring(34, 74)}';
+  }
+
+  BigInt? _approveAmountValue(String? data) {
+    final normalized = _normalizeHexData(data);
+    if (normalized == null || normalized.length < 138) return null;
+    return BigInt.parse(normalized.substring(74, 138), radix: 16);
+  }
+
+  String? _approvalAmountLabel(String? data) {
+    final amount = _approveAmountValue(data);
+    if (amount == null) return null;
+    if (amount == (BigInt.one << 256) - BigInt.one) {
+      return '无限授权';
+    }
+    return amount.toString();
+  }
+
+  String _formatTokenAmount(BigInt value, int decimals) {
+    final divisor = BigInt.from(10).pow(decimals);
+    final integer = value ~/ divisor;
+    final decimal = value % divisor;
+
+    if (decimal == BigInt.zero) {
+      return integer.toString();
+    }
+
+    final decimalText = decimal
+        .toString()
+        .padLeft(decimals, '0')
+        .replaceFirst(RegExp(r'0+$'), '');
+
+    return '$integer.$decimalText';
+  }
+
+  String _formatAmountWithSymbol(BigInt value, String symbol) {
+    return '${_formatEth(value)} $symbol';
+  }
+
+  String _formatTokenAmountWithSymbol(BigInt value, TokenModel token) {
+    if (value == (BigInt.one << 256) - BigInt.one) {
+      return '无限授权 ${token.symbol}';
+    }
+    return '${_formatTokenAmount(value, token.decimals)} ${token.symbol}';
+  }
+
   bool _hasAddedToken(String address) {
     final tokenAddress = address.toLowerCase();
     return ethChain.tokens.any((token) {
@@ -414,6 +623,23 @@ class DAppWeb3Service implements EthWeb3Handler {
       final BigInt? gas = data['gas'] == null ? null : hexToInt(data['gas']);
       final String? callData = data['data'];
       final bool isContractCall = callData != null && callData.isNotEmpty;
+      final bool isApproval = _isApproveCall(callData);
+      final bool isTokenTransfer = _isTokenTransferCall(callData);
+      final contractSpend = !isApproval && !isTokenTransfer
+          ? _contractSpend(callData)
+          : null;
+      final tokenAmount = isTokenTransfer
+          ? _tokenTransferAmountValue(callData)
+          : isApproval
+          ? _approveAmountValue(callData)
+          : contractSpend?.amount;
+      final transactionType = isApproval
+          ? '授权额度'
+          : isTokenTransfer
+          ? '代币转账'
+          : isContractCall
+          ? '合约交互'
+          : '转账';
 
       /// =========================
       /// 2. 权限校验（必须有）
@@ -427,7 +653,21 @@ class DAppWeb3Service implements EthWeb3Handler {
       /// =========================
       /// 3. 金额格式化
       /// =========================
-      final amount = _formatEth(value); // 👈 自己实现
+      final tokenAddress = contractSpend?.tokenAddress ?? to;
+      final token =
+          (isTokenTransfer || isApproval || contractSpend != null) &&
+              tokenAddress.isNotEmpty
+          ? _tokenByAddress(tokenAddress) ??
+                await EvmFacade.getTokenInfo(ethChain, tokenAddress)
+          : null;
+      final amount = token != null && tokenAmount != null
+          ? _formatTokenAmountWithSymbol(tokenAmount, token)
+          : _formatAmountWithSymbol(value, ethChain.symbol);
+      final approvalAmount = isApproval && token != null && tokenAmount != null
+          ? _formatTokenAmountWithSymbol(tokenAmount, token)
+          : isApproval
+          ? _approvalAmountLabel(callData)
+          : null;
       final logo = faviconUrl;
       final gasLevel = await EvmFacade.gas(ethChain);
 
@@ -447,6 +687,9 @@ class DAppWeb3Service implements EthWeb3Handler {
         feeDescription: gas == null ? null : 'Estimated by gas limit',
         gasLimit: gas,
         isContractCall: isContractCall,
+        transactionType: transactionType,
+        approvalAmount: approvalAmount,
+        approvalSpender: isApproval ? _approveSpender(callData) : null,
         data: callData,
       );
 
@@ -718,4 +961,11 @@ class DAppWeb3Service implements EthWeb3Handler {
     );
     return '0x${block.toRadixString(16)}';
   }
+}
+
+class _ContractSpend {
+  final String tokenAddress;
+  final BigInt amount;
+
+  const _ContractSpend({required this.tokenAddress, required this.amount});
 }

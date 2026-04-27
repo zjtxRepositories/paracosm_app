@@ -52,11 +52,18 @@ class _BrowserControllerState extends State<BrowserController> {
   final _canGoBack = false.obs;
 
   InAppWebViewController? _controller;
+  late final PullToRefreshController _pullToRefreshController;
 
   @override
   void initState() {
     super.initState();
     _title.value = widget.name ?? "Loading...";
+    _pullToRefreshController = PullToRefreshController(
+      settings: PullToRefreshSettings(color: AppColors.primaryLight),
+      onRefresh: () async {
+        await _controller?.reload();
+      },
+    );
   }
 
   void _handleWebViewCreated(InAppWebViewController controller) {
@@ -209,6 +216,7 @@ class _BrowserControllerState extends State<BrowserController> {
             initialSettings: InAppWebViewSettings(
               mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
             ),
+            pullToRefreshController: _pullToRefreshController,
             initialUserScripts: widget.scripts,
             onWebViewCreated: _handleWebViewCreated,
             onProgressChanged: (_, progress) {
@@ -221,7 +229,16 @@ class _BrowserControllerState extends State<BrowserController> {
               }
               widget.onTitleChanged?.call(title);
             },
-            onLoadStop: (controller, url) => _updateCanGoBack(controller),
+            onLoadStop: (controller, url) async {
+              await _pullToRefreshController.endRefreshing();
+              await _updateCanGoBack(controller);
+            },
+            onReceivedError: (controller, request, error) async {
+              await _pullToRefreshController.endRefreshing();
+            },
+            onReceivedHttpError: (controller, request, errorResponse) async {
+              await _pullToRefreshController.endRefreshing();
+            },
             onUpdateVisitedHistory: (controller, url, isReload) async {
               await _updateCanGoBack(controller);
             },

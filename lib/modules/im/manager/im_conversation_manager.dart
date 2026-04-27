@@ -76,7 +76,7 @@ class ImConversationManager {
   }
   /// =
   /// ========================
-  /// 🔥 初始化全部 Tab（核心）
+  /// 初始化全部 Tab（核心）
   /// =========================
   Future<void> _initAllTabs() async {
     if (_loaded) return;
@@ -155,7 +155,7 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 新消息处理（🔥核心）
+  /// 新消息处理
   /// =========================
   void handleIncomingMessage(RCIMIWMessage msg) {
     bool hit = false;
@@ -272,7 +272,7 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 发送消息后刷新（推荐🔥）
+  /// 发送消息后刷新
   /// =========================
   void refreshAfterSend(
       String targetId,
@@ -295,7 +295,7 @@ class ImConversationManager {
         /// 自己发的消息一般不加未读
         /// 如果你要兼容多端，可以判断 senderId
 
-        /// 移动到顶部（关键🔥）
+        /// 移动到顶部
         final conv = list.removeAt(index);
         list.insert(0, conv);
       }

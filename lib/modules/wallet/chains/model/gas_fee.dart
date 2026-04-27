@@ -1,9 +1,11 @@
 import 'package:web3dart/web3dart.dart';
 
+enum FeeLevel { slow, medium, fast }
+
 class GasFee {
-  final BigInt maxFeePerGas;        // EIP-1559
+  final BigInt maxFeePerGas; // EIP-1559
   final BigInt maxPriorityFeePerGas;
-  final BigInt? gasPrice;           // 兼容老链
+  final BigInt? gasPrice; // 兼容老链
 
   GasFee({
     required this.maxFeePerGas,
@@ -16,11 +18,7 @@ class GasLevel {
   final GasFee slow;
   final GasFee medium;
   final GasFee fast;
-  GasLevel({
-    required this.slow,
-    required this.medium,
-    required this.fast,
-  });
+  GasLevel({required this.slow, required this.medium, required this.fast});
 }
 
 class GasCalculator {
@@ -65,15 +63,11 @@ class GasCalculator {
 }
 
 class BtcFeeRate {
-  final int slow;    // sat/vByte
+  final int slow; // sat/vByte
   final int medium;
   final int fast;
 
-  BtcFeeRate({
-    required this.slow,
-    required this.medium,
-    required this.fast,
-  });
+  BtcFeeRate({required this.slow, required this.medium, required this.fast});
 }
 
 abstract class ChainFee {
@@ -86,8 +80,5 @@ class EvmFee extends ChainFee {
 
   @override
   double get displayFee =>
-      GasCalculator.calculateEthFee(
-        gasLimit: gasLimit,
-        fee: gasFee,
-      );
+      GasCalculator.calculateEthFee(gasLimit: gasLimit, fee: gasFee);
 }

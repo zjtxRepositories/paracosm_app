@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../throttle.dart';
@@ -22,7 +21,6 @@ class MetaMaskHandler extends EthWebViewHandler {
 
   @override
   void handle(List<dynamic> arguments) {
-    debugPrint('DApp handler raw arguments: $arguments');
     final args = jsonDecode(arguments.first);
 
     if (args['name'] != 'metamask-provider') return;
@@ -45,8 +43,6 @@ class MetaMaskHandler extends EthWebViewHandler {
     String method,
     List<dynamic>? params,
   ) async {
-    debugPrint('DApp method: $method');
-
     /// ===== fallback（兼容旧实现）=====
     switch (method) {
       case 'metamask_getProviderState':
@@ -205,10 +201,8 @@ class MetaMaskHandler extends EthWebViewHandler {
   void handleMethod(int id, String origin, FutureOr Function() fn) async {
     try {
       final result = await Future.sync(fn);
-      debugPrint('DApp response success: id=$id origin=$origin result=$result');
       sendResponse(id, result, origin);
     } catch (e) {
-      debugPrint('DApp response error: id=$id origin=$origin error=$e');
       sendError(id, e, origin);
     }
   }
@@ -216,9 +210,6 @@ class MetaMaskHandler extends EthWebViewHandler {
   /// ===== JS通信 =====
   void postMessage(Map msg, String origin) {
     final targetOrigin = _targetOrigin(origin);
-    debugPrint(
-      'DApp postMessage targetOrigin=$targetOrigin payload=${json.encode(msg)}',
-    );
     final js =
         '''
       window.postMessage(${json.encode(msg)}, '$targetOrigin');

@@ -1,7 +1,5 @@
-
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
-import 'package:paracosm/modules/account/service/account_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/service/wallet_service.dart';
@@ -12,23 +10,23 @@ import '../model/wallet_model.dart';
 import '../security/wallet_security.dart';
 
 class WalletManager {
-
-  static final WalletManager _instance =
-  WalletManager._();
+  static final WalletManager _instance = WalletManager._();
 
   factory WalletManager() => _instance;
 
   WalletManager._();
 
-
   /// 创建账号（自动生成钱包）
-  static Future<WalletModel> createWallet(
-      {String? mnemonic, String? privateKey,required String password}) async {
-
-    final wallet = mnemonic == null && privateKey == null ?
-    await WalletService.createWallet(password) : mnemonic != null ?
-    await WalletService.importWalletByMnemonic(mnemonic,password)  :
-    await WalletService.importWalletByPrivateKey(privateKey!,password) ;
+  static Future<WalletModel> createWallet({
+    String? mnemonic,
+    String? privateKey,
+    required String password,
+  }) async {
+    final wallet = mnemonic == null && privateKey == null
+        ? await WalletService.createWallet(password)
+        : mnemonic != null
+        ? await WalletService.importWalletByMnemonic(mnemonic, password)
+        : await WalletService.importWalletByPrivateKey(privateKey!, password);
     return wallet;
   }
 
@@ -37,9 +35,14 @@ class WalletManager {
     required String walletId,
     required ChainType chainType,
     required String privateKey,
-    required String password}) async {
+    required String password,
+  }) async {
     final wallet = await WalletService.importPrivateKeyByChainType(
-        privateKey: privateKey, password: password, walletId: walletId,chainType: chainType);
+      privateKey: privateKey,
+      password: password,
+      walletId: walletId,
+      chainType: chainType,
+    );
     await WalletDao().updateWallet(wallet);
     await AccountManager().init();
     return wallet;
@@ -47,13 +50,12 @@ class WalletManager {
 
   static bool _initialized = false;
 
-  static Future<void> unlock({
-    required String walletId,
-  }) async {
+  static Future<void> unlock({required String walletId}) async {
     final mnemonic = await WalletSecurity.tryAutoUnlock(walletId);
     if (mnemonic == null) return;
 
     print('恢复----${mnemonic}');
+
     /// 2. 恢复三条链
     /// EVM
     EvmService.createWalletFromMnemonic(mnemonic);
@@ -73,10 +75,7 @@ class WalletManager {
   static bool get isUnlocked => _initialized;
 
   /// 生成私钥（多链支持）
-  static Future<String?> generatePrivateKey(
-      ChainAccount chain
-      ) async {
-
+  static Future<String?> generatePrivateKey(ChainAccount chain) async {
     switch (chain.chainType) {
       case ChainType.evm:
         return EvmService.getPrivateKeyByAddress(chain.address);
@@ -86,12 +85,11 @@ class WalletManager {
 
       case ChainType.bitcoin:
         return BitcoinService.getPrivateKeyByAddress(chain.address);
-
-      }
+    }
   }
 
   /// 修改钱包名
-  static Future<void> changeWalletName(String walletId,String name)async {
+  static Future<void> changeWalletName(String walletId, String name) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     wallet.name = name;
@@ -100,16 +98,17 @@ class WalletManager {
   }
 
   /// 修改钱包名
-  static Future<void> switchChain(String walletId,int chainId)async {
+  static Future<void> switchChain(String walletId, int chainId) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
+    if (!wallet.hasChain(chainId)) return;
     wallet.currentChainId = chainId;
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();
   }
 
   /// 添加链
-  static Future<void> addChain(String walletId,ChainAccount chain)async {
+  static Future<void> addChain(String walletId, ChainAccount chain) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     wallet.chains.add(chain);
@@ -118,14 +117,18 @@ class WalletManager {
   }
 
   /// 更新token
-  static Future<void> updateToken(String walletId,TokenModel token)async {
+  static Future<void> updateToken(String walletId, TokenModel token) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
-    final chainIndex = wallet.chains.indexWhere((item) => item.chainId == token.chainId);
+    final chainIndex = wallet.chains.indexWhere(
+      (item) => item.chainId == token.chainId,
+    );
     if (chainIndex == -1) return;
     ChainAccount chain = wallet.chains[chainIndex];
-    final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
-    if (tokenIndex == -1) return ;
+    final tokenIndex = chain.tokens.indexWhere(
+      (item) => item.symbol == token.symbol,
+    );
+    if (tokenIndex == -1) return;
     chain.tokens[tokenIndex] = token;
     wallet.chains[chainIndex] = chain;
     await WalletDao().updateWallet(wallet);
@@ -133,23 +136,29 @@ class WalletManager {
   }
 
   /// 添加token
-  static Future<void> addToken(String walletId,TokenModel token)async {
+  static Future<void> addToken(String walletId, TokenModel token) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
-    final chainIndex = wallet.chains.indexWhere((item) => item.chainId == token.chainId);
+    final chainIndex = wallet.chains.indexWhere(
+      (item) => item.chainId == token.chainId,
+    );
     if (chainIndex == -1) return;
     ChainAccount chain = wallet.chains[chainIndex];
-    final tokenIndex = chain.tokens.indexWhere((item) => item.symbol == token.symbol);
-    if (tokenIndex != -1){
+    final tokenAddress = token.address.toLowerCase();
+    final tokenIndex = chain.tokens.indexWhere((item) {
+      if (chain.chainType == ChainType.evm && tokenAddress.isNotEmpty) {
+        return item.address.toLowerCase() == tokenAddress;
+      }
+      return item.symbol == token.symbol;
+    });
+    if (tokenIndex != -1) {
       if (chain.tokens[tokenIndex].isAdded == true) return;
       chain.tokens[tokenIndex].isAdded = true;
-    }else{
+    } else {
       chain.tokens.add(token);
     }
     wallet.chains[chainIndex] = chain;
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();
   }
-
 }
-

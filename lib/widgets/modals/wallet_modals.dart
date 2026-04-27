@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/widgets/common/app_chain_selector.dart';
 import 'package:paracosm/widgets/modals/wallet_select_token_modal.dart';
 import 'package:paracosm/widgets/modals/wallet_switcher_modal.dart';
 import '../../modules/account/model/account_model.dart';
+import '../../modules/wallet/chains/model/gas_fee.dart';
 import '../../modules/wallet/manager/wallet_manager.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../util/string_util.dart';
 import '../base/app_localizations.dart';
 import '../common/app_modal.dart';
 import '../common/app_network_image.dart';
 import '../common/app_network_selector.dart';
+import '../common/app_toast.dart';
 
 class WalletModals {
   /// =========================
@@ -204,31 +208,68 @@ class WalletModals {
     BuildContext context, {
     required String amount,
     required String logo,
-    required String absenteeism,
+    required String network,
+    required String asset,
     required String from,
     required String to,
+    required FeeLevel feeLevel,
+    required Map<FeeLevel, String> feeOptions,
+    required Map<FeeLevel, Map<String, String>> feeDetails,
+    required ValueChanged<FeeLevel> onFeeLevelChanged,
     required VoidCallback onConfirm,
   }) {
-    Widget buildDetailRow(String label, String value) {
+    final l10n = AppLocalizations.of(context)!;
+    var selectedFeeLevel = feeLevel;
+    var isExpanded = false;
+
+    Future<void> copyToClipboard(String text) async {
+      await Clipboard.setData(ClipboardData(text: text));
+      AppToast.show(l10n.commonCopied);
+    }
+
+    Widget buildDetailRow(
+      String label,
+      String value, {
+      bool compact = true,
+      bool copyable = false,
+    }) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: AppTextStyles.body.copyWith(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.grey600,
             ),
           ),
-          Text(
-            value.length > 20
-                ? '${value.substring(0, 8)}...${value.substring(value.length - 4)}'
-                : value,
-            style: AppTextStyles.body.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.grey800,
+          const SizedBox(width: 16),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: copyable ? () => copyToClipboard(value) : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (copyable) ...[
+                    const Icon(Icons.copy, size: 14, color: AppColors.grey400),
+                    const SizedBox(width: 4),
+                  ],
+                  Flexible(
+                    child: Text(
+                      compact ? ellipsisMiddle(value, head: 8, tail: 6) : value,
+                      textAlign: TextAlign.right,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -237,54 +278,125 @@ class WalletModals {
 
     AppModal.show(
       context,
-      title: AppLocalizations.of(context)!.profileTransferPaymentDetails,
-      confirmText: AppLocalizations.of(context)!.profileTransferConfirmPayment,
+      title: l10n.profileTransferPaymentDetails,
+      confirmText: l10n.profileTransferConfirmPayment,
       onConfirm: onConfirm,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 16),
-          // 金额显示
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+      child: StatefulBuilder(
+        builder: (context, setModalState) {
+          final selectedFee = feeOptions[selectedFeeLevel] ?? '--';
+          final selectedDetails = feeDetails[selectedFeeLevel] ?? const {};
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      '-$amount',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h1.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  AppNetworkImage(
+                    url: logo,
+                    width: 20,
+                    height: 20,
+                    fit: BoxFit.contain,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text(
-                '-$amount',
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.grey900,
+                '$selectedFee (${l10n.profileTransferFeeEstimated})',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 12,
+                  color: AppColors.grey400,
                 ),
               ),
-              const SizedBox(width: 4),
-              AppNetworkImage(
-                url: logo,
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
+              const SizedBox(height: 24),
+              Container(height: 1, color: AppColors.grey100),
+              const SizedBox(height: 16),
+              buildDetailRow('From', from, copyable: true),
+              const SizedBox(height: 12),
+              buildDetailRow('To', to, copyable: true),
+              const SizedBox(height: 12),
+              buildDetailRow(l10n.profileTransferNetwork, network),
+              const SizedBox(height: 12),
+              buildDetailRow(l10n.profileTransferAsset, asset),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => setModalState(() => isExpanded = !isExpanded),
+                child: Row(
+                  children: [
+                    Text(
+                      isExpanded
+                          ? l10n.profileTransferHideTransactionInfo
+                          : l10n.profileTransferMoreTransactionInfo,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primaryLight,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: AppColors.primaryLight,
+                    ),
+                  ],
+                ),
               ),
+              if (isExpanded) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.grey100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      buildDetailRow('From', from, compact: false),
+                      const SizedBox(height: 12),
+                      buildDetailRow('To', to, compact: false),
+                      const SizedBox(height: 12),
+                      buildDetailRow(
+                        l10n.profileTransferEstimatedFee,
+                        selectedFee,
+                        compact: false,
+                      ),
+                      ...selectedDetails.entries.map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: buildDetailRow(
+                            entry.key,
+                            entry.value,
+                            compact: false,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
             ],
-          ),
-          const SizedBox(height: 4),
-          // 预估金额
-          Text(
-            '$absenteeism (Absenteeism)',
-            style: AppTextStyles.body.copyWith(
-              fontSize: 12,
-              color: AppColors.grey400,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // 分割线
-          Container(height: 1, color: AppColors.grey100),
-          const SizedBox(height: 16),
-          // 地址详情
-          buildDetailRow('From', from),
-          const SizedBox(height: 12),
-          buildDetailRow('To', to),
-          const SizedBox(height: 16),
-        ],
+          );
+        },
       ),
     );
   }

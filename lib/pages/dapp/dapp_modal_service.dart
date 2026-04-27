@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../modules/wallet/chains/model/gas_fee.dart';
 import '../../modules/wallet/security/wallet_security.dart';
 import 'dapp_models.dart';
 import '../../widgets/base/app_localizations.dart';
@@ -26,12 +27,14 @@ class DAppModalService {
     );
   }
 
-  static Future<bool?> showTransaction({
+  static Future<DappTransactionDecision?> showTransaction({
     required BuildContext context,
     required String amount,
     required String logo,
     required String from,
     required String to,
+    required GasLevel gasLevel,
+    required String feeSymbol,
     String? walletLabel,
     String? feeDescription,
     BigInt? gasLimit,
@@ -44,6 +47,8 @@ class DAppModalService {
       logo: logo,
       from: from,
       to: to,
+      gasLevel: gasLevel,
+      feeSymbol: feeSymbol,
       walletLabel: walletLabel,
       feeDescription: feeDescription,
       gasLimit: gasLimit,
@@ -85,6 +90,26 @@ class DAppModalService {
       rpc: rpc,
       symbol: symbol,
       origin: origin,
+    );
+  }
+
+  static Future<bool?> showWatchAsset({
+    required BuildContext context,
+    required String host,
+    required String address,
+    required String symbol,
+    required int decimals,
+    required String image,
+    required String chainName,
+  }) {
+    return DappModals.showWatchAssetSheet(
+      context,
+      host: host,
+      address: address,
+      symbol: symbol,
+      decimals: decimals,
+      image: image,
+      chainName: chainName,
     );
   }
 

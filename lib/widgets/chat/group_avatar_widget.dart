@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-
 import '../../modules/im/manager/im_group_member_manager.dart';
 
 class GroupAvatarWidget extends StatefulWidget {
-  final RCIMIWGroupInfo group;
+  final String groupId;
+  final String? portraitUri;
   final double size;
 
   const GroupAvatarWidget({
     super.key,
-    required this.group,
+    required this.groupId,
+    this.portraitUri,
     this.size = 44,
   });
 
@@ -22,7 +22,7 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
   List<String> _memberAvatars = [];
   bool _loading = true;
 
-  String get _groupId => widget.group.groupId ?? '';
+  String get _groupId => widget.groupId;
 
   @override
   void initState() {
@@ -37,7 +37,7 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
     try {
       /// ⚠️ 只有没有群头像才拉成员
       final hasGroupAvatar =
-          (widget.group.portraitUri ?? '').isNotEmpty;
+          (widget.portraitUri ?? '').isNotEmpty;
 
       if (hasGroupAvatar) {
         setState(() {
@@ -80,7 +80,7 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
     /// =========================
     /// 1. 群头像优先
     /// =========================
-    final groupAvatar = widget.group.portraitUri;
+    final groupAvatar = widget.portraitUri;
     if (groupAvatar != null && groupAvatar.isNotEmpty) {
       return _buildSingle(groupAvatar);
     }

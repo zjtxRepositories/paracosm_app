@@ -142,17 +142,17 @@ class _GroupListPageState extends State<GroupListPage> {
                     ),
                   ),
                   // 该字母下的群组列表
-                  ...List.generate(
-                    group['groups'].length,
-                    (i) => ContactItem(
-                      name: group['groups'][i]['name'],
-                      avatar: group['groups'][i]['avatars'],
-                      showDivider: i != group['groups'].length - 1,
-                      onTap: () {
-                        // TODO: 跳转群组聊天详情
-                      },
-                    ),
-                  ),
+                  // ...List.generate(
+                  //   group['groups'].length,
+                  //   (i) => ContactItem(
+                  //     name: group['groups'][i]['name'],
+                  //     avatar: group['groups'][i]['avatars'],
+                  //     showDivider: i != group['groups'].length - 1,
+                  //     onTap: () {
+                  //       // TODO: 跳转群组聊天详情
+                  //     },
+                  //   ),
+                  // ),
                 ],
               );
             },

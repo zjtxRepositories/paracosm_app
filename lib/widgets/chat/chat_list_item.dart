@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+
+import 'group_avatar_widget.dart';
 
 /// 聊天列表项组件 (支持单聊和群聊)
 class ChatListItem extends StatefulWidget {
@@ -8,8 +11,10 @@ class ChatListItem extends StatefulWidget {
   final String subtitle;
   final String time;
   final int unreadCount;
-  final List<String>? avatars; // 如果是群聊，传入多个头像 URL
   final bool isMuted;
+  final String? avatar;
+  final String? userId;
+  final String? groupId;
   final VoidCallback? onTap;
 
   const ChatListItem({
@@ -18,8 +23,10 @@ class ChatListItem extends StatefulWidget {
     required this.subtitle,
     required this.time,
     this.unreadCount = 0,
-    this.avatars,
     this.isMuted = false,
+    this.avatar,
+    this.userId,
+    this.groupId,
     this.onTap,
   });
 
@@ -278,63 +285,18 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
   }
 
   Widget _buildAvatar() {
-    final avatars = widget.avatars;
-    if (avatars == null || avatars.isEmpty) {
-      // 默认头像
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.person, color: AppColors.grey400),
+    if (widget.userId != null) {
+      return UserAvatarWidget(
+        userId: widget.userId,
+        avatarUrl: widget.avatar,
+        size: 44,
+        borderRadius: BorderRadius.circular(10),
       );
     }
-
-    if (avatars!.length == 1) {
-      // 单个头像
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          image: DecorationImage(
-            image: AssetImage(avatars![0]),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    }
-
-    // 群聊头像 (2x2 网格)
-    return Container(
-      width: 44,
-      height: 44,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 1,
-          mainAxisSpacing: 1,
-        ),
-        itemCount: avatars!.length > 4 ? 4 : avatars!.length,
-        itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Image.asset(
-              avatars![index],
-              fit: BoxFit.cover,
-            ),
-          );
-        },
-      ),
+    return GroupAvatarWidget(
+      groupId: widget.groupId ?? '',
+      portraitUri: widget.avatar,
+      size: 44,
     );
   }
 }

@@ -28,11 +28,13 @@ class ImConversationManager {
   /// 多 Tab 缓存
   /// =========================
   final Map<int, List<RCIMIWConversation>> _tabCache = {};
+  Map<int, List<RCIMIWConversation>> get tabCache => _tabCache;
 
   /// Tab 类型
   final List<List<RCIMIWConversationType>> tabTypes = [
     RCIMIWConversationType.values,
-    [RCIMIWConversationType.private,RCIMIWConversationType.group],
+    [RCIMIWConversationType.private],
+    [RCIMIWConversationType.group],
     [RCIMIWConversationType.system],
   ];
 

@@ -2,27 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/conversation_model.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
-import 'package:paracosm/modules/wallet/security/wallet_security.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
-import 'package:paracosm/pages/chat/friend_request_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/chat_list_item.dart';
 import 'package:paracosm/widgets/chat/system_notification_item.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/chat/select_members_modal.dart';
-import 'package:paracosm/widgets/chat/quick_index_bar.dart';
-import 'package:paracosm/widgets/chat/contact_item.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../modules/im/manager/im_connection_manager.dart';
 import '../../modules/im/manager/im_friend_applications_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
+
+import 'contacts_view.dart';
 
 /// 聊天主列表页面
 class ChatPage extends StatefulWidget {
@@ -42,14 +42,17 @@ class _ChatPageState extends State<ChatPage> {
 
   late StreamSubscription _imConnectSub;
 
-  List<RCIMIWConversation> _conversations = [];
+  List<ConversationModel> _conversations = [];
   List<RCIMIWFriendInfo> _friends = [];
   List<RCIMIWGroupInfo> _groups = [];
   final List<List<RCIMIWConversationType>> _conversationTypes = [
     RCIMIWConversationType.values,
-    [RCIMIWConversationType.private,RCIMIWConversationType.group],
+    [RCIMIWConversationType.private],
+    [RCIMIWConversationType.group],
     [RCIMIWConversationType.system],
   ];
+  Map<int, List<RCIMIWConversation>>? _tabCache;
+  final resolver = ConversationResolver();
 
   @override
   void initState() {
@@ -58,9 +61,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void initListener() {
-    print('连接------1');
     _imConnectSub = ImConnectionManager().eventStream.listen((event) async {
-      print('连接------2');
       if (event == ImEvent.connected) {
          fetchData();
       }
@@ -68,16 +69,16 @@ class _ChatPageState extends State<ChatPage> {
 
   }
   Future<void> fetchData() async {
-    await fetchFriendApplicationData();
-    await fetchConversationData();
-    await fetchContactData();
-    await fetchGroupData();
+     fetchFriendApplicationData();
+     fetchConversationData();
+     fetchContactData();
+     fetchGroupData();
   }
 
   Future<void> fetchFriendApplicationData() async {
     final manager = ImFriendApplicationsManager();
     manager.stream.listen((list) {
-      print("好友申请列表更新: ${list.length}");
+      print("好友申请列表更新: ${list.length}----${manager.unhandledCount}");
       setState(() {
         _friendApplicationUnhandledCount = manager.unhandledCount;
       });
@@ -87,12 +88,26 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> fetchConversationData() async {
     final manager = ImConversationManager();
-    manager.stream.listen((map) {
-      setState(() {
-        _conversations = map[_selectedFilterIndex] ?? [];
-      });
+
+    manager.stream.listen((map) async {
+      _tabCache = manager.tabCache;
+      refreshConversationData();
     });
+
     await manager.initAllTabs();
+  }
+
+  Future<void> refreshConversationData() async {
+    final list = ImConversationManager().getTabList(_selectedFilterIndex);
+    final models = list
+        .map((e) => ConversationModel(info: e))
+        .toList();
+
+    setState(() {
+      _conversations = models;
+    });
+
+    _resolveConversations(models);
   }
 
   Future<void> fetchContactData() async {
@@ -101,6 +116,7 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _friends = list;
       });
+      debugPrint("获取好友:--- ${_friends.length}");
     });
     await manager.fetchFriends();
   }
@@ -116,134 +132,107 @@ class _ChatPageState extends State<ChatPage> {
     await manager.getAllJoinedGroups();
   }
 
+  Future<void> _resolveConversations(List<ConversationModel> models) async {
+    const batchSize = 10;
 
-  final List<Map<String, dynamic>> _mockChats = [
-    {
-      'type': 'system',
-      'title': 'chat_notification_title', // 使用 key
-      'subtitle': 'Linsy: The white paper of this project is a...',
-      'time': '10:24',
-      'unreadCount': 3,
-      'icon': Icons.notifications,
-      'iconBgColor': const Color(0xFFF7B500), // 黄色背景
-    },
-    {
-      'type': 'chat',
-      'title': 'John Gonzales',
-      'subtitle': 'Hi, What are you doning?',
-      'time': '17:48',
-      'unreadCount': 4,
-      'avatars': ['assets/images/chat/avatar.png'], // 暂用已有的占位图
-    },
-    {
-      'type': 'chat',
-      'title': 'PARACOSM Group',
-      'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
-      'time': '16:02',
-      'unreadCount': 4,
-      'avatars': [
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-      ],
-    },
-    {
-      'type': 'chat',
-      'title': 'Kristen',
-      'subtitle': 'chat_image', // 使用 key
-      'time': '16:00',
-      'unreadCount': 0,
-      'avatars': ['assets/images/chat/avatar.png'],
-    },
-    {
-      'type': 'chat',
-      'title': 'Dirac',
-      'subtitle': 'You have unread about GameFi?',
-      'time': '15:24',
-      'unreadCount': 0,
-      'isMuted': true,
-      'avatars': ['assets/images/chat/avatar.png'],
-    },
-    {
-      'type': 'chat',
-      'title': 'Joey',
-      'subtitle': 'That\'s right😎',
-      'time': '12:09',
-      'unreadCount': 0,
-      'avatars': ['assets/images/chat/avatar.png'],
-    },
-    {
-      'type': 'chat',
-      'title': 'Kristen',
-      'subtitle': 'Let\'s play together on the weekend ! Do you a...',
-      'time': '10:49',
-      'unreadCount': 0,
-      'avatars': ['assets/images/chat/avatar.png'],
-    },
-    {
-      'type': 'chat',
-      'title': 'John Gonzales',
-      'subtitle': 'OK',
-      'time': '09:17',
-      'unreadCount': 0,
-      'avatars': ['assets/images/chat/avatar.png'],
-    },
-    {
-      'type': 'chat',
-      'title': 'Work project',
-      'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
-      'time': 'chat_yesterday', // 使用 key
-      'unreadCount': 0,
-      'avatars': [
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-        'assets/images/chat/avatar.png',
-      ],
-    },
-  ];
+    for (int i = 0; i < models.length; i += batchSize) {
+      final batch = models.skip(i).take(batchSize);
 
-  final List<Map<String, dynamic>> _mockContacts = [
-    {
-      'initial': 'chat_group', // 使用 key
-      'type': 'header',
-    },
-    {
-      'initial': 'chat_star_friend', // 使用 key
-      'contacts': [
-        {'name': 'Kristen', 'avatar': 'assets/images/chat/avatar.png', 'isStar': true},
-        {'name': 'John Bonzales', 'avatar': 'assets/images/chat/avatar.png', 'isStar': true},
-      ]
-    },
-    {
-      'initial': 'P',
-      'contacts': [
-        {'name': 'Patrick', 'avatar': 'assets/images/chat/avatar.png'},
-        {'name': 'Pius', 'avatar': 'assets/images/chat/avatar.png'},
-        {'name': 'Padraic', 'avatar': 'assets/images/chat/avatar.png'},
-        {'name': 'Pat', 'avatar': 'assets/images/chat/avatar.png'},
-        {'name': 'Philemen', 'avatar': 'assets/images/chat/avatar.png'},
-      ]
-    },
-    {
-      'initial': 'Q',
-      'contacts': [
-        {'name': 'Albert Flores', 'avatar': 'assets/images/chat/avatar.png'},
-        {'name': 'Annette Black', 'avatar': 'assets/images/chat/avatar.png'},
-      ]
-    },
-    {
-      'initial': 'R',
-      'contacts': [
-        {'name': 'Ralph Edwards', 'avatar': 'assets/images/chat/avatar.png'},
-      ]
+      await Future.wait(
+        batch.map((m) => resolver.resolve(m)),
+      );
+
+      if (mounted) {
+        setState(() {}); // 👉 触发局部刷新
+      }
     }
-  ];
-
-  final List<String> _indexLetters = [
-    '★', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-  ];
+  }
+  // final List<Map<String, dynamic>> _mockChats = [
+  //   {
+  //     'type': 'system',
+  //     'title': 'chat_notification_title', // 使用 key
+  //     'subtitle': 'Linsy: The white paper of this project is a...',
+  //     'time': '10:24',
+  //     'unreadCount': 3,
+  //     'icon': Icons.notifications,
+  //     'iconBgColor': const Color(0xFFF7B500), // 黄色背景
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'John Gonzales',
+  //     'subtitle': 'Hi, What are you doning?',
+  //     'time': '17:48',
+  //     'unreadCount': 4,
+  //     'avatars': ['assets/images/chat/avatar.png'], // 暂用已有的占位图
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'PARACOSM Group',
+  //     'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
+  //     'time': '16:02',
+  //     'unreadCount': 4,
+  //     'avatars': [
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //     ],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'Kristen',
+  //     'subtitle': 'chat_image', // 使用 key
+  //     'time': '16:00',
+  //     'unreadCount': 0,
+  //     'avatars': ['assets/images/chat/avatar.png'],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'Dirac',
+  //     'subtitle': 'You have unread about GameFi?',
+  //     'time': '15:24',
+  //     'unreadCount': 0,
+  //     'isMuted': true,
+  //     'avatars': ['assets/images/chat/avatar.png'],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'Joey',
+  //     'subtitle': 'That\'s right😎',
+  //     'time': '12:09',
+  //     'unreadCount': 0,
+  //     'avatars': ['assets/images/chat/avatar.png'],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'Kristen',
+  //     'subtitle': 'Let\'s play together on the weekend ! Do you a...',
+  //     'time': '10:49',
+  //     'unreadCount': 0,
+  //     'avatars': ['assets/images/chat/avatar.png'],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'John Gonzales',
+  //     'subtitle': 'OK',
+  //     'time': '09:17',
+  //     'unreadCount': 0,
+  //     'avatars': ['assets/images/chat/avatar.png'],
+  //   },
+  //   {
+  //     'type': 'chat',
+  //     'title': 'Work project',
+  //     'subtitle': 'Linsy: Nice work,That\'s gonna be great if...',
+  //     'time': 'chat_yesterday', // 使用 key
+  //     'unreadCount': 0,
+  //     'avatars': [
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //       'assets/images/chat/avatar.png',
+  //     ],
+  //   },
+  // ];
 
   @override
   void dispose() {
@@ -263,92 +252,82 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建聊天列表视图
   Widget _buildChatView() {
-    if (_conversations.isNotEmpty) {
-      final filteredConversations = _filterConversations();
-      return Column(
-        children: [
-          _buildFriendRequestCard(),
-          _buildFilterBar(),
-          Expanded(
-            child: filteredConversations.isEmpty
-                ? AppEmptyView(
-                    text: AppLocalizations.of(context)!.chatSearchNoData,
-                    bottomOffset: 50,
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: filteredConversations.length,
-                    itemBuilder: (context, index) {
-                      final conversation = filteredConversations[index];
-                      final title = _conversationTitle(conversation);
-                      return ChatListItem(
-                        title: title,
-                        subtitle: _conversationSubtitle(conversation),
-                        time: _conversationTime(conversation),
-                        unreadCount: conversation.unreadCount ?? 0,
-                        avatars: _conversationAvatars(conversation),
-                        isMuted: false,
-                        onTap: () => _navigateToConversationDetail(conversation, title),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      );
-    }
+    // if (_conversations.isNotEmpty) {
+    //   final filteredConversations = _filterConversations();
+    //   return Column(
+    //     children: [
+    //       _buildFriendRequestCard(),
+    //       _buildFilterBar(),
+    //       Expanded(
+    //         child: filteredConversations.isEmpty
+    //             ? AppEmptyView(
+    //                 text: AppLocalizations.of(context)!.chatSearchNoData,
+    //                 bottomOffset: 50,
+    //               )
+    //             : ListView.builder(
+    //                 padding: EdgeInsets.zero,
+    //                 itemCount: filteredConversations.length,
+    //                 itemBuilder: (context, index) {
+    //                   final conversation = filteredConversations[index];
+    //                   final title = _conversationTitle(conversation);
+    //                   return ChatListItem(
+    //                     title: title,
+    //                     subtitle: _conversationSubtitle(conversation),
+    //                     time: _conversationTime(conversation),
+    //                     unreadCount: conversation.unreadCount ?? 0,
+    //                     avatars: _conversationAvatars(conversation),
+    //                     isMuted: false,
+    //                     onTap: () => _navigateToConversationDetail(conversation, title),
+    //                   );
+    //                 },
+    //               ),
+    //       ),
+    //     ],
+    //   );
+    // }
 
     // 简单的过滤逻辑，为了演示切换 Tab 时的空状态效果
     // 0: All, 1: Message, 2: DAO, 3: Club, 4: Others
-    final filteredChats = _mockChats.where((chat) {
-      if (_selectedFilterIndex == 0) return true; // All
-      if (_selectedFilterIndex == 1) return chat['type'] == 'chat' || chat['type'] == 'system'; // Message
-      return false; // DAO, Club, Others 暂无数据
-    }).toList();
+    // final filteredChats = _conversations.where((chat) {
+    //   if (_selectedFilterIndex == 0) return true; // All
+    //   if (_selectedFilterIndex == 1) return chat['type'] == 'chat' || chat['type'] == 'system'; // Message
+    //   return false; // DAO, Club, Others 暂无数据
+    // }).toList();
 
     return Column(
       children: [
         _buildFriendRequestCard(),
         _buildFilterBar(),
         Expanded(
-          child: filteredChats.isEmpty
+          child: _conversations.isEmpty
               ? AppEmptyView(
                   text: AppLocalizations.of(context)!.chatSearchNoData,
                   bottomOffset: 50, // 调整偏移，视觉更平衡
                 )
               : ListView.builder(
                   padding: EdgeInsets.zero,
-                  itemCount: filteredChats.length,
+                  itemCount: _conversations.length,
                   itemBuilder: (context, index) {
-                    final item = filteredChats[index];
-                    if (item['type'] == 'system') {
+                    final item = _conversations[index];
+                    if (item.info.conversationType == RCIMIWConversationType.system) {
                       return SystemNotificationItem(
-                        title: item['title'] == 'chat_notification_title'
-                            ? AppLocalizations.of(context)!.chatNotificationTitle
-                            : item['title'],
-                        subtitle: item['subtitle'],
-                        time: item['time'] == 'chat_yesterday'
-                            ? AppLocalizations.of(context)!.chatYesterday
-                            : item['time'],
-                        unreadCount: item['unreadCount'],
-                        icon: item['icon'],
-                        iconBgColor: item['iconBgColor'],
-                        onTap: () => _navigateToDetail(item['title']),
+                        title: AppLocalizations.of(context)!.chatNotificationTitle,
+                        subtitle: 'sub',
+                        time: AppLocalizations.of(context)!.chatYesterday,
+                        unreadCount: 1,
+                        icon: Icons.nat,
+                        // iconBgColor: item['iconBgColor'],
+                        // onTap: () => _navigateToDetail(item['title']),
                       );
                     } else {
                       return ChatListItem(
-                        title: item['title'],
-                        subtitle: item['subtitle'] == 'chat_image'
-                            ? AppLocalizations.of(context)!.chatImage
-                            : (item['subtitle'] == 'chat_voice'
-                                ? AppLocalizations.of(context)!.chatVoice
-                                : item['subtitle']),
-                        time: item['time'] == 'chat_yesterday'
-                            ? AppLocalizations.of(context)!.chatYesterday
-                            : item['time'],
-                        unreadCount: item['unreadCount'],
-                        avatars: item['avatars'],
-                        isMuted: item['isMuted'] ?? false,
-                        onTap: () => _navigateToDetail(item['title']),
+                        title: item.title ?? '',
+                        subtitle: item.subtitle ?? '',
+                        time: formatTimeAgo(item.info.operationTime ?? 0),
+                        unreadCount: item.info.unreadCount ?? 0,
+                        avatar: item.portraitUri ?? '',
+                        isMuted: false,
+                        onTap: () => _navigateToDetail(item.title ?? ''),
                       );
                     }
                   },
@@ -425,74 +404,16 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建联系人列表视图
   Widget _buildContactsView() {
-    if (_mockContacts.isEmpty) {
-      return AppEmptyView(
-        text: AppLocalizations.of(context)!.chatSearchNoData,
-      );
-    }
-    return Stack(
-      key: _contactsStackKey,
-      children: [
-        ListView.builder(
-          controller: _contactScrollController,
-          padding: EdgeInsets.zero,
-          itemCount: _mockContacts.length,
-          itemBuilder: (context, index) {
-            final group = _mockContacts[index];
-            if (group['type'] == 'header') {
-              return _buildGroupHeader();
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 分组首字母
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    group['initial'] == 'chat_group' 
-                        ? AppLocalizations.of(context)!.chatGroup 
-                        : (group['initial'] == 'chat_star_friend' 
-                            ? AppLocalizations.of(context)!.chatStarFriend 
-                            : group['initial']),
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.grey400,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ),
-                // 联系人列表
-                ...List.generate(
-                  group['contacts'].length,
-                  (i) => ContactItem(
-                    name: group['contacts'][i]['name'],
-                    avatar: group['contacts'][i]['avatar'],
-                    isStar: group['contacts'][i]['isStar'] ?? false,
-                    showDivider: i != group['contacts'].length - 1,
-                    onTap: () => _navigateToDetail(group['contacts'][i]['name']),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        // 右侧索引栏
-        Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: QuickIndexBar(
-              letters: _indexLetters,
-              onLetterSelected: _scrollToInitial,
-            ),
-          ),
-        ),
-      ],
+    return ContactsView(
+      friends: _friends,
+      groups: _groups,
+      controller: _contactScrollController,
+      buildGroupHeader: _buildGroupHeader,
+      onTapContact: (userId) {
+        _navigateToDetail(userId);
+      },
     );
   }
-
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
@@ -540,7 +461,7 @@ class _ChatPageState extends State<ChatPage> {
                         fontSize: 12,
                       ),
                       children: [
-                        TextSpan(text: AppLocalizations.of(context)!.chatGroupManageCount(3)),
+                        TextSpan(text: AppLocalizations.of(context)!.chatGroupManageCount(_groups.length)),
                       ],
                     ),
                   ),
@@ -553,27 +474,9 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  /// 滚动到指定的首字母位置
-  void _scrollToInitial(String initial) {
-    int targetIndex = _mockContacts.indexWhere((group) => group['initial'] == initial);
-    if (targetIndex != -1) {
-      double offset = 0;
-      for (int i = 0; i < targetIndex; i++) {
-        final group = _mockContacts[i];
-        if (group['type'] == 'header') {
-          offset += 76.0; // GroupHeader 高度
-        } else {
-          offset += 36.0; // 分组标题高度
-          offset += (group['contacts'] as List).length * 76.0; // 联系人高度
-        }
-      }
-      _contactScrollController.jumpTo(offset); // 使用 jumpTo 实现即时跟随
-    }
-  }
-
-  void _navigateToDetail(String title) {
-    final encodedName = Uri.encodeComponent(title);
-    context.push('/chat-detail/$encodedName');
+  void _navigateToDetail(String userId) {
+    // final encodedName = Uri.encodeComponent(title);
+    // context.push('/chat-detail/$encodedName');
   }
 
   void _navigateToConversationDetail(
@@ -592,54 +495,6 @@ class _ChatPageState extends State<ChatPage> {
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
       ),
     );
-  }
-
-  List<RCIMIWConversation> _filterConversations() {
-    if (_selectedFilterIndex == 0) return _conversations;
-    if (_selectedFilterIndex == 1) {
-      return _conversations.where((conversation) {
-        final type = conversation.conversationType;
-        return type == RCIMIWConversationType.private ||
-            type == RCIMIWConversationType.group ||
-            type == RCIMIWConversationType.system;
-      }).toList();
-    }
-    return const [];
-  }
-
-  String _conversationTitle(RCIMIWConversation conversation) {
-    final lastMessage = conversation.lastMessage;
-    final userInfoName = lastMessage?.userInfo?.name;
-    if (userInfoName != null && userInfoName.isNotEmpty) {
-      return userInfoName;
-    }
-    return conversation.targetId ?? 'Chat';
-  }
-
-  String _conversationSubtitle(RCIMIWConversation conversation) {
-    final lastMessage = conversation.lastMessage;
-    if (lastMessage is RCIMIWTextMessage) {
-      return lastMessage.text ?? '';
-    }
-    return '[暂不支持的消息类型]';
-  }
-
-  String _conversationTime(RCIMIWConversation conversation) {
-    final timestamp =
-        conversation.lastMessage?.sentTime ?? conversation.operationTime;
-    if (timestamp == null) return '';
-    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
-  List<String>? _conversationAvatars(RCIMIWConversation conversation) {
-    final portrait = conversation.lastMessage?.userInfo?.portrait;
-    if (portrait == null || portrait.isEmpty) {
-      return ['assets/images/chat/avatar.png'];
-    }
-    return [portrait];
   }
 
   /// 构建自定义导航栏
@@ -777,11 +632,18 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建消息分类过滤栏 (All, Message, DAO...)
   Widget _buildFilterBar() {
     final filters = [
-      AppLocalizations.of(context)!.chatFilterAllCount(8),
-      AppLocalizations.of(context)!.chatFilterMessageCount(10),
-      AppLocalizations.of(context)!.chatFilterDaoCount(50),
-      AppLocalizations.of(context)!.chatFilterClubCount(90),
-      AppLocalizations.of(context)!.chatFilterOthers
+      AppLocalizations.of(context)!
+          .chatFilterAllCount(_tabCache?[0]?.length ?? 0),
+
+      '私聊 ${_tabCache?[1]?.length ?? 0}',
+
+      '群聊 ${_tabCache?[2]?.length ?? 0}',
+
+      AppLocalizations.of(context)!
+          .chatFilterClubCount(_tabCache?[3]?.length ?? 0),
+
+      AppLocalizations.of(context)!
+          .chatFilterDaoCount(0),
     ];
     return Container(
       height: 42,
@@ -796,6 +658,7 @@ class _ChatPageState extends State<ChatPage> {
               setState(() {
                 _selectedFilterIndex = index;
               });
+              refreshConversationData();
             },
             child: Container(
               margin: EdgeInsets.only(right: 24),

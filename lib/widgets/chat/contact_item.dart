@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 /// 联系人列表项组件 (支持单聊和群聊头像)
 class ContactItem extends StatelessWidget {
   final String name;
-  final dynamic avatar; // 可以是 String (单人) 或 List<String> (群聊)
+  final String portraitUri;
+  final String? userId;
+  final String? groupId;
   final VoidCallback? onTap;
   final bool showDivider;
   final bool isStar; // 是否显示星标
@@ -13,8 +17,10 @@ class ContactItem extends StatelessWidget {
   const ContactItem({
     super.key,
     required this.name,
-    required this.avatar,
+    required this.portraitUri,
     this.onTap,
+    this.userId,
+    this.groupId,
     this.showDivider = true,
     this.isStar = false,
   });
@@ -80,39 +86,19 @@ class ContactItem extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
-    if (avatar is List<String>) {
-      final List<String> avatars = avatar as List<String>;
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppColors.grey100,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        padding: const EdgeInsets.all(2),
-        child: GridView.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: 2,
-          crossAxisSpacing: 2,
-          physics: const NeverScrollableScrollPhysics(),
-          children: avatars.take(4).map((img) => ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Image.asset(img, fit: BoxFit.cover),
-          )).toList(),
-        ),
-      );
-    } else {
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          image: DecorationImage(
-            image: AssetImage(avatar.toString()),
-            fit: BoxFit.cover,
-          ),
-        ),
+    if (userId != null){
+      return UserAvatarWidget(
+        userId: userId,
+        avatarUrl: portraitUri,
+        size: 44,
+        borderRadius: BorderRadius.circular(10),
       );
     }
+    return GroupAvatarWidget(
+      groupId: groupId ?? '',
+      portraitUri: portraitUri,
+      size: 44,
+    );
+
   }
 }

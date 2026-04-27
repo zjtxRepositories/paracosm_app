@@ -67,7 +67,7 @@ class WalletManager {
     await BitcoinService.getOrCreateWallet(mnemonic);
 
     /// 3. BTC 同步（重要）
-    await BitcoinService.sync(mnemonic);
+    BitcoinService.sync(mnemonic);
 
     _initialized = true;
   }

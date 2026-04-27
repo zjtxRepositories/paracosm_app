@@ -518,7 +518,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
 
   /// 构建群聊 4-grid 头像
   Widget _buildGroupAvatar(RCIMIWGroupInfo group) {
-    return GroupAvatarWidget(group: group,);
+    return GroupAvatarWidget(groupId: group.groupId ?? '', portraitUri: group.portraitUri,);
   }
 
   /// 构建带高亮显示的文本

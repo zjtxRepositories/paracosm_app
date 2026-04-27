@@ -74,11 +74,11 @@ abstract class EthWeb3Handler {
   /// ===== 交易 =====
   Future<String> ethSendTransaction(Map data);
 
-  Future<String> walletAddEthereumChain(Map data);
+  Future<void> walletAddEthereumChain(Map data);
 
-  Future<String> walletSwitchEthereumChain(Map data);
+  Future<void> walletSwitchEthereumChain(Map data);
 
-  Future<String> walletWatchAsset(Map data);
+  Future<bool> walletWatchAsset(Map data);
 
   /// ===== RPC =====
   Future<dynamic> rpcCall(String method, [List<dynamic>? params]);

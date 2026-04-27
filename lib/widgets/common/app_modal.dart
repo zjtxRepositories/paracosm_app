@@ -81,9 +81,9 @@ class AppModal extends StatelessWidget {
         cancelColor: cancelColor,
         cancelTextColor: cancelTextColor,
         icon: icon,
-        child: child,
         onConfirm: onConfirm,
         onCancel: onCancel,
+        child: child,
       ),
     );
   }
@@ -94,29 +94,35 @@ class AppModal extends StatelessWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + 24,
-          left: 20,
-          right: 20,
-          top: 12,
-        ),
-        child: SingleChildScrollView(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 20,
+            right: 20,
+            top: 8,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 顶部指示条
+              const SizedBox(height: 8),
               Center(
                 child: Container(
-                  width: 40,
+                  width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: AppColors.grey200,
+                    color: AppColors.grey300,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -126,15 +132,18 @@ class AppModal extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  titleWidget ??
-                      Text(
-                        title,
-                        style: AppTextStyles.h2.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.grey900,
+                  Expanded(
+                    child:
+                        titleWidget ??
+                        Text(
+                          title,
+                          style: AppTextStyles.h2.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          ),
                         ),
-                      ),
+                  ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
@@ -153,57 +162,11 @@ class AppModal extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 16, bottom: 24),
               ),
               // 内容区域
-              if (child != null)
-                child!
-              else ...[
-                // 默认的风险提示布局
-                icon ??
-                    Image.asset(
-                      'assets/images/wallet/no-photo.png',
-                      width: 120,
-                      height: 120,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 120,
-                        height: 120,
-                        decoration: const BoxDecoration(
-                          color: AppColors.grey100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.no_photography_outlined,
-                          size: 64,
-                          color: AppColors.warning,
-                        ),
-                      ),
-                    ),
-                const SizedBox(height: 16),
-                if (subtitle != null) ...[
-                  Center(
-                    child: Text(
-                      subtitle!,
-                      style: AppTextStyles.h1.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.black,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (description != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      description!,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.body.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.black,
-                      ),
-                    ),
-                  ),
-              ],
+              Flexible(
+                child: SingleChildScrollView(
+                  child: child ?? _buildDefaultContent(),
+                ),
+              ),
               // 按钮
               if (confirmText != null || cancelText != null)
                 const SizedBox(height: 36),
@@ -254,6 +217,60 @@ class AppModal extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDefaultContent() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        icon ??
+            Image.asset(
+              'assets/images/wallet/no-photo.png',
+              width: 120,
+              height: 120,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 120,
+                height: 120,
+                decoration: const BoxDecoration(
+                  color: AppColors.grey100,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.no_photography_outlined,
+                  size: 64,
+                  color: AppColors.warning,
+                ),
+              ),
+            ),
+        const SizedBox(height: 16),
+        if (subtitle != null) ...[
+          Center(
+            child: Text(
+              subtitle!,
+              style: AppTextStyles.h1.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (description != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              description!,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

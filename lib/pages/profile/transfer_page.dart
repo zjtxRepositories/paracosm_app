@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
@@ -28,11 +27,7 @@ class TransferPage extends StatefulWidget {
   final TokenModel? token;
   final ChainAccount? chain;
 
-  const TransferPage({
-    super.key,
-    required this.token,
-    required this.chain,
-  });
+  const TransferPage({super.key, required this.token, required this.chain});
 
   @override
   State<TransferPage> createState() => _TransferPageState();
@@ -50,17 +45,22 @@ class _TransferPageState extends State<TransferPage> {
   String _balance = '0.00';
   String _usdValue = '0.00';
   double _feeProgress = 0.0; // 0: Slow, 0.5: Middle, 1: Fast
+  FeeLevel _feeLevel = FeeLevel.slow;
   GasFee? _gasFee;
+  final Map<FeeLevel, double> _feeByLevel = {};
+  final Map<FeeLevel, GasFee> _gasFeeByLevel = {};
+  final Map<FeeLevel, int> _btcFeeRateByLevel = {};
+  static const int _btcEstimatedVBytes = 140;
 
   @override
   void initState() {
     super.initState();
-    if (_wallet != null && widget.chain == null){
+    if (_wallet != null && widget.chain == null) {
       _selectedNetwork = _wallet.currentChain;
     }
     _selectedNetwork ??= widget.chain;
     _showToken = widget.token;
-    getBalance(token: widget.token,chain: widget.chain);
+    getBalance(token: widget.token, chain: widget.chain);
     getCalculateFee();
   }
 
@@ -72,48 +72,96 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Future<void> getBalance({TokenModel? token, ChainAccount? chain}) async {
-    if (token != null){
+    if (token != null) {
       _token = token;
       _balance = token.displayBalance;
-    }else {
-      if (chain != null){
+    } else {
+      if (chain != null) {
         _token = chain.tokens.firstWhere((item) => item.address.isEmpty);
         _balance = _token!.displayBalance;
       }
     }
     setState(() {});
-    if (_token  != null){
-      PortfolioService().start( [_token!]);
+    if (_token != null) {
+      PortfolioService().start([_token!]);
     }
   }
 
-  Future<void> getCalculateFee({double progress = 0}) async {
+  Future<void> getCalculateFee({FeeLevel? level}) async {
+    final selectedLevel = level ?? _feeLevel;
     if (_selectedNetwork?.chainType == ChainType.evm) {
-      final GasLevel gasLevel = await EvmFacade.gas(
-          _selectedNetwork!);
+      final GasLevel gasLevel = await EvmFacade.gas(_selectedNetwork!);
       final gasLimit = BigInt.from(21000);
-      _gasFee = progress == 0 ? gasLevel.slow : progress == 0.5
-          ? gasLevel.medium
-          : gasLevel.fast;
+      _gasFeeByLevel
+        ..clear()
+        ..addAll({
+          FeeLevel.slow: gasLevel.slow,
+          FeeLevel.medium: gasLevel.medium,
+          FeeLevel.fast: gasLevel.fast,
+        });
+      _feeByLevel
+        ..clear()
+        ..addAll({
+          for (final entry in _gasFeeByLevel.entries)
+            entry.key: GasCalculator.calculateEthFee(
+              gasLimit: gasLimit,
+              fee: entry.value,
+            ),
+        });
+      _gasFee = _gasFeeByLevel[selectedLevel];
       final ethFee = GasCalculator.calculateEthFee(
         gasLimit: gasLimit,
         fee: _gasFee!,
       );
+      if (!mounted) return;
       setState(() {
+        _feeLevel = selectedLevel;
+        _feeProgress = _progressFromFeeLevel(selectedLevel);
         _calculateFee = ethFee;
       });
     }
     if (_selectedNetwork?.chainType == ChainType.bitcoin) {
       final BtcFeeRate feeRateData = await BitcoinChainService.getFeeRate();
-      int feeRate = progress == 0 ? feeRateData.slow : progress == 0.5
-          ? feeRateData.medium
-          : feeRateData.fast;
-      final vBytes = 140;
-      final fee = GasCalculator.calculateBtcFee(
-          vBytes: vBytes, feeRate: feeRate);
+      _btcFeeRateByLevel
+        ..clear()
+        ..addAll({
+          FeeLevel.slow: feeRateData.slow,
+          FeeLevel.medium: feeRateData.medium,
+          FeeLevel.fast: feeRateData.fast,
+        });
+      _feeByLevel
+        ..clear()
+        ..addAll({
+          for (final entry in _btcFeeRateByLevel.entries)
+            entry.key: GasCalculator.calculateBtcFee(
+              vBytes: _btcEstimatedVBytes,
+              feeRate: entry.value,
+            ),
+        });
+      final fee = _feeByLevel[selectedLevel] ?? 0;
+      if (!mounted) return;
       setState(() {
+        _feeLevel = selectedLevel;
+        _feeProgress = _progressFromFeeLevel(selectedLevel);
         _calculateFee = fee;
       });
+    }
+  }
+
+  FeeLevel _feeLevelFromProgress(double progress) {
+    if (progress == 0) return FeeLevel.slow;
+    if (progress == 0.5) return FeeLevel.medium;
+    return FeeLevel.fast;
+  }
+
+  double _progressFromFeeLevel(FeeLevel level) {
+    switch (level) {
+      case FeeLevel.slow:
+        return 0;
+      case FeeLevel.medium:
+        return 0.5;
+      case FeeLevel.fast:
+        return 1;
     }
   }
 
@@ -129,85 +177,157 @@ class _TransferPageState extends State<TransferPage> {
     return balance - _calculateFee;
   }
 
-  Future<void> _sendTransfer(String amount,String address) async {
+  Future<void> _sendTransfer(String amount, String address) async {
     try {
       AppLoading.show();
       String? tx;
       if (_selectedNetwork?.chainType == ChainType.evm) {
-        final amountWei = doubleToBigInt(double.parse(amount), decimals: _token!.decimals);
-        tx = await EvmFacade.send(chain: _selectedNetwork!,
-            contractAddress: _token!.address, to: address, amountWei: amountWei, gasFee: _gasFee);
+        final amountWei = doubleToBigInt(
+          double.parse(amount),
+          decimals: _token!.decimals,
+        );
+        tx = await EvmFacade.send(
+          chain: _selectedNetwork!,
+          contractAddress: _token!.address,
+          to: address,
+          amountWei: amountWei,
+          gasFee: _gasFee,
+        );
         // tx = '0xb09659fb4d4f7c59397c1823e993fde0d6c1cbab4c4feae3e017d2f4c5e74825';
       }
       if (_selectedNetwork?.chainType == ChainType.bitcoin) {
         final satoshis = GasCalculator.btcToSatoshi(amount);
-        tx = await BitcoinChainService.sendTransaction(fromAddress: _selectedNetwork!.address,
-             toAddress: address, amount: satoshis, feePerVbyte:_calculateFee);
+        final feeRate =
+            _btcFeeRateByLevel[_feeLevel] ??
+            (await BitcoinChainService.getFeeRate()).medium;
+        tx = await BitcoinChainService.sendTransaction(
+          fromAddress: _selectedNetwork!.address,
+          toAddress: address,
+          amount: satoshis,
+          feePerVbyte: feeRate.toDouble(),
+        );
       }
 
       if (_selectedNetwork?.chainType == ChainType.solana) {
-        tx = await SolanaChainService().sendSol(address: _selectedNetwork!.address,
-            toAddress: address, amount: double.parse(amount));
+        tx = await SolanaChainService().sendSol(
+          address: _selectedNetwork!.address,
+          toAddress: address,
+          amount: double.parse(amount),
+        );
       }
       AppLoading.dismiss();
       _amountController.text = '';
       _addressController.text = '';
-      context.push('/transfer-details',extra: {
-        'token': _token,
-        'tx': tx,
-      },);
+      if (!mounted) return;
+      context.push('/transfer-details', extra: {'token': _token, 'tx': tx});
     } catch (e) {
-      print('e----$e');
+      debugPrint('e----$e');
       AppLoading.dismiss();
       AppToast.show(e.toString());
     }
-
   }
 
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (_wallet == null) return;
     WalletModals.showTokenSelector(
-        context: context,
-        wallet: _wallet,
-        currentToken: _showToken,
-        onSelected: (token){
-          _showToken = token;
-          getBalance(chain: token.getChain(),token: token);
-        }
+      context: context,
+      wallet: _wallet,
+      currentToken: _showToken,
+      onSelected: (token) {
+        _showToken = token;
+        _selectedNetwork = token.getChain();
+        getBalance(chain: _selectedNetwork, token: token);
+        getCalculateFee(level: _feeLevel);
+      },
     );
   }
 
   /// 显示支付详情弹窗
-  void _showPaymentDetails() {
-    if (_token == null) return;
-    WalletModals.showPaymentDetails(context,
-        amount: _amountController.text,
-        logo: _token!.logo,
-        absenteeism: '${truncateDouble(_calculateFee)} ${_token!.symbol}',
-        from: (_token!.address.isNotEmpty) ? _token!.address: _selectedNetwork!.address,
-        to: _addressController.text,
-        onConfirm: (){
-             context.pop();
-            _showPasswordModal();
+  Future<void> _showPaymentDetails() async {
+    if (_token == null || _selectedNetwork == null) return;
+    if (_feeByLevel.isEmpty &&
+        _selectedNetwork?.chainType != ChainType.solana) {
+      await getCalculateFee(level: _feeLevel);
+      if (!mounted) return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final feeSymbol = _selectedNetwork!.symbol;
+    final feeOptions = {
+      for (final level in FeeLevel.values)
+        level:
+            '${truncateDouble(_feeByLevel[level] ?? _calculateFee)} $feeSymbol',
+    };
+    final feeDetails = {
+      for (final level in FeeLevel.values) level: _buildFeeDetails(l10n, level),
+    };
+    WalletModals.showPaymentDetails(
+      context,
+      amount: _amountController.text,
+      logo: _token!.logo,
+      network: _selectedNetwork!.name.isNotEmpty
+          ? _selectedNetwork!.name
+          : _selectedNetwork!.symbol,
+      asset: _token!.symbol,
+      from: (_token!.address.isNotEmpty)
+          ? _token!.address
+          : _selectedNetwork!.address,
+      to: _addressController.text,
+      feeLevel: _feeLevel,
+      feeOptions: feeOptions,
+      feeDetails: feeDetails,
+      onFeeLevelChanged: (level) {
+        setState(() {
+          _feeLevel = level;
+          _feeProgress = _progressFromFeeLevel(level);
+          _calculateFee = _feeByLevel[level] ?? _calculateFee;
+          _gasFee = _gasFeeByLevel[level] ?? _gasFee;
         });
+        getCalculateFee(level: level);
+      },
+      onConfirm: () {
+        context.pop();
+        _showPasswordModal();
+      },
+    );
+  }
 
+  Map<String, String> _buildFeeDetails(AppLocalizations l10n, FeeLevel level) {
+    switch (_selectedNetwork?.chainType) {
+      case ChainType.bitcoin:
+        return {
+          l10n.profileTransferFeeRate:
+              '${_btcFeeRateByLevel[level] ?? '--'} sat/vB',
+          l10n.profileTransferEstimatedSize: '$_btcEstimatedVBytes vB',
+        };
+      case ChainType.evm:
+        final gasFee = _gasFeeByLevel[level];
+        if (gasFee == null) return {};
+        final gasPrice = gasFee.gasPrice ?? gasFee.maxFeePerGas;
+        return {
+          l10n.profileTransferFeeRate:
+              '${truncateDouble(GasCalculator.toGwei(gasPrice), digits: 4)} Gwei',
+          'Gas limit': '21000',
+        };
+      case ChainType.solana:
+      case null:
+        return {};
+    }
   }
 
   /// 显示密码输入弹窗
   void _showPasswordModal() {
     WalletModals.showPasswordModal(
-        context: context,
-        title: AppLocalizations.of(context)!.profileTransferPassword,
-        onConfirm: (password) async {
-          final isResult =
-              await WalletSecurity.verifyPassword(password);
-          if (!isResult) {
-            return AppToast.show('密码错误！');
-          }
-          _sendTransfer(_amountController.text,_addressController.text);
-        });
-
+      context: context,
+      title: AppLocalizations.of(context)!.profileTransferPassword,
+      onConfirm: (password) async {
+        final isResult = await WalletSecurity.verifyPassword(password);
+        if (!isResult) {
+          return AppToast.show('密码错误！');
+        }
+        _sendTransfer(_amountController.text, _addressController.text);
+      },
+    );
   }
 
   @override
@@ -236,12 +356,18 @@ class _TransferPageState extends State<TransferPage> {
             // 继续按钮
             AppButton(
               text: AppLocalizations.of(context)!.profileTransferConfirm,
-              onPressed: _amountController.text.isNotEmpty && _addressController.text.isNotEmpty ? () {
-                if (_amountController.text.isNotEmpty) {
-                  _showPaymentDetails();
-                }
-              } : null,
-              backgroundColor: _amountController.text.isEmpty ? AppColors.grey300 : AppColors.grey900,
+              onPressed:
+                  _amountController.text.isNotEmpty &&
+                      _addressController.text.isNotEmpty
+                  ? () {
+                      if (_amountController.text.isNotEmpty) {
+                        _showPaymentDetails();
+                      }
+                    }
+                  : null,
+              backgroundColor: _amountController.text.isEmpty
+                  ? AppColors.grey300
+                  : AppColors.grey900,
               textColor: Colors.white,
             ),
             const SizedBox(height: 20),
@@ -269,7 +395,9 @@ class _TransferPageState extends State<TransferPage> {
               Expanded(
                 child: TextField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: AppTextStyles.h1.copyWith(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
@@ -286,9 +414,9 @@ class _TransferPageState extends State<TransferPage> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onChanged: (value){
+                  onChanged: (value) {
                     if (_token == null) return;
-                    final val = double.parse(value);
+                    final val = double.tryParse(value) ?? 0;
                     final usd = val * _token!.price;
                     setState(() {
                       _usdValue = truncateDouble(usd);
@@ -344,39 +472,44 @@ class _TransferPageState extends State<TransferPage> {
               ),
               Row(
                 children: [
-                   _token != null
-              ? StreamBuilder<List<TokenModel>>(
-              stream: PortfolioService().stream,
-                     builder: (context, snapshot) {
-                       final tokens = snapshot.data ?? [];
+                  _token != null
+                      ? StreamBuilder<List<TokenModel>>(
+                          stream: PortfolioService().stream,
+                          builder: (context, snapshot) {
+                            final tokens = snapshot.data ?? [];
 
-                       final token = tokens
-                           .where((item) => item.name == _token!.name)
-                           .firstOrNull;
+                            final token = tokens
+                                .where((item) => item.name == _token!.name)
+                                .firstOrNull;
 
-                       final balance = token?.displayBalance ?? _balance;
-                       _balance = balance;
+                            final balance = token?.displayBalance ?? _balance;
+                            _balance = balance;
 
-                       return Text(
-                         '${AppLocalizations.of(context)!.profileTransferBalance}: $balance',
-                         style: AppTextStyles.body.copyWith(
-                           fontSize: 12,
-                           color: AppColors.grey700,
-                         ),
-                       );
-                     },
-                   )
-                       : const SizedBox(),
+                            return Text(
+                              '${AppLocalizations.of(context)!.profileTransferBalance}: $balance',
+                              style: AppTextStyles.body.copyWith(
+                                fontSize: 12,
+                                color: AppColors.grey700,
+                              ),
+                            );
+                          },
+                        )
+                      : const SizedBox(),
 
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       setState(() {
-                        _amountController.text = truncateDouble(_getCalculateMax());
+                        _amountController.text = truncateDouble(
+                          _getCalculateMax(),
+                        );
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.grey900,
                         borderRadius: BorderRadius.circular(28),
@@ -414,61 +547,66 @@ class _TransferPageState extends State<TransferPage> {
         ),
         SizedBox(height: 12),
         Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.grey200),
-            ),
-            child:Padding(padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Visibility(
-                    visible: _showToken != null,
-                    child: Row(
-                      children: [
-                        AppNetworkImage(
-                          url: _showToken?.logo,
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.contain,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.grey200),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Visibility(
+                  visible: _showToken != null,
+                  child: Row(
+                    children: [
+                      AppNetworkImage(
+                        url: _showToken?.logo,
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.contain,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        _showToken?.symbol ?? '',
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.grey900,
                         ),
-                        SizedBox(width: 4),
-                        Text(
-                          _showToken?.symbol ?? '',
-                          style: AppTextStyles.body.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey900,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: (){
-                      _showNetworkSelector();
-                    },
-                    child: Row(
-                      children: [
-                        Text(
-                          _selectedNetwork?.symbol ?? '',
-                          style: AppTextStyles.body.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.grey400,
-                          ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _showNetworkSelector();
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        _selectedNetwork?.symbol ?? '',
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.grey400,
                         ),
-                        SizedBox(width: 4,),
-                        const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            )
-        )
+                      ),
+                      SizedBox(width: 4),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 12,
+                        color: AppColors.grey400,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -521,15 +659,20 @@ class _TransferPageState extends State<TransferPage> {
                   color: AppColors.grey900,
                 ),
                 decoration: InputDecoration(
-                  hintText: AppLocalizations.of(context)!.profileTransferPleaseEnter,
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.profileTransferPleaseEnter,
                   hintStyle: AppTextStyles.body.copyWith(
                     fontSize: 14,
                     color: AppColors.grey400,
                   ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical:8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
-                onChanged: (t)=> setState(() {})
+                onChanged: (t) => setState(() {}),
               ),
             ),
             // 粘贴按钮
@@ -540,14 +683,17 @@ class _TransferPageState extends State<TransferPage> {
                   // TODO: 处理粘贴逻辑
                   final data = await Clipboard.getData(Clipboard.kTextPlain);
                   final text = data?.text;
-                  if (text != null){
+                  if (text != null) {
                     setState(() {
                       _addressController.text = text;
                     });
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -592,8 +738,8 @@ class _TransferPageState extends State<TransferPage> {
   Widget _buildMinerFeeSection() {
     final labels = [
       AppLocalizations.of(context)!.profileTransferSlow,
-      'Middle',
-      AppLocalizations.of(context)!.profileTransferFast
+      AppLocalizations.of(context)!.profileTransferMiddle,
+      AppLocalizations.of(context)!.profileTransferFast,
     ];
     return Column(
       children: [
@@ -642,7 +788,7 @@ class _TransferPageState extends State<TransferPage> {
                   setState(() {
                     _feeProgress = value;
                   });
-                  getCalculateFee(progress: value);
+                  getCalculateFee(level: _feeLevelFromProgress(value));
                 },
               ),
             ),
@@ -654,7 +800,9 @@ class _TransferPageState extends State<TransferPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(labels.length, (index) {
                     // 当前选中的项留空，由 Slider 的 Thumb 覆盖，以显示 Thumb 的白色中心
-                    if ((index * 0.5) == _feeProgress) return const SizedBox(width: 0);
+                    if ((index * 0.5) == _feeProgress) {
+                      return const SizedBox(width: 0);
+                    }
                     // 判断当前进度是否已经达到或超过该点
                     // Slider value 为 0, 0.5, 1.0 (3个点)
                     final isReached = (index * 0.5) <= _feeProgress;
@@ -666,7 +814,9 @@ class _TransferPageState extends State<TransferPage> {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: isReached ? const Color(0xFFD4FF00) : AppColors.grey200,
+                            color: isReached
+                                ? const Color(0xFFD4FF00)
+                                : AppColors.grey200,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -695,7 +845,9 @@ class _TransferPageState extends State<TransferPage> {
                     style: AppTextStyles.caption.copyWith(
                       color: isSelected ? AppColors.grey900 : AppColors.grey400,
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                      fontWeight: isSelected
+                          ? FontWeight.w500
+                          : FontWeight.w400,
                     ),
                     softWrap: false,
                   ),
@@ -707,7 +859,6 @@ class _TransferPageState extends State<TransferPage> {
       ],
     );
   }
-
 }
 
 /// 自定义滑块滑块形状
@@ -766,7 +917,8 @@ class TransferTrackShape extends RoundedRectSliderTrackShape {
     // 这里的 38 是为了让滑块（thumb）的移动范围缩小，从而在两头留出轨道
     // 32 (Row padding) + 6 (thumb radius adjustment)
     final double trackLeft = offset.dx + 38;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackTop =
+        offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width - 76;
     return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }
@@ -799,7 +951,8 @@ class TransferTrackShape extends RoundedRectSliderTrackShape {
     );
 
     final Paint activePaint = Paint()..color = sliderTheme.activeTrackColor!;
-    final Paint inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
+    final Paint inactivePaint = Paint()
+      ..color = sliderTheme.inactiveTrackColor!;
 
     // 绘制背景（未激活部分）
     context.canvas.drawRRect(

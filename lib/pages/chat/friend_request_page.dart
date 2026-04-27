@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/friend_application_model.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/manager/im_send_manager.dart';
+import 'package:paracosm/modules/im/message/custom_message.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -46,7 +49,8 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   /// 显示同意确认弹窗
   Future<void> _showAgreeConfirmModal(FriendApplicationModel model) async {
     AppLoading.show();
-    final isOk = await manager.acceptFriendApplication(model.info.userId ?? '');
+    final targetId = model.info.userId ?? '';
+    final isOk = await manager.acceptFriendApplication(targetId);
     AppLoading.dismiss();
     if (isOk){
       AppToast.show('请求失败');
@@ -56,6 +60,12 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     _newRequests.remove(model.info);
     _processedRequests.insert(0, model.info);
     setState(() {});
+    final content = "我们已成功添加为好友，现在可以开始聊天啦～";
+    final message = await CustomMessage.createFm(targetId: targetId, content: content);
+    if (message == null) return;
+    final isSend = await ImSendManager.instance.sendCustomMessage(message: message);
+    if (!isSend)return;
+    print('去聊天呀');
   }
 
   /// 显示拒绝确认弹窗

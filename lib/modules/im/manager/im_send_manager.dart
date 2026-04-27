@@ -221,7 +221,27 @@ class ImSendManager {
     if (messageId.isNotEmpty) {
       _statusMap[messageId] = status;
     }
+    if (status == MessageSendStatus.success){
+      IMEngineManager().conversation.refreshAfterSend(message.targetId ?? '', message);
+    }
 
     onUpdate?.call(message);
+  }
+
+
+  Future<void> sendText({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required String content,
+  }) async {
+    final textMsg = await IMEngineManager().engine?.createTextMessage(
+      type,
+      targetId,
+      channelId,
+      content,
+    );
+    if (textMsg == null) return;
+    sendTextMessage(message: textMsg);
   }
 }

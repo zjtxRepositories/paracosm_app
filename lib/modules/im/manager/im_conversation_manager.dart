@@ -32,7 +32,7 @@ class ImConversationManager {
 
   /// Tab 类型
   final List<List<RCIMIWConversationType>> tabTypes = [
-    RCIMIWConversationType.values,
+    [RCIMIWConversationType.private,RCIMIWConversationType.group,RCIMIWConversationType.system],
     [RCIMIWConversationType.private],
     [RCIMIWConversationType.group],
     [RCIMIWConversationType.system],
@@ -54,13 +54,10 @@ class ImConversationManager {
     _messageSubscription ??= ImMessageManager().messageStream.listen(
       handleIncomingMessage,
     );
-
     /// 会话同步完成
     engine?.onRemoteConversationListSynced = (int? code) {
       debugPrint("会话同步完成: $code");
-
-      /// 🔥 一次性加载全部 Tab
-      initAllTabs();
+      _initAllTabs();
     };
 
     /// 已读同步
@@ -69,14 +66,19 @@ class ImConversationManager {
       _onReadSync(targetId);
     };
 
-    /// 拉远端
     getRemoteConversationList();
   }
 
-  /// =========================
+
+  Future<void> initAll() async {
+    getRemoteConversationList();
+    _initAllTabs();
+  }
+  /// =
+  /// ========================
   /// 🔥 初始化全部 Tab（核心）
   /// =========================
-  Future<void> initAllTabs() async {
+  Future<void> _initAllTabs() async {
     if (_loaded) return;
     _loaded = true;
 
@@ -131,6 +133,7 @@ class ImConversationManager {
         _sort(cache);
 
         _tabCache[tabIndex] = cache;
+        debugPrint("获取会话成功: ${_tabCache.length}---${cache.length}---$tabIndex");
 
         completer.complete();
       },
@@ -176,7 +179,7 @@ class ImConversationManager {
     /// 没命中 → 刷新全部（兜底）
     if (!hit) {
       _loaded = false;
-      initAllTabs();
+      _initAllTabs();
       return;
     }
 
@@ -301,7 +304,7 @@ class ImConversationManager {
     /// 没找到 → 补拉（极少情况）
     if (!hit) {
       _loaded = false;
-      initAllTabs();
+      _initAllTabs();
       return;
     }
 

@@ -22,6 +22,8 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 import '../../core/network/api/upload_file_api.dart';
+import '../../modules/im/manager/im_send_manager.dart';
+import '../../modules/im/message/custom_message.dart';
 import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
 import '../../widgets/common/image_picker_sheet.dart';
@@ -53,7 +55,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> fetchData() async {
     final manager = ImUserManager();
     final currentUserId = AccountManager().currentAccount?.accountId;
-    print('currentUserId----${currentUserId?.toLowerCase()}--${widget.userId}');
     RCIMIWUserProfile? profile;
     try {
       if (widget.userId == currentUserId) {
@@ -95,7 +96,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
       AppToast.show('请添加好友！');
       return;
     }
-
+    final targetId = _user?.profile.userId ?? '';
+    final content = "我们已成功添加为好友，现在可以开始聊天啦～";
+    final message = await CustomMessage.createFm(targetId: targetId, content: content);
+    if (message != null) {
+     final result = await ImSendManager.instance.sendCustomMessage(message: message);
+     if (result){
+       print('发送-----发送消息成功');
+     }
+    }
   }
 
   Future<void> toggleMoment() async {
@@ -311,7 +320,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final items = _isFriend
         ? [
       _buildActionItem(AppLocalizations.of(context)!.chatProfileMessage,
-          'assets/images/common/msg.png',(){}),
+          'assets/images/common/msg.png',toggleChat),
       _buildActionItem(AppLocalizations.of(context)!.chatProfileCall,
           'assets/images/common/call.png',(){}),
       _buildActionItem(AppLocalizations.of(context)!.chatProfileVideo,
@@ -380,6 +389,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         text: AppLocalizations.of(context)!.chatProfileDelete,
         textColor: AppColors.error,
         border: BorderSide(color:  AppColors.error),
+        backgroundColor: Colors.white,
         onPressed: _showAddFriendModal,
       ):
       AppButton(

@@ -83,7 +83,6 @@ class ImFriendApplicationsManager {
         _pageToken = page?.pageToken;
 
         _controller.add(_list);
-        print('获取好友申请:${_list.length}');
         completer.complete();
       },
 

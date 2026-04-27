@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
+import 'package:paracosm/modules/im/message/custom_message.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 class ConversationModel {
   final RCIMIWConversation info;
@@ -44,7 +45,7 @@ class ConversationResolver {
     // subtitle
     final msg = info.lastMessage;
     if (msg != null) {
-      final content = _format(msg);
+      final content = await _format(msg);
 
       if (info.conversationType == RCIMIWConversationType.group) {
         final group = await _getGroup(targetId);
@@ -53,9 +54,10 @@ class ConversationResolver {
         model.subtitle = content;
       }
     }
+
   }
 
-  String _format(RCIMIWMessage message) {
+  Future<String> _format(RCIMIWMessage message) async{
     switch (message.messageType) {
       case RCIMIWMessageType.text:
         return (message as RCIMIWTextMessage).text ?? '';
@@ -67,10 +69,36 @@ class ConversationResolver {
         return '[视频]';
       case RCIMIWMessageType.recall:
         return '对方撤回了一条消息';
+      case RCIMIWMessageType.custom:
+        RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(message.toJson());
+        final content = customMessage.fields?['content'];
+        return _formatContent(content);
       default:
         return '[消息]';
     }
   }
+
+  Future<String> _formatContent(String content) async {
+    final reg = RegExp(r'\[([^\]]+)\]');
+    final matches = reg.allMatches(content);
+
+    if (matches.isEmpty) return content;
+
+    String result = content;
+
+    for (final match in matches) {
+      final userId = match.group(1);
+      if (userId == null) continue;
+
+      final user = await _getUser(userId);
+      final name = user?.name ?? '';
+
+      result = result.replaceAll('[$userId]', name);
+    }
+
+    return result;
+  }
+
 
   Future<UserModel?> _getUser(String id) async {
     return _userCache[id] ??= await _fetchUser(id);

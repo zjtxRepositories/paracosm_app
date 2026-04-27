@@ -588,38 +588,25 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildActionButton(
-                    icon: 'assets/images/profile/send.png',
+                    icon: 'assets/images/common/send-coin.png',
                     label: AppLocalizations.of(context)!.profileTokenNetworkSend,
                     onTap: () {
                       context.push('/transfer', extra: _selectedNetwork);
                     },
                   ),
                   _buildActionButton(
-                    icon: 'assets/images/profile/receive.png',
+                    icon: 'assets/images/common/receive-coin.png',
                     label: AppLocalizations.of(context)!.profileTokenNetworkReceive,
                     onTap: () {
-                      context.push('/receive', extra: _selectedNetwork);
+                      
                     },
                   ),
                   _buildActionButton(
-                    icon: 'assets/images/profile/swap.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkSwap,
-                    onTap: () {},
-                  ),
-                  _buildActionButton(
-                    icon: 'assets/images/profile/bridge.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkBridge,
-                    onTap: () {},
-                  ),
-                  _buildActionButton(
-                    icon: 'assets/images/profile/buy.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkBuy,
-                    onTap: () {},
-                  ),
-                  _buildActionButton(
-                    icon: 'assets/images/profile/sell.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkSell,
-                    onTap: () {},
+                    icon: 'assets/images/common/msg-coin.png',
+                    label: AppLocalizations.of(context)!.profileTokenNetworkMessage,
+                    onTap: () {
+                      
+                    },
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../util/string_util.dart';
+import '../../widgets/base/app_localizations.dart';
 import 'comment_composer_bar.dart';
 import 'home/moments_controller.dart';
 import 'moment_comments_section.dart';
@@ -45,9 +46,9 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
   @override
   Widget build(BuildContext context) {
     final moreButtonKey = GlobalKey();
-
+    final l10n = AppLocalizations.of(context)!;
     return AppPage(
-      title: 'Post',
+      title: l10n.translate('moments_post_body_title'),
       backgroundColor: Colors.white,
       navBackgroundColor: Colors.white,
       showNavBorder: true,

@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 
-/// 通用的快捷导航索引栏组件
+/// 通用的快捷索引栏组件。
+///
+/// 说明：
+/// - `selectedLetter` 由父组件传入，用于列表滚动时同步高亮。
+/// - `showOverlay` 用来控制是否显示黑色字母气泡，避免滚动停止后气泡一直停留。
 class QuickIndexBar extends StatefulWidget {
   final List<String> letters;
   final Function(String) onLetterSelected;
+  final String? selectedLetter;
+  final bool showOverlay;
 
   const QuickIndexBar({
     super.key,
     required this.letters,
     required this.onLetterSelected,
+    this.selectedLetter,
+    this.showOverlay = false,
   });
 
   @override
@@ -20,28 +28,39 @@ class _QuickIndexBarState extends State<QuickIndexBar> {
   String? _selectedLetter;
   double _overlayY = 0;
 
+  String? get _activeLetter => _selectedLetter ?? widget.selectedLetter;
+
+  String? get _overlayLetter =>
+      _selectedLetter ?? (widget.showOverlay ? widget.selectedLetter : null);
+
+  double _overlayYForLetter(String letter) {
+    final index = widget.letters.indexOf(letter);
+    if (index < 0) {
+      return 0;
+    }
+
+    // 顶部 padding 为 20，每个字母高度 18，气泡高度 30，中心对齐到当前字母。
+    final double letterCenterY = 20.0 + (index * 18.0) + 9.0;
+    return letterCenterY - 15.0;
+  }
+
   void _handleTap(Offset localPosition) {
-    // 字母高度 18，顶部 padding 20
     final relativeY = localPosition.dy - 20.0;
     final index = (relativeY / 18.0).floor();
 
     if (index >= 0 && index < widget.letters.length) {
       final letter = widget.letters[index];
-      
-      // 直接使用 localPosition 计算气泡位置，气泡高度 30，中心对齐
-      // 字母的中心 Y 坐标即 localPosition.dy (大致)
-      // 为了更精准，我们基于 index 计算
-      final double letterCenterY = 20.0 + (index * 18.0) + 9.0;
-      
+      final overlayY = _overlayYForLetter(letter);
+
       if (_selectedLetter != letter) {
         setState(() {
           _selectedLetter = letter;
-          _overlayY = letterCenterY - 15.0; // 15 是气泡高度 30 的一半
+          _overlayY = overlayY;
         });
         widget.onLetterSelected(letter);
       } else {
         setState(() {
-          _overlayY = letterCenterY - 15.0;
+          _overlayY = overlayY;
         });
       }
     }
@@ -49,10 +68,11 @@ class _QuickIndexBarState extends State<QuickIndexBar> {
 
   @override
   Widget build(BuildContext context) {
+    final overlayLetter = _overlayLetter;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // 索引字母列表
         GestureDetector(
           onVerticalDragUpdate: (details) => _handleTap(details.localPosition),
           onVerticalDragDown: (details) => _handleTap(details.localPosition),
@@ -66,7 +86,7 @@ class _QuickIndexBarState extends State<QuickIndexBar> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: widget.letters.map((letter) {
-                final isSelected = _selectedLetter == letter;
+                final isSelected = _activeLetter == letter;
                 return Container(
                   height: 18,
                   width: 18,
@@ -90,12 +110,11 @@ class _QuickIndexBarState extends State<QuickIndexBar> {
             ),
           ),
         ),
-        // 气泡提示
-        if (_selectedLetter != null)
+        if (overlayLetter != null)
           Positioned(
             right: 40,
-            top: _overlayY,
-            child: _IndexOverlay(letter: _selectedLetter!),
+            top: _selectedLetter != null ? _overlayY : _overlayYForLetter(overlayLetter),
+            child: _IndexOverlay(letter: overlayLetter),
           ),
       ],
     );
@@ -149,7 +168,7 @@ class _IndexOverlayPainter extends CustomPainter {
     final double centerY = radius;
 
     path.addOval(Rect.fromCircle(center: Offset(centerX, centerY), radius: radius));
-    
+
     final double arrowTipX = size.width;
     final double arrowTipY = centerY;
     final double arrowBaseX = centerX + radius - 2;
@@ -157,12 +176,16 @@ class _IndexOverlayPainter extends CustomPainter {
 
     path.moveTo(arrowBaseX, centerY - arrowHalfWidth);
     path.quadraticBezierTo(
-      arrowBaseX + 4, centerY - arrowHalfWidth + 2, 
-      arrowTipX, arrowTipY
+      arrowBaseX + 4,
+      centerY - arrowHalfWidth + 2,
+      arrowTipX,
+      arrowTipY,
     );
     path.quadraticBezierTo(
-      arrowBaseX + 4, centerY + arrowHalfWidth - 2, 
-      arrowBaseX, arrowHalfWidth + centerY
+      arrowBaseX + 4,
+      centerY + arrowHalfWidth - 2,
+      arrowBaseX,
+      arrowHalfWidth + centerY,
     );
     path.close();
 

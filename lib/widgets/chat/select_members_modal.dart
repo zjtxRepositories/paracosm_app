@@ -46,6 +46,7 @@ class SelectMembersModal extends StatefulWidget {
   }) {
     return showModalBottomSheet<List<Member>>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => SelectMembersModal(
@@ -137,16 +138,47 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
           const SizedBox(height: 12),
           SizedBox(
             height: listHeight,
-            child: ListView.builder(
-              itemCount: _members.length,
-              itemExtent: itemHeight,
-              itemBuilder: (context, index) {
-                final member = _members[index];
-                return _buildMemberItem(
-                  member: member,
-                  showDivider: index != _members.length - 1,
-                );
-              },
+            child: Stack(
+              children: [
+                ListView.builder(
+                  itemCount: _members.length,
+                  itemExtent: itemHeight,
+                  itemBuilder: (context, index) {
+                    final member = _members[index];
+                    return _buildMemberItem(
+                      member: member,
+                      showDivider: index != _members.length - 1,
+                    );
+                  },
+                ),
+                if (_members.length > 5)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0x00FFFFFF),
+                              Color(0xCCFFFFFF),
+                              Color(0xFFFFFFFF),
+                            ],
+                            stops: [
+                              0.0,
+                              0.78,
+                              1.0,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

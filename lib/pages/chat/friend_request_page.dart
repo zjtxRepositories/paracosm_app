@@ -71,34 +71,34 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   /// 显示拒绝确认弹窗
   void _showRejectConfirmModal(FriendApplicationModel model) {
     AppModal.show(
-      context,
-      title: AppLocalizations.of(context)!.chatRequestHint,
-      description: AppLocalizations.of(context)!.chatRequestRejectConfirm,
-      confirmText: AppLocalizations.of(context)!.chatRequestSure,
-      cancelText: AppLocalizations.of(context)!.chatRequestCancel,
-      confirmWidth: 161,
-      cancelWidth: 161,
-      cancelBorder: const BorderSide(color: AppColors.grey300),
-      icon: Image.asset(
-        'assets/images/wallet/bell-icon.png',
-        width: 120,
-        height: 120,
-        fit: BoxFit.contain,
-      ),
-      onConfirm: () async {
-        context.pop();
-        AppLoading.show();
-        final isOk = await manager.refuseFriendApplication(model.info.userId ?? '');
-        AppLoading.dismiss();
-        if (isOk){
-          AppToast.show('请求失败');
-          return;
-        }
-        model.info.applicationStatus = RCIMIWFriendApplicationStatus.refused;
-        _newRequests.remove(model.info);
-        _processedRequests.insert(0, model.info);
-        setState(() {});
-      });
+        context,
+        title: AppLocalizations.of(context)!.chatRequestHint,
+        description: AppLocalizations.of(context)!.chatRequestRejectConfirm,
+        confirmText: AppLocalizations.of(context)!.chatRequestSure,
+        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
+        confirmWidth: 161,
+        cancelWidth: 161,
+        cancelBorder: const BorderSide(color: AppColors.grey300),
+        icon: Image.asset(
+          'assets/images/wallet/bell-icon.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+        ),
+        onConfirm: () async {
+          context.pop();
+          AppLoading.show();
+          final isOk = await manager.refuseFriendApplication(model.info.userId ?? '');
+          AppLoading.dismiss();
+          if (isOk){
+            AppToast.show('请求失败');
+            return;
+          }
+          model.info.applicationStatus = RCIMIWFriendApplicationStatus.refused;
+          _newRequests.remove(model.info);
+          _processedRequests.insert(0, model.info);
+          setState(() {});
+        });
   }
 
   @override

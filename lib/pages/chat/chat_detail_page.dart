@@ -343,8 +343,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           text: message.text == 'canceled'
               ? AppLocalizations.of(context)!.chatDetailCanceled
               : AppLocalizations.of(context)!.chatDetailCallDuration(
-                  message.text ?? '00:00',
-                ),
+            message.text ?? '00:00',
+          ),
           isVideo: message.isVideo,
           isMe: message.isMe,
         );

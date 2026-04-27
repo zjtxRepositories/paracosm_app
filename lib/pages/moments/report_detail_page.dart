@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -22,10 +23,11 @@ class _MomentReportDetailPageState extends State<MomentReportDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hasText = _controller.text.trim().isNotEmpty;
 
     return AppPage(
-      title: 'Report',
+      title: l10n.translate('moments_report_title'),
       showNavBorder: true,
       child: SafeArea(
         bottom: false,
@@ -35,7 +37,7 @@ class _MomentReportDetailPageState extends State<MomentReportDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Problem Description:',
+                l10n.translate('moments_problem_description'),
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.grey400,
                   fontSize: 14,
@@ -45,10 +47,10 @@ class _MomentReportDetailPageState extends State<MomentReportDetailPage> {
               const SizedBox(height: 15),
               Container(
                 height: 240,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
                     color: hasText ? AppColors.grey900 : AppColors.grey200,
                     width: 1,
                   ),
@@ -66,8 +68,8 @@ class _MomentReportDetailPageState extends State<MomentReportDetailPage> {
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Please enter',
+                    decoration: InputDecoration(
+                    hintText: l10n.translate('moments_please_enter'),
                     hintStyle: AppTextStyles.body.copyWith(
                       color: AppColors.grey400,
                       fontSize: 14,
@@ -82,7 +84,7 @@ class _MomentReportDetailPageState extends State<MomentReportDetailPage> {
               ),
               const Spacer(),
               AppButton(
-                text: 'Submit',
+                text: l10n.translate('moments_submit'),
                 onPressed: hasText ? () {} : null,
               ),
             ],

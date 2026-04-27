@@ -11,7 +11,13 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 /// 包含成员列表、聊天配置选项（免打扰、置顶、清除记录等）以及阅后即焚设置
 class SessionDetailsPage extends StatefulWidget {
   final String name;
-  const SessionDetailsPage({super.key, required this.name});
+  final String mode;
+
+  const SessionDetailsPage({
+    super.key,
+    required this.name,
+    this.mode = 'friend',
+  });
 
   @override
   State<SessionDetailsPage> createState() => _SessionDetailsPageState();
@@ -19,6 +25,8 @@ class SessionDetailsPage extends StatefulWidget {
 
 class _SessionDetailsPageState extends State<SessionDetailsPage> {
   bool _doNotDisturb = true;
+  bool get _isFriend => widget.mode == 'friend';
+  bool get _isStranger => widget.mode == 'stranger';
   /// 阅后即焚当前选中的档位值 (0-5)
   double _burnAfterReadingValue = 1.0; // 0: Close, 1: 10s, 2: 1m, 3: 5m, 4: 10m, 5: 30m
 
@@ -69,7 +77,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
           _buildMemberGrid(),
           _buildOptionItem(AppLocalizations.of(context)!.chatSettingSearchHistory, onTap: () {}),
           _buildOptionItem(
-            AppLocalizations.of(context)!.chatSettingMuteAll,
+            AppLocalizations.of(context)!.chatSettingMessageDoNotDisturb,
             isFullBorder: false,
             trailing: GestureDetector(
               onTap: () {
@@ -86,24 +94,25 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
               ),
             ),
           ),
-          _buildOptionItem(
-            AppLocalizations.of(context)!.chatSettingPin,
-            isFullBorder: true,
-            trailing: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _doNotDisturb = !_doNotDisturb;
-                });
-              },
-              child: Image.asset(
-                _doNotDisturb
-                    ? 'assets/images/common/switch-active.png'
-                    : 'assets/images/common/switch-default.png',
-                width: 52,
-                height: 28,
+          if (_isFriend)
+            _buildOptionItem(
+              AppLocalizations.of(context)!.chatSettingPin,
+              isFullBorder: true,
+              trailing: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _doNotDisturb = !_doNotDisturb;
+                  });
+                },
+                child: Image.asset(
+                  _doNotDisturb
+                      ? 'assets/images/common/switch-active.png'
+                      : 'assets/images/common/switch-default.png',
+                  width: 52,
+                  height: 28,
+                ),
               ),
             ),
-          ),
           Container(height: 10,decoration: const BoxDecoration(color: AppColors.grey100)),
           _buildOptionItem(AppLocalizations.of(context)!.chatSettingClearHistory, isFullBorder: true, onTap: _showClearHistoryModal),
           Container(height: 10,decoration: const BoxDecoration(color: AppColors.grey100)),
@@ -135,7 +144,8 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
     return GestureDetector(
       onTap: () {
         final encodedName = Uri.encodeComponent(name);
-        context.push('/user-profile/$encodedName');
+        final mode = _isStranger ? 'stranger' : 'friend';
+        context.push('/user-profile/$encodedName?mode=$mode');
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,

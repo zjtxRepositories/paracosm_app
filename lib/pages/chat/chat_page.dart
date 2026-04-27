@@ -95,7 +95,7 @@ class _ChatPageState extends State<ChatPage> {
 
       setState(() {
         _friendApplicationUnhandledCount =
-        _engineManager.friendApplication.unhandledCount;
+            _engineManager.friendApplication.unhandledCount;
       });
     });
 
@@ -221,38 +221,38 @@ class _ChatPageState extends State<ChatPage> {
         Expanded(
           child: _conversations.isEmpty
               ? AppEmptyView(
-                  text: AppLocalizations.of(context)!.chatSearchNoData,
-                  bottomOffset: 50, // 调整偏移，视觉更平衡
-                )
+            text: AppLocalizations.of(context)!.chatSearchNoData,
+            bottomOffset: 50, // 调整偏移，视觉更平衡
+          )
               : ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: _conversations.length,
-                  itemBuilder: (context, index) {
-                    final item = _conversations[index];
-                    if (item.info.conversationType == RCIMIWConversationType.system) {
-                      return SystemNotificationItem(
-                        title: AppLocalizations.of(context)!.chatNotificationTitle,
-                        subtitle: 'sub',
-                        time: AppLocalizations.of(context)!.chatYesterday,
-                        unreadCount: 1,
-                        icon: Icons.nat,
-                        // iconBgColor: item['iconBgColor'],
-                        // onTap: () => _navigateToDetail(item['title']),
-                      );
-                    } else {
-                      return ChatListItem(
-                        title: item.title ?? '',
-                        subtitle: item.subtitle ?? '',
-                        time: formatTimeAgo(item.info.operationTime ?? 0),
-                        unreadCount: item.info.unreadCount ?? 0,
-                        avatar: item.portraitUri ?? '',
-                        userId: item.info.targetId,
-                        isMuted: false,
-                        onTap: () => _navigateToDetail(item.title ?? ''),
-                      );
-                    }
-                  },
-                ),
+            padding: EdgeInsets.zero,
+            itemCount: _conversations.length,
+            itemBuilder: (context, index) {
+              final item = _conversations[index];
+              if (item.info.conversationType == RCIMIWConversationType.system) {
+                return SystemNotificationItem(
+                  title: AppLocalizations.of(context)!.chatNotificationTitle,
+                  subtitle: 'sub',
+                  time: AppLocalizations.of(context)!.chatYesterday,
+                  unreadCount: 1,
+                  icon: Icons.nat,
+                  // iconBgColor: item['iconBgColor'],
+                  // onTap: () => _navigateToDetail(item['title']),
+                );
+              } else {
+                return ChatListItem(
+                  title: item.title ?? '',
+                  subtitle: item.subtitle ?? '',
+                  time: formatTimeAgo(item.info.operationTime ?? 0),
+                  unreadCount: item.info.unreadCount ?? 0,
+                  avatar: item.portraitUri ?? '',
+                  userId: item.info.targetId,
+                  isMuted: false,
+                  onTap: () => _navigateToDetail(item.title ?? ''),
+                );
+              }
+            },
+          ),
         ),
       ],
     );
@@ -401,16 +401,16 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _navigateToConversationDetail(
-    RCIMIWConversation conversation,
-    String title,
-  ) {
+      RCIMIWConversation conversation,
+      String title,
+      ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
         targetId: conversation.targetId ?? '',
         conversationType:
-            conversation.conversationType ?? RCIMIWConversationType.private,
+        conversation.conversationType ?? RCIMIWConversationType.private,
         name: title,
         channelId: conversation.channelId,
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
@@ -591,15 +591,15 @@ class _ChatPageState extends State<ChatPage> {
                     filters[index],
                     style: isSelected
                         ? AppTextStyles.bodyMedium.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey900
-                          )
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900
+                    )
                         : AppTextStyles.body.copyWith(
-                            color: AppColors.grey400,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
+                      color: AppColors.grey400,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (isSelected)

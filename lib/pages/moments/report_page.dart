@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -16,21 +17,21 @@ class MomentReportPage extends StatefulWidget {
 class _MomentReportPageState extends State<MomentReportPage> {
   int? _selectedIndex;
 
-  static const List<String> _reasons = [
-    'Pornographic and vulgar',
-    'Bloody violence',
-    'False advertising links',
-    'Malicious fraud',
-    'Disturbing content',
-    'other',
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isSelected = _selectedIndex != null;
+    final reasons = <String>[
+      l10n.translate('moments_pornographic_and_vulgar'),
+      l10n.translate('moments_bloody_violence'),
+      l10n.translate('moments_false_advertising_links'),
+      l10n.translate('moments_malicious_fraud'),
+      l10n.translate('moments_disturbing_content'),
+      l10n.translate('moments_other'),
+    ];
 
     return AppPage(
-      title: 'Report',
+      title: l10n.translate('moments_report_title'),
       showNavBorder: true,
       child: SafeArea(
         bottom: false,
@@ -40,7 +41,7 @@ class _MomentReportPageState extends State<MomentReportPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Reason for reporting:',
+                l10n.translate('moments_reason_for_reporting'),
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.grey400,
                   fontSize: 14,
@@ -51,7 +52,7 @@ class _MomentReportPageState extends State<MomentReportPage> {
               Expanded(
                 child: ListView.separated(
                   physics: const BouncingScrollPhysics(),
-                  itemCount: _reasons.length,
+                  itemCount: reasons.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final selected = _selectedIndex == index;
@@ -81,7 +82,7 @@ class _MomentReportPageState extends State<MomentReportPage> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: Text(
-                                _reasons[index],
+                                reasons[index],
                                 style: AppTextStyles.body.copyWith(
                                   color: AppColors.grey600,
                                   fontSize: 14,
@@ -98,7 +99,7 @@ class _MomentReportPageState extends State<MomentReportPage> {
               ),
               const SizedBox(height: 16),
               AppButton(
-                text: 'Next step',
+                text: l10n.translate('moments_next_step'),
                 onPressed: isSelected
                     ? () {
                         context.push('/moment-report-detail');

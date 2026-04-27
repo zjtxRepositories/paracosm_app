@@ -120,7 +120,7 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                     _buildOptionCard(
                       title: loc.walletSetupCreateTitle,
                       subtitle: loc.walletSetupCreateSubtitle,
-                      iconPath: 'assets/images/wallet/create-icon.png',
+                      iconPath: 'assets/images/wallet/import-icon.png',
                       onTap: () {
                         if (!_isAgreed){
                           AppToast.show('请仔细阅读服务条款和隐私政策');
@@ -136,7 +136,7 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                     _buildOptionCard(
                       title: loc.walletSetupImportTitle,
                       subtitle: loc.walletSetupImportSubtitle,
-                      iconPath: 'assets/images/wallet/import-icon.png',
+                      iconPath: 'assets/images/wallet/create-icon.png',
                       onTap: () {
                         if (!_isAgreed){
                           AppToast.show('请仔细阅读服务条款和隐私政策');

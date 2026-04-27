@@ -60,15 +60,42 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
 
   /// 显示截屏风险提示弹窗
   void _showRiskDialog() {
+    final loc = AppLocalizations.of(context)!;
+    final riskDialog = loc.walletStep2RiskDialog;
+
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.commonRiskTips,
-      description: AppLocalizations.of(context)!.walletStep2RiskDialog,
+      subtitle: _extractRiskPrefix(riskDialog),
+      description: _extractRiskBody(riskDialog),
+      confirmText: loc.commonGotIt,
       onConfirm: () {
         Navigator.pop(context);
         // 仅关闭弹窗，不执行其他逻辑
       },
     );
+  }
+
+  /// 从风险文案中拆出首句作为弹窗标题。
+  ///
+  /// 例如：
+  /// - "请勿截屏。请在纸上记录..." -> "请勿截屏"
+  /// - "Do not screenshot. Please record..." -> "Do not screenshot"
+  String _extractRiskPrefix(String text) {
+    final match = RegExp(r'^[^。\.]+\s*[。\.]\s*').firstMatch(text);
+    if (match == null) {
+      return text;
+    }
+    return text.substring(0, match.end).trim().replaceAll(RegExp(r'[。\.]\s*$'), '');
+  }
+
+  /// 从风险文案中拆出正文，避免与标题重复显示。
+  String _extractRiskBody(String text) {
+    final match = RegExp(r'^[^。\.]+\s*[。\.]\s*').firstMatch(text);
+    if (match == null) {
+      return text;
+    }
+    return text.substring(match.end).trim();
   }
 
   /// 切换复制状态并激活“我已备份”按钮

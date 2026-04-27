@@ -199,7 +199,7 @@ class _TransferPageState extends State<TransferPage> {
         final satoshis = GasCalculator.btcToSatoshi(amount);
         final feeRate =
             _btcFeeRateByLevel[_feeLevel] ??
-            (await BitcoinChainService.getFeeRate()).medium;
+                (await BitcoinChainService.getFeeRate()).medium;
         tx = await BitcoinChainService.sendTransaction(
           fromAddress: _selectedNetwork!.address,
           toAddress: address,
@@ -256,7 +256,7 @@ class _TransferPageState extends State<TransferPage> {
     final feeOptions = {
       for (final level in FeeLevel.values)
         level:
-            '${truncateDouble(_feeByLevel[level] ?? _calculateFee)} $feeSymbol',
+        '${truncateDouble(_feeByLevel[level] ?? _calculateFee)} $feeSymbol',
     };
     final feeDetails = {
       for (final level in FeeLevel.values) level: _buildFeeDetails(l10n, level),
@@ -297,7 +297,7 @@ class _TransferPageState extends State<TransferPage> {
       case ChainType.bitcoin:
         return {
           l10n.profileTransferFeeRate:
-              '${_btcFeeRateByLevel[level] ?? '--'} sat/vB',
+          '${_btcFeeRateByLevel[level] ?? '--'} sat/vB',
           l10n.profileTransferEstimatedSize: '$_btcEstimatedVBytes vB',
         };
       case ChainType.evm:
@@ -306,7 +306,7 @@ class _TransferPageState extends State<TransferPage> {
         final gasPrice = gasFee.gasPrice ?? gasFee.maxFeePerGas;
         return {
           l10n.profileTransferFeeRate:
-              '${truncateDouble(GasCalculator.toGwei(gasPrice), digits: 4)} Gwei',
+          '${truncateDouble(GasCalculator.toGwei(gasPrice), digits: 4)} Gwei',
           'Gas limit': '21000',
         };
       case ChainType.solana:
@@ -357,13 +357,13 @@ class _TransferPageState extends State<TransferPage> {
             AppButton(
               text: AppLocalizations.of(context)!.profileTransferConfirm,
               onPressed:
-                  _amountController.text.isNotEmpty &&
-                      _addressController.text.isNotEmpty
+              _amountController.text.isNotEmpty &&
+                  _addressController.text.isNotEmpty
                   ? () {
-                      if (_amountController.text.isNotEmpty) {
-                        _showPaymentDetails();
-                      }
-                    }
+                if (_amountController.text.isNotEmpty) {
+                  _showPaymentDetails();
+                }
+              }
                   : null,
               backgroundColor: _amountController.text.isEmpty
                   ? AppColors.grey300
@@ -474,26 +474,26 @@ class _TransferPageState extends State<TransferPage> {
                 children: [
                   _token != null
                       ? StreamBuilder<List<TokenModel>>(
-                          stream: PortfolioService().stream,
-                          builder: (context, snapshot) {
-                            final tokens = snapshot.data ?? [];
+                    stream: PortfolioService().stream,
+                    builder: (context, snapshot) {
+                      final tokens = snapshot.data ?? [];
 
-                            final token = tokens
-                                .where((item) => item.name == _token!.name)
-                                .firstOrNull;
+                      final token = tokens
+                          .where((item) => item.name == _token!.name)
+                          .firstOrNull;
 
-                            final balance = token?.displayBalance ?? _balance;
-                            _balance = balance;
+                      final balance = token?.displayBalance ?? _balance;
+                      _balance = balance;
 
-                            return Text(
-                              '${AppLocalizations.of(context)!.profileTransferBalance}: $balance',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 12,
-                                color: AppColors.grey700,
-                              ),
-                            );
-                          },
-                        )
+                      return Text(
+                        '${AppLocalizations.of(context)!.profileTransferBalance}: $balance',
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 12,
+                          color: AppColors.grey700,
+                        ),
+                      );
+                    },
+                  )
                       : const SizedBox(),
 
                   const SizedBox(width: 8),
@@ -872,19 +872,19 @@ class TransferSliderThumbShape extends SliderComponentShape {
 
   @override
   void paint(
-    PaintingContext context,
-    Offset center, {
-    required Animation<double> activationAnimation,
-    required Animation<double> enableAnimation,
-    required bool isDiscrete,
-    required TextPainter labelPainter,
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required TextDirection textDirection,
-    required double value,
-    required double textScaleFactor,
-    required Size sizeWithOverflow,
-  }) {
+      PaintingContext context,
+      Offset center, {
+        required Animation<double> activationAnimation,
+        required Animation<double> enableAnimation,
+        required bool isDiscrete,
+        required TextPainter labelPainter,
+        required RenderBox parentBox,
+        required SliderThemeData sliderTheme,
+        required TextDirection textDirection,
+        required double value,
+        required double textScaleFactor,
+        required Size sizeWithOverflow,
+      }) {
     final Canvas canvas = context.canvas;
 
     final paint = Paint()
@@ -925,18 +925,18 @@ class TransferTrackShape extends RoundedRectSliderTrackShape {
 
   @override
   void paint(
-    PaintingContext context,
-    Offset offset, {
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required Animation<double> enableAnimation,
-    required TextDirection textDirection,
-    required Offset thumbCenter,
-    Offset? secondaryOffset,
-    bool isDiscrete = false,
-    bool isEnabled = false,
-    double additionalActiveTrackHeight = 0,
-  }) {
+      PaintingContext context,
+      Offset offset, {
+        required RenderBox parentBox,
+        required SliderThemeData sliderTheme,
+        required Animation<double> enableAnimation,
+        required TextDirection textDirection,
+        required Offset thumbCenter,
+        Offset? secondaryOffset,
+        bool isDiscrete = false,
+        bool isEnabled = false,
+        double additionalActiveTrackHeight = 0,
+      }) {
     if (sliderTheme.trackHeight == null || sliderTheme.trackHeight! <= 0) {
       return;
     }

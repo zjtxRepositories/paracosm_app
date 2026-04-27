@@ -17,6 +17,7 @@ import '../../modules/account/manager/account_manager.dart';
 import '../../modules/wallet/chains/model/coin_market_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../util/string_util.dart';
+import '../../widgets/common/app_modal.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 个人中心页面 (钱包首页)
@@ -113,11 +114,12 @@ class _ProfilePageState extends State<ProfilePage> {
     WalletModals.showNetworkSelector(
         context: context,
         wallet: _walletModel!,
-        onSelected: (network) {
-          setState(() {
-            _selectedNetwork = network;
-          });
-        });
+        onSelected:
+            (network) {
+              setState(() {
+                _selectedNetwork = network;
+              });
+    });
   }
 
   @override
@@ -135,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           Column(
             children: [
-              _buildHeader(), // 顶部标题和头像
+              _buildHeader(context), // 顶部标题和头像
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
@@ -155,9 +157,14 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// 构建顶部标题和头像区域
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        MediaQuery.of(context).padding.top + 12,
+        20,
+        12,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

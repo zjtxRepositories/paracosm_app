@@ -399,7 +399,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                   style: AppTextStyles.body.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isSend ? AppColors.error : AppColors.primary,
+                    color: isSend ? AppColors.error : AppColors.primaryDark,
                   ),
                 ),
               ],

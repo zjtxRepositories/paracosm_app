@@ -46,7 +46,7 @@ class _WalletBackupPrivateKeyPageState
       confirmText: loc.walletBackupRiskDialogConfirm,
       cancelText: loc.walletBackupRiskDialogCancel,
       confirmWidth: 200,
-      cancelWidth: 108,
+      cancelWidth: 112,
       cancelBorder: const BorderSide(color: AppColors.grey300),
       icon: Image.asset(
         'assets/images/wallet/bell-icon.png',

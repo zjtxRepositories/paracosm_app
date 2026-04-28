@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../tool/keyboard_detector.dart';
 import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
@@ -15,7 +16,7 @@ import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
 import 'chat_detail_controller.dart';
 
-class ChatDetailPage extends StatefulWidget {
+class ChatDetailPage extends StatefulWidget{
   final ChatSessionArgs? sessionArgs;
   final String fallbackName;
 
@@ -41,6 +42,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     controller = ChatDetailController(widget.sessionArgs);
     controller.init(() => setState(() {}));
+
   }
 
   @override
@@ -49,10 +51,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return AppPage(
       isCustomHeader: true,
+      isAddBottomMargin: false,
       renderCustomHeader: ChatDetailHeader(
         name: _sessionName,
         isGroup: _isGroupSession,
@@ -61,33 +65,40 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         isOnline: controller.isOnline,
         onMoreTap: _navigateToDetail,
       ),
-      child: Column(
-        children: [
-          Expanded(child: _buildMessageList()),
-          ChatInputBar(
-            controller: controller.inputController,
-            isVoiceMode: controller.isVoiceMode,
-            isRecording: controller.isRecording,
-            isCancelling: controller.isCancelling,
-            isMenuExpanded: controller.isMenuExpanded,
-            isInputEmpty: controller.isInputEmpty,
-            onToggleVoiceMode: controller.toggleVoice,
-            onTextFieldTap: () {
-              if (controller.isMenuExpanded) {
-                controller.isMenuExpanded = false;
-                setState(() {});
-              }
-            },
-            onActionTap: controller.isInputEmpty
-                ? controller.toggleMenu
-                : () => controller.sendText(),
-            onVoiceLongPressStart: (d) {},
-            onVoiceLongPressMoveUpdate: (d) {},
-            onVoiceLongPressEnd: (d) {},
-          ),
-          if (controller.isMenuExpanded) const ChatMorePanel(),
-        ],
-      ),
+      child: KeyboardDetector(
+        builder: (keyboardHeight) {
+          if (keyboardHeight > 0 && controller.isAtBottom) {
+            controller.scrollToBottom();
+          }
+          return Column(
+            children: [
+              Expanded(child: _buildMessageList()),
+              ChatInputBar(
+                controller: controller.inputController,
+                isVoiceMode: controller.isVoiceMode,
+                isRecording: controller.isRecording,
+                isCancelling: controller.isCancelling,
+                isMenuExpanded: controller.isMenuExpanded,
+                isInputEmpty: controller.isInputEmpty,
+                onToggleVoiceMode: controller.toggleVoice,
+                onTextFieldTap: () {
+                  if (controller.isMenuExpanded) {
+                    controller.isMenuExpanded = false;
+                    setState(() {});
+                  }
+                },
+                onActionTap: controller.isInputEmpty
+                    ? controller.toggleMenu
+                    : () => controller.sendText(),
+                onVoiceLongPressStart: (d) {},
+                onVoiceLongPressMoveUpdate: (d) {},
+                onVoiceLongPressEnd: (d) {},
+              ),
+              // if (controller.isMenuExpanded) const ChatMorePanel(),
+            ],
+          );
+        },
+      )
     );
   }
 
@@ -107,7 +118,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        controller: controller.scrollController,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 20,
+          bottom: 20,
+        ),
         itemCount: controller.messages.length,
         itemBuilder: (context, index) =>
             _buildMessageNode(controller.messages[index]),

@@ -40,6 +40,10 @@ class ChatDetailController {
   late StreamSubscription<Map<String, bool>> _onlineSub;
 
   VoidCallback? notify;
+  final ScrollController scrollController = ScrollController();
+
+  bool isAtBottom = true;     // 是否在底部
+  double _oldMaxScroll = 0;   // 用于防跳
 
   void init(VoidCallback refresh) {
     notify = refresh;
@@ -52,8 +56,18 @@ class ChatDetailController {
       }
     });
 
-    _loadMessages();
+    _loadMessages().then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        scrollToBottom();
+      });
+    });
     _subscribeMessages();
+
+    /// ⭐等UI渲染后滚到底部
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      scrollToBottom();
+    });
+
   }
 
   void dispose() {
@@ -125,8 +139,23 @@ class ChatDetailController {
         final mapped =
         ChatDetailMessageMapper.mapMessages(list);
 
+        final oldMax =
+            scrollController.position.maxScrollExtent;
+
+        final oldOffset = scrollController.offset;
         /// ⭐ 去重 + 插入顶部
         messages = [...mapped, ...messages];
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!scrollController.hasClients) return;
+
+          final newMax =
+              scrollController.position.maxScrollExtent;
+
+          final diff = newMax - oldMax;
+
+          scrollController.jumpTo(oldOffset + diff);
+        });
       }
     } catch (e) {
       print('加载更多失败: $e');
@@ -150,6 +179,9 @@ class ChatDetailController {
       if (mapped.isEmpty) return;
       messages = [...messages, ...mapped];
       notify?.call();
+      if (isAtBottom) {
+        scrollToBottom(animate: true);
+      }
     });
 
     if (args?.isGroup == true) return;
@@ -175,6 +207,35 @@ class ChatDetailController {
     );
 
     inputController.clear();
+  }
+
+  void listenScroll() {
+    scrollController.addListener(() {
+      if (!scrollController.hasClients) return;
+
+      final position = scrollController.position;
+
+      isAtBottom = position.pixels >=
+          position.maxScrollExtent - 100;
+    });
+  }
+
+  void scrollToBottom({bool animate = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scrollController.hasClients) return;
+
+      final pos = scrollController.position.maxScrollExtent;
+
+      if (animate) {
+        scrollController.animateTo(
+          pos,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      } else {
+        scrollController.jumpTo(pos);
+      }
+    });
   }
 
   /// =========================

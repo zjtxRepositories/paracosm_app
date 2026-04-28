@@ -32,7 +32,6 @@ class ChatDetailMessageMapper {
   static ChatDetailMessage mapMessage(RCIMIWMessage message) {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
-    print('isMe-----${message.sentTime }---${message.receivedTime}');
     if (message is RCIMIWTextMessage) {
       return ChatDetailMessage(
         kind: ChatDetailMessageKind.text,

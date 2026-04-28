@@ -1,5 +1,6 @@
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class ChatDetailMessageMapper {
@@ -31,7 +32,7 @@ class ChatDetailMessageMapper {
   static ChatDetailMessage mapMessage(RCIMIWMessage message) {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
-
+    print('isMe-----${message.sentTime }---${message.receivedTime}');
     if (message is RCIMIWTextMessage) {
       return ChatDetailMessage(
         kind: ChatDetailMessageKind.text,
@@ -63,29 +64,7 @@ class ChatDetailMessageMapper {
   }
 
   static String _formatTimestamp(int timestamp) {
-    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    final month = _monthName(dateTime.month);
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$month $day ${dateTime.year} $hour:$minute';
+    return formatIMTime(timestamp);
   }
 
-  static String _monthName(int month) {
-    const names = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return names[month - 1];
-  }
 }

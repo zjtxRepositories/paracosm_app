@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'im_engine_manager.dart';
 
@@ -81,6 +82,9 @@ class ImSendManager {
         if (!completer.isCompleted) {
           if (code == 0) {
             _updateStatus(msg, MessageSendStatus.success, onUpdate);
+            message.senderUserId = IMEngineManager().currentUserId;
+            message.sentTime = DateTime.now().millisecondsSinceEpoch;
+            ImMessageManager().pushLocalMessage(message);
             completer.complete(true);
           } else {
             _updateStatus(msg, MessageSendStatus.failed, onUpdate);
@@ -222,7 +226,7 @@ class ImSendManager {
       _statusMap[messageId] = status;
     }
     if (status == MessageSendStatus.success){
-      IMEngineManager().conversation.refreshAfterSend(message.targetId ?? '', message);
+      IMEngineManager().conversation.onNewMessage(message.targetId ?? '', message);
     }
 
     onUpdate?.call(message);
@@ -232,8 +236,8 @@ class ImSendManager {
   Future<void> sendText({
     required RCIMIWConversationType type,
     required String targetId,
-    String? channelId,
     required String content,
+    String? channelId,
   }) async {
     final textMsg = await IMEngineManager().engine?.createTextMessage(
       type,
@@ -242,6 +246,6 @@ class ImSendManager {
       content,
     );
     if (textMsg == null) return;
-    sendTextMessage(message: textMsg);
+    await sendTextMessage(message: textMsg);
   }
 }

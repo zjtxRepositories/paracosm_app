@@ -11,7 +11,7 @@ import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
-import 'package:paracosm/pages/chat/chat_detail_page.dart';
+import 'package:paracosm/pages/chat/detail/chat_detail_page.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';

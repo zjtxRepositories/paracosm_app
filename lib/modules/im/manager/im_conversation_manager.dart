@@ -169,7 +169,9 @@ class ImConversationManager {
     /// 已存在
     if (conv != null) {
       conv.lastMessage = msg;
-      conv.unreadCount = (conv.unreadCount ?? 0) + 1;
+      if (msg.senderUserId != IMEngineManager().currentUserId){
+        conv.unreadCount = (conv.unreadCount ?? 0) + 1;
+      }
 
       _moveToTop(targetId);
     } else {
@@ -188,7 +190,9 @@ class ImConversationManager {
     conv.targetId = msg.targetId;
     conv.conversationType = msg.conversationType;
     conv.lastMessage = msg;
-    conv.unreadCount = 1;
+    if (msg.senderUserId != IMEngineManager().currentUserId){
+      conv.unreadCount = 1;
+    }
 
     final id = msg.targetId!;
     _allMap[id] = conv;
@@ -206,7 +210,6 @@ class ImConversationManager {
   /// =========================
   void _onReadSync(String? targetId) {
     if (targetId == null) return;
-
     final conv = _allMap[targetId];
     if (conv != null) {
       conv.unreadCount = 0;
@@ -252,9 +255,9 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 发送后刷新
+  /// 刷新
   /// =========================
-  void refreshAfterSend(
+  void onNewMessage(
       String targetId,
       RCIMIWMessage message,
       ) {

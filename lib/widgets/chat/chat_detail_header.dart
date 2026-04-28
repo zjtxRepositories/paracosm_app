@@ -3,19 +3,26 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+
+import 'group_avatar_widget.dart';
 
 class ChatDetailHeader extends StatelessWidget {
   const ChatDetailHeader({
     super.key,
     required this.name,
     required this.isGroup,
-    required this.avatars,
+    required this.avatar,
+    required this.targetId,
+    required this.isOnline,
     required this.onMoreTap,
   });
 
   final String name;
   final bool isGroup;
-  final List<String> avatars;
+  final String avatar;
+  final String targetId;
+  final bool isOnline;
   final VoidCallback onMoreTap;
 
   @override
@@ -43,10 +50,7 @@ class ChatDetailHeader extends StatelessWidget {
               final encodedName = Uri.encodeComponent(name);
               context.push('/session-details/$encodedName');
             },
-            child: _HeaderAvatar(
-              isGroup: isGroup,
-              avatars: avatars,
-            ),
+            child: _buildAvatar(),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -63,14 +67,14 @@ class ChatDetailHeader extends StatelessWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.onlineBg,
+                      decoration: BoxDecoration(
+                        color: isOnline ?  AppColors.onlineBg : AppColors.grey400,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      AppLocalizations.of(context)!.chatDetailActive,
+                      isOnline ? AppLocalizations.of(context)!.chatDetailActive : '离线',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.grey400,
                         fontSize: 12,
@@ -94,6 +98,23 @@ class ChatDetailHeader extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildAvatar() {
+    if (!isGroup) {
+      return UserAvatarWidget(
+        userId: targetId,
+        avatarUrl: avatar,
+        size: 44,
+        borderRadius: BorderRadius.circular(10),
+      );
+    }
+    return GroupAvatarWidget(
+      groupId: targetId,
+      portraitUri: avatar,
+      size: 44,
+    );
+  }
+
 }
 
 class _HeaderAvatar extends StatelessWidget {

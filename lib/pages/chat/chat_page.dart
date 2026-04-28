@@ -3,9 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/conversation_model.dart';
-import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
-import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
-import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -20,7 +17,6 @@ import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../modules/im/manager/im_connection_manager.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
-import '../../modules/im/manager/im_friend_applications_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 import 'contacts_view.dart';

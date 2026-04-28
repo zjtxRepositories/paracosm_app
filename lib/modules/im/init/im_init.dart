@@ -19,6 +19,7 @@ class ImInit {
     IMEngineManager().user.initListener();
     IMEngineManager().conversation.initListener();
     IMEngineManager().group.initListener();
+    IMEngineManager().subscribe.initListener();
 
     /// 3. 自动登录
     final account = AccountManager().currentAccount;

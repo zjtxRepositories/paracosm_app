@@ -29,10 +29,7 @@ import '../../widgets/common/image_picker_sheet.dart';
 class UserProfilePage extends StatefulWidget {
   final String userId;
 
-  const UserProfilePage({
-    super.key,
-    required this.userId,
-  });
+  const UserProfilePage({super.key, required this.userId});
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -40,7 +37,7 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   UserModel? _user;
-  bool _isSelf= false;
+  bool _isSelf = false;
   bool _isFriend = false;
 
   @override
@@ -57,15 +54,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (widget.userId == currentUserId) {
         profile = await manager.getMyUserProfile();
         _isSelf = true;
-      }
-      else {
-        final result =
-            await manager.getUserProfiles([widget.userId]) ?? [];
+      } else {
+        final result = await manager.getUserProfiles([widget.userId]) ?? [];
         if (result.isNotEmpty) {
           profile = result.first;
         }
-        final List<RCIMIWFriendInfo> friends = await ImFriendManager().getFriendsInfo([widget.userId]) ?? [];
-        if (friends.isNotEmpty){
+        final List<RCIMIWFriendInfo> friends =
+            await ImFriendManager().getFriendsInfo([widget.userId]) ?? [];
+        if (friends.isNotEmpty) {
           final friend = FriendModel(info: friends.first);
           profile?.name = friend.name;
           // print('dddd-----${friend.remark}');
@@ -90,7 +86,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> toggleChat() async {
-    if (!_isFriend){
+    if (!_isFriend) {
       AppToast.show('请添加好友！');
       return;
     }
@@ -106,14 +102,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> toggleMoment() async {
-    context.push('/moment-user-profile');
+    final userId = _user?.profile.userId ?? '';
+    context.push('/moment-user-profile', extra: userId);
   }
 
   /// 显示添加好友弹窗
   void _showAddFriendModal() {
     if (_user == null) return;
-    String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX",
-        AccountManager().currentAccount?.name ?? '');
+    String initialText = AppLocalizations.of(context)!
+        .chatProfileAddFriendPlaceholder
+        .replaceAll("XXX", AccountManager().currentAccount?.name ?? '');
     TextEditingController controller = TextEditingController(text: initialText);
     AppModal.show(
       context,
@@ -121,9 +119,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
       confirmText: AppLocalizations.of(context)!.commonConfirm,
       onConfirm: () async {
         AppLoading.show();
-        final result = await ImFriendManager().addFriend(userId: _user!.profile.userId ?? '',extra: controller.text);
+        final result = await ImFriendManager().addFriend(
+          userId: _user!.profile.userId ?? '',
+          extra: controller.text,
+        );
         AppLoading.dismiss();
-        if (!result.success){
+        if (!result.success) {
           AppToast.show('发送好友申请失败！');
           return;
         }
@@ -140,7 +141,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 显示设置备注弹窗
   void _showSetNoteNameModal() {
     if (_user == null) return;
-    TextEditingController controller = TextEditingController(text: _user!.profile.name ?? '');
+    TextEditingController controller = TextEditingController(
+      text: _user!.profile.name ?? '',
+    );
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatProfileSetNote,
@@ -148,25 +151,27 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         _user!.profile.name = controller.text;
-        final result = await ImUserManager().updateMyUserProfile(userProfile: _user!.profile);
+        final result = await ImUserManager().updateMyUserProfile(
+          userProfile: _user!.profile,
+        );
         AppLoading.dismiss();
-        if (!result){
+        if (!result) {
           AppToast.show('设置备注失败！');
           return;
         }
         context.pop();
         setState(() {});
       },
-      child: _SetNoteNameInputWrapper(
-        controller: controller,
-      ),
+      child: _SetNoteNameInputWrapper(controller: controller),
     );
   }
 
   /// 修改名称
   void _showSetNameModal() {
     if (_user == null) return;
-    TextEditingController controller = TextEditingController(text: _user!.profile.name ?? '');
+    TextEditingController controller = TextEditingController(
+      text: _user!.profile.name ?? '',
+    );
     AppModal.show(
       context,
       title: '修改名称',
@@ -174,19 +179,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         _user!.profile.name = controller.text;
-        final result = await ImUserManager().updateMyUserProfile(userProfile: _user!.profile);
+        final result = await ImUserManager().updateMyUserProfile(
+          userProfile: _user!.profile,
+        );
         AppLoading.dismiss();
-        if (!result){
+        if (!result) {
           AppToast.show('修改名称失败！');
           return;
         }
         setState(() {});
         context.pop();
-        AccountManager().updateAccountUserInfo(_user!.profile.name ?? '', _user!.profile.portraitUri ?? '');
+        AccountManager().updateAccountUserInfo(
+          _user!.profile.name ?? '',
+          _user!.profile.portraitUri ?? '',
+        );
       },
-      child: _SetNoteNameInputWrapper(
-        controller: controller,
-      ),
+      child: _SetNoteNameInputWrapper(controller: controller),
     );
   }
 
@@ -203,8 +211,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     try {
       AppLoading.show();
 
-      final compressed =
-      await MediaHandleUtil.compressedImageQuality(path);
+      final compressed = await MediaHandleUtil.compressedImageQuality(path);
 
       final url = await UploadFileApi.uploadFileByPath(compressed);
 
@@ -215,15 +222,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
       _user!.profile.portraitUri = url;
 
-      final result = await ImUserManager()
-          .updateMyUserProfile(userProfile: _user!.profile);
+      final result = await ImUserManager().updateMyUserProfile(
+        userProfile: _user!.profile,
+      );
 
       if (!result) {
         AppToast.show('修改头像失败');
         return;
       }
       setState(() {});
-      AccountManager().updateAccountUserInfo(_user!.profile.name ?? '', _user!.profile.portraitUri ?? '');
+      AccountManager().updateAccountUserInfo(
+        _user!.profile.name ?? '',
+        _user!.profile.portraitUri ?? '',
+      );
     } finally {
       AppLoading.dismiss();
     }
@@ -249,7 +260,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   const SizedBox(height: 24),
                   _buildActionRow(),
                   const SizedBox(height: 40),
-                  _isFriend ? _buildOptionList() :SizedBox(),
+                  _isFriend ? _buildOptionList() : SizedBox(),
                 ],
               ),
             ),
@@ -268,7 +279,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         avatarUrl: _user?.profile.portraitUri,
         size: 80,
         borderRadius: BorderRadius.circular(16),
-      )
+      ),
     );
   }
 
@@ -309,7 +320,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        )
+        ),
       ],
     );
   }
@@ -318,36 +329,52 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildActionRow() {
     final items = _isFriend
         ? [
-      _buildActionItem(AppLocalizations.of(context)!.chatProfileMessage,
-          'assets/images/common/msg.png',toggleChat),
-      _buildActionItem(AppLocalizations.of(context)!.chatProfileCall,
-          'assets/images/common/call.png',(){}),
-      _buildActionItem(AppLocalizations.of(context)!.chatProfileVideo,
-          'assets/images/common/video-dark.png',(){}),
-      _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment,
-          'assets/images/common/moment.png',(){}),
-    ]
+            _buildActionItem(
+              AppLocalizations.of(context)!.chatProfileMessage,
+              'assets/images/common/msg.png',
+              toggleChat,
+            ),
+            _buildActionItem(
+              AppLocalizations.of(context)!.chatProfileCall,
+              'assets/images/common/call.png',
+              () {},
+            ),
+            _buildActionItem(
+              AppLocalizations.of(context)!.chatProfileVideo,
+              'assets/images/common/video-dark.png',
+              () {},
+            ),
+            _buildActionItem(
+              AppLocalizations.of(context)!.chatProfileMoment,
+              'assets/images/common/moment.png',
+              toggleMoment,
+            ),
+          ]
         : [
-      !_isSelf
-          ? _buildActionItem(
-          AppLocalizations.of(context)!.chatProfileMessage,
-          'assets/images/common/msg.png',toggleChat)
-          : _buildActionItem('头像',
-          'assets/images/common/camera.png',_showPickAvatarAction),
+            !_isSelf
+                ? _buildActionItem(
+                    AppLocalizations.of(context)!.chatProfileMessage,
+                    'assets/images/common/msg.png',
+                    toggleChat,
+                  )
+                : _buildActionItem(
+                    '头像',
+                    'assets/images/common/camera.png',
+                    _showPickAvatarAction,
+                  ),
 
-      _buildActionItem(AppLocalizations.of(context)!.chatProfileMoment,
-          'assets/images/common/moment.png',toggleMoment),
-    ];
+            _buildActionItem(
+              AppLocalizations.of(context)!.chatProfileMoment,
+              'assets/images/common/moment.png',
+              toggleMoment,
+            ),
+          ];
     if (items.length == 2) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            items[0],
-            const SizedBox(width: 60),
-            items[1],
-          ],
+          children: [items[0], const SizedBox(width: 60), items[1]],
         ),
       );
     }
@@ -383,20 +410,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildAddFriendButton() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: _isFriend  ?
-      AppButton(
-        text: AppLocalizations.of(context)!.chatProfileDelete,
-        textColor: AppColors.error,
-        border: BorderSide(color:  AppColors.error),
-        backgroundColor: Colors.white,
-        onPressed: _showAddFriendModal,
-      ):
-      AppButton(
-        text: _isSelf ? 'Modify nickname' : AppLocalizations.of(context)!.chatProfileAddFriend,
-        textColor: Colors.white,
-        backgroundColor: AppColors.grey900,
-        onPressed:_isSelf ? _showSetNameModal : _showAddFriendModal,
-      ),
+      child: _isFriend
+          ? AppButton(
+              text: AppLocalizations.of(context)!.chatProfileDelete,
+              textColor: AppColors.error,
+              border: BorderSide(color: AppColors.error),
+              backgroundColor: Colors.white,
+              onPressed: _showAddFriendModal,
+            )
+          : AppButton(
+              text: _isSelf
+                  ? 'Modify nickname'
+                  : AppLocalizations.of(context)!.chatProfileAddFriend,
+              textColor: Colors.white,
+              backgroundColor: AppColors.grey900,
+              onPressed: _isSelf ? _showSetNameModal : _showAddFriendModal,
+            ),
     );
   }
 
@@ -415,7 +444,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   /// 构建单个快捷操作项
-  Widget _buildActionItem(String label, String iconPath, GestureTapCallback? onTap) {
+  Widget _buildActionItem(
+    String label,
+    String iconPath,
+    GestureTapCallback? onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -455,7 +488,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               bottom: 0,
               child: Container(height: 0.5, color: AppColors.grey200),
             ),
-            Positioned.fill( 
+            Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -485,7 +518,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
   }
-
 }
 
 /// 添加好友申请输入框包装组件，管理自身状态
@@ -493,7 +525,10 @@ class _AddFriendInputWrapper extends StatefulWidget {
   final String initialText;
   final TextEditingController controller;
 
-  const _AddFriendInputWrapper({required this.initialText, required this.controller});
+  const _AddFriendInputWrapper({
+    required this.initialText,
+    required this.controller,
+  });
 
   @override
   State<_AddFriendInputWrapper> createState() => _AddFriendInputWrapperState();
@@ -519,10 +554,7 @@ class _AddFriendInputWrapperState extends State<_AddFriendInputWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return _AddFriendInput(
-      controller: controller,
-      focusNode: focusNode,
-    );
+    return _AddFriendInput(controller: controller, focusNode: focusNode);
   }
 }
 
@@ -557,10 +589,7 @@ class _SetNoteNameInputWrapperState extends State<_SetNoteNameInputWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return _SetNoteNameInput(
-      controller: controller,
-      focusNode: focusNode,
-    );
+    return _SetNoteNameInput(controller: controller, focusNode: focusNode);
   }
 }
 
@@ -569,10 +598,7 @@ class _AddFriendInput extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
 
-  const _AddFriendInput({
-    required this.controller,
-    required this.focusNode,
-  });
+  const _AddFriendInput({required this.controller, required this.focusNode});
 
   @override
   State<_AddFriendInput> createState() => _AddFriendInputState();
@@ -628,7 +654,9 @@ class _AddFriendInputState extends State<_AddFriendInput> {
         style: AppTextStyles.body.copyWith(
           fontSize: 14,
           color: (isFocused || hasText) ? AppColors.grey900 : AppColors.grey400,
-          fontWeight: (isFocused || hasText) ? FontWeight.w500 : FontWeight.normal,
+          fontWeight: (isFocused || hasText)
+              ? FontWeight.w500
+              : FontWeight.normal,
         ),
       ),
     );
@@ -640,10 +668,7 @@ class _SetNoteNameInput extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
 
-  const _SetNoteNameInput({
-    required this.controller,
-    required this.focusNode,
-  });
+  const _SetNoteNameInput({required this.controller, required this.focusNode});
 
   @override
   State<_SetNoteNameInput> createState() => _SetNoteNameInputState();

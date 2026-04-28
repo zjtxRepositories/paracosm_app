@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/social_Invitation_model.dart';
+import 'package:paracosm/core/network/api/social_circle_note_api.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_action_sheet.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:paracosm/widgets/modals/share_modals.dart';
+
+import 'moment_post_card.dart';
 
 /// 个人主页详情页
 /// 保留社区详情页的主体结构，只显示看板下面的内容列表，移除 TabController 和其他 Tab 区域。
 class MomentUserProfilePage extends StatefulWidget {
+  final String userId;
   final String communityName;
   final String mode;
 
   const MomentUserProfilePage({
     super.key,
+    required this.userId,
     this.communityName = 'Kristen',
     this.mode = 'friend',
   });
@@ -24,11 +35,257 @@ class MomentUserProfilePage extends StatefulWidget {
 }
 
 class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
-
   static const double _sendMomentSize = 80;
+  final List<SocialInvitationModel> _posts = [];
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
+  bool _isLoading = true;
   bool get _isSelf => widget.mode == 'self';
+  String get _currentUserId =>
+      AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  @override
+  void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _loadPosts();
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    final userId = widget.userId.trim();
+    setState(() {
+      _isLoading = true;
+      _posts.clear();
+    });
+
+    if (userId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final posts = await SocialCircleNoteApi.getSocialCircleUserNoteList(
+        userId,
+      );
+      final hydratedPosts = await _hydratePostInteractionStates(posts);
+      if (!mounted || widget.userId.trim() != userId) return;
+      setState(() {
+        _posts
+          ..clear()
+          ..addAll(hydratedPosts);
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('load moment user posts failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<List<SocialInvitationModel>> _hydratePostInteractionStates(
+    List<SocialInvitationModel> posts,
+  ) {
+    return Future.wait(posts.map(_hydratePostInteractionState));
+  }
+
+  Future<SocialInvitationModel> _hydratePostInteractionState(
+    SocialInvitationModel post,
+  ) async {
+    if (post.noteId.isEmpty) return post;
+
+    try {
+      final detail = await SocialCircleNoteApi.getSocialCircleNoteInfo(
+        post.noteId,
+      );
+      if (detail != null) {
+        _applyPostInteractionInfo(post, detail);
+      }
+    } catch (e) {
+      debugPrint('load moment post interaction failed (${post.noteId}): $e');
+    }
+
+    return post;
+  }
+
+  void _applyPostInteractionInfo(
+    SocialInvitationModel target,
+    SocialInvitationModel source,
+  ) {
+    target.isLike = source.isLike;
+    target.isCollect = source.isCollect;
+    target.likes = source.likes;
+    target.collects = source.collects;
+    target.reviews = source.reviews;
+    target.shares = source.shares;
+    target.forwards = source.forwards;
+    target.reviewInfo = source.reviewInfo;
+  }
+
+  Future<void> _toggleLike(SocialInvitationModel post) async {
+    final nextIsLiked = !post.isLike;
+    var success = false;
+    try {
+      AppLoading.show();
+      success = await SocialCircleNoteApi.socialCircleNoteLikeToggle(
+        post.noteId,
+        nextIsLiked,
+      );
+    } catch (e) {
+      debugPrint('toggle moment like failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!success) {
+      AppToast.show('点赞失败！');
+      return;
+    }
+    if (!mounted) return;
+
+    setState(() {
+      post.isLike = nextIsLiked;
+      post.likes = _nextCount(post.likes, nextIsLiked);
+    });
+  }
+
+  Future<void> _toggleCollect(SocialInvitationModel post) async {
+    final nextIsCollected = !post.isCollect;
+    var success = false;
+    try {
+      AppLoading.show();
+      success = await SocialCircleNoteApi.socialCircleNoteCollectToggle(
+        post.noteId,
+        nextIsCollected,
+      );
+    } catch (e) {
+      debugPrint('toggle moment collect failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!success) {
+      AppToast.show('收藏失败！');
+      return;
+    }
+    if (!mounted) return;
+
+    setState(() {
+      post.isCollect = nextIsCollected;
+      post.collects = _nextCount(post.collects, nextIsCollected);
+    });
+  }
+
+  void _openComments(SocialInvitationModel post) {
+    context.push(
+      '/moment-post-detail',
+      extra: {'item': post, 'isFollowing': false, 'isBlock': false},
+    );
+  }
+
+  void _showShare(SocialInvitationModel post) {
+    ShareModals.show(
+      context,
+      actions: [
+        ShareActionData(
+          icon: 'assets/images/moments/share-pop.png',
+          label: 'Share',
+          onTap: () => _sharePost(post),
+        ),
+        ShareActionData(
+          icon: 'assets/images/moments/friends.png',
+          label: 'Retweet',
+          onTap: () => _forwardPost(post),
+        ),
+        ShareActionData(
+          icon: 'assets/images/moments/link.png',
+          label: 'Copy link',
+          onTap: AppToast.showCopied,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sharePost(SocialInvitationModel post) async {
+    await _sendShareAction(
+      action: () => SocialCircleNoteApi.socialCircleNoteShare(
+        _currentUserId,
+        post.userId,
+        post.noteId,
+      ),
+      successText: '分享成功！',
+      failureText: '分享失败！',
+      onSuccess: () {
+        setState(() {
+          post.shares += 1;
+        });
+      },
+    );
+  }
+
+  Future<void> _forwardPost(SocialInvitationModel post) async {
+    await _sendShareAction(
+      action: () => SocialCircleNoteApi.socialCircleNoteForward(
+        _currentUserId,
+        post.userId,
+        post.noteId,
+      ),
+      successText: '转发成功！',
+      failureText: '转发失败！',
+      onSuccess: () {
+        setState(() {
+          post.forwards += 1;
+        });
+      },
+    );
+  }
+
+  Future<void> _sendShareAction({
+    required Future<bool> Function() action,
+    required String successText,
+    required String failureText,
+    required VoidCallback onSuccess,
+  }) async {
+    if (_currentUserId.isEmpty) {
+      AppToast.show('用户未登录！');
+      return;
+    }
+
+    var success = false;
+    try {
+      AppLoading.show();
+      success = await action();
+    } catch (e) {
+      debugPrint('send moment share action failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!success) {
+      AppToast.show(failureText);
+      return;
+    }
+    if (!mounted) return;
+
+    onSuccess();
+    AppToast.show(successText);
+  }
+
+  int _nextCount(int count, bool increment) {
+    if (increment) return count + 1;
+    return count > 0 ? count - 1 : 0;
+  }
 
   @override
   void didChangeDependencies() {
@@ -142,7 +399,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 自定义导航栏
   Widget _buildCustomHeader(BuildContext context) {
-
     final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: EdgeInsets.only(
@@ -222,7 +478,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               right: 0,
               bottom: 16,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minWidth: 85),
                   child: DecoratedBox(
@@ -231,7 +490,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 5,
+                      ),
                       child: Text(
                         l10n.translate('moments_follow'),
                         textAlign: TextAlign.center,
@@ -251,15 +513,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     );
   }
 
-  /// 头像
-  Widget _buildGridAvatar() {
-    return SizedBox(
-      width: 64,
-      height: 64,
-      child: Image.asset('assets/images/chat/avatar.png', fit: BoxFit.cover),
-    );
-  }
-
   /// 社区标题和地址
   Widget _buildProfileAvatar({required bool showPhotoIcon}) {
     final avatar = SizedBox(
@@ -271,7 +524,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           SizedBox(
             width: 64,
             height: 64,
-            child: Image.asset('assets/images/chat/avatar.png', fit: BoxFit.cover),
+            child: Image.asset(
+              'assets/images/chat/avatar.png',
+              fit: BoxFit.cover,
+            ),
           ),
           if (showPhotoIcon)
             Positioned(
@@ -302,14 +558,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     AppActionSheet.show(
       context,
       items: [
-        AppActionSheetItem(
-          label: '从默认头像选择',
-          onTap: () {},
-        ),
-        AppActionSheetItem(
-          label: '从手机相册选择',
-          onTap: () {},
-        ),
+        AppActionSheetItem(label: '从默认头像选择', onTap: () {}),
+        AppActionSheetItem(label: '从手机相册选择', onTap: () {}),
       ],
       cancelText: '取消',
     );
@@ -516,11 +766,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
-        Image.asset(
-          'assets/images/moments/mike.png',
-          width: 20,
-          height: 20,
-        ),
+        Image.asset('assets/images/moments/mike.png', width: 20, height: 20),
         const SizedBox(width: 4),
         Text(
           l10n.translate('moments_dynamic'),
@@ -536,24 +782,33 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 内容列表
   Widget _buildDashboardContent(AppLocalizations l10n) {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_posts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        child: _NoContentPlaceholder(),
+      );
+    }
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      itemCount: 3,
+      itemCount: _posts.length,
       separatorBuilder: (context, index) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
-        if (index == 2) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: _NoContentPlaceholder(),
-          );
-        }
+        final post = _posts[index];
         return Column(
           children: [
-            _buildPostItem(l10n),
+            _buildPostItem(post),
             const SizedBox(height: 12),
-            _buildPostInteraction(l10n),
+            _buildPostInteraction(post),
           ],
         );
       },
@@ -561,7 +816,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   /// 帖子内容
-  Widget _buildPostItem(AppLocalizations l10n) {
+  Widget _buildPostItem(SocialInvitationModel post) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -588,7 +843,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
                   ),
                 ),
                 Text(
-                  '22:03 2025-04-18',
+                  formatIMTime(post.timestamp),
                   style: AppTextStyles.body.copyWith(
                     fontSize: 10,
                     color: AppColors.grey400,
@@ -601,7 +856,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(height: 16),
         Text(
-          'What kind of photos can a novice take after learning by himself for half a What kind of photos can a novice take after learning by himself for half',
+          post.content,
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             color: const Color(0xFF404040),
@@ -609,46 +864,27 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildPostImageGrid(),
+        ImageGrid(medias: post.media),
         const SizedBox(height: 12),
       ],
     );
   }
 
-  /// 帖子图片网格
-  Widget _buildPostImageGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const double spacing = 4;
-        final double size = (constraints.maxWidth - spacing * 2) / 3;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: List.generate(6, (index) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.asset(
-                'assets/images/moments/moment1.png',
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-
   /// 帖子互动区
-  Widget _buildPostInteraction(AppLocalizations l10n) {
+  Widget _buildPostInteraction(SocialInvitationModel post) {
     return _PostActionBar(
-      initialLiked: false,
-      initialCollected: false,
-      likeCount: 1,
-      collectCount: 1,
-      commentCount: 12,
-      shareCount: 1,
+      isLiked: post.isLike,
+      isCollected: post.isCollect,
+      likeCount: post.likes,
+      collectCount: post.collects,
+      commentCount: post.reviews,
+      shareCount: post.shares,
+      forwardCount: post.forwards,
+      onLike: () => _toggleLike(post),
+      onCollect: () => _toggleCollect(post),
+      onComment: () => _openComments(post),
+      onShare: () => _showShare(post),
+      onForward: () => _forwardPost(post),
     );
   }
 }
@@ -675,82 +911,71 @@ class _NoContentPlaceholder extends StatelessWidget {
   }
 }
 
-class _PostActionBar extends StatefulWidget {
-  final bool initialLiked;
-  final bool initialCollected;
+class _PostActionBar extends StatelessWidget {
+  final bool isLiked;
+  final bool isCollected;
   final int likeCount;
   final int collectCount;
   final int commentCount;
   final int shareCount;
+  final int forwardCount;
+  final VoidCallback? onLike;
+  final VoidCallback? onCollect;
+  final VoidCallback? onComment;
+  final VoidCallback? onShare;
+  final VoidCallback? onForward;
 
   const _PostActionBar({
-    required this.initialLiked,
-    required this.initialCollected,
+    required this.isLiked,
+    required this.isCollected,
     required this.likeCount,
     required this.collectCount,
     required this.commentCount,
     required this.shareCount,
+    required this.forwardCount,
+    this.onLike,
+    this.onCollect,
+    this.onComment,
+    this.onShare,
+    this.onForward,
   });
-
-  @override
-  State<_PostActionBar> createState() => _PostActionBarState();
-}
-
-class _PostActionBarState extends State<_PostActionBar> {
-  late bool _isLiked;
-  late bool _isCollected;
-  late int _likeCount;
-  late int _collectCount;
-
-  @override
-  void initState() {
-    super.initState();
-    _isLiked = widget.initialLiked;
-    _isCollected = widget.initialCollected;
-    _likeCount = widget.likeCount;
-    _collectCount = widget.collectCount;
-  }
-
-  void _toggleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-      _likeCount = _isLiked ? _likeCount + 1 : (_likeCount > 0 ? _likeCount - 1 : 0);
-    });
-  }
-
-  void _toggleCollect() {
-    setState(() {
-      _isCollected = !_isCollected;
-      _collectCount = _isCollected ? _collectCount + 1 : (_collectCount > 0 ? _collectCount - 1 : 0);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         _ActionIconTextButton(
-          icon: _isLiked ? 'assets/images/moments/like-active.png' : 'assets/images/moments/like.png',
-          text: '$_likeCount',
-          active: _isLiked,
-          onTap: _toggleLike,
+          icon: isLiked
+              ? 'assets/images/moments/like-active.png'
+              : 'assets/images/moments/like.png',
+          text: '$likeCount',
+          onTap: onLike,
         ),
         const SizedBox(width: 24),
         _ActionIconTextButton(
-          icon: _isCollected ? 'assets/images/moments/collect-active.png' : 'assets/images/moments/collect.png',
-          text: '$_collectCount',
-          active: _isCollected,
-          onTap: _toggleCollect,
+          icon: isCollected
+              ? 'assets/images/moments/collect-active.png'
+              : 'assets/images/moments/collect.png',
+          text: '$collectCount',
+          onTap: onCollect,
         ),
         const SizedBox(width: 24),
         _ActionIconTextButton(
           icon: 'assets/images/moments/comment.png',
-          text: '${widget.commentCount}',
+          text: '$commentCount',
+          onTap: onComment,
+        ),
+        const SizedBox(width: 24),
+        _ActionIconTextButton(
+          icon: 'assets/images/moments/share-pop.png',
+          text: '$forwardCount',
+          onTap: onForward,
         ),
         const Spacer(),
         _ActionIconTextButton(
           icon: 'assets/images/moments/share.png',
-          text: '${widget.shareCount}',
+          text: '$shareCount',
+          onTap: onShare,
         ),
       ],
     );
@@ -760,13 +985,11 @@ class _PostActionBarState extends State<_PostActionBar> {
 class _ActionIconTextButton extends StatelessWidget {
   final String icon;
   final String text;
-  final bool active;
   final VoidCallback? onTap;
 
   const _ActionIconTextButton({
     required this.icon,
     required this.text,
-    this.active = false,
     this.onTap,
   });
 
@@ -775,11 +998,7 @@ class _ActionIconTextButton extends StatelessWidget {
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          icon,
-          width: 16,
-          height: 16,
-        ),
+        Image.asset(icon, width: 16, height: 16),
         const SizedBox(width: 4),
         Text(
           text,
@@ -792,14 +1011,15 @@ class _ActionIconTextButton extends StatelessWidget {
       ],
     );
 
-    if (onTap == null) {
-      return content;
-    }
+    if (onTap == null) return content;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: content,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: content,
+      ),
     );
   }
 }

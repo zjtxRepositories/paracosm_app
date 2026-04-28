@@ -1,31 +1,30 @@
-
 import 'package:paracosm/core/models/social_media_model.dart';
 import 'package:paracosm/core/models/social_review_model.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 
 class SocialInvitationModel {
   SocialInvitationModel(
-      this.noteId,
-      this.userId,
-      this.timestamp,
-      this.content,
-      this.quote,
-      this.forward,
-      this.draft,
-      this.authority,
-      this.media,
-      this.likes,
-      this.reviews,
-      this.collects,
-      this.shares,
-      this.forwards,
-      this.isLike,
-      this.isCollect,
-      this.reviewInfo, {
-        this.forwardInvitation,
-        this.quoteInvitation,
-        this.userInfoModel,
-      });
+    this.noteId,
+    this.userId,
+    this.timestamp,
+    this.content,
+    this.quote,
+    this.forward,
+    this.draft,
+    this.authority,
+    this.media,
+    this.likes,
+    this.reviews,
+    this.collects,
+    this.shares,
+    this.forwards,
+    this.isLike,
+    this.isCollect,
+    this.reviewInfo, {
+    this.forwardInvitation,
+    this.quoteInvitation,
+    this.userInfoModel,
+  });
 
   final String noteId;
   final String userId;
@@ -42,8 +41,8 @@ class SocialInvitationModel {
   int likes;
   int reviews;
   int collects;
-  final int shares;
-  final int forwards;
+  int shares;
+  int forwards;
   bool isLike;
   bool isCollect;
   List<SocialReviewModel> reviewInfo;
@@ -64,13 +63,25 @@ class SocialInvitationModel {
       (json['media'] as List? ?? [])
           .map((e) => SocialMediaModel.fromJson(e))
           .toList(),
-      json['likes'] ?? 0,
-      json['reviews'] ?? 0,
-      json['collects'] ?? 0,
-      json['shares'] ?? 0,
-      json['forwards'] ?? 0,
-      json['is_like'] ?? false,
-      json['is_collect'] ?? false,
+      _parseInt(json['likes']),
+      _parseInt(json['reviews']),
+      _parseInt(json['collects']),
+      _parseInt(json['shares']),
+      _parseInt(json['forwards']),
+      _parseBool(
+        json['isLike'] ??
+            json['is_like'] ??
+            json['is_liked'] ??
+            json['liked'] ??
+            json['has_like'],
+      ),
+      _parseBool(
+        json['isCollect'] ??
+            json['is_collect'] ??
+            json['is_collected'] ??
+            json['collected'] ??
+            json['has_collect'],
+      ),
       (json['review_info'] as List? ?? [])
           .map((e) => SocialReviewModel.fromJson(e))
           .toList(),
@@ -84,6 +95,23 @@ class SocialInvitationModel {
           ? UserInfo.fromJson(json['user_info'])
           : null,
     );
+  }
+
+  static int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 
   /// =========================

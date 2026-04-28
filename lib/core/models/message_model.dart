@@ -7,67 +7,43 @@ import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'custom_message_model.dart';
-class ConversationModel {
-  final RCIMIWConversation info;
-
-  String? title;
-  String? subtitle;
+class MessageModel {
+  final RCIMIWMessage item;
+  String? nikeName;
   String? portraitUri;
-
-  ConversationModel({required this.info});
+  String? content;
+  MessageModel({required this.item});
 }
 
-class ConversationResolver {
+class MessageResolver {
   final Map<String, UserModel?> _userCache = {};
   final Map<String, GroupModel?> _groupCache = {};
 
-  Future<void> resolve(ConversationModel model) async {
-    final info = model.info;
+  Future<void> resolve(MessageModel model) async {
+    final info = model.item;
     final targetId = info.targetId;
     if (targetId == null) return;
 
     // title + avatar
     if (info.conversationType == RCIMIWConversationType.private) {
       final user = await _getUser(targetId);
-      model.title = user?.name ?? '';
+      model.nikeName = user?.name ?? '';
       model.portraitUri = user?.profile.portraitUri ?? '';
     }
 
     if (info.conversationType == RCIMIWConversationType.group) {
       final group = await _getGroup(targetId);
-      model.title = await group?.name;
+      model.nikeName = await group?.name;
       model.portraitUri = group?.info.portraitUri ?? '';
     }
 
-    if (info.conversationType == RCIMIWConversationType.system) {
-      model.title = '通知';
-    }
-
-    // subtitle
-    final msg = info.lastMessage;
-    if (msg != null) {
-      final content = await _format(msg);
-
-      if (info.conversationType == RCIMIWConversationType.group) {
-        final group = await _getGroup(targetId);
-        model.subtitle = '${group?.name ?? ''}：$content';
-      } else {
-        model.subtitle = content;
-      }
-    }
-
+    model.content = await _format(info);
   }
 
   Future<String> _format(RCIMIWMessage message) async{
     switch (message.messageType) {
       case RCIMIWMessageType.text:
         return (message as RCIMIWTextMessage).text ?? '';
-      case RCIMIWMessageType.image:
-        return '[图片]';
-      case RCIMIWMessageType.voice:
-        return '[语音]';
-      case RCIMIWMessageType.sight:
-        return '[视频]';
       case RCIMIWMessageType.recall:
         return '对方撤回了一条消息';
       case RCIMIWMessageType.custom:
@@ -79,7 +55,7 @@ class ConversationResolver {
         );
         return _formatCustomMessage(model);
       default:
-        return '[消息]';
+        return '';
     }
   }
 

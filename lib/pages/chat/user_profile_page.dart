@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:paracosm/core/models/friend_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
@@ -69,8 +70,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         }
         final List<RCIMIWFriendInfo> friends = await ImFriendManager().getFriendsInfo([widget.userId]) ?? [];
         if (friends.isNotEmpty){
-          final friend = friends.first;
-          profile?.name = friend.remark ?? friend.name;
+          final friend = FriendModel(info: friends.first);
+          profile?.name = friend.name;
+          // print('dddd-----${friend.remark}');
           _isFriend = true;
         }
       }
@@ -96,15 +98,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
       AppToast.show('请添加好友！');
       return;
     }
-    final targetId = _user?.profile.userId ?? '';
-    final content = "我们已成功添加为好友，现在可以开始聊天啦～";
-    final message = await CustomMessage.createFm(targetId: targetId, content: content);
-    if (message != null) {
-     final result = await ImSendManager.instance.sendCustomMessage(message: message);
-     if (result){
-       print('发送-----发送消息成功');
-     }
-    }
+    // final targetId = _user?.profile.userId ?? '';
+    // final content = "我们已成功添加为好友，现在可以开始聊天啦～";
+    // final message = await CustomMessage.createFm(targetId: targetId, content: content);
+    // if (message != null) {
+    //  final result = await ImSendManager.instance.sendCustomMessage(message: message);
+    //  if (result){
+    //    print('发送-----发送消息成功');
+    //  }
+    // }
   }
 
   Future<void> toggleMoment() async {
@@ -114,7 +116,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 显示添加好友弹窗
   void _showAddFriendModal() {
     if (_user == null) return;
-    String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX", _user?.name ?? '');
+    print('object----${AccountManager().currentAccount?.nickname}');
+    String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX",
+        AccountManager().currentAccount?.name ?? '');
     TextEditingController controller = TextEditingController(text: initialText);
     AppModal.show(
       context,

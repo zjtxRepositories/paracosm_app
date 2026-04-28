@@ -121,6 +121,10 @@ class ImFriendApplicationsManager {
         onSuccess: () {
           debugPrint('acceptFriendApplication success');
           if (!completer.isCompleted) {
+            _updateLocalStatus(
+              userId,
+              RCIMIWFriendApplicationStatus.accepted,
+            );
             completer.complete(true);
           }
         },
@@ -148,6 +152,11 @@ class ImFriendApplicationsManager {
         onSuccess: () {
           debugPrint('refuse success');
           if (!completer.isCompleted) {
+            _updateLocalStatus(
+              userId,
+              RCIMIWFriendApplicationStatus.refused,
+            );
+
             completer.complete(true);
           }
         },
@@ -162,14 +171,33 @@ class ImFriendApplicationsManager {
 
     return completer.future;
   }
+  /// =========================
+  /// 获取列表
+  /// =========================
+  List<RCIMIWFriendApplicationInfo> getList({
+    RCIMIWFriendApplicationStatus? status,
+    RCIMIWFriendApplicationType? applicationType,
+  }) {
+    return _list.where((e) {
+      final matchStatus =
+          status == null || e.applicationStatus == status;
+
+      final matchType =
+          applicationType == null || e.applicationType == applicationType;
+
+      return matchStatus && matchType;
+    }).toList();
+  }
 
   /// =========================
-  /// 未处理数量（红点🔥）
+  /// 未处理数量
   /// =========================
   int get unhandledCount {
     return _list.where((e) =>
-    e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled).length;
+    e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled
+    && e.applicationType == RCIMIWFriendApplicationType.received).length;
   }
+
 
   /// =========================
   /// 本地更新
@@ -184,6 +212,33 @@ class ImFriendApplicationsManager {
     }
   }
 
+  void _updateLocalStatus(
+      String userId,
+      RCIMIWFriendApplicationStatus status,
+      ) {
+    final index = _list.indexWhere((e) => e.userId == userId);
+
+    if (index != -1) {
+      final old = _list[index];
+
+      final updated = RCIMIWFriendApplicationInfo.create(
+        userId: old.userId,
+        applicationStatus: status,
+        applicationType: old.applicationType,
+        friendType: old.friendType,
+        operationTime: DateTime.now().millisecondsSinceEpoch,
+        remark: old.remark,
+      );
+
+      _list[index] = updated;
+      _notify();
+    }
+  }
+  void _notify() {
+    if (!_controller.isClosed) {
+      _controller.add(List.from(_list));
+    }
+  }
   /// =========================
   /// 释放
   /// =========================

@@ -62,7 +62,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
     return _CommentThread(
       parent: _MomentCommentItem(
         name: c.userFullInfo?.nickname ?? '',
-        time: formatTimeAgo(c.timestamp),
+        time: formatIMTime(c.timestamp),
         content: c.content,
         onTap: ()=> widget.onReply?.call(c.reviewId,c.userId,c.userFullInfo?.nickname ?? ''),
       ),
@@ -70,7 +70,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
       replies: visibleReplies.map((r) {
         return _MomentCommentItem(
           name: r.userFullInfo?.nickname ?? '',
-          time: formatTimeAgo(r.timestamp),
+          time: formatIMTime(r.timestamp),
           content: r.content,
           leftInset: 38,
           showConnector: true,

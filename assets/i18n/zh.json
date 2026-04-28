@@ -71,7 +71,7 @@
   "chat_contacts": "联系人",
   "chat_search_hint": "搜索",
   "chat_friend_request": "好友申请",
-  "chat_friend_request_count": "你有 {count} 条好友申请",
+  "chat_friend_request_count": "你有 {count} 条新的好友申请",
   "chat_group": "群组",
   "chat_group_manage_count": "你总共管理 {count} 个群组",
   "chat_filter_all": "全部",

@@ -205,7 +205,7 @@ class _Header extends StatelessWidget {
 
 
   String _formatTime(int time) {
-    return formatTimeAgo(time);
+    return formatIMTime(time);
   }
 
 }

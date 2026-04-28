@@ -384,7 +384,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        formatTimeAgo(model.time),
+                        formatIMTime(model.time),
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
                           color: AppColors.grey600,

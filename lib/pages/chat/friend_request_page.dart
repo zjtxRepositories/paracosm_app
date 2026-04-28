@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/friend_application_model.dart';
@@ -14,6 +16,7 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../core/models/custom_message_model.dart';
 import '../../modules/im/manager/im_friend_applications_manager.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
 
@@ -29,21 +32,55 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   List<RCIMIWFriendApplicationInfo> _newRequests = [];
   List<RCIMIWFriendApplicationInfo> _processedRequests = [];
   final manager = ImFriendApplicationsManager();
+  StreamSubscription<List<RCIMIWFriendApplicationInfo>>? _sub;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    fetchFriendApplicationData();
+    _init();
   }
 
-  Future<void> fetchFriendApplicationData() async {
-    manager.stream.listen((list) {
-      setState(() {
-        _newRequests = manager.list;
-      });
-    });
+  void _init() {
+    _listen();
     manager.fetch();
+  }
+
+  /// 监听（带防重复）
+  void _listen() {
+    /// 先取消旧的
+    _sub?.cancel();
+
+    _sub = manager.stream.listen((list) {
+      final newList = <RCIMIWFriendApplicationInfo>[];
+      final processedList = <RCIMIWFriendApplicationInfo>[];
+
+      for (var e in list) {
+        final isUnhandled =
+            e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled;
+        final isReceived =
+            e.applicationType == RCIMIWFriendApplicationType.received;
+
+        if (isUnhandled && isReceived) {
+          newList.add(e);
+        } else if (!isUnhandled && isReceived) {
+          processedList.add(e);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _newRequests = newList;
+          _processedRequests = processedList;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _sub = null;
+    super.dispose();
   }
 
   /// 显示同意确认弹窗
@@ -52,16 +89,11 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     final targetId = model.info.userId ?? '';
     final isOk = await manager.acceptFriendApplication(targetId);
     AppLoading.dismiss();
-    if (isOk){
+    if (!isOk){
       AppToast.show('请求失败');
       return;
     }
-    model.info.applicationStatus = RCIMIWFriendApplicationStatus.accepted;
-    _newRequests.remove(model.info);
-    _processedRequests.insert(0, model.info);
-    setState(() {});
-    final content = "我们已成功添加为好友，现在可以开始聊天啦～";
-    final message = await CustomMessage.createFm(targetId: targetId, content: content);
+    final message = await CustomMessage.createFm(targetId: targetId,type: CustomMessageType.friendAdd);
     if (message == null) return;
     final isSend = await ImSendManager.instance.sendCustomMessage(message: message);
     if (!isSend)return;
@@ -90,14 +122,10 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
           AppLoading.show();
           final isOk = await manager.refuseFriendApplication(model.info.userId ?? '');
           AppLoading.dismiss();
-          if (isOk){
+          if (!isOk){
             AppToast.show('请求失败');
             return;
           }
-          model.info.applicationStatus = RCIMIWFriendApplicationStatus.refused;
-          _newRequests.remove(model.info);
-          _processedRequests.insert(0, model.info);
-          setState(() {});
         });
   }
 

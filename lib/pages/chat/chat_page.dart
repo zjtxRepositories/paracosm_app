@@ -242,7 +242,7 @@ class _ChatPageState extends State<ChatPage> {
                 return ChatListItem(
                   title: item.title ?? '',
                   subtitle: item.subtitle ?? '',
-                  time: formatTimeAgo(item.info.operationTime ?? 0),
+                  time: formatIMTime(item.info.operationTime ?? 0),
                   unreadCount: item.info.unreadCount ?? 0,
                   avatar: item.portraitUri ?? '',
                   userId: item.info.targetId,

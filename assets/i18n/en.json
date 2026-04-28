@@ -71,7 +71,7 @@
   "chat_contacts": "Contacts",
   "chat_search_hint": "Search",
   "chat_friend_request": "Friend request",
-  "chat_friend_request_count": "You have {count} friend requests",
+  "chat_friend_request_count": "You have {count} new friend requests",
   "chat_group": "Group",
   "chat_group_manage_count": "You manage {count} groups in total",
   "chat_filter_all": "All",

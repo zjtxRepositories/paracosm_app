@@ -196,7 +196,7 @@ class _MomentDetailHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  formatTimeAgo(model.timestamp),
+                  formatIMTime(model.timestamp),
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.grey400,

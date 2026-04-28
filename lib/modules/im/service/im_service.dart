@@ -11,10 +11,10 @@ class ImService {
 
   /// 登录 IM
   static Future<void> loginIm(String accountId) async {
-    String last8 = accountId.length > 8 ? accountId.substring(accountId.length - 8) : accountId;
-    final token = await ImTokenManager.getToken(userId: accountId, name: last8);
+    String name = accountId.length > 8 ? accountId.substring(accountId.length - 8) : accountId;
+    final token = await ImTokenManager.getToken(userId: accountId, name: name);
     if (token == null) return;
-    print('userid-----$accountId---$token');
+    print('userid-----$accountId---$token---$name');
     await IMEngineManager().connect(token, accountId);
   }
 

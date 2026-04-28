@@ -247,7 +247,7 @@ class _ChatPageState extends State<ChatPage> {
                   avatar: item.portraitUri ?? '',
                   userId: item.info.targetId,
                   isMuted: false,
-                  onTap: () => _navigateToDetail(item.title ?? ''),
+                  onTap: () => _navigateToConversationDetail(item.info, item.title ?? ''),
                 );
               }
             },
@@ -395,8 +395,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _navigateToDetail(String userId) {
-    // final encodedName = Uri.encodeComponent(title);
-    // context.push('/chat-detail/$encodedName');
+    context.push('/user-profile',extra: userId);
   }
 
   void _navigateToConversationDetail(

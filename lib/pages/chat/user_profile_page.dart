@@ -18,13 +18,9 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 import '../../core/network/api/upload_file_api.dart';
-import '../../modules/im/manager/im_send_manager.dart';
-import '../../modules/im/message/custom_message.dart';
 import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
 import '../../widgets/common/image_picker_sheet.dart';
@@ -116,7 +112,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 显示添加好友弹窗
   void _showAddFriendModal() {
     if (_user == null) return;
-    print('object----${AccountManager().currentAccount?.nickname}');
     String initialText = AppLocalizations.of(context)!.chatProfileAddFriendPlaceholder.replaceAll("XXX",
         AccountManager().currentAccount?.name ?? '');
     TextEditingController controller = TextEditingController(text: initialText);

@@ -69,7 +69,8 @@ class AppRouter {
   AppRouter._();
 
   // 根路由导航 Key
-  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   // 路由配置对象
   static final GoRouter router = GoRouter(
@@ -108,7 +109,7 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final password = data?['password'];
           final mnemonics = data?['mnemonics'];
-          return WalletCreateStep3Page(password: password,mnemonic: mnemonics);
+          return WalletCreateStep3Page(password: password, mnemonic: mnemonics);
         },
       ),
       // 代币网络页
@@ -126,7 +127,11 @@ class AppRouter {
           final mnemonic = data?['mnemonics'];
           final privateKey = data?['privateKey'];
           // print('data--------$mnemonic');
-          return WalletCreatingPage(password: password,mnemonics: mnemonic,privateKey: privateKey,);
+          return WalletCreatingPage(
+            password: password,
+            mnemonics: mnemonic,
+            privateKey: privateKey,
+          );
         },
       ),
       // 导入钱包页
@@ -146,7 +151,11 @@ class AppRouter {
           final password = data?['password'];
           final walletId = data?['walletId'];
           final chainType = data?['chainType'];
-          return WalletImportPrivateKeyPage(password: password, walletId: walletId, chainType: chainType,);
+          return WalletImportPrivateKeyPage(
+            password: password,
+            walletId: walletId,
+            chainType: chainType,
+          );
         },
       ),
       // 导入设置密码页
@@ -156,7 +165,10 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final mnemonic = data?['mnemonic'];
           final privateKey = data?['privateKey'];
-          return WalletImportPasswordPage(mnemonic: mnemonic,privateKey: privateKey);
+          return WalletImportPasswordPage(
+            mnemonic: mnemonic,
+            privateKey: privateKey,
+          );
         },
       ),
       // 备份提示页
@@ -165,7 +177,8 @@ class AppRouter {
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>?;
           final password = data?['password'];
-          final nextPath = state.uri.queryParameters['nextPath'] ?? '/wallet-create-step2';
+          final nextPath =
+              state.uri.queryParameters['nextPath'] ?? '/wallet-create-step2';
           return WalletBackupTipsPage(nextPath: nextPath, password: password);
         },
       ),
@@ -207,9 +220,8 @@ class AppRouter {
       GoRoute(
         path: '/new-post',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => NewPostPage(
-          isRetweet: state.uri.queryParameters['retweet'] == '1',
-        ),
+        builder: (context, state) =>
+            NewPostPage(isRetweet: state.uri.queryParameters['retweet'] == '1'),
       ),
       GoRoute(
         path: '/moment-post-detail',
@@ -219,14 +231,23 @@ class AppRouter {
           final item = data?['item'];
           final isFollowing = data?['isFollowing'];
           final isBlock = data?['isBlock'];
-          return data == null ? SizedBox() : MomentPostDetailPage(item: item, isFollowing: isFollowing, isBlock: isBlock,);
+          return data == null
+              ? SizedBox()
+              : MomentPostDetailPage(
+                  item: item,
+                  isFollowing: isFollowing,
+                  isBlock: isBlock,
+                );
         },
       ),
 
       GoRoute(
         path: '/moment-user-profile',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const MomentUserProfilePage(),
+        builder: (context, state) {
+          final userId = state.extra as String?;
+          return MomentUserProfilePage(userId: userId ?? '');
+        },
       ),
       GoRoute(
         path: '/moment-report',
@@ -316,8 +337,11 @@ class AppRouter {
         path: '/group-introduction',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final initialIntroduction = state.uri.queryParameters['initialIntroduction'] ?? '';
-          return GroupIntroductionPage(initialIntroduction: initialIntroduction);
+          final initialIntroduction =
+              state.uri.queryParameters['initialIntroduction'] ?? '';
+          return GroupIntroductionPage(
+            initialIntroduction: initialIntroduction,
+          );
         },
       ),
       // 详情页：放在 StatefulShellRoute 之外，这样跳转时会隐藏底部导航栏
@@ -369,9 +393,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final type = state.extra as ChatSearchType?;
-          return ChatSearchPage(
-            type: type ?? ChatSearchType.all,
-          );
+          return ChatSearchPage(type: type ?? ChatSearchType.all);
         },
       ),
       // 好友申请页
@@ -386,9 +408,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final userId = state.extra as String?;
-          return UserProfilePage(
-            userId: userId ?? '',
-          );
+          return UserProfilePage(userId: userId ?? '');
         },
       ),
       // 群组列表页
@@ -404,7 +424,7 @@ class AppRouter {
         builder: (context, state) {
           final title = state.pathParameters['title'] ?? 'Discover';
           final data = state.extra as List<DAppHive>?;
-          return DiscoverListPage(title: title, dappList: data ?? [],);
+          return DiscoverListPage(title: title, dappList: data ?? []);
         },
       ),
       // dapp详情
@@ -462,9 +482,7 @@ class AppRouter {
         builder: (context, state) {
           final wallet = state.extra as WalletModel?;
           if (wallet == null) return SizedBox();
-          return WalletEditPage(
-            wallet: wallet,
-          );
+          return WalletEditPage(wallet: wallet);
         },
       ),
       // 代币详情页
@@ -473,9 +491,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final extra = state.extra as TokenModel?;
-          return extra == null ? SizedBox():TokenDetailPage(
-            token: extra,
-          );
+          return extra == null ? SizedBox() : TokenDetailPage(token: extra);
         },
       ),
       // 币种管理页
@@ -500,9 +516,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          return TokenMarketPage(
-            symbol: extra?['symbol'] ?? 'BTC/USDT',
-          );
+          return TokenMarketPage(symbol: extra?['symbol'] ?? 'BTC/USDT');
         },
       ),
       // 代币收款页
@@ -514,7 +528,9 @@ class AppRouter {
           return TokenReceivePage(
             tokenSymbol: extra?['symbol'] ?? 'BNB',
             networkName: extra?['network'] ?? 'Binancestry(BSC)',
-            walletAddress: extra?['address'] ?? '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
+            walletAddress:
+                extra?['address'] ??
+                '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
           );
         },
       ),

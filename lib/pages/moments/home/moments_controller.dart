@@ -37,7 +37,7 @@ class MomentsController extends ChangeNotifier {
   int _page = 1;
   final int _pageSize = 10;
   bool _initialLoading = false; // ⭐ 首屏 loading
-  bool _loading = false;        // ⭐ 上拉 loading
+  bool _loading = false; // ⭐ 上拉 loading
   bool _hasMore = true;
 
   bool get initialLoading => _initialLoading;
@@ -115,29 +115,41 @@ class MomentsController extends ChangeNotifier {
 
   /// 点赞
   Future<void> toggleLike(SocialInvitationModel item) async {
+    final nextIsLike = !item.isLike;
     AppLoading.show();
-    item.isLike = !item.isLike;
-    final result = await SocialCircleNoteApi.socialCircleNoteLikeToggle(item.noteId, item.isLike);
+    final result = await SocialCircleNoteApi.socialCircleNoteLikeToggle(
+      item.noteId,
+      nextIsLike,
+    );
     AppLoading.dismiss();
-    if (!result){
+    if (!result) {
       AppToast.show('点赞失败！');
       return;
     }
-    item.likes += item.isLike == true ? 1 : -1;
+    item.isLike = nextIsLike;
+    item.likes = nextIsLike
+        ? item.likes + 1
+        : (item.likes > 0 ? item.likes - 1 : 0);
     notifyListeners();
   }
 
   /// 收藏
   Future<void> toggleCollect(SocialInvitationModel item) async {
+    final nextIsCollect = !item.isCollect;
     AppLoading.show();
-    item.isCollect = !item.isCollect ;
-    final result = await SocialCircleNoteApi.socialCircleNoteCollectToggle(item.noteId, item.isCollect);
+    final result = await SocialCircleNoteApi.socialCircleNoteCollectToggle(
+      item.noteId,
+      nextIsCollect,
+    );
     AppLoading.dismiss();
-    if (!result){
+    if (!result) {
       AppToast.show('收藏失败！');
       return;
     }
-    item.collects += item.isCollect == true ? 1 : -1;
+    item.isCollect = nextIsCollect;
+    item.collects = nextIsCollect
+        ? item.collects + 1
+        : (item.collects > 0 ? item.collects - 1 : 0);
     notifyListeners();
   }
 
@@ -145,26 +157,40 @@ class MomentsController extends ChangeNotifier {
   Future<void> toggleFollow(SocialInvitationModel item) async {
     AppLoading.show();
     bool isFollow = !_followIds.contains(item.userId);
-    final result = await SocialCircleUserApi.socialCircleUserFollowToggle(item.userId, isFollow);
+    final result = await SocialCircleUserApi.socialCircleUserFollowToggle(
+      item.userId,
+      isFollow,
+    );
     AppLoading.dismiss();
-    if (!result){
+    if (!result) {
       AppToast.show('关注失败！');
       return;
     }
-    if (isFollow){
+    if (isFollow) {
       _followIds.add(item.userId);
-    }else{
+    } else {
       _followIds.remove(item.userId);
     }
     notifyListeners();
   }
 
   /// 发送评论
-  Future<SocialInvitationModel> sendComment(SocialInvitationModel item,String content,String rootId,String noteId,String toUserId) async {
+  Future<SocialInvitationModel> sendComment(
+    SocialInvitationModel item,
+    String content,
+    String rootId,
+    String noteId,
+    String toUserId,
+  ) async {
     AppLoading.show();
-    final result = await SocialCircleNoteApi.socialCircleNoteReview(noteId, toUserId, content, rootId);
+    final result = await SocialCircleNoteApi.socialCircleNoteReview(
+      noteId,
+      toUserId,
+      content,
+      rootId,
+    );
     AppLoading.dismiss();
-    if (!result){
+    if (!result) {
       AppToast.show('发布失败！');
       throw '发布失败！';
     }
@@ -177,7 +203,7 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 分享
-  void toggleShare(SocialInvitationModel item,BuildContext context) {
+  void toggleShare(SocialInvitationModel item, BuildContext context) {
     ShareModals.show(context);
   }
 
@@ -185,27 +211,34 @@ class MomentsController extends ChangeNotifier {
   Future<void> toggleBlock(SocialInvitationModel item) async {
     AppLoading.show();
     bool isBlock = !_blockIds.contains(item.userId);
-    final result = await SocialCircleUserApi.socialCircleUserBlockToggle(item.userId, isBlock);
+    final result = await SocialCircleUserApi.socialCircleUserBlockToggle(
+      item.userId,
+      isBlock,
+    );
     AppLoading.dismiss();
-    if (!result){
+    if (!result) {
       AppToast.show('拉黑失败！');
       return;
     }
-    if (isBlock){
+    if (isBlock) {
       _blockIds.add(item.userId);
-    }else{
+    } else {
       _blockIds.remove(item.userId);
     }
     notifyListeners();
   }
 
   /// 举报
-  void toggleReport(SocialInvitationModel item,BuildContext context) {
+  void toggleReport(SocialInvitationModel item, BuildContext context) {
     context.push('/moment-report');
   }
 
   /// 图片详情
-  void toggleMedia(List<SocialMediaModel> medias,int initialIndex,BuildContext context) {
+  void toggleMedia(
+    List<SocialMediaModel> medias,
+    int initialIndex,
+    BuildContext context,
+  ) {
     print('init:$initialIndex');
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
@@ -215,7 +248,6 @@ class MomentsController extends ChangeNotifier {
         ),
       ),
     );
-
   }
 
   /// 数据

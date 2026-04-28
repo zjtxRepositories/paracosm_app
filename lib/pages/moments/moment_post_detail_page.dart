@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -68,7 +67,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/share-pop.png',
                     label: 'Share',
-                    onTap: () => controller.toggleShare(model,context),
+                    onTap: () => controller.toggleShare(model, context),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/block.png',
@@ -78,7 +77,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/report.png',
                     label: isBlock ? 'Unblock this use' : 'Block this user',
-                    onTap: () => controller.toggleReport(model,context),
+                    onTap: () => controller.toggleReport(model, context),
                     showDivider: false,
                   ),
                 ],
@@ -102,7 +101,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 _MomentDetailHeader(
                   model: model,
                   isFollowing: isFollowing,
-                  onFollow: ()=> controller.toggleFollow(model),
+                  onFollow: () => controller.toggleFollow(model),
                 ),
 
                 const SizedBox(height: 12),
@@ -119,7 +118,8 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 const SizedBox(height: 16),
                 ImageGrid(
                   medias: model.media,
-                  onTap:(index) => controller.toggleMedia(model.media, index,context),
+                  onTap: (index) =>
+                      controller.toggleMedia(model.media, index, context),
                 ),
 
                 const SizedBox(height: 16),
@@ -129,7 +129,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 MomentCommentsSection(
                   noteId: model.noteId,
                   reviews: model.reviewInfo,
-                  onReply: (reviewId, toUserId, userName){
+                  onReply: (reviewId, toUserId, userName) {
                     inputKey.currentState?.setReply(
                       rootId: reviewId,
                       toUserId: toUserId,
@@ -143,11 +143,25 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
           CommentComposerBar(
             key: inputKey,
             model: model,
-            onLike: () => controller.toggleLike(model),
-            onCollect: () => controller.toggleCollect(model),
+            onLike: () async {
+              await controller.toggleLike(model);
+              if (!mounted) return;
+              setState(() {});
+            },
+            onCollect: () async {
+              await controller.toggleCollect(model);
+              if (!mounted) return;
+              setState(() {});
+            },
             onShare: () => controller.toggleShare(model, context),
             onSend: (text, rootReviewId, toUserId) async {
-              final newModel = await controller.sendComment(model, text, rootReviewId, model.noteId, toUserId ?? model.userId);
+              final newModel = await controller.sendComment(
+                model,
+                text,
+                rootReviewId,
+                model.noteId,
+                toUserId ?? model.userId,
+              );
               setState(() {
                 model = newModel;
               });
@@ -179,10 +193,9 @@ class _MomentDetailHeader extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: () {
-                context.push('/moment-user-profile');
+                context.push('/moment-user-profile', extra: model.userId);
               },
-              child:Avatar(url: model.userInfoModel?.avatar ?? ''),
-
+              child: Avatar(url: model.userInfoModel?.avatar ?? ''),
             ),
             const SizedBox(width: 8),
             Column(
@@ -207,7 +220,7 @@ class _MomentDetailHeader extends StatelessWidget {
           ],
         ),
 
-        FollowButton(isFollowing: isFollowing,onTap: onFollow),
+        FollowButton(isFollowing: isFollowing, onTap: onFollow),
       ],
     );
   }

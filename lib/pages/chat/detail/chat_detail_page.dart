@@ -71,8 +71,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
-          if (keyboardHeight > 0 && controller.isAtBottom) {
-            controller.scrollToBottom();
+          if (keyboardHeight > 0 && controller.engine.isAtBottom) {
+            controller.engine.scrollToBottom();
           }
           return Column(
             children: [
@@ -143,19 +143,39 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         }
         return false;
       },
-      child: ListView.builder(
-        controller: controller.scrollController,
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 20,
-          bottom: 20,
-        ),
-        itemCount: controller.messages.length,
-        itemBuilder: (context, index) =>
-            _buildMessageNode(controller.messages[index]),
-      )
+        child: ListView.builder(
+          controller: controller.engine.scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 20,horizontal: 16),
+          itemCount: controller.messages.length,
+          itemBuilder: (context, index) {
+            final message = controller.messages[index];
+            return _buildMessageNode(message);
+          },
+        )
     );
+  }
+
+  Widget _buildStableMessageItem(ChatDetailMessage message) {
+    return SizedBox(
+      height: _estimateHeight(message), // ⭐核心
+      child: _buildMessageNode(message),
+    );
+  }
+
+  double _estimateHeight(ChatDetailMessage msg) {
+    switch (msg.kind) {
+      case ChatDetailMessageKind.text:
+        return 60;
+
+      case ChatDetailMessageKind.timestamp:
+        return 30;
+
+      case ChatDetailMessageKind.fm:
+        return 50;
+
+      default:
+        return 70;
+    }
   }
 
   Widget _buildMessageNode(ChatDetailMessage message) {

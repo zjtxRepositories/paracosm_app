@@ -98,7 +98,7 @@ class ImMessageManager {
     required int sentTime,
     required RCIMIWTimeOrder order,
     required RCIMIWMessageOperationPolicy policy,
-    int count = 20,
+    int count = 15,
     String? channelId,
   }) async {
     final completer = Completer<List<RCIMIWMessage>>();

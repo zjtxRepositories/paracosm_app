@@ -1,53 +1,98 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:oktoast/oktoast.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
-import 'package:paracosm/modules/im/manager/im_send_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
+import 'package:paracosm/modules/im/message/text_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
+import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import '../../../modules/im/message/send/im_sender.dart';
 
 class ChatDetailController {
   ChatDetailController(this.args);
 
   final ChatSessionArgs? args;
+
   BuildContext? context;
+
   final ImMessageManager _messageManager = ImMessageManager();
-  final ImSubscribeEventManager _subscribeEventManager = ImSubscribeEventManager();
+  final ImSubscribeEventManager _subscribeEventManager =
+  ImSubscribeEventManager();
 
   final inputController = TextEditingController();
 
-  bool hasMore = true;
-  bool isLoadingMore = false;
-  int? _oldestTime;
+  /// =========================
+  /// Scroll Engine（唯一数据源）
+  /// =========================
+  late final ScrollEngine engine = ScrollEngine(
+    getId: (msg) => msg.messageId,
+    onUpdate: () => notify?.call(),
+  );
 
+  /// =========================
   /// 状态
+  /// =========================
   bool isInputEmpty = true;
   bool isMenuExpanded = false;
   bool isVoiceMode = false;
+  bool isOnline = false;
   bool isRecording = false;
   bool isCancelling = false;
+
   bool isLoading = false;
-  bool isOnline = false;
+  bool isLoadingMore = false;
+  bool hasMore = true;
 
-  List<ChatDetailMessage> messages = [];
+  int? _oldestTime;
 
-  ToastFuture? voiceToast;
+  /// =========================
+  /// Stream
+  /// =========================
+  StreamSubscription<RCIMIWMessage>? _messageSub;
+  StreamSubscription<Map<String, bool>>? _onlineSub;
 
-  late StreamSubscription<RCIMIWMessage> _messageSub;
-  late StreamSubscription<Map<String, bool>> _onlineSub;
-
+  /// =========================
+  /// UI notify
+  /// =========================
   VoidCallback? notify;
-  final ScrollController scrollController = ScrollController();
 
-  bool isAtBottom = true;     // 是否在底部
-  double _oldMaxScroll = 0;   // 用于防跳
-
+  /// =========================
+  /// init
+  /// =========================
   void init(VoidCallback refresh) {
     notify = refresh;
 
+    engine.init();
+
+    _initInputListener();
+
+    _loadMessages().then((list) {
+      engine.merge(list);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        engine.onFirstLoaded();
+      });
+    });
+
+    _subscribeMessages();
+  }
+
+  void dispose() {
+    _subscribeEventManager.unsubscribe([args!.targetId]);
+
+    inputController.dispose();
+    engine.dispose();
+
+    _messageSub?.cancel();
+    _onlineSub?.cancel();
+  }
+
+  /// =========================
+  /// input
+  /// =========================
+  void _initInputListener() {
     inputController.addListener(() {
       final empty = inputController.text.trim().isEmpty;
       if (empty != isInputEmpty) {
@@ -55,34 +100,19 @@ class ChatDetailController {
         notify?.call();
       }
     });
-
-    _loadMessages().then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        scrollToBottom();
-      });
-    });
-    _subscribeMessages();
-
-    /// ⭐等UI渲染后滚到底部
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      scrollToBottom();
-    });
-
-  }
-
-  void dispose() {
-    _subscribeEventManager.unsubscribe([args!.targetId]);
-
-    inputController.dispose();
-    _messageSub.cancel();
-    _onlineSub.cancel();
   }
 
   /// =========================
-  /// 消息加载
+  /// UI 直接用 engine 数据
   /// =========================
-  Future<void> _loadMessages() async {
-    if (args == null) return;
+  List<ChatDetailMessage> get messages =>
+      engine.list.cast<ChatDetailMessage>();
+
+  /// =========================
+  /// 初始加载
+  /// =========================
+  Future<List<ChatDetailMessage>> _loadMessages() async {
+    if (args == null) return [];
 
     isLoading = true;
     notify?.call();
@@ -95,27 +125,29 @@ class ChatDetailController {
         order: RCIMIWTimeOrder.before,
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
-      final list = result.reversed.toList();
+
+      final list = ChatDetailMessageMapper.mapMessages(result.reversed.toList());
 
       if (list.isNotEmpty) {
         _oldestTime = list.first.sentTime;
       }
 
-      messages = ChatDetailMessageMapper.mapMessages(list);
+      return list;
     } catch (e) {
-      print('获取历史消息 $e');
+      debugPrint("load error: $e");
+      return [];
+    } finally {
+      isLoading = false;
+      notify?.call();
     }
-
-    isLoading = false;
-    notify?.call();
   }
+
   /// =========================
-  /// 下拉加载更多
+  /// 加载更多（完全交给 engine）
   /// =========================
   Future<void> loadMoreMessages() async {
     if (args == null) return;
-    if (isLoadingMore || !hasMore) return;
-    if (_oldestTime == null) return;
+    if (isLoadingMore || !hasMore || _oldestTime == null) return;
 
     isLoadingMore = true;
     notify?.call();
@@ -124,41 +156,24 @@ class ChatDetailController {
       final result = await _messageManager.getMessages(
         type: args!.conversationType,
         targetId: args!.targetId,
-        sentTime: _oldestTime!, // ⭐关键：用最早时间继续往前查
+        sentTime: _oldestTime!,
         order: RCIMIWTimeOrder.before,
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list = result.reversed.toList();
+      final list =
+      ChatDetailMessageMapper.mapMessages(result.reversed.toList());
 
       if (list.isEmpty) {
         hasMore = false;
       } else {
         _oldestTime = list.first.sentTime;
 
-        final mapped =
-        ChatDetailMessageMapper.mapMessages(list);
-
-        final oldMax =
-            scrollController.position.maxScrollExtent;
-
-        final oldOffset = scrollController.offset;
-        /// ⭐ 去重 + 插入顶部
-        messages = [...mapped, ...messages];
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!scrollController.hasClients) return;
-
-          final newMax =
-              scrollController.position.maxScrollExtent;
-
-          final diff = newMax - oldMax;
-
-          scrollController.jumpTo(oldOffset + diff);
-        });
+        /// ⭐ 核心：只交给 engine
+        engine.prepend(list);
       }
     } catch (e) {
-      print('加载更多失败: $e');
+      debugPrint("load more error: $e");
     }
 
     isLoadingMore = false;
@@ -166,7 +181,7 @@ class ChatDetailController {
   }
 
   /// =========================
-  /// 消息订阅
+  /// 消息监听
   /// =========================
   void _subscribeMessages() {
     _messageSub = _messageManager.messageStream.listen((message) {
@@ -175,22 +190,25 @@ class ChatDetailController {
       if (message.targetId != args!.targetId) return;
       if (message.conversationType != args!.conversationType) return;
 
-      final mapped = ChatDetailMessageMapper.mapMessages([message]);
-      if (mapped.isEmpty) return;
-      messages = [...messages, ...mapped];
-      notify?.call();
-      if (isAtBottom) {
-        scrollToBottom(animate: true);
+      final msg = ChatDetailMessageMapper.mapMessage(message);
+
+      /// ⭐ 核心：统一入口
+      engine.append(msg);
+
+      if (engine.isAtBottom) {
+        engine.scrollToBottom();
       }
     });
 
-    if (args?.isGroup == true) return;
-    _onlineSub = _subscribeEventManager.stream.listen((onlineMap) {
-      isOnline = onlineMap[args!.targetId] ?? false;
-      notify?.call();
-    });
-    _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
+    /// 在线状态
+    if (args?.isGroup != true) {
+      _onlineSub = _subscribeEventManager.stream.listen((map) {
+        isOnline = map[args!.targetId] ?? false;
+        notify?.call();
+      });
 
+      _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
+    }
   }
 
   /// =========================
@@ -200,52 +218,24 @@ class ChatDetailController {
     final text = inputController.text.trim();
     if (args == null || text.isEmpty) return;
 
-    await ImSendManager.instance.sendText(
-      type: args!.conversationType,
-      targetId: args!.targetId,
-      content: text,
+    await ImSender.instance.send(
+      message: TextMessage(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        content: text,
+      ),
     );
 
     inputController.clear();
   }
 
-  void listenScroll() {
-    scrollController.addListener(() {
-      if (!scrollController.hasClients) return;
-
-      final position = scrollController.position;
-
-      isAtBottom = position.pixels >=
-          position.maxScrollExtent - 100;
-    });
-  }
-
-  void scrollToBottom({bool animate = false}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!scrollController.hasClients) return;
-
-      final pos = scrollController.position.maxScrollExtent;
-
-      if (animate) {
-        scrollController.animateTo(
-          pos,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      } else {
-        scrollController.jumpTo(pos);
-      }
-    });
-  }
-
   /// =========================
-  /// UI操作
+  /// UI 操作
   /// =========================
   void toggleMenu() {
     FocusScope.of(context!).unfocus();
     isMenuExpanded = !isMenuExpanded;
     isVoiceMode = false;
-    // print('isMenuExpanded---$isMenuExpanded');
     notify?.call();
   }
 
@@ -257,17 +247,11 @@ class ChatDetailController {
   }
 
   void toggleAction() {
-    if (isInputEmpty){
+    if (isInputEmpty) {
       FocusScope.of(context!).unfocus();
+      toggleMenu();
+    } else {
+      sendText();
     }
-    isInputEmpty ? toggleMenu() : sendText();
   }
-
-  void toggleAlbum() {
-    if (isInputEmpty){
-      FocusScope.of(context!).unfocus();
-    }
-    isInputEmpty ? toggleMenu() : sendText();
-  }
-
 }

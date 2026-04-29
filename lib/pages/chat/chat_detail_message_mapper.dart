@@ -11,12 +11,13 @@ class ChatDetailMessageMapper {
   static List<ChatDetailMessage> mapMessages(List<RCIMIWMessage> messages) {
     final result = <ChatDetailMessage>[];
     int? previousTimestamp;
-
-    for (final message in messages) {
+    for (int i = 0; i < messages.length; i++) {
+      final message = messages[i];
       final timestamp = message.sentTime ?? message.receivedTime;
-      if (_shouldInsertTimestamp(previousTimestamp, timestamp)) {
+      if (_shouldInsertTimestamp(i, previousTimestamp, timestamp)) {
         result.add(
           ChatDetailMessage(
+            messageId: message.messageId.toString(),
             kind: ChatDetailMessageKind.timestamp,
             text: _formatTimestamp(timestamp!),
             sentTime: timestamp,
@@ -36,6 +37,7 @@ class ChatDetailMessageMapper {
     final sentTime = message.sentTime ?? message.receivedTime;
     if (message is RCIMIWTextMessage) {
       return ChatDetailMessage(
+        messageId: message.messageId.toString(),
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
         text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
@@ -45,6 +47,7 @@ class ChatDetailMessageMapper {
 
     if (message.messageType == RCIMIWMessageType.recall) {
       return ChatDetailMessage(
+        messageId: message.messageId.toString(),
         kind: ChatDetailMessageKind.withdrawnNotice,
         sentTime: sentTime,
       );
@@ -53,13 +56,15 @@ class ChatDetailMessageMapper {
     if (message.messageType == RCIMIWMessageType.custom) {
       MessageModel model = MessageModel(item: message);
       return ChatDetailMessage(
-        kind: ChatDetailMessageKind.fm,
-        sentTime: sentTime,
-        text: model.formatCustomContent()
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.fm,
+          sentTime: sentTime,
+          text: model.formatCustomContent()
       );
     }
 
     return ChatDetailMessage(
+      messageId: message.messageId.toString(),
       kind: ChatDetailMessageKind.text,
       isMe: isMe,
       text: '[暂不支持的消息类型]',
@@ -67,9 +72,10 @@ class ChatDetailMessageMapper {
     );
   }
 
-  static bool _shouldInsertTimestamp(int? previous, int? current) {
-    if (current == null) return false;
-    if (previous == null) return true;
+  static bool _shouldInsertTimestamp(int index, int? previous, int? current) {
+    if (index == 0) return false;
+
+    if (previous == null || current == null) return false;
     return current - previous >= const Duration(minutes: 5).inMilliseconds;
   }
 

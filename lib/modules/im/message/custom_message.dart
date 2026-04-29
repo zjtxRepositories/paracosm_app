@@ -1,39 +1,44 @@
 
-import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/models/custom_message_model.dart';
 import '../manager/im_engine_manager.dart';
+import 'base/im_message.dart';
 
+class CustomMessage extends ImMessage {
+  final String targetId;
+  final CustomMessageType customMessageType;
+  RCIMIWConversationType conversationType;
+  String? content;
+  CustomMessage({
+    required this.targetId,
+    required this.customMessageType,
+    this.conversationType = RCIMIWConversationType.private,
+    this.content,
+  });
 
-class CustomMessage {
-  static final _engine = IMEngineManager().engine;
-  static final _myId = AccountManager().currentAccount?.accountId ?? '';
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.custom;
 
-
-  static Future<RCIMIWCustomMessage?> createFm({
-    required String targetId,
-    required CustomMessageType type,
-    String? content,
-  }) async {
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final myId = IMEngineManager().currentUserId ?? '';
     String messageID = const Uuid().v4().replaceAll("-", "");
     final model = CustomMessageModel(
       type: CustomMessageType.friendAdd,
-      fromUserId: _myId,
+      fromUserId: myId,
       toUserId: targetId,
       content: content,
     );
-    final msg = await _engine?.createCustomMessage(
-        RCIMIWConversationType.private,
+    final imageMsg = await IMEngineManager().engine?.createCustomMessage(
+        conversationType,
         targetId,
         null,
         RCIMIWCustomMessagePolicy.normal,
         messageID,
         model.toJson()
     );
-    return msg;
+    return imageMsg;
   }
-
-
 }

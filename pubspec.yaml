@@ -71,6 +71,7 @@ dependencies:
   flutter_inappwebview: ^6.1.5
   hive: ^2.2.3
   eth_sig_util: ^0.0.9
+  wechat_camera_picker: ^4.5.0
 
 dev_dependencies:
   flutter_test:

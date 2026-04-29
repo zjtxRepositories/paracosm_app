@@ -41,7 +41,8 @@
         "uuid",
         "video_compress",
         "web3dart",
-        "wechat_assets_picker"
+        "wechat_assets_picker",
+        "wechat_camera_picker"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -89,6 +90,22 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "wechat_camera_picker",
+      "version": "4.5.0",
+      "dependencies": [
+        "camera",
+        "camera_platform_interface",
+        "collection",
+        "flutter",
+        "path",
+        "photo_manager",
+        "photo_manager_image_provider",
+        "sensors_plus",
+        "video_player",
+        "wechat_picker_library"
       ]
     },
     {
@@ -599,6 +616,35 @@
       ]
     },
     {
+      "name": "wechat_picker_library",
+      "version": "1.0.7",
+      "dependencies": [
+        "flutter",
+        "photo_manager"
+      ]
+    },
+    {
+      "name": "video_player",
+      "version": "2.11.1",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "html",
+        "video_player_android",
+        "video_player_avfoundation",
+        "video_player_platform_interface",
+        "video_player_web"
+      ]
+    },
+    {
+      "name": "photo_manager_image_provider",
+      "version": "2.2.0",
+      "dependencies": [
+        "flutter",
+        "photo_manager"
+      ]
+    },
+    {
       "name": "convert",
       "version": "3.1.2",
       "dependencies": [
@@ -874,33 +920,12 @@
       ]
     },
     {
-      "name": "video_player",
-      "version": "2.11.1",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "html",
-        "video_player_android",
-        "video_player_avfoundation",
-        "video_player_platform_interface",
-        "video_player_web"
-      ]
-    },
-    {
       "name": "provider",
       "version": "6.1.5+1",
       "dependencies": [
         "collection",
         "flutter",
         "nested"
-      ]
-    },
-    {
-      "name": "photo_manager_image_provider",
-      "version": "2.2.0",
-      "dependencies": [
-        "flutter",
-        "photo_manager"
       ]
     },
     {
@@ -911,14 +936,6 @@
         "flutter",
         "meta",
         "vector_math"
-      ]
-    },
-    {
-      "name": "wechat_picker_library",
-      "version": "1.0.7",
-      "dependencies": [
-        "flutter",
-        "photo_manager"
       ]
     },
     {
@@ -1381,6 +1398,40 @@
       ]
     },
     {
+      "name": "video_player_web",
+      "version": "2.4.0",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "video_player_platform_interface",
+        "web"
+      ]
+    },
+    {
+      "name": "video_player_platform_interface",
+      "version": "6.6.0",
+      "dependencies": [
+        "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "video_player_avfoundation",
+      "version": "2.9.4",
+      "dependencies": [
+        "flutter",
+        "video_player_platform_interface"
+      ]
+    },
+    {
+      "name": "video_player_android",
+      "version": "2.9.5",
+      "dependencies": [
+        "flutter",
+        "video_player_platform_interface"
+      ]
+    },
+    {
       "name": "flutter_inappwebview_internal_annotations",
       "version": "1.3.0",
       "dependencies": []
@@ -1473,40 +1524,6 @@
       "version": "2.0.34",
       "dependencies": [
         "flutter"
-      ]
-    },
-    {
-      "name": "video_player_web",
-      "version": "2.4.0",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins",
-        "video_player_platform_interface",
-        "web"
-      ]
-    },
-    {
-      "name": "video_player_platform_interface",
-      "version": "6.6.0",
-      "dependencies": [
-        "flutter",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "video_player_avfoundation",
-      "version": "2.9.4",
-      "dependencies": [
-        "flutter",
-        "video_player_platform_interface"
-      ]
-    },
-    {
-      "name": "video_player_android",
-      "version": "2.9.5",
-      "dependencies": [
-        "flutter",
-        "video_player_platform_interface"
       ]
     },
     {
@@ -1822,6 +1839,78 @@
       "dependencies": [
         "collection",
         "hooks"
+      ]
+    },
+    {
+      "name": "sensors_plus",
+      "version": "7.0.0",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "sensors_plus_platform_interface"
+      ]
+    },
+    {
+      "name": "sensors_plus_platform_interface",
+      "version": "2.0.1",
+      "dependencies": [
+        "flutter",
+        "logging",
+        "meta",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "camera_platform_interface",
+      "version": "2.13.0",
+      "dependencies": [
+        "cross_file",
+        "flutter",
+        "plugin_platform_interface",
+        "stream_transform"
+      ]
+    },
+    {
+      "name": "camera",
+      "version": "0.12.0+1",
+      "dependencies": [
+        "camera_android_camerax",
+        "camera_avfoundation",
+        "camera_platform_interface",
+        "camera_web",
+        "flutter",
+        "flutter_plugin_android_lifecycle"
+      ]
+    },
+    {
+      "name": "camera_avfoundation",
+      "version": "0.10.1",
+      "dependencies": [
+        "camera_platform_interface",
+        "flutter",
+        "stream_transform"
+      ]
+    },
+    {
+      "name": "camera_web",
+      "version": "0.3.5+3",
+      "dependencies": [
+        "camera_platform_interface",
+        "flutter",
+        "flutter_web_plugins",
+        "stream_transform",
+        "web"
+      ]
+    },
+    {
+      "name": "camera_android_camerax",
+      "version": "0.7.2",
+      "dependencies": [
+        "async",
+        "camera_platform_interface",
+        "flutter",
+        "meta",
+        "stream_transform"
       ]
     }
   ],

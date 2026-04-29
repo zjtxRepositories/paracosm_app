@@ -1,14 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
-import 'package:paracosm/modules/im/message/text_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:video_compress/video_compress.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:wechat_camera_picker/wechat_camera_picker.dart';
+import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
+import '../../../util/image_picker_util.dart';
+import '../../../util/media_handle_util.dart';
 
 class ChatDetailController {
   ChatDetailController(this.args);
@@ -229,10 +237,47 @@ class ChatDetailController {
     inputController.clear();
   }
 
+  Future<void> sendImage(String path) async {
+    await ImSender.instance.send(
+      message: ImageMessage(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        path: path,
+      ),
+    );
+  }
+
+  Future<void> sendVideo(MediaInfo media,String thumbnailBase64String) async {
+    await ImSender.instance.send(
+      message: VideoMessage(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        path: media.path ?? '',
+        duration: (media.duration ?? 0).toInt(),
+        thumbnailBase64String: thumbnailBase64String,
+      ),
+    );
+  }
+
+  Future<void> handleAssetEntity(AssetEntity entity) async {
+    final file = await entity.file;
+    if (file == null) return;
+
+    if (entity.type == AssetType.video) {
+      await _handleVideo(file, entity);
+    } else {
+      await _handleImage(file);
+    }
+  }
+
+
   /// =========================
   /// UI 操作
   /// =========================
   void toggleMenu() {
+    if (engine.isAtBottom) {
+      engine.scrollToBottom();
+    }
     FocusScope.of(context!).unfocus();
     isMenuExpanded = !isMenuExpanded;
     isVoiceMode = false;
@@ -254,4 +299,55 @@ class ChatDetailController {
       sendText();
     }
   }
+
+  Future<void> toggleAlbum() async {
+    final List<AssetEntity>? result = await AssetPicker.pickAssets(
+      context!,
+      pickerConfig: const AssetPickerConfig(),
+    );
+
+    if (result == null) return;
+
+    for (final e in result) {
+      await handleAssetEntity(e);
+    }
+  }
+
+  Future<void> toggleCamera() async {
+    final AssetEntity? entity = await CameraPicker.pickFromCamera(
+      context!,
+      pickerConfig: CameraPickerConfig(enableRecording:true),
+    );
+
+    if (entity == null) return;
+
+    await handleAssetEntity(entity);
+  }
+
+
+  Future<void> _handleVideo(File file, AssetEntity entity) async {
+    final thumb = await entity.thumbnailDataWithSize(
+      const ThumbnailSize(200, 200),
+    );
+
+    String thumbnailBase64String = '';
+
+    if (thumb != null && thumb.isNotEmpty) {
+      thumbnailBase64String = base64Encode(thumb);
+    }
+
+    final compressed = await MediaHandleUtil.compressedVideoQuality(file);
+    if (compressed?.video == null) return;
+
+    sendVideo(
+      compressed!.video!,
+      thumbnailBase64String,
+    );
+  }
+
+  Future<void> _handleImage(File file) async {
+    final path = await MediaHandleUtil.compressedImageQuality(file.path);
+    sendImage(path);
+  }
+
 }

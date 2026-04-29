@@ -156,7 +156,7 @@ class SocialPostController extends GetxController {
       /// 视频
       /// ======================
       if (item.type == MediaType.video) {
-        final result = await MediaHandleUtil.video(item.file!);
+        final result = await MediaHandleUtil.compressedVideoQuality(item.file!);
         if (result == null) continue;
 
         final videoUrl =

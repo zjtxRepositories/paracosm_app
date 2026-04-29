@@ -2,6 +2,7 @@ enum ChatDetailMessageKind {
   timestamp,
   text,
   image,
+  video,
   voice,
   call,
   file,
@@ -30,6 +31,7 @@ class ChatDetailMessage {
     this.avatarPath,
     this.isClaimed,
     this.noticeName,
+    this.thumbnailBase64String,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -47,4 +49,5 @@ class ChatDetailMessage {
   final String? avatarPath;
   final bool? isClaimed;
   final String? noticeName;
+  final String? thumbnailBase64String;
 }

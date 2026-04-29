@@ -101,11 +101,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   onItemTap: (item) {
                     switch (item.type) {
                       case ChatMoreAction.album:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
+                        controller.toggleAlbum();
                       case ChatMoreAction.camera:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
+                        controller.toggleCamera();
                       case ChatMoreAction.videoCall:
                         // TODO: Handle this case.
                         throw UnimplementedError();
@@ -155,29 +153,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  Widget _buildStableMessageItem(ChatDetailMessage message) {
-    return SizedBox(
-      height: _estimateHeight(message), // ⭐核心
-      child: _buildMessageNode(message),
-    );
-  }
-
-  double _estimateHeight(ChatDetailMessage msg) {
-    switch (msg.kind) {
-      case ChatDetailMessageKind.text:
-        return 60;
-
-      case ChatDetailMessageKind.timestamp:
-        return 30;
-
-      case ChatDetailMessageKind.fm:
-        return 50;
-
-      default:
-        return 70;
-    }
-  }
-
   Widget _buildMessageNode(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.timestamp:
@@ -208,6 +183,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
+      case ChatDetailMessageKind.image:
+        return ChatImageMessageContent(imagePath: message.imagePath ?? '');
+      case ChatDetailMessageKind.video:
+        return ChatVideoMessageContent(thumbnailBase64String: message.thumbnailBase64String ?? '',duration: message.duration);
       default:
         return const SizedBox();
     }

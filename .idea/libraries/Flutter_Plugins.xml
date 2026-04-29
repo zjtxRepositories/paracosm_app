@@ -51,6 +51,11 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/image_picker_for_web-3.1.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_macos-0.9.5" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_windows-0.9.3+5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/camera_web-0.3.5+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/camera_avfoundation-0.10.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/sensors_plus-7.0.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/camera_android_camerax-0.7.2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/camera-0.12.0+1" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

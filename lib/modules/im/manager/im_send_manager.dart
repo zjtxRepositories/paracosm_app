@@ -28,6 +28,7 @@ class ImSendManager {
   /// 唯一职责：发送消息（给队列调用）
   /// =========================
   Future<bool> sendMessage(RCIMIWMessage message) async {
+    ImMessageManager().pushLocalMessage(message);
     if (message is RCIMIWMediaMessage) {
       return _sendMediaMessage(message);
     } else {
@@ -42,11 +43,12 @@ class ImSendManager {
     final completer = Completer<bool>();
 
     final listener = RCIMIWSendMessageCallback(
-      onMessageSaved: (_) {
-        ImMessageManager().pushLocalMessage(message);
+      onMessageSaved: (msg) {
+        ImMessageManager().pushLocalMessage(msg ?? message);
         print('插入消息----');
       },
-      onMessageSent: (code, _) {
+      onMessageSent: (code, msg) {
+        ImMessageManager().pushLocalMessage(msg ?? message);
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }
@@ -72,9 +74,12 @@ class ImSendManager {
     final completer = Completer<bool>();
 
     final listener = RCIMIWSendMediaMessageListener(
-      onMediaMessageSaved: (_) {},
+      onMediaMessageSaved: (msg) {
+        ImMessageManager().pushLocalMessage(msg ?? message);
+      },
       onMediaMessageSending: (_, __) {},
-      onMediaMessageSent: (code, _) {
+      onMediaMessageSent: (code, msg) {
+        ImMessageManager().pushLocalMessage(msg ?? message);
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }

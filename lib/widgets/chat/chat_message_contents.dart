@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -37,6 +39,94 @@ class ChatImageMessageContent extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.asset(imagePath, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class ChatVideoMessageContent extends StatelessWidget {
+  const ChatVideoMessageContent({
+    super.key,
+    required this.thumbnailBase64String,
+    this.duration,
+    this.onTap,
+  });
+
+  final String thumbnailBase64String;
+  final String? duration;
+  final VoidCallback? onTap;
+
+  // String _formatDuration(int seconds) {
+  //   final m = seconds ~/ 60;
+  //   final s = seconds % 60;
+  //   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  // }
+
+  @override
+  Widget build(BuildContext context) {
+    print('thumbnailBase64String-----$thumbnailBase64String');
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: 140,
+        maxHeight: 140,
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              /// 🎬 缩略图
+              Positioned.fill(
+                child: Image.memory(
+                  base64Decode(thumbnailBase64String),
+                  fit: BoxFit.cover,
+                ),
+              ),
+
+              /// 🌫️ 遮罩层（增强对比）
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.25),
+                ),
+              ),
+
+              /// ▶️ 播放按钮
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 42,
+                  color: Colors.white,
+                ),
+              ),
+
+              /// ⏱️ 时长（微信风格：右下角）
+              if (duration != null)
+                Positioned(
+                  right: 6,
+                  bottom: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      duration ?? '0.00',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

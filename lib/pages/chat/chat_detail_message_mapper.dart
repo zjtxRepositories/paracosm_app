@@ -45,6 +45,29 @@ class ChatDetailMessageMapper {
       );
     }
 
+    if (message is RCIMIWImageMessage) {
+      return ChatDetailMessage(
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.image,
+          isMe: isMe,
+          sentTime: sentTime,
+          imagePath:message.local
+      );
+    }
+
+    if (message is RCIMIWSightMessage) {
+      print('video----${message.duration}---${message.thumbnailBase64String}');
+      return ChatDetailMessage(
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.video,
+          isMe: isMe,
+          sentTime: sentTime,
+          thumbnailBase64String:message.thumbnailBase64String,
+          fileName:message.local,
+          duration:formatDurationFromInt(message.duration ?? 0)
+      );
+    }
+
     if (message.messageType == RCIMIWMessageType.recall) {
       return ChatDetailMessage(
         messageId: message.messageId.toString(),

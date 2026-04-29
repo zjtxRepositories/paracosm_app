@@ -1,4 +1,7 @@
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 String truncateDouble(double value,{int digits = 8}) {
   if (value == 0) return '0';
 
@@ -83,4 +86,23 @@ String _two(int n) => n.toString().padLeft(2, '0');
 String _weekDay(DateTime dt) {
   const list = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
   return list[dt.weekday - 1];
+}
+
+
+Uint8List base64ToBytes(String base64String) {
+  final cleaned = base64String.contains(',')
+      ? base64String.split(',').last
+      : base64String;
+
+  return base64Decode(cleaned);
+}
+
+String formatDurationFromInt(int ms) {
+  final seconds = ms ~/ 1000;
+
+  final m = seconds ~/ 60;
+  final s = seconds % 60;
+
+  return '${m.toString().padLeft(2, '0')}:'
+      '${s.toString().padLeft(2, '0')}';
 }

@@ -63,7 +63,7 @@ class MediaHandleUtil {
   /// =========================
   /// 视频压缩（生产级🔥）
   /// =========================
-  static Future<CompressMediaFile?> video(File file) async {
+  static Future<CompressMediaFile?> compressedVideoQuality(File file) async {
     try {
       final MediaInfo? mediaInfo = await VideoCompress.compressVideo(
         file.path,
@@ -164,7 +164,7 @@ class MediaHandleUtil {
       /// ================= 视频 =================
       else if (filePath.endsWith(".mp4") ||
           filePath.endsWith(".mov")) {
-        final compressResult = await video(file);
+        final compressResult = await compressedVideoQuality(file);
 
         if (compressResult == null) continue;
 

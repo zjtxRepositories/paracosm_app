@@ -7,6 +7,18 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../result/im_result.dart';
 import 'im_engine_manager.dart';
 
+/// =========================
+/// 消息来源（新增，不影响原逻辑）
+/// =========================
+enum MessageSource {
+  remote,
+  local,
+  history,
+}
+
+/// =========================
+/// ImMessageManager（增强版）
+/// =========================
 class ImMessageManager {
   static final ImMessageManager _instance =
   ImMessageManager._internal();
@@ -24,6 +36,19 @@ class ImMessageManager {
 
   bool _inited = false;
   bool _disposed = false;
+
+  /// =========================
+  /// 🔥 去重（LRU 防止内存爆炸）
+  /// =========================
+  final Map<String, int> _messageCache = {};
+  final int _maxCacheSize = 2000;
+
+  /// =========================
+  /// 🔥 排序缓冲（防乱序扩展点）
+  /// =========================
+  final List<RCIMIWMessage> _buffer = [];
+
+  Timer? _flushTimer;
 
   /// =========================
   /// 初始化监听
@@ -69,8 +94,7 @@ class ImMessageManager {
     if (_disposed) return;
 
     debugPrint("收到消息: ${message.messageId}");
-    _dispatchMessage(message);
-
+    _dispatchMessage(message, source: MessageSource.remote);
   }
 
   /// =========================
@@ -79,6 +103,7 @@ class ImMessageManager {
   void onMessageRecalled(RCIMIWMessage message) {
     if (_disposed) return;
 
+    // 保留扩展点（后续可更新 UI 状态）
   }
 
   void onPrivateReadReceipt(
@@ -107,7 +132,14 @@ class ImMessageManager {
     IRCIMIWGetMessagesCallback(
       onSuccess: (List<RCIMIWMessage>? t, int? syncTimestamp,
           bool? hasMoreMsg) {
-        completer.complete(t ?? []);
+        final list = t ?? [];
+
+        /// 🔥 历史消息统一走 dispatch（保证一致性）
+        for (final msg in list) {
+          _dispatchMessage(msg, source: MessageSource.history);
+        }
+
+        completer.complete(list);
       },
       onError: (int? code) {
         completer.completeError(
@@ -182,8 +214,7 @@ class ImMessageManager {
       count,
       callback: IRCIMIWSearchMessagesCallback(
         onSuccess: (List<RCIMIWMessage>? t) {
-          completer
-              .complete(ImResult.success(data: t));
+          completer.complete(ImResult.success(data: t));
         },
         onError: (code) {
           completer.complete(
@@ -253,31 +284,68 @@ class ImMessageManager {
   /// =========================
   void pushLocalMessage(RCIMIWMessage message) {
     if (_disposed) return;
-    _dispatchMessage(message);
-
+    _dispatchMessage(message, source: MessageSource.local);
   }
 
-  void _dispatchMessage(RCIMIWMessage message) {
+  /// =========================
+  /// 🔥 核心 dispatch（增强版）
+  /// =========================
+  void _dispatchMessage(
+      RCIMIWMessage message, {
+        required MessageSource source,
+      }) {
     if (_disposed) return;
 
-    /// 1️⃣ 全局流
-    _messageController.add(message);
-    debugPrint("刷新消息: ${message.messageId}");
+    final id = message.messageId?.toString();
+    if (id == null) return;
 
-    // /// 2️⃣ 会话分发（关键）
-    // final targetId = message.targetId;
-    // if (targetId != null) {
-    //   ImConversationManager().onNewMessage(targetId, message);
-    // }
+    /// =========================
+    /// 去重（LRU）
+    /// =========================
+    if (_messageCache.containsKey(id)) return;
+
+    if (_messageCache.length > _maxCacheSize) {
+      _messageCache.remove(_messageCache.keys.first);
+    }
+
+    _messageCache[id] = DateTime.now().millisecondsSinceEpoch;
+
+    /// =========================
+    /// buffer（扩展排序能力）
+    /// =========================
+    _buffer.add(message);
+
+    _scheduleFlush();
+
+    debugPrint("刷新消息: ${message.messageId} source=$source");
   }
+
   /// =========================
-  /// dispose（优化版）
+  /// 批量 flush（可扩展排序）
+  /// =========================
+  void _scheduleFlush() {
+    _flushTimer?.cancel();
+
+    _flushTimer = Timer(const Duration(milliseconds: 10), () {
+      if (_disposed) return;
+
+      for (final msg in _buffer) {
+        _messageController.add(msg);
+      }
+      _buffer.clear();
+    });
+  }
+
+  /// =========================
+  /// dispose
   /// =========================
   void dispose() {
     if (_disposed) return;
     _disposed = true;
 
+    _flushTimer?.cancel();
     _messageController.close();
-
+    _messageCache.clear();
+    _buffer.clear();
   }
 }

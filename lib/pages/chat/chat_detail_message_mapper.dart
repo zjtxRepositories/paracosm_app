@@ -3,6 +3,8 @@ import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../core/models/message_model.dart';
+
 class ChatDetailMessageMapper {
   ChatDetailMessageMapper._();
 
@@ -45,6 +47,15 @@ class ChatDetailMessageMapper {
       return ChatDetailMessage(
         kind: ChatDetailMessageKind.withdrawnNotice,
         sentTime: sentTime,
+      );
+    }
+
+    if (message.messageType == RCIMIWMessageType.custom) {
+      MessageModel model = MessageModel(item: message);
+      return ChatDetailMessage(
+        kind: ChatDetailMessageKind.fm,
+        sentTime: sentTime,
+        text: model.formatCustomContent()
       );
     }
 

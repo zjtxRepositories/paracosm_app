@@ -13,7 +13,7 @@ class ChatDetailController {
   ChatDetailController(this.args);
 
   final ChatSessionArgs? args;
-
+  BuildContext? context;
   final ImMessageManager _messageManager = ImMessageManager();
   final ImSubscribeEventManager _subscribeEventManager = ImSubscribeEventManager();
 
@@ -242,12 +242,32 @@ class ChatDetailController {
   /// UI操作
   /// =========================
   void toggleMenu() {
+    FocusScope.of(context!).unfocus();
     isMenuExpanded = !isMenuExpanded;
+    isVoiceMode = false;
+    // print('isMenuExpanded---$isMenuExpanded');
     notify?.call();
   }
 
   void toggleVoice() {
+    FocusScope.of(context!).unfocus();
     isVoiceMode = !isVoiceMode;
+    isMenuExpanded = false;
     notify?.call();
   }
+
+  void toggleAction() {
+    if (isInputEmpty){
+      FocusScope.of(context!).unfocus();
+    }
+    isInputEmpty ? toggleMenu() : sendText();
+  }
+
+  void toggleAlbum() {
+    if (isInputEmpty){
+      FocusScope.of(context!).unfocus();
+    }
+    isInputEmpty ? toggleMenu() : sendText();
+  }
+
 }

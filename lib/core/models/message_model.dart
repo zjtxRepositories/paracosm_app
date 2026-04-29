@@ -13,6 +13,22 @@ class MessageModel {
   String? portraitUri;
   String? content;
   MessageModel({required this.item});
+
+  String formatCustomContent() {
+    RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(item.toJson());
+    final data = customMessage.fields;
+    if (data == null) return '';
+    final model = CustomMessageModel.fromJson(
+      Map<String, dynamic>.from(data),
+    );
+    switch (model.type) {
+      case CustomMessageType.friendAdd:
+        return '我们已成功添加为好友，现在可以开始聊天啦～';
+      default:
+        return '';
+    }
+  }
+
 }
 
 class MessageResolver {

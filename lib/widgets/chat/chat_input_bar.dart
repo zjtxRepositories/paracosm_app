@@ -35,12 +35,14 @@ class ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    // print('bott')
     return Container(
       padding: EdgeInsets.only(
         left: 12,
         right: 12,
         top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
+        bottom: bottom > 0 ? bottom : bottom + 12 ,
       ),
       decoration: const BoxDecoration(color: Colors.white),
       child: Row(

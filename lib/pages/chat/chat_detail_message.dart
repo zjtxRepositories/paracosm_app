@@ -9,6 +9,7 @@ enum ChatDetailMessageKind {
   redBag,
   redBagNotice,
   withdrawnNotice,
+  fm,
 }
 
 class ChatDetailMessage {

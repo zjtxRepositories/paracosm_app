@@ -1,15 +1,120 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 
-/// 聊天页扫一扫静态页面。
-///
-/// 这里只还原 UI，不接入真实相机能力。
-class ChatScanPage extends StatelessWidget {
+/// 聊天页扫一扫页面。
+class ChatScanPage extends StatefulWidget {
   const ChatScanPage({super.key});
+
+  @override
+  State<ChatScanPage> createState() => _ChatScanPageState();
+}
+
+class _ChatScanPageState extends State<ChatScanPage>
+    with SingleTickerProviderStateMixin {
+  final MobileScannerController _controller = MobileScannerController();
+  final ImagePicker _imagePicker = ImagePicker();
+  late final AnimationController _scanLineController;
+  late final Animation<double> _scanLineAnimation;
+
+  bool _handled = false;
+  bool _isPicking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _scanLineAnimation = CurvedAnimation(
+      parent: _scanLineController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scanLineController.dispose();
+    unawaited(_controller.dispose());
+    super.dispose();
+  }
+
+  String? _firstCode(BarcodeCapture capture) {
+    for (final barcode in capture.barcodes) {
+      final value = barcode.rawValue?.trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  void _returnCode(String? code) {
+    if (_handled || code == null || code.trim().isEmpty) {
+      return;
+    }
+
+    _handled = true;
+    context.pop(code.trim());
+  }
+
+  Future<void> _pickFromAlbum() async {
+    if (_isPicking) {
+      return;
+    }
+
+    setState(() {
+      _isPicking = true;
+    });
+
+    try {
+      await _controller.stop();
+      final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (!mounted) {
+        return;
+      }
+
+      if (image == null) {
+        await _controller.start();
+        return;
+      }
+
+      final capture = await _controller.analyzeImage(image.path);
+      if (!mounted) {
+        return;
+      }
+
+      final code = capture == null ? null : _firstCode(capture);
+      if (code == null) {
+        AppToast.show(AppLocalizations.of(context)!.discoverScanNoResult);
+        await _controller.start();
+        return;
+      }
+
+      _returnCode(code);
+    } catch (e) {
+      if (mounted) {
+        AppToast.show(AppLocalizations.of(context)!.discoverScanNoResult);
+        await _controller.start();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPicking = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +125,12 @@ class ChatScanPage extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/chat/scan-bg.png',
+            child: MobileScanner(
+              controller: _controller,
               fit: BoxFit.cover,
+              onDetect: (capture) {
+                _returnCode(_firstCode(capture));
+              },
             ),
           ),
           Positioned.fill(
@@ -68,6 +176,8 @@ class ChatScanPage extends StatelessWidget {
   }
 
   Widget _buildTopBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SizedBox(
       height: 32,
       child: Row(
@@ -82,12 +192,12 @@ class ChatScanPage extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            'Scan',
+            l10n.chatMenuScan,
             style: AppTextStyles.h2.copyWith(color: Colors.white),
           ),
           const Spacer(),
           GestureDetector(
-            onTap: () {},
+            onTap: _isPicking ? null : _pickFromAlbum,
             child: Image.asset(
               'assets/images/chat/photo.png',
               width: 32,
@@ -103,6 +213,8 @@ class ChatScanPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final scanSize = constraints.maxWidth * 0.66;
+        final screenWidth = MediaQuery.of(context).size.width;
+        const scanLineHeight = 164.0;
         return SizedBox(
           width: scanSize,
           height: scanSize,
@@ -117,24 +229,32 @@ class ChatScanPage extends StatelessWidget {
                 ),
               ),
               Positioned.fill(
-                child: Center(
-                  child: OverflowBox(
-                    minWidth: MediaQuery.of(context).size.width,
-                    maxWidth: MediaQuery.of(context).size.width,
+                child: AnimatedBuilder(
+                  animation: _scanLineAnimation,
+                  child: Image.asset(
+                    'assets/images/chat/scan-line.png',
+                    fit: BoxFit.fill,
                     alignment: Alignment.center,
-                    child: Transform.translate(
-                      offset: const Offset(0, 40),
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width,
-                        height: 164,
-                        child: Image.asset(
-                          'assets/images/chat/scan-line.png',
-                          fit: BoxFit.fill,
-                          alignment: Alignment.center,
-                        ),
-                      ),
-                    ),
                   ),
+                  builder: (context, child) {
+                    final top = Tween<double>(
+                      begin: scanSize - 20,
+                      end: -scanLineHeight,
+                    ).evaluate(_scanLineAnimation);
+
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          top: top,
+                          left: -(screenWidth - scanSize) / 2,
+                          width: screenWidth,
+                          height: scanLineHeight,
+                          child: child!,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -160,22 +280,14 @@ class ChatScanPage extends StatelessWidget {
   }
 
   Widget _buildAlbumButton(BuildContext context) {
-    return AppButton(
-      text: 'Album',
-      onPressed: () {},
-      backgroundColor: AppColors.primary,
-      textColor: AppColors.grey900
-    );
-  }
+    final l10n = AppLocalizations.of(context)!;
 
-  Widget _buildHomeIndicator() {
-    return Container(
-      width: 120,
-      height: 4,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(2),
-      ),
+    return AppButton(
+      text: l10n.chatDetailAlbum,
+      onPressed: _isPicking ? null : _pickFromAlbum,
+      backgroundColor: AppColors.primary,
+      textColor: AppColors.grey900,
+      isLoading: _isPicking,
     );
   }
 }

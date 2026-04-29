@@ -31,6 +31,7 @@
         "image_picker",
         "intl",
         "k_chart_plus",
+        "mobile_scanner",
         "oktoast",
         "path",
         "photo_manager",
@@ -89,6 +90,18 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "mobile_scanner",
+      "version": "7.2.0",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "flutter_web_plugins",
+        "meta",
+        "plugin_platform_interface",
+        "web"
       ]
     },
     {
@@ -599,6 +612,18 @@
       ]
     },
     {
+      "name": "web",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "convert",
       "version": "3.1.2",
       "dependencies": [
@@ -970,13 +995,6 @@
       ]
     },
     {
-      "name": "plugin_platform_interface",
-      "version": "2.1.8",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
       "name": "bs58check",
       "version": "1.0.2",
       "dependencies": [
@@ -1187,11 +1205,6 @@
       "dependencies": [
         "pointycastle"
       ]
-    },
-    {
-      "name": "web",
-      "version": "1.1.1",
-      "dependencies": []
     },
     {
       "name": "asn1lib",

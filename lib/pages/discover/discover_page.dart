@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/api/dapp_list_api.dart';
+import 'package:paracosm/modules/scan/scan_result_handler.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -55,6 +56,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
       debugPrint("DiscoverPage error: $e");
     }
+  }
+
+  List<DAppHive> get _allDApps => [...dappList1, ...dappList2];
+
+  Future<void> _openScan() async {
+    await ScanResultHandler.scanAndHandle(context);
   }
 
   @override
@@ -130,7 +137,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           const Spacer(),
           // 搜索按钮
           IconButton(
-            onPressed: () => context.push('/chat-search'),
+            onPressed: () => context.push('/discover-search', extra: _allDApps),
             icon: Image.asset(
               'assets/images/chat/search.png',
               width: 32,
@@ -142,9 +149,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           const SizedBox(width: 16),
           // 扫码/更多按钮 (根据截图使用 scanner 图标)
           IconButton(
-            onPressed: () {
-              // TODO: 扫码逻辑
-            },
+            onPressed: _openScan,
             icon: Image.asset(
               'assets/images/chat/scan.png',
               width: 32,

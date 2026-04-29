@@ -10,6 +10,7 @@ import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
+import 'package:paracosm/pages/chat/chat_scan_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
 import 'package:paracosm/pages/chat/detail/chat_detail_page.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
@@ -33,6 +34,7 @@ import 'package:paracosm/pages/community/create_dao_page.dart';
 import 'package:paracosm/pages/community/create_club_page.dart';
 import 'package:paracosm/pages/discover/discover_page.dart';
 import 'package:paracosm/pages/discover/discover_list_page.dart';
+import 'package:paracosm/pages/discover/discover_search_page.dart';
 import 'package:paracosm/pages/profile/profile_page.dart';
 import 'package:paracosm/pages/profile/profile_details_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
@@ -59,7 +61,6 @@ import 'package:paracosm/pages/wallet/wallet_import_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_password_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_tips_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_private_key_page.dart';
-import 'package:paracosm/pages/wallet/wallet_backup_risk_page.dart';
 
 import '../core/models/dApp_hive.dart';
 
@@ -426,6 +427,21 @@ class AppRouter {
           final data = state.extra as List<DAppHive>?;
           return DiscoverListPage(title: title, dappList: data ?? []);
         },
+      ),
+      // 发现搜索页
+      GoRoute(
+        path: '/discover-search',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final data = state.extra as List<DAppHive>?;
+          return DiscoverSearchPage(dapps: data ?? []);
+        },
+      ),
+      // 通用二维码/条形码扫描页
+      GoRoute(
+        path: '/qr-scan',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ChatScanPage(),
       ),
       // dapp详情
       GoRoute(

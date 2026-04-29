@@ -9,11 +9,13 @@ enum ChatDetailMessageKind {
   redBag,
   redBagNotice,
   withdrawnNotice,
+  fm,
 }
 
 class ChatDetailMessage {
   const ChatDetailMessage({
     required this.kind,
+    required this.messageId,
     this.isMe = false,
     this.isUnread = false,
     this.showBubble = true,
@@ -29,7 +31,7 @@ class ChatDetailMessage {
     this.isClaimed,
     this.noticeName,
   });
-
+  final String messageId;
   final ChatDetailMessageKind kind;
   final bool isMe;
   final bool isUnread;

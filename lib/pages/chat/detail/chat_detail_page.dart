@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
 import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
@@ -54,6 +56,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    controller.context = context;
+
     return AppPage(
       isCustomHeader: true,
       isAddBottomMargin: false,
@@ -67,8 +71,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
-          if (keyboardHeight > 0 && controller.isAtBottom) {
-            controller.scrollToBottom();
+          if (keyboardHeight > 0 && controller.engine.isAtBottom) {
+            controller.engine.scrollToBottom();
           }
           return Column(
             children: [
@@ -80,21 +84,43 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 isCancelling: controller.isCancelling,
                 isMenuExpanded: controller.isMenuExpanded,
                 isInputEmpty: controller.isInputEmpty,
-                onToggleVoiceMode: controller.toggleVoice,
+                onToggleVoiceMode:controller.toggleVoice,
                 onTextFieldTap: () {
                   if (controller.isMenuExpanded) {
                     controller.isMenuExpanded = false;
                     setState(() {});
                   }
                 },
-                onActionTap: controller.isInputEmpty
-                    ? controller.toggleMenu
-                    : () => controller.sendText(),
+                onActionTap: controller.toggleAction,
                 onVoiceLongPressStart: (d) {},
                 onVoiceLongPressMoveUpdate: (d) {},
                 onVoiceLongPressEnd: (d) {},
               ),
-              // if (controller.isMenuExpanded) const ChatMorePanel(),
+              if (controller.isMenuExpanded)
+                ChatMorePanel(
+                  onItemTap: (item) {
+                    switch (item.type) {
+                      case ChatMoreAction.album:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                      case ChatMoreAction.camera:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                      case ChatMoreAction.videoCall:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                      case ChatMoreAction.audioCall:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                      case ChatMoreAction.redbag:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                      case ChatMoreAction.file:
+                        // TODO: Handle this case.
+                        throw UnimplementedError();
+                    }
+                  },
+                )
             ],
           );
         },
@@ -117,25 +143,53 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         }
         return false;
       },
-      child: ListView.builder(
-        controller: controller.scrollController,
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 20,
-          bottom: 20,
-        ),
-        itemCount: controller.messages.length,
-        itemBuilder: (context, index) =>
-            _buildMessageNode(controller.messages[index]),
-      )
+        child: ListView.builder(
+          controller: controller.engine.scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 20,horizontal: 16),
+          itemCount: controller.messages.length,
+          itemBuilder: (context, index) {
+            final message = controller.messages[index];
+            return _buildMessageNode(message);
+          },
+        )
     );
+  }
+
+  Widget _buildStableMessageItem(ChatDetailMessage message) {
+    return SizedBox(
+      height: _estimateHeight(message), // ⭐核心
+      child: _buildMessageNode(message),
+    );
+  }
+
+  double _estimateHeight(ChatDetailMessage msg) {
+    switch (msg.kind) {
+      case ChatDetailMessageKind.text:
+        return 60;
+
+      case ChatDetailMessageKind.timestamp:
+        return 30;
+
+      case ChatDetailMessageKind.fm:
+        return 50;
+
+      default:
+        return 70;
+    }
   }
 
   Widget _buildMessageNode(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.timestamp:
-        return Center(child: Text(message.text ?? ''));
+      case ChatDetailMessageKind.fm:
+        return Center(
+            child:Padding(padding: EdgeInsets.only(top: 10),
+            child: Text(message.text ?? '',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.grey400,
+                fontSize: 12,
+              ),),)
+       );
       default:
         return ChatMessageItem(
           isMe: message.isMe,
@@ -151,6 +205,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildMessageContent(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.text:
+        return ChatTextMessageContent(message: message.text ?? '');
+      case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
       default:
         return const SizedBox();

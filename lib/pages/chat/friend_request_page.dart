@@ -18,6 +18,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/custom_message_model.dart';
 import '../../modules/im/manager/im_friend_applications_manager.dart';
+import '../../modules/im/message/send/im_sender.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
 
 /// 好友申请页面
@@ -93,9 +94,8 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
       AppToast.show('请求失败');
       return;
     }
-    final message = await CustomMessage.createFm(targetId: targetId,type: CustomMessageType.friendAdd);
-    if (message == null) return;
-    final isSend = await ImSendManager.instance.sendCustomMessage(message: message);
+    final message = CustomMessage(targetId: targetId, customMessageType: CustomMessageType.friendAdd);
+    final isSend = await ImSender.instance.send(message: message);
     if (!isSend)return;
     print('去聊天呀');
   }

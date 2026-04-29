@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/scan/scan_result_handler.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -16,13 +17,14 @@ class CommunityPage extends StatefulWidget {
   State<CommunityPage> createState() => _CommunityPageState();
 }
 
-class _CommunityPageState extends State<CommunityPage> with SingleTickerProviderStateMixin {
+class _CommunityPageState extends State<CommunityPage>
+    with SingleTickerProviderStateMixin {
   /// 加号按钮的 Key，用于定位弹出菜单
   final GlobalKey _addButtonKey = GlobalKey();
-  
+
   /// 分类 Tab 控制器
   late TabController _tabController;
-  
+
   /// Tab 键值列表，用于初始化控制器
   final List<String> _tabKeys = [
     'community_tab_dao',
@@ -133,7 +135,11 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
           // 搜索按钮：跳转至聊天搜索页 (逻辑与 chat_page.dart 一致)
           IconButton(
             onPressed: () => context.push('/chat-search'),
-            icon: Image.asset('assets/images/chat/search.png', width: 32, height: 32),
+            icon: Image.asset(
+              'assets/images/chat/search.png',
+              width: 32,
+              height: 32,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -168,13 +174,17 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                     icon: 'assets/images/chat/scanner.png',
                     label: l10n.communityMenuScan,
                     onTap: () {
-                      // TODO: 跳转扫一扫
+                      ScanResultHandler.scanAndHandle(context);
                     },
                   ),
                 ],
               );
             },
-            icon: Image.asset('assets/images/chat/add.png', width: 32, height: 32),
+            icon: Image.asset(
+              'assets/images/chat/add.png',
+              width: 32,
+              height: 32,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -252,7 +262,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
     // 判断趋势是否为正 (上涨)
     final bool isPositive = trend?.startsWith('+') ?? true;
     final l10n = AppLocalizations.of(context)!;
-    
+
     return GestureDetector(
       onTap: () => context.push('/community-detail/$name'),
       child: Container(
@@ -296,7 +306,9 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                     ' ${trend.substring(1).trim()}',
                     style: AppTextStyles.body.copyWith(
                       fontSize: 10,
-                      color: isPositive ? AppColors.primaryDark : AppColors.error,
+                      color: isPositive
+                          ? AppColors.primaryDark
+                          : AppColors.error,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -315,7 +327,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 const SizedBox(width: 2),
                 Text(
                   ' $members',
-                  style: AppTextStyles.body.copyWith(fontSize: 10, color: AppColors.grey400),
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 10,
+                    color: AppColors.grey400,
+                  ),
                 ),
                 const SizedBox(width: 21),
                 Image.asset(
@@ -327,7 +342,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 Expanded(
                   child: Text(
                     ' $address',
-                    style: AppTextStyles.body.copyWith(fontSize: 10, color: AppColors.grey400),
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 10,
+                      color: AppColors.grey400,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -368,7 +386,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
       ),
       child: Text(
         text,
-        style: AppTextStyles.body.copyWith(fontSize: 10, color: AppColors.grey400),
+        style: AppTextStyles.body.copyWith(
+          fontSize: 10,
+          color: AppColors.grey400,
+        ),
       ),
     );
   }
@@ -402,13 +423,18 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 ),
                 // 自定义下划线指示器：固定宽度为 12
                 indicator: _FixedWidthUnderlineTabIndicator(
-                  borderSide: const BorderSide(width: 3, color: AppColors.primary),
+                  borderSide: const BorderSide(
+                    width: 3,
+                    color: AppColors.primary,
+                  ),
                   width: 12,
                 ),
                 dividerColor: Colors.transparent, // 隐藏分割线
                 tabAlignment: TabAlignment.start,
                 labelPadding: const EdgeInsets.only(right: 24),
-                overlayColor: WidgetStateProperty.all(Colors.transparent), // 移除点击水波纹
+                overlayColor: WidgetStateProperty.all(
+                  Colors.transparent,
+                ), // 移除点击水波纹
               ),
             ),
           ),
@@ -440,49 +466,54 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
         'desc': l10n.communityMockSalaryDesc,
         'trend': null,
         'members': l10n.communityMockMemberCount2_5k,
-        'address': l10n.communityMockAddress1
+        'address': l10n.communityMockAddress1,
       },
       {
         'name': 'W',
         'desc': null,
-        'tags': [l10n.filterTagAirdrop, l10n.filterTagMeme, l10n.filterTagGiveaway],
+        'tags': [
+          l10n.filterTagAirdrop,
+          l10n.filterTagMeme,
+          l10n.filterTagGiveaway,
+        ],
         'trend': null,
         'members': l10n.communityMockMemberCount1_2k,
-        'address': l10n.communityMockAddress2
+        'address': l10n.communityMockAddress2,
       },
       {
         'name': 'PARACOSM',
         'desc': l10n.communityMockLazyMod,
         'trend': '- 0.19%',
         'members': l10n.communityMockMemberCount8_9k,
-        'address': l10n.communityMockAddress3
+        'address': l10n.communityMockAddress3,
       },
       {
         'name': 'BIBI DAO',
         'desc': l10n.communityMockSparkPlan,
         'trend': null,
         'members': l10n.communityMockMemberCount5_0k,
-        'address': l10n.communityMockAddress4
+        'address': l10n.communityMockAddress4,
       },
       {
         'name': 'RENA DAO',
         'desc': l10n.communityMockSalaryDesc,
         'trend': '+ 1.2%',
         'members': l10n.communityMockMemberCount3_4k,
-        'address': l10n.communityMockAddress5
+        'address': l10n.communityMockAddress5,
       },
       {
         'name': 'SPARK DAO',
         'desc': l10n.communityMockLazyMod,
         'trend': null,
         'members': l10n.communityMockMemberCount1_1k,
-        'address': l10n.communityMockAddress6
+        'address': l10n.communityMockAddress6,
       },
     ];
 
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(), // 禁用内部滚动，由外部 SingleChildScrollView 处理
+      physics:
+          const NeverScrollableScrollPhysics(), // 禁用内部滚动，由外部 SingleChildScrollView 处理
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -562,7 +593,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                             const SizedBox(width: 2),
                             Text(
                               ' $members',
-                              style: AppTextStyles.body.copyWith(fontSize: 10, color: AppColors.grey400),
+                              style: AppTextStyles.body.copyWith(
+                                fontSize: 10,
+                                color: AppColors.grey400,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Image.asset(
@@ -573,7 +607,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                             const SizedBox(width: 2),
                             Text(
                               ' $address',
-                              style: AppTextStyles.body.copyWith(fontSize: 10, color: AppColors.grey400),
+                              style: AppTextStyles.body.copyWith(
+                                fontSize: 10,
+                                color: AppColors.grey400,
+                              ),
                             ),
                           ],
                         ),
@@ -583,7 +620,9 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                           children: [
                             Expanded(
                               child: Padding(
-                                padding: EdgeInsets.only(right: trend != null ? 70 : 0),
+                                padding: EdgeInsets.only(
+                                  right: trend != null ? 70 : 0,
+                                ),
                                 child: desc != null
                                     ? Text(
                                         desc,
@@ -594,10 +633,14 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       )
-                                    : (tags != null ? Wrap(
-                                        spacing: 4,
-                                        children: tags.map((tag) => _buildTag(tag)).toList(),
-                                      ) : const SizedBox.shrink()),
+                                    : (tags != null
+                                          ? Wrap(
+                                              spacing: 4,
+                                              children: tags
+                                                  .map((tag) => _buildTag(tag))
+                                                  .toList(),
+                                            )
+                                          : const SizedBox.shrink()),
                               ),
                             ),
                           ],
@@ -613,7 +656,10 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.grey100,
                     borderRadius: const BorderRadius.only(
@@ -625,16 +671,22 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        trend.startsWith('+') ? Icons.trending_up : Icons.trending_down,
+                        trend.startsWith('+')
+                            ? Icons.trending_up
+                            : Icons.trending_down,
                         size: 12,
-                        color: trend.startsWith('+') ? AppColors.primaryDark : AppColors.error,
+                        color: trend.startsWith('+')
+                            ? AppColors.primaryDark
+                            : AppColors.error,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trend.substring(1).trim(),
                         style: AppTextStyles.body.copyWith(
                           fontSize: 10,
-                          color: trend.startsWith('+') ? AppColors.primaryDark : AppColors.error,
+                          color: trend.startsWith('+')
+                              ? AppColors.primaryDark
+                              : AppColors.error,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -682,10 +734,12 @@ class _CommunityFilterBottomSheet extends StatefulWidget {
   const _CommunityFilterBottomSheet({super.key});
 
   @override
-  State<_CommunityFilterBottomSheet> createState() => _CommunityFilterBottomSheetState();
+  State<_CommunityFilterBottomSheet> createState() =>
+      _CommunityFilterBottomSheetState();
 }
 
-class _CommunityFilterBottomSheetState extends State<_CommunityFilterBottomSheet> {
+class _CommunityFilterBottomSheetState
+    extends State<_CommunityFilterBottomSheet> {
   // 选中的过滤项 (存储原始值以保持逻辑一致，但在 UI 上展示翻译后的值)
   String selectedType = 'All';
   String selectedBlockchain = 'All';
@@ -858,7 +912,7 @@ class _FixedWidthUnderlinePainter extends BoxPainter {
   final _FixedWidthUnderlineTabIndicator decoration;
 
   _FixedWidthUnderlinePainter(this.decoration, VoidCallback? onChanged)
-      : super(onChanged);
+    : super(onChanged);
 
   @override
   void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {

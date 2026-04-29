@@ -279,6 +279,12 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('discover_section_new_arrivals');
   String get discoverSectionDefi => translate('discover_section_defi');
   String get discoverSectionAirdrop => translate('discover_section_airdrop');
+  String get discoverSearchHint => translate('discover_search_hint');
+  String get discoverSearchEmptyHint => translate('discover_search_empty_hint');
+  String get discoverSearchOpenUrl => translate('discover_search_open_url');
+  String get discoverSearchWeb => translate('discover_search_web');
+  String get discoverScanUnsupported => translate('discover_scan_unsupported');
+  String get discoverScanNoResult => translate('discover_scan_no_result');
   String get communityFilterTooltip => translate('community_filter_tooltip');
   String get communityMockBkokGroup => translate('community_mock_bkok_group');
   String get communityMockSalaryDesc => translate('community_mock_salary_desc');

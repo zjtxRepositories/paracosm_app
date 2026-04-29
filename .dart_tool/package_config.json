@@ -764,6 +764,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "mobile_scanner",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/mobile_scanner-7.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
       "name": "mockito",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/mockito-5.6.4",
       "packageUri": "lib/",

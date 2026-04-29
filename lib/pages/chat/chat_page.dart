@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/conversation_model.dart';
+import 'package:paracosm/modules/scan/scan_result_handler.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -41,7 +42,7 @@ class _ChatPageState extends State<ChatPage> {
   /// =========================
   final List<StreamSubscription> _subs = [];
 
-  IMEngineManager _engineManager = IMEngineManager();
+  final IMEngineManager _engineManager = IMEngineManager();
   List<ConversationModel> _conversations = [];
   List<RCIMIWFriendInfo> _friends = [];
   List<RCIMIWGroupInfo> _groups = [];
@@ -61,9 +62,7 @@ class _ChatPageState extends State<ChatPage> {
     if (_inited) return;
     _inited = true;
 
-    final sub = _engineManager.connection
-        .eventStream
-        .listen((event) {
+    final sub = _engineManager.connection.eventStream.listen((event) {
       if (event == ImEvent.connected) {
         fetchData();
       }
@@ -118,11 +117,9 @@ class _ChatPageState extends State<ChatPage> {
   /// 刷新会话（减少 rebuild）
   /// =========================
   void _refreshConversation() {
-    final list =
-    _engineManager.conversation.getTabList(_selectedFilterIndex);
+    final list = _engineManager.conversation.getTabList(_selectedFilterIndex);
 
-    _conversations =
-        list.map((e) => ConversationModel(info: e)).toList();
+    _conversations = list.map((e) => ConversationModel(info: e)).toList();
 
     if (mounted) {
       setState(() {});
@@ -168,17 +165,13 @@ class _ChatPageState extends State<ChatPage> {
   /// =========================
   /// 分批解析（防卡顿优化）
   /// =========================
-  Future<void> _resolveConversation(
-      List<ConversationModel> models,
-      ) async {
+  Future<void> _resolveConversation(List<ConversationModel> models) async {
     const batchSize = 10;
 
     for (int i = 0; i < models.length; i += batchSize) {
       final batch = models.skip(i).take(batchSize);
 
-      await Future.wait(
-        batch.map((m) => resolver.resolve(m)),
-      );
+      await Future.wait(batch.map((m) => resolver.resolve(m)));
 
       if (!mounted) return;
 
@@ -216,38 +209,44 @@ class _ChatPageState extends State<ChatPage> {
         Expanded(
           child: _conversations.isEmpty
               ? AppEmptyView(
-            text: AppLocalizations.of(context)!.chatSearchNoData,
-            bottomOffset: 50, // 调整偏移，视觉更平衡
-          )
+                  text: AppLocalizations.of(context)!.chatSearchNoData,
+                  bottomOffset: 50, // 调整偏移，视觉更平衡
+                )
               : ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: _conversations.length,
-            itemBuilder: (context, index) {
-              final item = _conversations[index];
-              if (item.info.conversationType == RCIMIWConversationType.system) {
-                return SystemNotificationItem(
-                  title: AppLocalizations.of(context)!.chatNotificationTitle,
-                  subtitle: 'sub',
-                  time: AppLocalizations.of(context)!.chatYesterday,
-                  unreadCount: 1,
-                  icon: Icons.nat,
-                  // iconBgColor: item['iconBgColor'],
-                  // onTap: () => _navigateToDetail(item['title']),
-                );
-              } else {
-                return ChatListItem(
-                  title: item.title ?? '',
-                  subtitle: item.subtitle ?? '',
-                  time: formatIMTime(item.info.operationTime ?? 0),
-                  unreadCount: item.info.unreadCount ?? 0,
-                  avatar: item.portraitUri ?? '',
-                  userId: item.info.targetId,
-                  isMuted: false,
-                  onTap: () => _navigateToConversationDetail(item.info, item.title ?? ''),
-                );
-              }
-            },
-          ),
+                  padding: EdgeInsets.zero,
+                  itemCount: _conversations.length,
+                  itemBuilder: (context, index) {
+                    final item = _conversations[index];
+                    if (item.info.conversationType ==
+                        RCIMIWConversationType.system) {
+                      return SystemNotificationItem(
+                        title: AppLocalizations.of(
+                          context,
+                        )!.chatNotificationTitle,
+                        subtitle: 'sub',
+                        time: AppLocalizations.of(context)!.chatYesterday,
+                        unreadCount: 1,
+                        icon: Icons.nat,
+                        // iconBgColor: item['iconBgColor'],
+                        // onTap: () => _navigateToDetail(item['title']),
+                      );
+                    } else {
+                      return ChatListItem(
+                        title: item.title ?? '',
+                        subtitle: item.subtitle ?? '',
+                        time: formatIMTime(item.info.operationTime ?? 0),
+                        unreadCount: item.info.unreadCount ?? 0,
+                        avatar: item.portraitUri ?? '',
+                        userId: item.info.targetId,
+                        isMuted: false,
+                        onTap: () => _navigateToConversationDetail(
+                          item.info,
+                          item.title ?? '',
+                        ),
+                      );
+                    }
+                  },
+                ),
         ),
       ],
     );
@@ -255,67 +254,74 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建朋友申请卡片
   Widget _buildFriendRequestCard() {
-    return _friendApplicationUnhandledCount == 0 ? SizedBox() : GestureDetector(
-      onTap: () => context.push('/friend-request'),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 4, 20,16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.grey200, width: 1),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return _friendApplicationUnhandledCount == 0
+        ? SizedBox()
+        : GestureDetector(
+            onTap: () => context.push('/friend-request'),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.grey200, width: 1),
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    AppLocalizations.of(context)!.chatFriendRequest,
-                    style: AppTextStyles.h2.copyWith(
-                      color: AppColors.grey900,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.grey400,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.chatFriendRequest,
+                          style: AppTextStyles.h2.copyWith(
+                            color: AppColors.grey900,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            TextSpan(text: AppLocalizations.of(context)!.chatFriendRequestCount(_friendApplicationUnhandledCount)),
+                            RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.grey400,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: AppLocalizations.of(context)!
+                                        .chatFriendRequestCount(
+                                          _friendApplicationUnhandledCount,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Image.asset(
+                              'assets/images/chat/go.png',
+                              width: 16,
+                              height: 16,
+                              fit: BoxFit.contain,
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Image.asset(
-                        'assets/images/chat/go.png',
-                        width: 16,
-                        height: 16,
-                        fit: BoxFit.contain,
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/images/chat/friend-img.png',
+                    width: 56,
+                    height: 64,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
             ),
-            Image.asset(
-              'assets/images/chat/friend-img.png',
-              width: 56,
-              height: 64,
-              fit: BoxFit.contain,
-            ),
-          ],
-        ),
-      ),
-    );
+          );
   }
 
   /// 构建联系人列表视图
@@ -330,6 +336,7 @@ class _ChatPageState extends State<ChatPage> {
       },
     );
   }
+
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
@@ -377,7 +384,11 @@ class _ChatPageState extends State<ChatPage> {
                         fontSize: 12,
                       ),
                       children: [
-                        TextSpan(text: AppLocalizations.of(context)!.chatGroupManageCount(_groups.length)),
+                        TextSpan(
+                          text: AppLocalizations.of(
+                            context,
+                          )!.chatGroupManageCount(_groups.length),
+                        ),
                       ],
                     ),
                   ),
@@ -391,20 +402,20 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _navigateToDetail(String userId) {
-    context.push('/user-profile',extra: userId);
+    context.push('/user-profile', extra: userId);
   }
 
   void _navigateToConversationDetail(
-      RCIMIWConversation conversation,
-      String title,
-      ) {
+    RCIMIWConversation conversation,
+    String title,
+  ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
         targetId: conversation.targetId ?? '',
         conversationType:
-        conversation.conversationType ?? RCIMIWConversationType.private,
+            conversation.conversationType ?? RCIMIWConversationType.private,
         name: title,
         channelId: conversation.channelId,
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
@@ -451,8 +462,12 @@ class _ChatPageState extends State<ChatPage> {
                   AppLocalizations.of(context)!.chatTitle,
                   style: AppTextStyles.h1.copyWith(
                     fontSize: _isChatSelected ? 24 : 16,
-                    color: _isChatSelected ? AppColors.grey900 : AppColors.grey400,
-                    fontWeight: _isChatSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: _isChatSelected
+                        ? AppColors.grey900
+                        : AppColors.grey400,
+                    fontWeight: _isChatSelected
+                        ? FontWeight.w600
+                        : FontWeight.w400,
                   ),
                 ),
               ],
@@ -486,8 +501,12 @@ class _ChatPageState extends State<ChatPage> {
                   AppLocalizations.of(context)!.chatContacts,
                   style: AppTextStyles.h1.copyWith(
                     fontSize: !_isChatSelected ? 24 : 16,
-                    color: !_isChatSelected ? AppColors.grey900 : AppColors.grey400,
-                    fontWeight: !_isChatSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: !_isChatSelected
+                        ? AppColors.grey900
+                        : AppColors.grey400,
+                    fontWeight: !_isChatSelected
+                        ? FontWeight.w600
+                        : FontWeight.w400,
                   ),
                 ),
               ],
@@ -496,7 +515,11 @@ class _ChatPageState extends State<ChatPage> {
           const Spacer(),
           IconButton(
             onPressed: () => context.push('/chat-search'),
-            icon: Image.asset('assets/images/chat/search.png', width: 32, height: 32),
+            icon: Image.asset(
+              'assets/images/chat/search.png',
+              width: 32,
+              height: 32,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -515,7 +538,7 @@ class _ChatPageState extends State<ChatPage> {
                     label: l10n.chatMenuAddFriend,
                     onTap: () {
                       // TODO: 跳转添加朋友
-                      context.push('/chat-search',extra: ChatSearchType.user);
+                      context.push('/chat-search', extra: ChatSearchType.user);
                     },
                   ),
                   AppActionPopMenuItem(
@@ -529,13 +552,17 @@ class _ChatPageState extends State<ChatPage> {
                     icon: 'assets/images/chat/scanner.png',
                     label: l10n.chatMenuScan,
                     onTap: () {
-                      // TODO: 跳转扫一扫
+                      ScanResultHandler.scanAndHandle(context);
                     },
                   ),
                 ],
               );
             },
-            icon: Image.asset('assets/images/chat/add.png', width: 32, height: 32),
+            icon: Image.asset(
+              'assets/images/chat/add.png',
+              width: 32,
+              height: 32,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -547,18 +574,19 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建消息分类过滤栏 (All, Message, DAO...)
   Widget _buildFilterBar() {
     final filters = [
-      AppLocalizations.of(context)!
-          .chatFilterAllCount(_tabCache?[0]?.length ?? 0),
+      AppLocalizations.of(
+        context,
+      )!.chatFilterAllCount(_tabCache?[0]?.length ?? 0),
 
       '私聊 ${_tabCache?[1]?.length ?? 0}',
 
       '群聊 ${_tabCache?[2]?.length ?? 0}',
 
-      AppLocalizations.of(context)!
-          .chatFilterClubCount(_tabCache?[3]?.length ?? 0),
+      AppLocalizations.of(
+        context,
+      )!.chatFilterClubCount(_tabCache?[3]?.length ?? 0),
 
-      AppLocalizations.of(context)!
-          .chatFilterDaoCount(0),
+      AppLocalizations.of(context)!.chatFilterDaoCount(0),
     ];
     return Container(
       height: 42,
@@ -585,15 +613,15 @@ class _ChatPageState extends State<ChatPage> {
                     filters[index],
                     style: isSelected
                         ? AppTextStyles.bodyMedium.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.grey900
-                    )
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          )
                         : AppTextStyles.body.copyWith(
-                      color: AppColors.grey400,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
+                            color: AppColors.grey400,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
                   ),
                   const SizedBox(height: 4),
                   if (isSelected)

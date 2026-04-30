@@ -17,7 +17,6 @@ import 'package:wechat_camera_picker/wechat_camera_picker.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_record_manager.dart';
-import '../../../util/image_picker_util.dart';
 import '../../../util/media_handle_util.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 
@@ -88,33 +87,7 @@ class ChatDetailController {
     });
 
     _subscribeMessages();
-
-    voiceManager.onSend = (path, duration) {
-      sendVoice(path, duration);
-      VoiceRecordOverlay.hide();
-    };
-
-    voiceManager.onStart = () {
-      isRecording = true;
-      notify?.call();
-    };
-
-    voiceManager.onCancel = () {
-      isRecording = false;
-      notify?.call();
-      VoiceRecordOverlay.hide();
-    };
-
-    voiceManager.onVolume = (volume) {
-      VoiceRecordOverlay.update(volume: volume);
-    };
-
-    voiceManager.onTooShort = () {
-      VoiceRecordOverlay.update(isTooShort: true,text: '录音太短');
-      Future.delayed(const Duration(milliseconds: 800), () {
-        VoiceRecordOverlay.hide();
-      });
-    };
+    _subscribeVoice();
 
   }
 
@@ -251,6 +224,39 @@ class ChatDetailController {
   }
 
   /// =========================
+  /// 语音监听
+  /// =========================
+  void _subscribeVoice() {
+    voiceManager.onSend = (path, duration) {
+      sendVoice(path, duration);
+      VoiceRecordOverlay.hide();
+    };
+
+    voiceManager.onStart = () {
+      isRecording = true;
+      notify?.call();
+    };
+
+    voiceManager.onCancel = () {
+      isRecording = false;
+      notify?.call();
+      VoiceRecordOverlay.hide();
+    };
+
+    voiceManager.onVolume = (volume) {
+      VoiceRecordOverlay.update(volume: volume);
+    };
+
+    voiceManager.onTooShort = () {
+      VoiceRecordOverlay.update(isTooShort: true,text: '录音太短');
+      Future.delayed(const Duration(milliseconds: 800), () {
+        VoiceRecordOverlay.hide();
+      });
+    };
+
+  }
+
+  /// =========================
   /// 发送消息
   /// =========================
   Future<void> sendText() async {
@@ -325,6 +331,36 @@ class ChatDetailController {
     }
   }
 
+  /// =========================
+  /// 语音
+  /// =========================
+  Future<void> voiceStart() async {
+    await voiceManager.startRecord();
+    VoiceRecordOverlay.show(context!, isUp: false, volume: 0.1, text: "松开发送");
+  }
+
+  Future<void> voiceEnd() async {
+    if (isCancelling) {
+      await voiceManager.cancelRecord();
+    } else {
+      await voiceManager.stopRecord();
+    }
+    isRecording = false;
+    isCancelling = false;
+    notify?.call();
+  }
+
+  Future<void> voiceUpdate(LongPressMoveUpdateDetails d) async {
+    final dy = d.localPosition.dy;
+    final cancel = dy < -50;
+    if (cancel != isCancelling) {
+      isCancelling = cancel;
+      VoiceRecordOverlay.update(
+        isUp: cancel,
+        text: cancel ? "松开取消" : "松开发送",
+      );
+    }
+  }
 
   /// =========================
   /// UI 操作
@@ -429,4 +465,6 @@ class ChatDetailController {
       name,
     );
   }
+
+
 }

@@ -107,7 +107,7 @@ class VoiceRecordManager {
       final duration =
           DateTime.now().difference(_startTime!).inMilliseconds;
 
-      if (duration < 1) {
+      if (duration < 1000) {
         debugPrint("⚠️ 录音太短");
         final file = File(path);
         if (await file.exists()) {

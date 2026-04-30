@@ -93,38 +93,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   }
                 },
                 onActionTap: controller.toggleAction,
-                onVoiceLongPressStart: (d) async {
-                  await controller.voiceManager.startRecord();
-                  VoiceRecordOverlay.show(context, isUp: false, volume: 0.1, text: "松开发送", );
-                },
-                onVoiceLongPressMoveUpdate: (d) {
-                  final dy = d.localPosition.dy;
-
-                  final cancel = dy < -50;
-
-                  if (cancel != controller.isCancelling) {
-                    setState(() {
-                      controller.isCancelling = !controller.isCancelling;
-                    });
-                    final cancel = d.localPosition.dy < -50;
-
-                    VoiceRecordOverlay.update(
-                      isUp: cancel,
-                      text: cancel ? "松开取消" : "松开发送",
-                    );
-                  }
-                },
-                onVoiceLongPressEnd: (d) async {
-                  if (controller.isCancelling) {
-                    await controller.voiceManager.cancelRecord();
-                  } else {
-                    await controller.voiceManager.stopRecord();
-                  }
-                  setState(() {
-                    controller.isRecording = false;
-                    controller.isCancelling = false;
-                  });
-                },
+                onVoiceLongPressStart: (d) => controller.voiceStart(),
+                onVoiceLongPressMoveUpdate: (d) => controller.voiceUpdate(d),
+                onVoiceLongPressEnd: (d) => controller.voiceEnd(),
               ),
               if (controller.isMenuExpanded)
                 ChatMorePanel(

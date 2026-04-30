@@ -124,3 +124,65 @@ class VideoMessage extends ImMessage {
     return videoMsg;
   }
 }
+
+class FileMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String path;
+  final int size;
+  final String name;
+  FileMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.path,
+    required this.size,
+    required this.name,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.file;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final videoMsg = await IMEngineManager().engine?.createFileMessage(
+        conversationType,
+        targetId,
+        null,
+        path,
+    );
+    videoMsg?.senderUserId = IMEngineManager().currentUserId;
+    videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return videoMsg;
+  }
+}
+
+class VoiceMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String path;
+  final int duration;
+
+  VoiceMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.path,
+    required this.duration,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.voice;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final videoMsg = await IMEngineManager().engine?.createVoiceMessage(
+      conversationType,
+      targetId,
+      null,
+      path,
+      duration
+    );
+    videoMsg?.senderUserId = IMEngineManager().currentUserId;
+    videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return videoMsg;
+  }
+}

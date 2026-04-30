@@ -63,11 +63,32 @@ class ChatDetailMessageMapper {
           isMe: isMe,
           sentTime: sentTime,
           thumbnailBase64String:message.thumbnailBase64String,
-          fileName:message.local,
-          duration:formatDurationFromInt(message.duration ?? 0)
+          path:message.local,
+          duration:formatDurationFromMs(message.duration ?? 0)
       );
     }
-
+    if (message is RCIMIWVoiceMessage) {
+      print('duration----${message.duration}');
+      return ChatDetailMessage(
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.voice,
+          isMe: isMe,
+          sentTime: sentTime,
+          path:message.local,
+          duration:formatDurationFromMs(message.duration ?? 0)
+      );
+    }
+    if (message is RCIMIWFileMessage) {
+      return ChatDetailMessage(
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.file,
+          isMe: isMe,
+          sentTime: sentTime,
+          fileName:message.name,
+          fileSize: formatFileSize(message.size ?? 0),
+          path: message.local
+      );
+    }
     if (message.messageType == RCIMIWMessageType.recall) {
       return ChatDetailMessage(
         messageId: message.messageId.toString(),

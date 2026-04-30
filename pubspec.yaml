@@ -73,6 +73,9 @@ dependencies:
   eth_sig_util: ^0.0.9
   wechat_camera_picker: ^4.5.0
   mobile_scanner: ^7.2.0
+  file_picker: ^11.0.2
+  record: ^6.2.0
+  flutter_sound: ^9.30.0
 
 dev_dependencies:
   flutter_test:

@@ -56,15 +56,8 @@ class ChatVideoMessageContent extends StatelessWidget {
   final String? duration;
   final VoidCallback? onTap;
 
-  // String _formatDuration(int seconds) {
-  //   final m = seconds ~/ 60;
-  //   final s = seconds % 60;
-  //   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  // }
-
   @override
   Widget build(BuildContext context) {
-    print('thumbnailBase64String-----$thumbnailBase64String');
     return ConstrainedBox(
       constraints: const BoxConstraints(
         maxWidth: 140,
@@ -247,12 +240,16 @@ class ChatFileMessageContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                fileName,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.grey900,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              SizedBox(width: 180,
+                child: Text(
+                  fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.grey900,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),

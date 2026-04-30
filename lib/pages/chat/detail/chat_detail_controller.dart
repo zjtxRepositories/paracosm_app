@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
@@ -15,8 +16,10 @@ import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
+import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/image_picker_util.dart';
 import '../../../util/media_handle_util.dart';
+import '../../../widgets/chat/voice_record_overlay.dart';
 
 class ChatDetailController {
   ChatDetailController(this.args);
@@ -54,7 +57,7 @@ class ChatDetailController {
   bool hasMore = true;
 
   int? _oldestTime;
-
+  final voiceManager = VoiceRecordManager();
   /// =========================
   /// Stream
   /// =========================
@@ -85,6 +88,34 @@ class ChatDetailController {
     });
 
     _subscribeMessages();
+
+    voiceManager.onSend = (path, duration) {
+      sendVoice(path, duration);
+      VoiceRecordOverlay.hide();
+    };
+
+    voiceManager.onStart = () {
+      isRecording = true;
+      notify?.call();
+    };
+
+    voiceManager.onCancel = () {
+      isRecording = false;
+      notify?.call();
+      VoiceRecordOverlay.hide();
+    };
+
+    voiceManager.onVolume = (volume) {
+      VoiceRecordOverlay.update(volume: volume);
+    };
+
+    voiceManager.onTooShort = () {
+      VoiceRecordOverlay.update(isTooShort: true,text: '录音太短');
+      Future.delayed(const Duration(milliseconds: 800), () {
+        VoiceRecordOverlay.hide();
+      });
+    };
+
   }
 
   void dispose() {
@@ -259,6 +290,30 @@ class ChatDetailController {
     );
   }
 
+  Future<void> sendFile(String path,int size,String name) async {
+    await ImSender.instance.send(
+      message: FileMessage(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        path: path,
+        size: size,
+        name: name,
+      ),
+    );
+  }
+
+  Future<void> sendVoice(String path,int duration) async {
+    print('sendVoice----');
+    await ImSender.instance.send(
+      message: VoiceMessage(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        path: path,
+        duration: duration,
+      ),
+    );
+  }
+
   Future<void> handleAssetEntity(AssetEntity entity) async {
     final file = await entity.file;
     if (file == null) return;
@@ -324,6 +379,23 @@ class ChatDetailController {
     await handleAssetEntity(entity);
   }
 
+  Future<void> toggleFile() async {
+    final result = await FilePicker.pickFiles(
+      allowMultiple: true,
+      withData: false,
+    );
+
+    if (result == null) return;
+
+    for (final f in result.files) {
+      final path = f.path;
+      if (path == null) continue;
+
+      final file = File(path);
+
+      await _handleFile(file, f.name, f.size);
+    }
+  }
 
   Future<void> _handleVideo(File file, AssetEntity entity) async {
     final thumb = await entity.thumbnailDataWithSize(
@@ -350,4 +422,11 @@ class ChatDetailController {
     sendImage(path);
   }
 
+  Future<void> _handleFile(File file, String name, int size) async {
+    sendFile(
+      file.path,
+      size,
+      name,
+    );
+  }
 }

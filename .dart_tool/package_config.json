@@ -230,6 +230,12 @@
       "languageVersion": "3.10"
     },
     {
+      "name": "dbus",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/dbus-0.7.12",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "decimal",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/decimal-3.2.4",
       "packageUri": "lib/",
@@ -312,6 +318,12 @@
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file-7.0.1",
       "packageUri": "lib/",
       "languageVersion": "3.0"
+    },
+    {
+      "name": "file_picker",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/file_picker-11.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
     },
     {
       "name": "file_selector_linux",
@@ -520,6 +532,24 @@
     {
       "name": "flutter_secure_storage_windows",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_secure_storage_windows-4.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "flutter_sound",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_sound-9.30.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
+      "name": "flutter_sound_platform_interface",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_sound_platform_interface-9.30.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "flutter_sound_web",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/flutter_sound_web-9.30.0",
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
@@ -734,6 +764,12 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "logger",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/logger-2.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "logging",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/logging-1.3.0",
       "packageUri": "lib/",
@@ -918,6 +954,54 @@
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/rational-2.2.3",
       "packageUri": "lib/",
       "languageVersion": "2.14"
+    },
+    {
+      "name": "record",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record-6.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_android",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_android-1.5.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_ios",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_ios-1.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_linux",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_linux-1.3.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_macos",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_macos-1.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_platform_interface",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_platform_interface-1.5.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_web",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_web-1.3.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "record_windows",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/record_windows-1.0.7",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
     },
     {
       "name": "riverpod",

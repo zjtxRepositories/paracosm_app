@@ -296,6 +296,8 @@ class ImMessageManager {
       }) {
     if (_disposed) return;
 
+    if (message.messageId == 0) return;
+
     final id = message.messageId?.toString();
     if (id == null) return;
 

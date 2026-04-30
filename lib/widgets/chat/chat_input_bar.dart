@@ -36,7 +36,6 @@ class ChatInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
-    // print('bott')
     return Container(
       padding: EdgeInsets.only(
         left: 12,

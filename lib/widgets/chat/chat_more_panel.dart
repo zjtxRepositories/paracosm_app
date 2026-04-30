@@ -53,11 +53,11 @@ class ChatMorePanel extends StatelessWidget {
         label: AppLocalizations.of(context)!.chatDetailAudioCall,
         type: ChatMoreAction.audioCall,
       ),
-      ChatMoreItem(
-        icon: 'assets/images/common/redbag.png',
-        label: AppLocalizations.of(context)!.chatDetailRedPacket,
-        type: ChatMoreAction.redbag,
-      ),
+      // ChatMoreItem(
+      //   icon: 'assets/images/common/redbag.png',
+      //   label: AppLocalizations.of(context)!.chatDetailRedPacket,
+      //   type: ChatMoreAction.redbag,
+      // ),
       ChatMoreItem(
         icon: 'assets/images/common/file.png',
         label: AppLocalizations.of(context)!.chatDetailFile,

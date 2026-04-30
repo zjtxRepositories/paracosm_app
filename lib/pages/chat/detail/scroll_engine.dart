@@ -128,15 +128,21 @@ class ScrollEngine {
   /// =========================
   /// 滚到底（手动）
   /// =========================
-  void scrollToBottom() {
+  Future<void> scrollToBottom() async {
+    await Future.delayed(const Duration(milliseconds: 50));
+
     if (!scrollController.hasClients) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!scrollController.hasClients) return;
+    scrollController.jumpTo(
+      scrollController.position.maxScrollExtent,
+    );
 
-      scrollController.jumpTo(
-        scrollController.position.maxScrollExtent,
-      );
-    });
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    if (!scrollController.hasClients) return;
+
+    scrollController.jumpTo(
+      scrollController.position.maxScrollExtent,
+    );
   }
 }

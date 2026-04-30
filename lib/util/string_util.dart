@@ -97,12 +97,23 @@ Uint8List base64ToBytes(String base64String) {
   return base64Decode(cleaned);
 }
 
-String formatDurationFromInt(int ms) {
-  final seconds = ms ~/ 1000;
+String formatDurationFromMs(int ms) {
+  return _formatSeconds(ms ~/ 1000);
+}
 
+String formatDurationFromSeconds(int seconds) {
+  return _formatSeconds(seconds);
+}
+
+String _formatSeconds(int seconds) {
   final m = seconds ~/ 60;
   final s = seconds % 60;
 
   return '${m.toString().padLeft(2, '0')}:'
       '${s.toString().padLeft(2, '0')}';
+}
+
+String formatFileSize(int bytes) {
+  final kb = bytes / 1000;
+  return '${kb.round()}KB';
 }

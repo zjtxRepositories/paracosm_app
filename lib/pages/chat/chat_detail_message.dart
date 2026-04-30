@@ -32,6 +32,7 @@ class ChatDetailMessage {
     this.isClaimed,
     this.noticeName,
     this.thumbnailBase64String,
+    this.path,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -50,4 +51,5 @@ class ChatDetailMessage {
   final bool? isClaimed;
   final String? noticeName;
   final String? thumbnailBase64String;
+  final String? path;
 }

@@ -68,6 +68,8 @@ class ConversationResolver {
         return '[语音]';
       case RCIMIWMessageType.sight:
         return '[视频]';
+      case RCIMIWMessageType.file:
+        return '[文件]';
       case RCIMIWMessageType.recall:
         return '对方撤回了一条消息';
       case RCIMIWMessageType.custom:

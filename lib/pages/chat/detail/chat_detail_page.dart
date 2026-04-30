@@ -13,6 +13,7 @@ import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/chat/chat_message_context_menu.dart';
 import '../../../widgets/chat/chat_message_item.dart';
 import '../../../widgets/chat/chat_more_panel.dart';
+import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_empty_view.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
@@ -92,9 +93,38 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   }
                 },
                 onActionTap: controller.toggleAction,
-                onVoiceLongPressStart: (d) {},
-                onVoiceLongPressMoveUpdate: (d) {},
-                onVoiceLongPressEnd: (d) {},
+                onVoiceLongPressStart: (d) async {
+                  await controller.voiceManager.startRecord();
+                  VoiceRecordOverlay.show(context, isUp: false, volume: 0.1, text: "松开发送", );
+                },
+                onVoiceLongPressMoveUpdate: (d) {
+                  final dy = d.localPosition.dy;
+
+                  final cancel = dy < -50;
+
+                  if (cancel != controller.isCancelling) {
+                    setState(() {
+                      controller.isCancelling = !controller.isCancelling;
+                    });
+                    final cancel = d.localPosition.dy < -50;
+
+                    VoiceRecordOverlay.update(
+                      isUp: cancel,
+                      text: cancel ? "松开取消" : "松开发送",
+                    );
+                  }
+                },
+                onVoiceLongPressEnd: (d) async {
+                  if (controller.isCancelling) {
+                    await controller.voiceManager.cancelRecord();
+                  } else {
+                    await controller.voiceManager.stopRecord();
+                  }
+                  setState(() {
+                    controller.isRecording = false;
+                    controller.isCancelling = false;
+                  });
+                },
               ),
               if (controller.isMenuExpanded)
                 ChatMorePanel(
@@ -114,8 +144,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         // TODO: Handle this case.
                         throw UnimplementedError();
                       case ChatMoreAction.file:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
+                        controller.toggleFile();
                     }
                   },
                 )
@@ -181,12 +210,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     switch (message.kind) {
       case ChatDetailMessageKind.text:
         return ChatTextMessageContent(message: message.text ?? '');
+      case ChatDetailMessageKind.voice:
+        return ChatVoiceMessageContent(duration: message.duration ?? '');
       case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.image:
         return ChatImageMessageContent(imagePath: message.imagePath ?? '');
       case ChatDetailMessageKind.video:
         return ChatVideoMessageContent(thumbnailBase64String: message.thumbnailBase64String ?? '',duration: message.duration);
+      case ChatDetailMessageKind.file:
+        return ChatFileMessageContent(fileName: message.fileName ?? '', fileSize: message.fileSize ?? '');
       default:
         return const SizedBox();
     }

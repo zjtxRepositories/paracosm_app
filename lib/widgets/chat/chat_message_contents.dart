@@ -125,28 +125,101 @@ class ChatVideoMessageContent extends StatelessWidget {
   }
 }
 
-class ChatVoiceMessageContent extends StatelessWidget {
+class ChatVoiceMessageContent extends StatefulWidget {
   const ChatVoiceMessageContent({
     super.key,
     required this.duration,
+    this.isPlaying = false,
   });
 
   final String duration;
+  final bool isPlaying;
+
+  @override
+  State<ChatVoiceMessageContent> createState() =>
+      _ChatVoiceMessageContentState();
+}
+
+class _ChatVoiceMessageContentState
+    extends State<ChatVoiceMessageContent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _scale = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _opacity = Tween<double>(begin: 1.0, end: 0.6).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    if (widget.isPlaying) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatVoiceMessageContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isPlaying && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+
+    if (!widget.isPlaying && _controller.isAnimating) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final icon = Image.asset(
+      'assets/images/chat/voice.png',
+      width: 18,
+      height: 28,
+      color: AppColors.grey900,
+    );
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/chat/voice.png',
-          width: 18,
-          height: 28,
-          color: AppColors.grey900,
-        ),
+        widget.isPlaying
+            ? AnimatedBuilder(
+          animation: _controller,
+          builder: (_, child) {
+            return Opacity(
+              opacity: _opacity.value,
+              child: Transform.scale(
+                scale: _scale.value,
+                child: child,
+              ),
+            );
+          },
+          child: icon,
+        )
+            : icon,
+
         const SizedBox(width: 10),
+
         Text(
-          duration,
+          widget.duration,
           style: AppTextStyles.body.copyWith(
             color: AppColors.grey900,
             fontSize: 14,

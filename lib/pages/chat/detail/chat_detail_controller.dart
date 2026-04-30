@@ -16,6 +16,7 @@ import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
+import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
@@ -57,6 +58,7 @@ class ChatDetailController {
 
   int? _oldestTime;
   final voiceManager = VoiceRecordManager();
+  final voicePlayerManager = VoicePlayerManager();
   /// =========================
   /// Stream
   /// =========================
@@ -360,6 +362,16 @@ class ChatDetailController {
         text: cancel ? "松开取消" : "松开发送",
       );
     }
+  }
+
+  Future<void> voicePlay(String id, String? path) async {
+    if (path == null) return;
+    voicePlayerManager.play(
+      id: id,
+      path: path,
+    );
+    print('pley-----${id}');
+    // notify?.call();
   }
 
   /// =========================

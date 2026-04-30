@@ -182,7 +182,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.text:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.voice:
-        return ChatVoiceMessageContent(duration: message.duration ?? '');
+        return buildVoiceItem(message,key: ValueKey(message.messageId));
       case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.image:
@@ -194,6 +194,29 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       default:
         return const SizedBox();
     }
+  }
+
+  Widget buildVoiceItem(ChatDetailMessage message,{Key? key}) {
+    return KeyedSubtree(
+        key: key,
+        child: GestureDetector(
+          onTap: () {
+            controller.voicePlay(message.messageId, message.path);
+          },
+          child: StreamBuilder<String?>(
+            stream: controller.voicePlayerManager.currentIdStream,
+            builder: (context, snapshot) {
+              final currentId = snapshot.data;
+              final isPlaying = currentId == message.messageId;
+              return ChatVoiceMessageContent(
+                duration: message.duration ?? '',
+                isPlaying: isPlaying,
+              );
+            },
+          ),
+        )
+    );
+
   }
 
   void _showContextMenu(BuildContext context, Offset position) {

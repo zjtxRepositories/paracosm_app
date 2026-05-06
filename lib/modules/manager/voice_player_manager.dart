@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 
 enum VoicePlayState {
@@ -8,61 +8,164 @@ enum VoicePlayState {
   playing,
   paused,
   stopped,
+  completed,
 }
 
 class VoicePlayerManager {
+  /// =========================
+  /// 单例
+  /// =========================
   static final VoicePlayerManager _instance =
   VoicePlayerManager._internal();
 
   factory VoicePlayerManager() => _instance;
 
-  VoicePlayerManager._internal();
+  VoicePlayerManager._internal() {
+    _initListener();
+  }
 
-  /// 当前播放ID（用于列表高亮）
+  /// =========================
+  /// 播放器
+  /// =========================
+  final AudioPlayer _player = AudioPlayer();
+
+  /// 当前播放ID（用于UI高亮）
   String? _currentId;
+
   String get currentId => _currentId ?? '';
-  /// 状态
+
+  /// 当前状态
   VoicePlayState _state = VoicePlayState.idle;
 
   /// 进度
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
+  /// 队列（自动播放下一条）
+  final List<_VoiceTask> _queue = [];
+
+  /// =========================
+  /// Stream
+  /// =========================
   final _stateController = StreamController<VoicePlayState>.broadcast();
   final _progressController = StreamController<Duration>.broadcast();
+  final _durationController = StreamController<Duration>.broadcast();
   final _currentIdController = StreamController<String?>.broadcast();
 
   Stream<VoicePlayState> get stateStream => _stateController.stream;
+
   Stream<Duration> get progressStream => _progressController.stream;
+
+  Stream<Duration> get durationStream => _durationController.stream;
+
   Stream<String?> get currentIdStream => _currentIdController.stream;
-  final player = AudioPlayer();
 
   /// =========================
-  /// 播放
+  /// 初始化监听
+  /// =========================
+  void _initListener() {
+    /// 播放进度
+    _player.onPositionChanged.listen((pos) {
+      _position = pos;
+      _progressController.add(pos);
+    });
+
+    /// 总时长
+    _player.onDurationChanged.listen((dur) {
+      _duration = dur;
+      _durationController.add(dur);
+    });
+
+    /// 播放完成
+    _player.onPlayerComplete.listen((event) {
+      _onComplete();
+    });
+
+    /// 兜底（某些机型）
+    _player.onPlayerStateChanged.listen((state) {
+      if (state == PlayerState.completed) {
+        _onComplete();
+      }
+    });
+  }
+
+  /// =========================
+  /// 播放入口（核心）
   /// =========================
   Future<void> play({
     required String id,
     required String path,
+    String? url
   }) async {
-    // 如果点击同一个 => 暂停/继续
-    if (_currentId == id && _state == VoicePlayState.playing) {
-      pause();
-      return;
+    /// 同一个 => 切换暂停/继续
+    if (_currentId == id) {
+      if (_state == VoicePlayState.playing) {
+        pause();
+        return;
+      } else if (_state == VoicePlayState.paused) {
+        resume();
+        return;
+      }
     }
+    /// =========================
+    /// 判断本地文件是否可用
+    /// =========================
+    bool isAsset = false;
+    if (path.isNotEmpty) {
+      try {
+        final file = File(path);
 
-    // 切换新的播放源
-    _currentId = id;
-    _currentIdController.add(_currentId!);
+        if (await file.exists()) {
+          final length = await file.length();
+
+          /// 防止空文件（很关键）
+          if (length > 0) {
+            isAsset = true;
+          }
+        }
+      } catch (e) {
+        print("本地文件检测失败: $e");
+      }
+    }
+    /// 播放新音频（自动停止旧的）
+    await _startNew(
+      _VoiceTask(id: id, path: path, isAsset: isAsset),
+    );
+  }
+
+  /// =========================
+  /// 队列播放
+  /// =========================
+  void playList(List<_VoiceTask> list) {
+    _queue.clear();
+    _queue.addAll(list);
+
+    if (_queue.isNotEmpty) {
+      _startNew(_queue.removeAt(0));
+    }
+  }
+
+  /// =========================
+  /// 开始新播放
+  /// =========================
+  Future<void> _startNew(_VoiceTask task) async {
+    await _player.stop();
+
+    _currentId = task.id;
+    _currentIdController.add(_currentId);
+
+    _position = Duration.zero;
+    _progressController.add(_position);
 
     _setState(VoicePlayState.loading);
-
     try {
-      await player.play(AssetSource(path));
+      if (task.isAsset) {
+        await _player.play(DeviceFileSource(task.path));
+      } else {
+        await _player.play(UrlSource(task.path));
+      }
 
       _setState(VoicePlayState.playing);
-
-      // mock progress（实际要用播放器监听）
-      _startMockProgress();
     } catch (e) {
       _setState(VoicePlayState.stopped);
     }
@@ -73,8 +176,18 @@ class VoicePlayerManager {
   /// =========================
   Future<void> pause() async {
     if (_state == VoicePlayState.playing) {
-      await player.pause();
+      await _player.pause();
       _setState(VoicePlayState.paused);
+    }
+  }
+
+  /// =========================
+  /// 继续
+  /// =========================
+  Future<void> resume() async {
+    if (_state == VoicePlayState.paused) {
+      await _player.resume();
+      _setState(VoicePlayState.playing);
     }
   }
 
@@ -82,16 +195,41 @@ class VoicePlayerManager {
   /// 停止
   /// =========================
   Future<void> stop() async {
-    await player.stop();
-    _setState(VoicePlayState.stopped);
-    _currentId = null;
-    _currentIdController.add(null);
-    _position = Duration.zero;
-    _progressController.add(_position);
+    await _player.stop();
+    _reset();
   }
 
   /// =========================
-  /// 状态更新
+  /// 播放完成
+  /// =========================
+  void _onComplete() {
+    _setState(VoicePlayState.completed);
+
+    /// 自动播放下一条（IM关键能力）
+    if (_queue.isNotEmpty) {
+      final next = _queue.removeAt(0);
+      _startNew(next);
+      return;
+    }
+
+    _reset();
+  }
+
+  /// =========================
+  /// 重置状态
+  /// =========================
+  void _reset() {
+    _currentId = null;
+    _currentIdController.add(null);
+
+    _position = Duration.zero;
+    _progressController.add(_position);
+
+    _setState(VoicePlayState.stopped);
+  }
+
+  /// =========================
+  /// 设置状态
   /// =========================
   void _setState(VoicePlayState state) {
     _state = state;
@@ -99,27 +237,28 @@ class VoicePlayerManager {
   }
 
   /// =========================
-  /// mock 进度（后面换真实监听）
-  /// =========================
-  Timer? _timer;
-
-  void _startMockProgress() {
-    _timer?.cancel();
-    _position = Duration.zero;
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _position += const Duration(seconds: 1);
-      _progressController.add(_position);
-    });
-  }
-
-  /// =========================
-  /// dispose
+  /// 释放
   /// =========================
   void dispose() {
-    _timer?.cancel();
+    _player.dispose();
     _stateController.close();
     _progressController.close();
+    _durationController.close();
     _currentIdController.close();
   }
+}
+
+/// =========================
+/// 播放任务
+/// =========================
+class _VoiceTask {
+  final String id;
+  final String path;
+  final bool isAsset;
+
+  _VoiceTask({
+    required this.id,
+    required this.path,
+    required this.isAsset,
+  });
 }

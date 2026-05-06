@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
@@ -364,14 +365,13 @@ class ChatDetailController {
     }
   }
 
-  Future<void> voicePlay(String id, String? path) async {
+  Future<void> voicePlay(String id,{String? path, String? url}) async {
     if (path == null) return;
     voicePlayerManager.play(
       id: id,
       path: path,
+      url: url
     );
-    print('pley-----${id}');
-    // notify?.call();
   }
 
   /// =========================

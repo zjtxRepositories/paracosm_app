@@ -156,11 +156,11 @@ class _ChatVoiceMessageContentState
       duration: const Duration(milliseconds: 900),
     );
 
-    _scale = Tween<double>(begin: 1.0, end: 1.15).animate(
+    _scale = Tween<double>(begin: 0.9, end: 1.3).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
-    _opacity = Tween<double>(begin: 1.0, end: 0.6).animate(
+    _opacity = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
     if (widget.isPlaying) {

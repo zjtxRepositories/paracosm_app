@@ -201,7 +201,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         key: key,
         child: GestureDetector(
           onTap: () {
-            controller.voicePlay(message.messageId, message.path);
+            controller.voicePlay(message.messageId, path: message.path,url: message.remote);
           },
           child: StreamBuilder<String?>(
             stream: controller.voicePlayerManager.currentIdStream,

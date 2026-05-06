@@ -56,7 +56,7 @@ class ChatDetailMessageMapper {
     }
 
     if (message is RCIMIWSightMessage) {
-      print('video----${message.duration}---${message.thumbnailBase64String}');
+      // print('video----${message.duration}---${message.thumbnailBase64String}');
       return ChatDetailMessage(
           messageId: message.messageId.toString(),
           kind: ChatDetailMessageKind.video,
@@ -68,13 +68,14 @@ class ChatDetailMessageMapper {
       );
     }
     if (message is RCIMIWVoiceMessage) {
-      print('duration----${message.duration}');
+      print('duration----${message.duration}---${message.remote}');
       return ChatDetailMessage(
           messageId: message.messageId.toString(),
           kind: ChatDetailMessageKind.voice,
           isMe: isMe,
           sentTime: sentTime,
           path:message.local,
+          remote: message.remote,
           duration:formatDurationFromMs(message.duration ?? 0)
       );
     }

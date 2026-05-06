@@ -33,6 +33,7 @@ class ChatDetailMessage {
     this.noticeName,
     this.thumbnailBase64String,
     this.path,
+    this.remote,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -52,4 +53,5 @@ class ChatDetailMessage {
   final String? noticeName;
   final String? thumbnailBase64String;
   final String? path;
+  final String? remote;
 }

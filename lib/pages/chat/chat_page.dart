@@ -349,7 +349,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
-      onTap: () => context.push('/group-list'),
+      onTap: () => context.push('/group-list',extra: _groups),
       behavior: HitTestBehavior.opaque,
       child: Container(
         color: Colors.white,

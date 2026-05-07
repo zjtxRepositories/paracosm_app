@@ -14,6 +14,7 @@ enum GroupType {
 
 class GroupModel {
   RCIMIWGroupInfo info;
+  String? showName;
 
   GroupModel({
     required this.info,

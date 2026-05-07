@@ -64,7 +64,7 @@ class ChatDetailHeader extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Container(
+                   isGroup ? SizedBox() : Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
@@ -72,8 +72,8 @@ class ChatDetailHeader extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
+                    isGroup ? SizedBox() :   const SizedBox(width: 4),
+                    isGroup ? SizedBox() :   Text(
                       isOnline ? AppLocalizations.of(context)!.chatDetailActive : '离线',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.grey400,

@@ -245,7 +245,8 @@ class _ChatPageState extends State<ChatPage> {
                         time: formatIMTime(item.time),
                         unreadCount: item.info.unreadCount ?? 0,
                         avatar: item.portraitUri ?? '',
-                        userId: item.info.targetId,
+                        targetId: item.info.targetId,
+                        isGroup: item.info.conversationType == RCIMIWConversationType.group,
                         isMuted: false,
                         onTap: () => _navigateToConversationDetail(
                           item.info,

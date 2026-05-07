@@ -68,7 +68,6 @@ class ChatDetailMessageMapper {
       );
     }
     if (message is RCIMIWVoiceMessage) {
-      print('duration----${message.duration}---${message.remote}');
       return ChatDetailMessage(
           messageId: message.messageId.toString(),
           kind: ChatDetailMessageKind.voice,

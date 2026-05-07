@@ -30,7 +30,6 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
     _controller = PageController(initialPage: _index);
 
     MediaCacheManager.preload(widget.list, _index);
-
   }
 
   void _onPageChanged(int index) {

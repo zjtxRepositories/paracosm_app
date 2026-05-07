@@ -15,12 +15,14 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
+import '../../../core/models/media_item.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
+import '../../../widgets/common/app_media_gallery.dart';
 
 class ChatDetailController {
   ChatDetailController(this.args);
@@ -312,7 +314,6 @@ class ChatDetailController {
   }
 
   Future<void> sendVoice(String path,int duration) async {
-    print('sendVoice----');
     await ImSender.instance.send(
       message: VoiceMessage(
         conversationType: args!.conversationType,
@@ -478,5 +479,20 @@ class ChatDetailController {
     );
   }
 
+  void openMediaViewer({
+    required List<MediaItem> list,
+    required int index,
+  }) {
+    Navigator.push(
+      context!,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => AppMediaGallery(
+          list: list,
+          initialIndex: index,
+        ),
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
 
 }

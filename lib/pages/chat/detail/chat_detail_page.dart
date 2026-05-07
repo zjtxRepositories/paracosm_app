@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/media_item.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
@@ -186,9 +189,30 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.image:
-        return ChatImageMessageContent(imagePath: message.imagePath ?? '');
+        return GestureDetector(
+          onTap: () {
+            controller.openMediaViewer(
+              list: _buildMediaList(message),
+              index: _getIndex(message),
+            );
+          },
+          child: ChatImageMessageContent(
+            imagePath: message.imagePath ?? '',
+          ),
+        );
       case ChatDetailMessageKind.video:
-        return ChatVideoMessageContent(thumbnailBase64String: message.thumbnailBase64String ?? '',duration: message.duration);
+        return GestureDetector(
+          onTap: () {
+            controller.openMediaViewer(
+              list: _buildMediaList(message),
+              index: _getIndex(message),
+            );
+          },
+          child: ChatVideoMessageContent(
+            thumbnailBase64String: message.thumbnailBase64String ?? '',
+            duration: message.duration,
+          ),
+        );
       case ChatDetailMessageKind.file:
         return ChatFileMessageContent(fileName: message.fileName ?? '', fileSize: message.fileSize ?? '');
       default:
@@ -232,6 +256,48 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     } else {
       context.push('/user-profile/$encoded');
     }
+  }
+  List<MediaItem> _buildMediaList(ChatDetailMessage current) {
+    final list = <MediaItem>[];
+
+    for (final msg in controller.messages) {
+      if (msg.kind == ChatDetailMessageKind.image) {
+        list.add(
+          MediaItem(
+            type: MediaType.image,
+            file: File(msg.imagePath!),
+          ),
+        );
+      }
+
+      if (msg.kind == ChatDetailMessageKind.video) {
+        list.add(
+          MediaItem(
+            type: MediaType.video,
+            file: File(msg.path!),
+            thumbnailBase64String: msg.thumbnailBase64String
+          ),
+        );
+      }
+    }
+
+    return list;
+  }
+
+  int _getIndex(ChatDetailMessage message) {
+    int index = 0;
+
+    for (final msg in  controller.messages) {
+      if (msg.kind == ChatDetailMessageKind.image ||
+          msg.kind == ChatDetailMessageKind.video) {
+        if (msg.messageId == message.messageId) {
+          return index;
+        }
+        index++;
+      }
+    }
+
+    return 0;
   }
 
   String get _sessionName =>

@@ -1,4 +1,5 @@
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -17,6 +18,7 @@ class MediaItem {
   final MediaType type;
   final File? coverFile;   // 本地封面
   final String? coverUrl;  // 服务端封面
+  final String? thumbnailBase64String;
 
   MediaItem({
     this.file,
@@ -24,6 +26,7 @@ class MediaItem {
     required this.type,
     this.coverFile,
     this.coverUrl,
+    this.thumbnailBase64String
   });
 }
 
@@ -40,6 +43,12 @@ extension MediaResolver on MediaItem {
   ImageProvider? get coverProvider {
     if (coverFile != null) return FileImage(coverFile!);
     if (coverUrl != null) return NetworkImage(coverUrl!);
+    if (thumbnailBase64String != null &&
+        thumbnailBase64String!.isNotEmpty) {
+      return MemoryImage(
+        base64Decode(thumbnailBase64String!),
+      );
+    }
     return null;
   }
 }

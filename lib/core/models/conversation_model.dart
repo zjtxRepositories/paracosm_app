@@ -15,6 +15,8 @@ class ConversationModel {
   String? portraitUri;
 
   ConversationModel({required this.info});
+
+  int get time => info.operationTime ?? info.lastMessage?.sentTime ?? 0;
 }
 
 class ConversationResolver {
@@ -47,10 +49,9 @@ class ConversationResolver {
     final msg = info.lastMessage;
     if (msg != null) {
       final content = await _format(msg);
-
-      if (info.conversationType == RCIMIWConversationType.group) {
-        final group = await _getGroup(targetId);
-        model.subtitle = '${group?.name ?? ''}：$content';
+      if (info.conversationType == RCIMIWConversationType.group && msg.messageType != RCIMIWMessageType.custom) {
+        final user = await _getUser(msg.senderUserId ?? '');
+        model.subtitle = '${user?.name ?? ''}：$content';
       } else {
         model.subtitle = content;
       }
@@ -79,7 +80,7 @@ class ConversationResolver {
         final model = CustomMessageModel.fromJson(
           Map<String, dynamic>.from(data),
         );
-        return _formatCustomMessage(model);
+        return  _formatCustomMessage(model);
       default:
         return '[消息]';
     }
@@ -89,6 +90,11 @@ class ConversationResolver {
     switch (message.type) {
       case CustomMessageType.friendAdd:
         return '我们已成功添加为好友，现在可以开始聊天啦～';
+      case CustomMessageType.groupInvited:
+        final group = await _getGroup(message.toUserId);
+        final members = await group?.memberName;
+        final user = await _getUser(message.fromUserId);
+        return '"${user?.name ?? ''}"邀请$members加入了群聊';
       default:
         return _formatContent(message.content ?? '');
     }

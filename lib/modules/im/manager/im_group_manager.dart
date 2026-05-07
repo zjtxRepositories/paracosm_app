@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:uuid/uuid.dart';
 import 'im_engine_manager.dart';
 
 class ImGroupManager {
@@ -116,22 +117,37 @@ class ImGroupManager {
   /// =========================
   /// 创建群
   /// =========================
-  Future<bool> create({
-    required String groupId,
-    required String groupName,
+  Future<String?> create({
     required List<String> inviteeUserIds,
+    required String groupId,
+    String? groupName,
   }) async {
+    final completer = Completer<String?>();
+
     final groupInfo = RCIMIWGroupInfo.create(
       groupId: groupId,
-      groupName: groupName,
+      groupName: groupName ?? '[默认]',
     );
 
-    int? code = await IMEngineManager().engine?.createGroup(
+    await IMEngineManager().engine?.createGroup(
       groupInfo,
       inviteeUserIds,
+      callback: IRCIMIWCreateGroupCallback(
+        onSuccess: (result) {
+          debugPrint('创建群成功: $result');
+          completer.complete(groupId);
+        },
+        onError: (int? errorCode, String? errorInfo) {
+          debugPrint(
+            '创建群失败: code=$errorCode info=$errorInfo',
+          );
+
+          completer.complete(null);
+        },
+      ),
     );
 
-    return code == 0;
+    return completer.future;
   }
 
   /// =========================

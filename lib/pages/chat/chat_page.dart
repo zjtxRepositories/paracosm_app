@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/conversation_model.dart';
+import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/modules/im/message/send/im_sender.dart';
 import 'package:paracosm/modules/scan/scan_result_handler.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
@@ -15,11 +18,16 @@ import 'package:paracosm/widgets/chat/chat_list_item.dart';
 import 'package:paracosm/widgets/chat/system_notification_item.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/chat/select_members_modal.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import '../../core/models/custom_message_model.dart';
 import '../../modules/im/manager/im_connection_manager.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
+import '../../modules/im/manager/im_group_manager.dart';
+import '../../modules/im/message/base/im_message.dart';
 import 'contacts_view.dart';
 
 /// 聊天主列表页面
@@ -234,7 +242,7 @@ class _ChatPageState extends State<ChatPage> {
                       return ChatListItem(
                         title: item.title ?? '',
                         subtitle: item.subtitle ?? '',
-                        time: formatIMTime(item.info.operationTime ?? 0),
+                        time: formatIMTime(item.time),
                         unreadCount: item.info.unreadCount ?? 0,
                         avatar: item.portraitUri ?? '',
                         userId: item.info.targetId,
@@ -544,8 +552,30 @@ class _ChatPageState extends State<ChatPage> {
                   AppActionPopMenuItem(
                     icon: 'assets/images/chat/create-group.png',
                     label: l10n.chatMenuCreateGroup,
-                    onTap: () {
-                      SelectMembersModal.show(context);
+                    onTap: () async {
+                      final result = await SelectMembersModal.show(context,friends: _friends);
+                      if (result != null) {
+                        AppLoading.show();
+                        final groupId = await ImGroupManager().create(inviteeUserIds: result,
+                            groupId: generateGroupId(GroupType.normal));
+                        if (groupId == null){
+                          AppLoading.dismiss();
+                          AppToast.show('创建群组失败');
+                          return;
+                        }
+                        final message = CustomMessage(targetId: groupId,
+                            customMessageType: CustomMessageType.groupInvited,
+                            conversationType:RCIMIWConversationType.group);
+                        final isSend = await ImSender.instance.send(message: message);
+                        AppLoading.dismiss();
+                        if (!isSend)return;
+                        final conversation = await ImConversationManager().getConversation(
+                            type: RCIMIWConversationType.group, targetId: groupId);
+                        if (conversation == null)return;
+                        final model = ConversationModel(info: conversation);
+                        await ConversationResolver().resolve(model);
+                        _navigateToConversationDetail(conversation, model.title ?? '');
+                      }
                     },
                   ),
                   AppActionPopMenuItem(

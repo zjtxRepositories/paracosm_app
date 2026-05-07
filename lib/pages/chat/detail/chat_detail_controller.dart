@@ -143,7 +143,7 @@ class ChatDetailController {
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list = ChatDetailMessageMapper.mapMessages(result.reversed.toList());
+      final list = await ChatDetailMessageMapper.mapMessages(result.reversed.toList());
 
       if (list.isNotEmpty) {
         _oldestTime = list.first.sentTime;
@@ -178,8 +178,7 @@ class ChatDetailController {
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list =
-      ChatDetailMessageMapper.mapMessages(result.reversed.toList());
+      final list = await ChatDetailMessageMapper.mapMessages(result.reversed.toList());
 
       if (list.isEmpty) {
         hasMore = false;

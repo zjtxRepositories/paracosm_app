@@ -1,14 +1,15 @@
 import 'dart:io';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
 import '../../../core/models/media_item.dart';
+import '../../../modules/call/rong_call_manager.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
-import '../../../widgets/base/app_localizations.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
 import '../../../widgets/chat/chat_input_bar.dart';
@@ -16,25 +17,19 @@ import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/chat/chat_message_context_menu.dart';
 import '../../../widgets/chat/chat_message_item.dart';
 import '../../../widgets/chat/chat_more_panel.dart';
-import '../../../widgets/chat/voice_record_overlay.dart';
-import '../../../widgets/common/app_empty_view.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
 import 'chat_detail_controller.dart';
 
-class ChatDetailPage extends StatefulWidget{
+class ChatDetailPage extends StatefulWidget {
   final ChatSessionArgs? sessionArgs;
   final String fallbackName;
 
-  const ChatDetailPage({
-    super.key,
-    required ChatSessionArgs this.sessionArgs,
-  }) : fallbackName = '';
+  const ChatDetailPage({super.key, required ChatSessionArgs this.sessionArgs})
+    : fallbackName = '';
 
-  const ChatDetailPage.missingArgs({
-    super.key,
-    required this.fallbackName,
-  }) : sessionArgs = null;
+  const ChatDetailPage.missingArgs({super.key, required this.fallbackName})
+    : sessionArgs = null;
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -48,7 +43,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     controller = ChatDetailController(widget.sessionArgs);
     controller.init(() => setState(() {}));
-
   }
 
   @override
@@ -56,7 +50,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     controller.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +81,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 isCancelling: controller.isCancelling,
                 isMenuExpanded: controller.isMenuExpanded,
                 isInputEmpty: controller.isInputEmpty,
-                onToggleVoiceMode:controller.toggleVoice,
+                onToggleVoiceMode: controller.toggleVoice,
                 onTextFieldTap: () {
                   if (controller.isMenuExpanded) {
                     controller.isMenuExpanded = false;
@@ -102,18 +95,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ),
               if (controller.isMenuExpanded)
                 ChatMorePanel(
-                  onItemTap: (item) {
+                  onItemTap: (item) async {
                     switch (item.type) {
                       case ChatMoreAction.album:
                         controller.toggleAlbum();
                       case ChatMoreAction.camera:
                         controller.toggleCamera();
                       case ChatMoreAction.videoCall:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
+                        await _openCallPage(isVideo: true);
                       case ChatMoreAction.audioCall:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
+                        await _openCallPage(isVideo: false);
                       case ChatMoreAction.redbag:
                         // TODO: Handle this case.
                         throw UnimplementedError();
@@ -121,11 +112,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         controller.toggleFile();
                     }
                   },
-                )
+                ),
             ],
           );
         },
-      )
+      ),
     );
   }
 
@@ -144,15 +135,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         }
         return false;
       },
-        child: ListView.builder(
-          controller: controller.engine.scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 20,horizontal: 16),
-          itemCount: controller.messages.length,
-          itemBuilder: (context, index) {
-            final message = controller.messages[index];
-            return _buildMessageNode(message);
-          },
-        )
+      child: ListView.builder(
+        controller: controller.engine.scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        itemCount: controller.messages.length,
+        itemBuilder: (context, index) {
+          final message = controller.messages[index];
+          return _buildMessageNode(message);
+        },
+      ),
     );
   }
 
@@ -161,20 +152,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.timestamp:
       case ChatDetailMessageKind.fm:
         return Center(
-            child:Padding(padding: EdgeInsets.only(top: 10),
-            child: Text(message.text ?? '',
+          child: Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Text(
+              message.text ?? '',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.grey400,
                 fontSize: 12,
-              ),),)
-       );
+              ),
+            ),
+          ),
+        );
       default:
         return ChatMessageItem(
           isMe: message.isMe,
           isUnread: message.isUnread,
           showBubble: message.showBubble,
-          onLongPressStart: (d) =>
-              _showContextMenu(context, d.globalPosition),
+          onLongPressStart: (d) => _showContextMenu(context, d.globalPosition),
           child: _buildMessageContent(message),
         );
     }
@@ -185,7 +179,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.text:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.voice:
-        return buildVoiceItem(message,key: ValueKey(message.messageId));
+        return buildVoiceItem(message, key: ValueKey(message.messageId));
       case ChatDetailMessageKind.fm:
         return ChatTextMessageContent(message: message.text ?? '');
       case ChatDetailMessageKind.image:
@@ -196,9 +190,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               index: _getIndex(message),
             );
           },
-          child: ChatImageMessageContent(
-            imagePath: message.imagePath ?? '',
-          ),
+          child: ChatImageMessageContent(imagePath: message.imagePath ?? ''),
         );
       case ChatDetailMessageKind.video:
         return GestureDetector(
@@ -214,33 +206,45 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
         );
       case ChatDetailMessageKind.file:
-        return ChatFileMessageContent(fileName: message.fileName ?? '', fileSize: message.fileSize ?? '');
+        return ChatFileMessageContent(
+          fileName: message.fileName ?? '',
+          fileSize: message.fileSize ?? '',
+        );
+      case ChatDetailMessageKind.call:
+        return ChatCallMessageContent(
+          text: message.text ?? '',
+          isVideo: message.isVideo,
+          isMe: message.isMe,
+        );
       default:
         return const SizedBox();
     }
   }
 
-  Widget buildVoiceItem(ChatDetailMessage message,{Key? key}) {
+  Widget buildVoiceItem(ChatDetailMessage message, {Key? key}) {
     return KeyedSubtree(
-        key: key,
-        child: GestureDetector(
-          onTap: () {
-            controller.voicePlay(message.messageId, path: message.path,url: message.remote);
+      key: key,
+      child: GestureDetector(
+        onTap: () {
+          controller.voicePlay(
+            message.messageId,
+            path: message.path,
+            url: message.remote,
+          );
+        },
+        child: StreamBuilder<String?>(
+          stream: controller.voicePlayerManager.currentIdStream,
+          builder: (context, snapshot) {
+            final currentId = snapshot.data;
+            final isPlaying = currentId == message.messageId;
+            return ChatVoiceMessageContent(
+              duration: message.duration ?? '',
+              isPlaying: isPlaying,
+            );
           },
-          child: StreamBuilder<String?>(
-            stream: controller.voicePlayerManager.currentIdStream,
-            builder: (context, snapshot) {
-              final currentId = snapshot.data;
-              final isPlaying = currentId == message.messageId;
-              return ChatVoiceMessageContent(
-                duration: message.duration ?? '',
-                isPlaying: isPlaying,
-              );
-            },
-          ),
-        )
+        ),
+      ),
     );
-
   }
 
   void _showContextMenu(BuildContext context, Offset position) {
@@ -257,17 +261,35 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       context.push('/user-profile/$encoded');
     }
   }
+
+  Future<void> _openCallPage({required bool isVideo}) async {
+    if (_isGroupSession) {
+      AppToast.showInfo('群通话暂未开放');
+      controller.isMenuExpanded = false;
+      setState(() {});
+      return;
+    }
+
+    final encoded = Uri.encodeComponent(_sessionName);
+    final media = isVideo ? 'video' : 'voice';
+
+    controller.isMenuExpanded = false;
+    setState(() {});
+    final started = await RongCallManager().startPrivateCall(
+      targetId: _targetId,
+      displayName: _sessionName,
+      mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
+    );
+    if (!mounted || !started) return;
+    context.push('/chat-private-$media/$encoded');
+  }
+
   List<MediaItem> _buildMediaList(ChatDetailMessage current) {
     final list = <MediaItem>[];
 
     for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.image) {
-        list.add(
-          MediaItem(
-            type: MediaType.image,
-            file: File(msg.imagePath!),
-          ),
-        );
+        list.add(MediaItem(type: MediaType.image, file: File(msg.imagePath!)));
       }
 
       if (msg.kind == ChatDetailMessageKind.video) {
@@ -275,7 +297,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           MediaItem(
             type: MediaType.video,
             file: File(msg.path!),
-            thumbnailBase64String: msg.thumbnailBase64String
+            thumbnailBase64String: msg.thumbnailBase64String,
           ),
         );
       }
@@ -287,7 +309,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   int _getIndex(ChatDetailMessage message) {
     int index = 0;
 
-    for (final msg in  controller.messages) {
+    for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.image ||
           msg.kind == ChatDetailMessageKind.video) {
         if (msg.messageId == message.messageId) {
@@ -300,15 +322,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return 0;
   }
 
-  String get _sessionName =>
-      widget.sessionArgs?.name ?? widget.fallbackName;
+  String get _sessionName => widget.sessionArgs?.name ?? widget.fallbackName;
 
-  bool get _isGroupSession =>
-      widget.sessionArgs?.isGroup ?? false;
+  bool get _isGroupSession => widget.sessionArgs?.isGroup ?? false;
 
-  String get _targetId =>
-      widget.sessionArgs?.targetId ?? '';
+  String get _targetId => widget.sessionArgs?.targetId ?? '';
 
-  String get _headerAvatar =>
-      widget.sessionArgs?.avatar ?? '';
+  String get _headerAvatar => widget.sessionArgs?.avatar ?? '';
 }

@@ -1,3 +1,4 @@
+import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
@@ -35,6 +36,19 @@ class ChatDetailMessageMapper {
   static ChatDetailMessage mapMessage(RCIMIWMessage message) {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
+
+    final callSummary = RongCallSummaryParser.tryParse(message);
+    if (callSummary != null) {
+      return ChatDetailMessage(
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.call,
+        isMe: isMe,
+        sentTime: sentTime,
+        isVideo: callSummary.isVideo,
+        text: callSummary.text,
+      );
+    }
+
     if (message is RCIMIWTextMessage) {
       return ChatDetailMessage(
         messageId: message.messageId.toString(),
@@ -47,46 +61,46 @@ class ChatDetailMessageMapper {
 
     if (message is RCIMIWImageMessage) {
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.image,
-          isMe: isMe,
-          sentTime: sentTime,
-          imagePath:message.local
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.image,
+        isMe: isMe,
+        sentTime: sentTime,
+        imagePath: message.local,
       );
     }
 
     if (message is RCIMIWSightMessage) {
       // print('video----${message.duration}---${message.thumbnailBase64String}');
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.video,
-          isMe: isMe,
-          sentTime: sentTime,
-          thumbnailBase64String:message.thumbnailBase64String,
-          path:message.local,
-          duration:formatDurationFromMs(message.duration ?? 0)
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.video,
+        isMe: isMe,
+        sentTime: sentTime,
+        thumbnailBase64String: message.thumbnailBase64String,
+        path: message.local,
+        duration: formatDurationFromMs(message.duration ?? 0),
       );
     }
     if (message is RCIMIWVoiceMessage) {
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.voice,
-          isMe: isMe,
-          sentTime: sentTime,
-          path:message.local,
-          remote: message.remote,
-          duration:formatDurationFromMs(message.duration ?? 0)
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.voice,
+        isMe: isMe,
+        sentTime: sentTime,
+        path: message.local,
+        remote: message.remote,
+        duration: formatDurationFromMs(message.duration ?? 0),
       );
     }
     if (message is RCIMIWFileMessage) {
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.file,
-          isMe: isMe,
-          sentTime: sentTime,
-          fileName:message.name,
-          fileSize: formatFileSize(message.size ?? 0),
-          path: message.local
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.file,
+        isMe: isMe,
+        sentTime: sentTime,
+        fileName: message.name,
+        fileSize: formatFileSize(message.size ?? 0),
+        path: message.local,
       );
     }
     if (message.messageType == RCIMIWMessageType.recall) {
@@ -100,10 +114,10 @@ class ChatDetailMessageMapper {
     if (message.messageType == RCIMIWMessageType.custom) {
       MessageModel model = MessageModel(item: message);
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.fm,
-          sentTime: sentTime,
-          text: model.formatCustomContent()
+        messageId: message.messageId.toString(),
+        kind: ChatDetailMessageKind.fm,
+        sentTime: sentTime,
+        text: model.formatCustomContent(),
       );
     }
 
@@ -126,5 +140,4 @@ class ChatDetailMessageMapper {
   static String _formatTimestamp(int timestamp) {
     return formatIMTime(timestamp);
   }
-
 }

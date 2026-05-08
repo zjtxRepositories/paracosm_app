@@ -1,4 +1,5 @@
 source 'https://cdn.cocoapods.org/'
+source 'https://github.com/CocoaPods/Specs.git'
 
 platform :ios, '13.0'
 
@@ -39,11 +40,20 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  x86_only_simulator_targets = [
+    'rongcloud_call_wrapper_plugin',
+    'RongCloudRTC',
+    'RongWrapperLog'
+  ]
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      if x86_only_simulator_targets.include?(target.name)
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64 i386'
+      end
     end
   end
 end

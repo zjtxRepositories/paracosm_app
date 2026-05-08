@@ -71,12 +71,12 @@ class _BrowserControllerState extends State<BrowserController> {
     widget.onWebViewCreated?.call(controller);
   }
 
-  bool _isTrustedDevHost(String? host) {
-    if (host == null || host.isEmpty) {
-      return false;
-    }
-    return host == 'test-frp.zjtxy.top' || host.endsWith('.zjtxy.top');
-  }
+  // bool _isTrustedDevHost(String? host) {
+  //   if (host == null || host.isEmpty) {
+  //     return false;
+  //   }
+  //   return host == 'test-frp.zjtxy.top' || host.endsWith('.zjtxy.top');
+  // }
 
   Future<void> _updateCanGoBack(InAppWebViewController controller) async {
     final canGoBack = await controller.canGoBack();
@@ -247,18 +247,18 @@ class _BrowserControllerState extends State<BrowserController> {
                 'DApp console [${consoleMessage.messageLevel}]: ${consoleMessage.message}',
               );
             },
-            onReceivedServerTrustAuthRequest: (_, challenge) async {
-              final host = challenge.protectionSpace.host;
-              if (_isTrustedDevHost(host)) {
-                debugPrint('WebView trust challenge proceed for host=$host');
-                return ServerTrustAuthResponse(
-                  action: ServerTrustAuthResponseAction.PROCEED,
-                );
-              }
-              return ServerTrustAuthResponse(
-                action: ServerTrustAuthResponseAction.CANCEL,
-              );
-            },
+            // onReceivedServerTrustAuthRequest: (_, challenge) async {
+            //   final host = challenge.protectionSpace.host;
+            //   if (_isTrustedDevHost(host)) {
+            //     debugPrint('WebView trust challenge proceed for host=$host');
+            //     return ServerTrustAuthResponse(
+            //       action: ServerTrustAuthResponseAction.PROCEED,
+            //     );
+            //   }
+            //   return ServerTrustAuthResponse(
+            //     action: ServerTrustAuthResponseAction.CANCEL,
+            //   );
+            // },
           ),
 
           /// 进度条（纯UI）

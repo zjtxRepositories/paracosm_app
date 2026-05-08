@@ -1,12 +1,12 @@
-
-
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'custom_message_model.dart';
+
 class ConversationModel {
   final RCIMIWConversation info;
 
@@ -55,10 +55,14 @@ class ConversationResolver {
         model.subtitle = content;
       }
     }
-
   }
 
-  Future<String> _format(RCIMIWMessage message) async{
+  Future<String> _format(RCIMIWMessage message) async {
+    final callSummary = RongCallSummaryParser.tryParse(message);
+    if (callSummary != null) {
+      return callSummary.conversationText;
+    }
+
     switch (message.messageType) {
       case RCIMIWMessageType.text:
         return (message as RCIMIWTextMessage).text ?? '';
@@ -73,7 +77,9 @@ class ConversationResolver {
       case RCIMIWMessageType.recall:
         return '对方撤回了一条消息';
       case RCIMIWMessageType.custom:
-        RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(message.toJson());
+        RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(
+          message.toJson(),
+        );
         final data = customMessage.fields;
         if (data == null) return '';
         final model = CustomMessageModel.fromJson(
@@ -85,7 +91,7 @@ class ConversationResolver {
     }
   }
 
-  Future<String> _formatCustomMessage(CustomMessageModel message) async{
+  Future<String> _formatCustomMessage(CustomMessageModel message) async {
     switch (message.type) {
       case CustomMessageType.friendAdd:
         return '我们已成功添加为好友，现在可以开始聊天啦～';
@@ -116,7 +122,6 @@ class ConversationResolver {
 
     return result;
   }
-
 
   Future<UserModel?> _getUser(String id) async {
     return _userCache[id] ??= await _fetchUser(id);

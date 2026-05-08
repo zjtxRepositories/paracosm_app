@@ -9,7 +9,7 @@ class ImConversationManager {
   /// 单例
   /// =========================
   static final ImConversationManager _instance =
-  ImConversationManager._internal();
+      ImConversationManager._internal();
 
   factory ImConversationManager() => _instance;
 
@@ -19,10 +19,9 @@ class ImConversationManager {
   /// Stream（节流）
   /// =========================
   final _controller =
-  StreamController<Map<int, List<RCIMIWConversation>>>.broadcast();
+      StreamController<Map<int, List<RCIMIWConversation>>>.broadcast();
 
-  Stream<Map<int, List<RCIMIWConversation>>> get stream =>
-      _controller.stream;
+  Stream<Map<int, List<RCIMIWConversation>>> get stream => _controller.stream;
 
   Timer? _debounce;
 
@@ -41,7 +40,7 @@ class ImConversationManager {
     [
       RCIMIWConversationType.private,
       RCIMIWConversationType.group,
-      RCIMIWConversationType.system
+      RCIMIWConversationType.system,
     ],
     [RCIMIWConversationType.private],
     [RCIMIWConversationType.group],
@@ -62,35 +61,28 @@ class ImConversationManager {
 
     final engine = IMEngineManager().engine;
 
-    _messageSubscription ??=
-        ImMessageManager().messageStream.listen(_onMessage);
-
-    /// 会话同步完成
-    engine?.onRemoteConversationListSynced = (int? code) {
-      debugPrint("会话同步完成: $code");
-      _initAllTabs();
-    };
+    _messageSubscription ??= ImMessageManager().messageStream.listen(
+      _onMessage,
+    );
 
     /// 已读同步
     engine?.onConversationReadStatusSyncMessageReceived =
         (type, targetId, timestamp) {
-      _onReadSync(targetId);
-    };
+          _onReadSync(targetId);
+        };
 
     getRemoteConversationList();
   }
 
   Future<void> initAll() async {
-    getRemoteConversationList();
-    _initAllTabs();
+    await _initAllTabs();
   }
-
 
   /// =========================
   /// 拉远端
   /// =========================
   Future<void> getRemoteConversationList() async {
-    IMEngineManager().engine?.getRemoteConversationList();
+    await _initAllTabs();
   }
 
   /// =========================
@@ -169,7 +161,7 @@ class ImConversationManager {
     /// 已存在
     if (conv != null) {
       conv.lastMessage = msg;
-      if (msg.senderUserId != IMEngineManager().currentUserId){
+      if (msg.senderUserId != IMEngineManager().currentUserId) {
         conv.unreadCount = (conv.unreadCount ?? 0) + 1;
       }
 
@@ -190,7 +182,7 @@ class ImConversationManager {
     conv.targetId = msg.targetId;
     conv.conversationType = msg.conversationType;
     conv.lastMessage = msg;
-    if (msg.senderUserId != IMEngineManager().currentUserId){
+    if (msg.senderUserId != IMEngineManager().currentUserId) {
       conv.unreadCount = 1;
     }
 
@@ -221,10 +213,10 @@ class ImConversationManager {
   /// 删除会话
   /// =========================
   Future<void> removeConversation(
-      RCIMIWConversationType type,
-      String? channelId,
-      String targetId,
-      ) async {
+    RCIMIWConversationType type,
+    String? channelId,
+    String targetId,
+  ) async {
     final completer = Completer<void>();
 
     final callback = IRCIMIWRemoveConversationCallback(
@@ -257,10 +249,7 @@ class ImConversationManager {
   /// =========================
   /// 刷新
   /// =========================
-  void onNewMessage(
-      String targetId,
-      RCIMIWMessage message,
-      ) {
+  void onNewMessage(String targetId, RCIMIWMessage message) {
     final conv = _allMap[targetId];
 
     if (conv != null) {

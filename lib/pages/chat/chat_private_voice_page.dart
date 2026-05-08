@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 /// 私聊语音通话静态页
@@ -27,8 +31,14 @@ class ChatPrivateVoicePage extends StatefulWidget {
 
 class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   late String _status;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
+  Timer? _callTimer;
+  int _callElapsedMs = 0;
+  bool _isClosing = false;
 
-  String get name => widget.name;
+  String get name =>
+      _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
   String get status => _status;
   bool get _isIncoming => _status == 'incoming';
   bool get _isInCall => _status == 'in_call';
@@ -37,6 +47,16 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   void initState() {
     super.initState();
     _status = widget.status;
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+  }
+
+  @override
+  void dispose() {
+    _stopCallTimer();
+    _callSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -122,10 +142,7 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   }
 
   /// 构建背景里的氛围光晕。
-  Widget _buildGlowCircle({
-    required double size,
-    required List<Color> colors,
-  }) {
+  Widget _buildGlowCircle({required double size, required List<Color> colors}) {
     return Container(
       width: size,
       height: size,
@@ -250,7 +267,7 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
       return 'Invite you to voice call';
     }
     if (_isInCall) {
-      return '00:08:32';
+      return formatDurationFromMs(_callElapsedMs);
     }
     // 默认状态展示拨打中的提示文案。
     return 'Waiting for the invitation to be accepted...';
@@ -261,18 +278,18 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
     final bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
     return Padding(
-      padding: EdgeInsets.only(
-        left: 48,
-        right: 48,
-        bottom: bottomPadding,
-      ),
+      padding: EdgeInsets.only(left: 48, right: 48, bottom: bottomPadding),
       child: _isIncoming
           ? _buildIncomingControls(
-              onAnswer: () => _enterInCall(context),
+              onAnswer: _answerCall,
               onHangup: () => _closeVoiceSession(context),
             )
           : _VoiceControlButtons(
               isInCall: _isInCall,
+              micEnabled: _callState.micEnabled,
+              speakerEnabled: _callState.speakerEnabled,
+              onMicTap: () => RongCallManager().toggleMicrophone(),
+              onSpeakerTap: () => RongCallManager().toggleSpeaker(),
               onHangup: () => _closeVoiceSession(context),
             ),
     );
@@ -311,27 +328,91 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Image.asset(
-        assetPath,
-        width: size,
-        height: size,
-      ),
+      child: Image.asset(assetPath, width: size, height: size),
     );
   }
 
   /// 来电中间的等待点。
   /// 关闭当前通话页时，同时清理悬浮窗，避免小窗残留在屏幕上。
-  void _closeVoiceSession(BuildContext context) {
+  Future<void> _closeVoiceSession(BuildContext context) async {
+    if (_isClosing) return;
+    _isClosing = true;
     _VoiceMiniOverlayController.dismiss();
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().hangup();
+    }
+    if (!context.mounted) return;
     Navigator.of(context).maybePop();
   }
 
-  /// 接听后直接切到通话中状态，仍然保持同一个页面，只是切换路由参数。
-  /// 这样后续如果还要做其他“页面状态切换”入口，也能用同一套方式。
-  void _enterInCall(BuildContext context) {
+  Future<void> _answerCall() async {
+    await RongCallManager().accept();
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    if (state.status == RongCallStatus.idle) {
+      _stopCallTimer();
+      return;
+    }
+    if (state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      if (_isClosing) return;
+      _isClosing = true;
+      _VoiceMiniOverlayController.dismiss();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+      return;
+    }
     setState(() {
-      _status = 'in_call';
+      _callState = state;
+      _status = _statusFromCallState(state.status);
     });
+    _syncCallTimer(state);
+  }
+
+  void _syncCallTimer(RongCallState state) {
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsed();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsed();
+    });
+  }
+
+  void _updateCallElapsed() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
+  }
+
+  String _statusFromCallState(RongCallStatus status) {
+    switch (status) {
+      case RongCallStatus.incoming:
+        return 'incoming';
+      case RongCallStatus.inCall:
+        return 'in_call';
+      case RongCallStatus.connecting:
+      case RongCallStatus.dialing:
+      case RongCallStatus.idle:
+      case RongCallStatus.ended:
+      case RongCallStatus.error:
+        return 'dialing';
+    }
   }
 
   Widget _buildIncomingDots() {
@@ -352,16 +433,23 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
       }),
     );
   }
-
 }
 
 /// ??????????
 class _VoiceControlButtons extends StatefulWidget {
   final bool isInCall;
+  final bool micEnabled;
+  final bool speakerEnabled;
+  final VoidCallback onMicTap;
+  final VoidCallback onSpeakerTap;
   final VoidCallback onHangup;
 
   const _VoiceControlButtons({
     required this.isInCall,
+    required this.micEnabled,
+    required this.speakerEnabled,
+    required this.onMicTap,
+    required this.onSpeakerTap,
     required this.onHangup,
   });
 
@@ -370,16 +458,6 @@ class _VoiceControlButtons extends StatefulWidget {
 }
 
 class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
-  late bool _micEnabled;
-  late bool _soundEnabled;
-
-  @override
-  void initState() {
-    super.initState();
-    _micEnabled = !widget.isInCall;
-    _soundEnabled = !widget.isInCall;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -387,13 +465,9 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _micEnabled = !_micEnabled;
-            });
-          },
+          onTap: widget.onMicTap,
           child: Image.asset(
-            _micEnabled
+            widget.micEnabled
                 ? 'assets/images/chat/call/mic-on.png'
                 : 'assets/images/chat/call/mic-off.png',
             width: 28,
@@ -410,13 +484,9 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
           ),
         ),
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _soundEnabled = !_soundEnabled;
-            });
-          },
+          onTap: widget.onSpeakerTap,
           child: Image.asset(
-            _soundEnabled
+            widget.speakerEnabled
                 ? 'assets/images/chat/call/sound-on.png'
                 : 'assets/images/chat/call/sound-off.png',
             width: 28,
@@ -489,6 +559,25 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
   static const double _bubbleHeight = 64;
 
   Offset? _position;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
+  Timer? _callTimer;
+  int _callElapsedMs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+  }
+
+  @override
+  void dispose() {
+    _stopCallTimer();
+    _callSub?.cancel();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -514,10 +603,7 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
     final maxX = media.size.width - _bubbleWidth - 8.0;
     final minY = media.padding.top + 8.0;
     final maxY = media.size.height - media.padding.bottom - _bubbleHeight - 8.0;
-    return Offset(
-      value.dx.clamp(minX, maxX),
-      value.dy.clamp(minY, maxY),
-    );
+    return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
@@ -589,8 +675,37 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
       return 'Invite you to voice call';
     }
     if (value == 'in_call') {
-      return '00:08:32';
+      return formatDurationFromMs(_callElapsedMs);
     }
     return 'Waiting...';
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    _callState = state;
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsed();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsed();
+    });
+  }
+
+  void _updateCallElapsed() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
   }
 }

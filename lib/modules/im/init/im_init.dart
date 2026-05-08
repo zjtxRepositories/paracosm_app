@@ -1,13 +1,12 @@
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
 import '../manager/im_engine_manager.dart';
 import '../manager/im_token_manager.dart';
 import '../manager/im_user_manager.dart';
 import '../service/im_service.dart';
 
 class ImInit {
-
   Future<void> init() async {
-
     /// 1. 初始化 SDK
     await IMEngineManager().init();
 
@@ -20,6 +19,7 @@ class ImInit {
     IMEngineManager().conversation.initListener();
     IMEngineManager().group.initListener();
     IMEngineManager().subscribe.initListener();
+    await RongCallManager().init();
 
     /// 3. 自动登录
     final account = AccountManager().currentAccount;
@@ -33,6 +33,9 @@ class ImInit {
   Future<void> getUserInfo() async {
     final profile = await ImUserManager().getMyUserProfile();
     if (profile == null) return;
-    AccountManager().updateAccountUserInfo(profile.name ?? '', profile.portraitUri ?? '');
+    AccountManager().updateAccountUserInfo(
+      profile.name ?? '',
+      profile.portraitUri ?? '',
+    );
   }
 }

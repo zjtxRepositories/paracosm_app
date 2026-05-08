@@ -10,6 +10,10 @@ import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/chat_page.dart';
+import 'package:paracosm/pages/chat/chat_group_video_page.dart';
+import 'package:paracosm/pages/chat/chat_group_voice_page.dart';
+import 'package:paracosm/pages/chat/chat_private_video_page.dart';
+import 'package:paracosm/pages/chat/chat_private_voice_page.dart';
 import 'package:paracosm/pages/chat/chat_scan_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
 import 'package:paracosm/pages/chat/detail/chat_detail_page.dart';
@@ -356,6 +360,52 @@ class AppRouter {
             return ChatDetailPage.missingArgs(fallbackName: name);
           }
           return ChatDetailPage(sessionArgs: args);
+        },
+      ),
+      GoRoute(
+        path: '/chat-private-voice/:name',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          return ChatPrivateVoicePage(name: name, status: status);
+        },
+      ),
+      GoRoute(
+        path: '/chat-private-video/:name',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
+          return ChatPrivateVideoPage(
+            name: name,
+            status: status,
+            cameraEnabled: cameraEnabled,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/chat-group-voice/:name',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          return ChatGroupVoicePage(name: name, status: status);
+        },
+      ),
+      GoRoute(
+        path: '/chat-group-video/:name',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
+          return ChatGroupVideoPage(
+            name: name,
+            status: status,
+            cameraEnabled: cameraEnabled,
+          );
         },
       ),
       // 会话详情页

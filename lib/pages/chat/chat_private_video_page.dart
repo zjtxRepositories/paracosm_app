@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 /// 单人视频通话静态页。
@@ -31,8 +35,14 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   late String _status;
   late bool _micEnabled;
   late bool _cameraEnabled;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
+  Timer? _callTimer;
+  int _callElapsedMs = 0;
+  bool _isClosing = false;
 
-  String get name => widget.name;
+  String get name =>
+      _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
   bool get _isIncoming => _status == 'incoming';
   bool get _isInCall => _status == 'in_call';
 
@@ -42,6 +52,16 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     _status = widget.status;
     _micEnabled = true;
     _cameraEnabled = widget.cameraEnabled;
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+  }
+
+  @override
+  void dispose() {
+    _stopCallTimer();
+    _callSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -84,6 +104,31 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   Widget _buildBackground() {
     if (!_cameraEnabled) {
       return _buildCameraOffBackground();
+    }
+
+    final remoteView = _callState.remoteVideoView;
+    if (_isInCall && _callState.remoteCameraEnabled && remoteView != null) {
+      return Stack(
+        children: [
+          Positioned.fill(child: remoteView),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.18),
+                    Colors.black.withValues(alpha: 0.04),
+                    Colors.black.withValues(alpha: 0.24),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
     return Stack(
@@ -172,10 +217,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   }
 
   /// 背景里的氛围光圈，和语音页保持同一类静态视觉写法。
-  Widget _buildGlowCircle({
-    required double size,
-    required List<Color> colors,
-  }) {
+  Widget _buildGlowCircle({required double size, required List<Color> colors}) {
     return Container(
       width: size,
       height: size,
@@ -211,6 +253,8 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       ),
     );
   }
+
+  String get _callDurationText => formatDurationFromMs(_callElapsedMs);
 
   /// 拨打中 / 来电中的中心内容。
   Widget _buildCenterContent() {
@@ -251,10 +295,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
         color: Color(0xFF61D3B0),
       ),
       child: ClipOval(
-        child: Image.asset(
-          'assets/images/chat/avatar.png',
-          fit: BoxFit.cover,
-        ),
+        child: Image.asset('assets/images/chat/avatar.png', fit: BoxFit.cover),
       ),
     );
   }
@@ -268,11 +309,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () {
-              setState(() {
-                _micEnabled = !_micEnabled;
-              });
-            },
+            onTap: () => RongCallManager().toggleMicrophone(),
             child: Image.asset(
               _micEnabled
                   ? 'assets/images/chat/call/mic-on.png'
@@ -283,11 +320,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () {
-              setState(() {
-                _cameraEnabled = !_cameraEnabled;
-              });
-            },
+            onTap: () => RongCallManager().toggleCamera(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -338,11 +371,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           _buildImageActionButton(
             assetPath: 'assets/images/chat/call/voice-answer.png',
             size: 72,
-            onTap: () {
-              setState(() {
-                _status = 'in_call';
-              });
-            },
+            onTap: () => RongCallManager().accept(),
           ),
         ],
       ),
@@ -428,11 +457,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   Widget _buildCameraAction() {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(() {
-          _cameraEnabled = !_cameraEnabled;
-        });
-      },
+      onTap: () => RongCallManager().toggleCamera(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -466,11 +491,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Image.asset(
-        assetPath,
-        width: size,
-        height: size,
-      ),
+      child: Image.asset(assetPath, width: size, height: size),
     );
   }
 
@@ -504,7 +525,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       right: 0,
       child: Center(
         child: Text(
-          '00:08:32',
+          _callDurationText,
           style: AppTextStyles.h1.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -518,6 +539,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   /// 通话中的右上角小窗预览。
   Widget _buildLocalPreview() {
     final topPadding = MediaQuery.of(context).padding.top + 84;
+    final localView = _callState.localVideoView;
 
     return Positioned(
       right: 20,
@@ -527,10 +549,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
         height: 160,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppColors.grey600,
-            width: 0.5,
-          ),
+          border: Border.all(color: AppColors.grey600, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.12),
@@ -540,10 +559,12 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           ],
         ),
         clipBehavior: Clip.hardEdge,
-        child: Image.asset(
-          'assets/images/chat/call/video-bg.png',
-          fit: BoxFit.cover,
-        ),
+        child:
+            localView ??
+            Image.asset(
+              'assets/images/chat/call/video-bg.png',
+              fit: BoxFit.cover,
+            ),
       ),
     );
   }
@@ -553,21 +574,13 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     final bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
     return Padding(
-      padding: EdgeInsets.only(
-        left: 48,
-        right: 48,
-        bottom: bottomPadding,
-      ),
+      padding: EdgeInsets.only(left: 48, right: 48, bottom: bottomPadding),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () {
-              setState(() {
-                _micEnabled = !_micEnabled;
-              });
-            },
+            onTap: () => RongCallManager().toggleMicrophone(),
             child: Image.asset(
               _micEnabled
                   ? 'assets/images/chat/call/mic-on.png'
@@ -586,6 +599,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
             ),
           ),
           GestureDetector(
+            onTap: () => RongCallManager().switchCamera(),
             child: Image.asset(
               'assets/images/chat/call/camera.png',
               width: 28,
@@ -602,15 +616,92 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       return 'Invite you to video call';
     }
     if (_isInCall) {
-      return '00:08:32';
+      return _callDurationText;
     }
     return 'Waiting for the invitation to be accepted...';
   }
 
   /// 挂断时同时关闭通话页和悬浮窗，避免小窗残留。
-  void _closeVideoSession(BuildContext context) {
+  Future<void> _closeVideoSession(BuildContext context) async {
+    if (_isClosing) return;
+    _isClosing = true;
     _VideoMiniOverlayController.dismiss();
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().hangup();
+    }
+    if (!context.mounted) return;
     Navigator.of(context).maybePop();
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    if (state.status == RongCallStatus.idle) {
+      _stopCallTimer();
+      return;
+    }
+    if (state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      if (_isClosing) return;
+      _isClosing = true;
+      _VideoMiniOverlayController.dismiss();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+      return;
+    }
+    setState(() {
+      _callState = state;
+      _status = _statusFromCallState(state.status);
+      _micEnabled = state.micEnabled;
+      _cameraEnabled = state.cameraEnabled;
+    });
+    _syncCallTimer(state);
+    if (state.isVideo && state.status == RongCallStatus.inCall) {
+      RongCallManager().prepareVideoViews();
+    }
+  }
+
+  void _syncCallTimer(RongCallState state) {
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsed();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsed();
+    });
+  }
+
+  void _updateCallElapsed() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
+  }
+
+  String _statusFromCallState(RongCallStatus status) {
+    switch (status) {
+      case RongCallStatus.incoming:
+        return 'incoming';
+      case RongCallStatus.inCall:
+        return 'in_call';
+      case RongCallStatus.connecting:
+      case RongCallStatus.dialing:
+      case RongCallStatus.idle:
+      case RongCallStatus.ended:
+      case RongCallStatus.error:
+        return 'dialing';
+    }
   }
 }
 
@@ -661,9 +752,7 @@ class _VideoMiniOverlayController {
 class _VideoMiniBubble extends StatefulWidget {
   final VoidCallback onTap;
 
-  const _VideoMiniBubble({
-    required this.onTap,
-  });
+  const _VideoMiniBubble({required this.onTap});
 
   @override
   State<_VideoMiniBubble> createState() => _VideoMiniBubbleState();
@@ -699,10 +788,7 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
     final maxX = media.size.width - _bubbleWidth - 8.0;
     final minY = media.padding.top + 8.0;
     final maxY = media.size.height - media.padding.bottom - _bubbleHeight - 8.0;
-    return Offset(
-      value.dx.clamp(minX, maxX),
-      value.dy.clamp(minY, maxY),
-    );
+    return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
@@ -731,10 +817,7 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
           height: _bubbleHeight,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFF737373),
-              width: 0.5,
-            ),
+            border: Border.all(color: const Color(0xFF737373), width: 0.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.12),

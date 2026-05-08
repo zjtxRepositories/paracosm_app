@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../result/im_result.dart';
@@ -10,29 +9,22 @@ import 'im_engine_manager.dart';
 /// =========================
 /// 消息来源（新增，不影响原逻辑）
 /// =========================
-enum MessageSource {
-  remote,
-  local,
-  history,
-}
+enum MessageSource { remote, local, history }
 
 /// =========================
 /// ImMessageManager（增强版）
 /// =========================
 class ImMessageManager {
-  static final ImMessageManager _instance =
-  ImMessageManager._internal();
+  static final ImMessageManager _instance = ImMessageManager._internal();
   factory ImMessageManager() => _instance;
   ImMessageManager._internal();
 
   /// =========================
   /// 原始消息流（全局）
   /// =========================
-  final _messageController =
-  StreamController<RCIMIWMessage>.broadcast();
+  final _messageController = StreamController<RCIMIWMessage>.broadcast();
 
-  Stream<RCIMIWMessage> get messageStream =>
-      _messageController.stream;
+  Stream<RCIMIWMessage> get messageStream => _messageController.stream;
 
   bool _inited = false;
   bool _disposed = false;
@@ -61,30 +53,29 @@ class ImMessageManager {
 
     engine?.onMessageReceived =
         (RCIMIWMessage? message, int? left, bool? offline, bool? hasPackage) {
-      if (message == null) return;
-      onMessageReceived(message);
-    };
+          if (message == null) return;
+          onMessageReceived(message);
+        };
 
-    engine?.onRemoteMessageRecalled =
-        (RCIMIWMessage? message) {
+    engine?.onRemoteMessageRecalled = (RCIMIWMessage? message) {
       if (message == null) return;
       onMessageRecalled(message);
     };
 
     engine?.onPrivateReadReceiptReceived =
         (String? targetId, String? channelId, int? timestamp) {
-      onPrivateReadReceipt(targetId, channelId, timestamp);
-    };
+          onPrivateReadReceipt(targetId, channelId, timestamp);
+        };
 
     engine?.onGroupMessageReadReceiptRequestReceived =
         (String? targetId, String? messageUId) {
-      onGroupReadRequest(targetId, messageUId);
-    };
+          onGroupReadRequest(targetId, messageUId);
+        };
 
     engine?.onGroupMessageReadReceiptResponseReceived =
         (String? targetId, String? messageUId, Map? respondUserIds) {
-      onGroupReadResponse(targetId, messageUId, respondUserIds);
-    };
+          onGroupReadResponse(targetId, messageUId, respondUserIds);
+        };
   }
 
   /// =========================
@@ -107,12 +98,18 @@ class ImMessageManager {
   }
 
   void onPrivateReadReceipt(
-      String? targetId, String? channelId, int? timestamp) {}
+    String? targetId,
+    String? channelId,
+    int? timestamp,
+  ) {}
 
   void onGroupReadRequest(String? targetId, String? messageUId) {}
 
   void onGroupReadResponse(
-      String? targetId, String? messageUId, Map? respondUserIds) {}
+    String? targetId,
+    String? messageUId,
+    Map? respondUserIds,
+  ) {}
 
   /// =========================
   /// 获取历史消息（原样保留）
@@ -128,10 +125,8 @@ class ImMessageManager {
   }) async {
     final completer = Completer<List<RCIMIWMessage>>();
 
-    IRCIMIWGetMessagesCallback? callback =
-    IRCIMIWGetMessagesCallback(
-      onSuccess: (List<RCIMIWMessage>? t, int? syncTimestamp,
-          bool? hasMoreMsg) {
+    IRCIMIWGetMessagesCallback? callback = IRCIMIWGetMessagesCallback(
+      onSuccess: (List<RCIMIWMessage>? t) {
         final list = t ?? [];
 
         /// 🔥 历史消息统一走 dispatch（保证一致性）
@@ -142,21 +137,20 @@ class ImMessageManager {
         completer.complete(list);
       },
       onError: (int? code) {
-        completer.completeError(
-          Exception("获取历史消息1: $code"),
-        );
+        completer.completeError(Exception("获取历史消息1: $code"));
       },
     );
 
     final code = await IMEngineManager().engine?.getMessages(
-        type,
-        targetId,
-        channelId,
-        sentTime,
-        order,
-        policy,
-        count,
-        callback: callback);
+      type,
+      targetId,
+      channelId,
+      sentTime,
+      order,
+      policy,
+      count,
+      callback: callback,
+    );
 
     if (code != 0) {
       throw Exception("获取历史消息2: $code");
@@ -171,21 +165,15 @@ class ImMessageManager {
   Future<bool> deleteLocalMessages({
     required List<RCIMIWMessage> messages,
   }) async {
-    final code = await IMEngineManager()
-        .engine
-        ?.deleteLocalMessages(messages);
+    final code = await IMEngineManager().engine?.deleteLocalMessages(messages);
     return code == 0;
   }
 
   /// =========================
   /// 撤回消息（原样）
   /// =========================
-  Future<bool> recallMessage({
-    required RCIMIWMessage message,
-  }) async {
-    final code = await IMEngineManager()
-        .engine
-        ?.recallMessage(message);
+  Future<bool> recallMessage({required RCIMIWMessage message}) async {
+    final code = await IMEngineManager().engine?.recallMessage(message);
     return code == 0;
   }
 
@@ -200,12 +188,9 @@ class ImMessageManager {
     required int count,
     String? channelId,
   }) async {
-    final completer =
-    Completer<ImResult<List<RCIMIWMessage>>>();
+    final completer = Completer<ImResult<List<RCIMIWMessage>>>();
 
-    final ret = await IMEngineManager()
-        .engine
-        ?.searchMessages(
+    final ret = await IMEngineManager().engine?.searchMessages(
       type,
       targetId,
       channelId,
@@ -217,9 +202,7 @@ class ImMessageManager {
           completer.complete(ImResult.success(data: t));
         },
         onError: (code) {
-          completer.complete(
-            ImResult.error(code: code ?? -1),
-          );
+          completer.complete(ImResult.error(code: code ?? -1));
         },
       ),
     );
@@ -239,9 +222,7 @@ class ImMessageManager {
     String? channelId,
     required int timestamp,
   }) async {
-    final code = await IMEngineManager()
-        .engine
-        ?.sendPrivateReadReceiptMessage(
+    final code = await IMEngineManager().engine?.sendPrivateReadReceiptMessage(
       targetId,
       channelId,
       timestamp,
@@ -255,9 +236,9 @@ class ImMessageManager {
   Future<bool> sendGroupReadReceiptRequest({
     required RCIMIWMessage message,
   }) async {
-    final code = await IMEngineManager()
-        .engine
-        ?.sendGroupReadReceiptRequest(message);
+    final code = await IMEngineManager().engine?.sendGroupReadReceiptRequest(
+      message,
+    );
     return code == 0;
   }
 
@@ -269,9 +250,7 @@ class ImMessageManager {
     String? channelId,
     required List<RCIMIWMessage> messages,
   }) async {
-    final code = await IMEngineManager()
-        .engine
-        ?.sendGroupReadReceiptResponse(
+    final code = await IMEngineManager().engine?.sendGroupReadReceiptResponse(
       targetId,
       channelId,
       messages,
@@ -291,9 +270,9 @@ class ImMessageManager {
   /// 🔥 核心 dispatch（增强版）
   /// =========================
   void _dispatchMessage(
-      RCIMIWMessage message, {
-        required MessageSource source,
-      }) {
+    RCIMIWMessage message, {
+    required MessageSource source,
+  }) {
     if (_disposed) return;
 
     if (message.messageId == 0) return;

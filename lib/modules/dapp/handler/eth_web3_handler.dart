@@ -55,6 +55,7 @@ abstract class EthWeb3Handler {
   Future<List<Map<String, dynamic>>> walletRequestPermissions([Map? data]);
 
   Future<String> ethBlockNumber();
+  Future<String> ethGetBalance();
 
   /// ===== 签名 =====
   Future<String> ethSign(String data);

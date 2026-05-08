@@ -98,12 +98,13 @@ class AccountManager extends ChangeNotifier {
   /// =========================
   /// 刷新钱包
   /// =========================
-  Future<void> refreshWallet() async {
+  Future<void> refreshWallet({bool isNotify = true}) async {
     final accountId = _currentAccount?.id;
     if (accountId == null) return;
 
     _currentWallet = await WalletDao().getWalletById(accountId);
 
+    if (!isNotify) return;
     notifyListeners();
   }
 

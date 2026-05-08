@@ -57,7 +57,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   }
 
   bool _isAuthorizedHost(String host) {
-    return isSessionHostAuthorized(host) || DAppAccountAuthHive.checkAuth(host);
+    return isSessionHostAuthorized(host) || DAppAccountAuthHive.checkAuth(host,wallet.id,wallet.currentChainId.toString());
   }
 
   void _ensureContextMounted() {
@@ -499,12 +499,13 @@ class DAppWeb3Service implements EthWeb3Handler {
       faviconUrl: faviconUrl,
       uri: uri.toString(),
     );
+
     if (result == null || !result.approved) {
       throw EthHandlerException("Request account rejected");
     }
     authorizeSessionHost(host);
     if (result.remember) {
-      DAppAccountAuthHive.add(host);
+      DAppAccountAuthHive.add(host,wallet.id,wallet.currentChainId.toString());
     }
     _emitConnected(accounts);
     return accounts;
@@ -558,23 +559,42 @@ class DAppWeb3Service implements EthWeb3Handler {
   }
 
   void _emitConnected(List<String> accounts) {
-    emit(EthEvents.connect, {'chainId': ethChainId()});
+    final chainId = ethChainId();
+
     emit(EthEvents.accountsChanged, accounts);
-    emit(EthEvents.chainChanged, ethChainId());
+    emit(EthEvents.chainChanged, chainId);
+
+    emit(EthEvents.connect, {
+      'chainId': chainId,
+    });
   }
 
   Future<void> _switchToChain(int chainId) async {
-    wallet = AccountManager().currentWallet ?? wallet;
-    if (!wallet.hasChain(chainId)) {
+    final current = AccountManager().currentWallet ?? wallet;
+
+    if (current.currentChainId == chainId) {
+      emit(EthEvents.chainChanged, ethChainId());
+      emit(EthEvents.accountsChanged, [ethChain.address.toLowerCase()]);
+      return;
+    }
+
+    if (!current.hasChain(chainId)) {
       throw {
         'code': 4902,
         'message': 'Unrecognized chain ID. Try adding the chain first.',
       };
     }
-    await WalletManager.switchChain(wallet.id, chainId);
-    wallet = AccountManager().currentWallet!;
-    emit(EthEvents.accountsChanged, [ethChain.address.toLowerCase()]);
+    print('切链-----');
+    // 🚨 关键：只做数据层切换，不触发 UI 更新
+    await WalletManager.switchChainSilent(current.id, chainId);
+
+    final updatedWallet = AccountManager().currentWallet ?? current;
+
+    wallet = updatedWallet;
+
+    // ⚠️ 顺序很重要（先 chainChanged 再 accountsChanged）
     emit(EthEvents.chainChanged, ethChainId());
+    emit(EthEvents.accountsChanged, [ethChain.address.toLowerCase()]);
   }
 
   @override
@@ -960,6 +980,12 @@ class DAppWeb3Service implements EthWeb3Handler {
       (client) => client.getBlockNumber(),
     );
     return '0x${block.toRadixString(16)}';
+  }
+
+  @override
+  Future<String> ethGetBalance() async {
+    final balance = await EvmFacade.getBalance(ethChain, ethChain.address);
+    return '0x${balance.toRadixString(16)}';
   }
 }
 

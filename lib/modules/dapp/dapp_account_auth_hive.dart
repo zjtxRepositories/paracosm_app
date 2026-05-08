@@ -7,67 +7,93 @@ class DAppAccountAuthHive {
   static final Box _box = Hive.box(boxName);
 
   // =========================
-  // host 标准化（非常关键）
+  // 统一 Host 规范化
   // =========================
-  static String _normalize(String host) {
+  static String normalizeHost(String host) {
     return host
         .toLowerCase()
-        .replaceAll('https://', '')
-        .replaceAll('http://', '')
+        .replaceAll(RegExp(r'^https?:\/\/'), '')
         .replaceAll('www.', '')
+        .split('/')[0]
+        .split('?')[0]
         .trim();
   }
 
-  static String normalizeHost(String host) => _normalize(host);
+  static String _key(String host, String wallet, String chainId) {
+    return '${normalizeHost(host)}|$wallet|$chainId';
+  }
 
   // =========================
-  // 获取全部授权
+  // 安全获取全部授权
   // =========================
-  static List<String> get allAddressAuth {
-    final list = _box.get(accountAuthKey);
-    if (list == null) return [];
-    return List<String>.from(list);
+  static Map<String, bool> get allAuth {
+    final data = _box.get(accountAuthKey);
+
+    if (data is Map) {
+      return Map<String, bool>.from(data);
+    }
+
+    return {};
   }
 
   // =========================
   // 检查授权
   // =========================
-  static bool checkAuth(String host) {
-    final key = _normalize(host);
-    return allAddressAuth.contains(key);
+  static bool checkAuth(String host, String wallet, String chainId) {
+    final key = _key(host, wallet, chainId);
+    return allAuth[key] == true;
   }
 
   // =========================
-  // 添加授权
+  // 添加授权（安全写入）
   // =========================
-  static void add(String host) {
-    final key = _normalize(host);
+  static Future<void> add(
+      String host,
+      String wallet,
+      String chainId,
+      ) async {
+    final key = _key(host, wallet, chainId);
 
-    final list = List<String>.from(allAddressAuth);
+    final data = {
+      ...allAuth,
+      key: true,
+    };
 
-    if (!list.contains(key)) {
-      list.add(key);
-      _box.put(accountAuthKey, list);
-    }
+    await _box.put(accountAuthKey, data);
   }
 
   // =========================
-  // 删除授权
+  // 删除单个授权
   // =========================
-  static void delete(String host) {
-    final key = _normalize(host);
+  static Future<void> delete(
+      String host,
+      String wallet,
+      String chainId,
+      ) async {
+    final key = _key(host, wallet, chainId);
 
-    final list = List<String>.from(allAddressAuth);
+    final data = {...allAuth};
+    data.remove(key);
 
-    list.remove(key);
-
-    _box.put(accountAuthKey, list);
+    await _box.put(accountAuthKey, data);
   }
 
   // =========================
-  // 清空授权
+  // 删除某个 host 的所有授权
   // =========================
-  static void clear() {
-    _box.delete(accountAuthKey);
+  static Future<void> deleteHost(String host) async {
+    final data = {...allAuth};
+    final prefix = '${normalizeHost(host)}|';
+
+    data.removeWhere((key, _) => key.startsWith(prefix));
+
+    await _box.put(accountAuthKey, data);
+  }
+
+  // =========================
+  // 清空全部授权
+  // =========================
+  static Future<void> clear() async {
+    await _box.delete(accountAuthKey);
   }
 }

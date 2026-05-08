@@ -97,14 +97,19 @@ class WalletManager {
     await AccountManager().refreshWallet();
   }
 
-  /// 修改钱包名
-  static Future<void> switchChain(String walletId, int chainId) async {
+  /// 切链
+  static Future<void> switchChain(String walletId, int chainId,{bool isSilent = false}) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     if (!wallet.hasChain(chainId)) return;
+    if (wallet.currentChainId == chainId) return;
     wallet.currentChainId = chainId;
     await WalletDao().updateWallet(wallet);
-    await AccountManager().refreshWallet();
+    await AccountManager().refreshWallet(isNotify: !isSilent);
+  }
+
+  static Future<void> switchChainSilent(String walletId, int chainId) async {
+    await switchChain(walletId, chainId,isSilent: true);
   }
 
   /// 添加链

@@ -34,17 +34,26 @@ class _DAppPageState extends State<DAppPage> {
   UnmodifiableListView<UserScript>? _scripts;
   List<AccountModel> _accounts = [];
   Map<String, WalletModel> _walletMap = {};
-  final Set<String> _sessionAuthorizedHosts = <String>{};
+  final Set<String> _sessionAuthorized = {};
   bool _ready = false;
 
-  bool _isHostAuthorized(String host) {
+  String _sessionKey(String host) {
+    final wallet = AccountManager().currentWallet;
+    if (wallet == null) return '';
     final normalizedHost = DAppAccountAuthHive.normalizeHost(host);
-    return _sessionAuthorizedHosts.contains(normalizedHost);
+    return '$normalizedHost|$wallet|${wallet.currentChainId}';
+  }
+
+  bool _isHostAuthorized(String host) {
+    final key = _sessionKey(host,);
+    return _sessionAuthorized.contains(key);
   }
 
   void _authorizeHost(String host) {
-    _sessionAuthorizedHosts.add(DAppAccountAuthHive.normalizeHost(host));
+    final key = _sessionKey(host);
+    _sessionAuthorized.add(key);
   }
+
 
   // =========================================================
   // step 1: init scripts BEFORE WebView build

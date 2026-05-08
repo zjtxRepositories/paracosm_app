@@ -44,6 +44,7 @@ class MetaMaskHandler extends EthWebViewHandler {
     List<dynamic>? params,
   ) async {
     /// ===== fallback（兼容旧实现）=====
+    print('method:$method  id:$id');
     switch (method) {
       case 'metamask_getProviderState':
         _handleProviderState(id, origin);
@@ -169,10 +170,12 @@ class MetaMaskHandler extends EthWebViewHandler {
           ),
         );
         break;
+      case 'eth_getBalance':
+        handleMethod(id, origin, web3handler.ethGetBalance);
+        break;
       case 'eth_call':
       case 'eth_estimateGas':
       case 'eth_getTransactionReceipt':
-      case 'eth_getBalance':
       case 'eth_gasPrice':
       case 'eth_getTransactionByHash':
       case 'eth_getCode':
@@ -214,6 +217,7 @@ class MetaMaskHandler extends EthWebViewHandler {
         '''
       window.postMessage(${json.encode(msg)}, '$targetOrigin');
     ''';
+    print('postMessage:$js');
     web3handler.evaluateJavascript(js);
   }
 

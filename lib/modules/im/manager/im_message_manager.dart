@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../call/rong_call_summary_parser.dart';
 import '../result/im_result.dart';
 import 'im_engine_manager.dart';
 
@@ -84,7 +85,7 @@ class ImMessageManager {
   void onMessageReceived(RCIMIWMessage message) {
     if (_disposed) return;
 
-    debugPrint("收到消息: ${message.messageId}");
+    _debugLogMessage('收到消息', message);
     _dispatchMessage(message, source: MessageSource.remote);
   }
 
@@ -128,6 +129,12 @@ class ImMessageManager {
     IRCIMIWGetMessagesCallback? callback = IRCIMIWGetMessagesCallback(
       onSuccess: (List<RCIMIWMessage>? t) {
         final list = t ?? [];
+        if (kDebugMode) {
+          debugPrint('历史消息返回: count=${list.length}');
+          for (final msg in list) {
+            _debugLogMessage('历史消息', msg);
+          }
+        }
 
         /// 🔥 历史消息统一走 dispatch（保证一致性）
         for (final msg in list) {
@@ -275,9 +282,7 @@ class ImMessageManager {
   }) {
     if (_disposed) return;
 
-    if (message.messageId == 0) return;
-
-    final id = message.messageId?.toString();
+    final id = _messageCacheKey(message);
     if (id == null) return;
 
     /// =========================
@@ -298,7 +303,73 @@ class ImMessageManager {
 
     _scheduleFlush();
 
-    debugPrint("刷新消息: ${message.messageId} source=$source");
+    if (kDebugMode) {
+      debugPrint("刷新消息: ${message.messageId} key=$id source=$source");
+    }
+  }
+
+  String? _messageCacheKey(RCIMIWMessage message) {
+    final callSummaryKey = RongCallSummaryParser.stableMessageKey(message);
+    if (callSummaryKey != null) return callSummaryKey;
+
+    final messageUId = message.messageUId;
+    if (messageUId != null && messageUId.isNotEmpty) {
+      return 'uid:$messageUId';
+    }
+
+    final messageId = message.messageId;
+    if (messageId != null && messageId > 0) {
+      return 'id:$messageId';
+    }
+
+    final timestamp = message.sentTime ?? message.receivedTime;
+    final targetId = message.targetId;
+    if (timestamp == null || targetId == null || targetId.isEmpty) {
+      return null;
+    }
+
+    return [
+      'fallback',
+      message.conversationType?.index ?? -1,
+      targetId,
+      message.channelId ?? '',
+      message.senderUserId ?? '',
+      timestamp,
+      message.messageType?.index ?? -1,
+      _messageObjectName(message) ?? '',
+    ].join(':');
+  }
+
+  void _debugLogMessage(String prefix, RCIMIWMessage message) {
+    if (!kDebugMode) return;
+
+    debugPrint(
+      '$prefix: id=${message.messageId} uid=${message.messageUId} '
+      'type=${message.messageType} object=${_messageObjectName(message)} '
+      'hasRawData=${_hasRawData(message)} hasFields=${_hasFields(message)}',
+    );
+  }
+
+  String? _messageObjectName(RCIMIWMessage message) {
+    if (message is RCIMIWUnknownMessage) return message.objectName;
+    if (message is RCIMIWNativeCustomMessage) return message.messageIdentifier;
+    if (message is RCIMIWCustomMessage) return message.identifier;
+    return null;
+  }
+
+  bool _hasRawData(RCIMIWMessage message) {
+    return message is RCIMIWUnknownMessage &&
+        (message.rawData?.isNotEmpty ?? false);
+  }
+
+  bool _hasFields(RCIMIWMessage message) {
+    if (message is RCIMIWNativeCustomMessage) {
+      return message.fields?.isNotEmpty ?? false;
+    }
+    if (message is RCIMIWCustomMessage) {
+      return message.fields?.isNotEmpty ?? false;
+    }
+    return false;
   }
 
   /// =========================

@@ -3,14 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
@@ -200,13 +198,13 @@ class ChatDetailController {
   /// 消息监听
   /// =========================
   void _subscribeMessages() {
-    _messageSub = _messageManager.messageStream.listen((message) {
+    _messageSub = _messageManager.messageStream.listen((message) async {
       if (args == null) return;
 
       if (message.targetId != args!.targetId) return;
       if (message.conversationType != args!.conversationType) return;
 
-      final msg = ChatDetailMessageMapper.mapMessage(message);
+      final msg = await ChatDetailMessageMapper.mapMessage(message);
 
       /// ⭐ 核心：统一入口
       engine.append(msg);
@@ -485,7 +483,8 @@ class ChatDetailController {
     Navigator.push(
       context!,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => AppMediaGallery(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            AppMediaGallery(
           list: list,
           initialIndex: index,
         ),

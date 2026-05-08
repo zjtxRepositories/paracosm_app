@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../modules/im/manager/im_group_member_manager.dart';
 
 class GroupAvatarWidget extends StatefulWidget {
@@ -19,7 +21,7 @@ class GroupAvatarWidget extends StatefulWidget {
 }
 
 class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
-  List<String> _memberAvatars = [];
+  List<RCIMIWGroupMemberInfo> _memberAvatars = [];
   bool _loading = true;
 
   String get _groupId => widget.groupId;
@@ -38,7 +40,6 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
       /// ⚠️ 只有没有群头像才拉成员
       final hasGroupAvatar =
           (widget.portraitUri ?? '').isNotEmpty;
-
       if (hasGroupAvatar) {
         setState(() {
           _loading = false;
@@ -51,10 +52,8 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
 
       final members = result ?? [];
 
-      _memberAvatars = members
-          .map((e) => e.portraitUri ?? '')
-          .where((e) => e.isNotEmpty)
-          .toList();
+      _memberAvatars = members;
+      print('hasGroupAvatar-----$hasGroupAvatar---${widget.portraitUri}--$_memberAvatars');
 
       if (mounted) {
         setState(() {
@@ -108,7 +107,12 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
 
   /// 3x3成员头像（最多9个）
   Widget _buildGrid() {
-    final avatars = _memberAvatars.take(9).toList();
+    final members = _memberAvatars.take(9).toList();
+
+    final count = members.length;
+    if (count == 0) {
+      return _buildEmpty();
+    }
 
     return Container(
       width: widget.size,
@@ -118,22 +122,34 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
         color: AppColors.grey100,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: GridView.builder(
-        itemCount: avatars.length,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 1,
-          mainAxisSpacing: 1,
-        ),
-        itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Image.network(
-              avatars[index],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: Colors.grey[300]),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth;
+
+          int crossAxisCount = 3;
+
+          if (count <= 1) {
+            crossAxisCount = 1;
+          } else if (count <= 4) {
+            crossAxisCount = 2;
+          } else {
+            crossAxisCount = 3;
+          }
+
+          final spacing = 1.5;
+
+          final itemSize =
+              (maxWidth - spacing * (crossAxisCount - 1)) /
+                  crossAxisCount;
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            alignment: WrapAlignment.center,
+            runAlignment: WrapAlignment.center,
+            children: _buildChildren(
+              members,
+              itemSize,
             ),
           );
         },
@@ -141,6 +157,59 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
     );
   }
 
+  List<Widget> _buildChildren(
+      List<RCIMIWGroupMemberInfo> members,
+      double itemSize,
+      ) {
+    final count = members.length;
+
+    /// =========================
+    /// 微信3人特殊布局
+    /// =========================
+    if (count == 3) {
+      return [
+        SizedBox(
+          width: itemSize * 2 + 1.5,
+          child: Center(
+            child: _buildItem(
+              members[0],
+              itemSize,
+            ),
+          ),
+        ),
+        _buildItem(members[1], itemSize),
+        _buildItem(members[2], itemSize),
+      ];
+    }
+
+    return members.map((e) {
+      return _buildItem(e, itemSize);
+    }).toList();
+  }
+
+  Widget _buildEmpty() {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.group),
+    );
+  }
+
+  Widget _buildItem(
+      RCIMIWGroupMemberInfo member,
+      double size,
+      ) {
+    return UserAvatarWidget(
+      userId: member.userId,
+      avatarUrl: member.portraitUri,
+      size: size,
+      borderRadius: BorderRadius.circular(4),
+    );
+  }
   /// loading
   Widget _buildLoading() {
     return Container(

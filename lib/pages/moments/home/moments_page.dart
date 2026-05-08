@@ -98,11 +98,10 @@ class _MomentsPageState extends State<MomentsPage> {
                 ),
               );
             }
-
-            final item = controller.items[index];
-
+            final model = controller.items[index];
+            final item = model.item;
             return MomentPostCard(
-              model: item,
+              model: model,
               isFollowing:
               controller.followIds.contains(item.userId),
               isBlock:

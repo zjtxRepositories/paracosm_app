@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:uuid/uuid.dart';
 import 'im_engine_manager.dart';
 
 class ImGroupManager {
@@ -49,21 +50,23 @@ class ImGroupManager {
   }
 
   /// =========================
-  /// 🔥 拉取全部群（分页）
+  /// 拉取全部群
   /// =========================
   Future<List<RCIMIWGroupInfo>> getAllJoinedGroups() async {
     final List<RCIMIWGroupInfo> allGroups = [];
 
-    String? nextPageToken = '0';
+    String? pageToken;
     bool hasMore = true;
+
+    int page = 0;
 
     while (hasMore) {
       final completer =
       Completer<RCIMIWPagingQueryResult<RCIMIWGroupInfo>>();
 
       final option = RCIMIWPagingQueryOption.create(
-        count: 50,
-        pageToken: nextPageToken,
+        count: 20,
+        pageToken: pageToken,
         order: false,
       );
 
@@ -88,17 +91,36 @@ class ImGroupManager {
 
       final list = result.data ?? [];
 
-      /// 累加
       allGroups.addAll(list);
 
-      /// 🔥 边拉边更新 UI（体验更好）
-      _groups.addAll(list);
-      _notify();
+      page++;
 
-      /// 下一页
-      nextPageToken = result.pageToken;
-      hasMore = nextPageToken != null && nextPageToken.isNotEmpty;
+      /// 每3页更新一次UI
+      if (page % 3 == 0) {
+        _groups
+          ..clear()
+          ..addAll(allGroups);
+
+        _notify();
+      }
+
+      final nextToken = result.pageToken;
+
+      hasMore = nextToken != null && nextToken.isNotEmpty;
+
+      if (nextToken == pageToken) {
+        break;
+      }
+
+      pageToken = nextToken;
     }
+
+    /// 最终刷新
+    _groups
+      ..clear()
+      ..addAll(allGroups);
+
+    _notify();
 
     return allGroups;
   }
@@ -110,28 +132,42 @@ class ImGroupManager {
     _groups.clear();
     _notify();
 
-    await getAllJoinedGroups();
   }
 
   /// =========================
   /// 创建群
   /// =========================
-  Future<bool> create({
-    required String groupId,
-    required String groupName,
+  Future<String?> create({
     required List<String> inviteeUserIds,
+    required String groupId,
+    String? groupName,
   }) async {
+    final completer = Completer<String?>();
+
     final groupInfo = RCIMIWGroupInfo.create(
       groupId: groupId,
-      groupName: groupName,
+      groupName: groupName ?? '[默认]',
     );
 
-    int? code = await IMEngineManager().engine?.createGroup(
+    await IMEngineManager().engine?.createGroup(
       groupInfo,
       inviteeUserIds,
+      callback: IRCIMIWCreateGroupCallback(
+        onSuccess: (result) {
+          debugPrint('创建群成功: $result');
+          completer.complete(groupId);
+        },
+        onError: (int? errorCode, String? errorInfo) {
+          debugPrint(
+            '创建群失败: code=$errorCode info=$errorInfo',
+          );
+
+          completer.complete(null);
+        },
+      ),
     );
 
-    return code == 0;
+    return completer.future;
   }
 
   /// =========================

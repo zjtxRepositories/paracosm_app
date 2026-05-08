@@ -18,6 +18,7 @@ import '../../modules/im/manager/im_friend_applications_manager.dart';
 import '../../modules/im/message/base/im_message.dart';
 import '../../modules/im/message/send/im_sender.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
+import 'chat_session_args.dart';
 
 /// 好友申请页面
 class FriendRequestPage extends StatefulWidget {
@@ -95,6 +96,15 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     final message = CustomMessage(targetId: targetId, customMessageType: CustomMessageType.friendAdd);
     final isSend = await ImSender.instance.send(message: message);
     if (!isSend)return;
+    final encodedName = Uri.encodeComponent(model.name);
+    context.push(
+      '/chat-detail/$encodedName',
+      extra: ChatSessionArgs(
+        targetId: targetId,
+        conversationType:RCIMIWConversationType.private,
+        name: model.name,
+      ),
+    );
     print('去聊天呀');
   }
 

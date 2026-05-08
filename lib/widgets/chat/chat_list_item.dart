@@ -12,9 +12,9 @@ class ChatListItem extends StatefulWidget {
   final String time;
   final int unreadCount;
   final bool isMuted;
+  final bool isGroup;
   final String? avatar;
-  final String? userId;
-  final String? groupId;
+  final String? targetId;
   final VoidCallback? onTap;
   final VoidCallback? onAvatarTap;
 
@@ -23,11 +23,11 @@ class ChatListItem extends StatefulWidget {
     required this.title,
     required this.subtitle,
     required this.time,
+    required this.isGroup,
     this.unreadCount = 0,
     this.isMuted = false,
     this.avatar,
-    this.userId,
-    this.groupId,
+    this.targetId,
     this.onTap,
     this.onAvatarTap,
   });
@@ -291,16 +291,16 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
   }
 
   Widget _buildAvatar() {
-    if (widget.userId != null) {
+    if (!widget.isGroup) {
       return UserAvatarWidget(
-        userId: widget.userId,
+        userId: widget.targetId,
         avatarUrl: widget.avatar,
         size: 44,
         borderRadius: BorderRadius.circular(10),
       );
     }
     return GroupAvatarWidget(
-      groupId: widget.groupId ?? '',
+      groupId: widget.targetId ?? '',
       portraitUri: widget.avatar,
       size: 44,
     );

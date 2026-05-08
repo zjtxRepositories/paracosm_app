@@ -4,6 +4,7 @@ class ApiPaths {
   static const login = "/user/loginRegRes";
   static const logout = "/user/logout";
   static const userInfo = "/user/get";
+  static const userInfoList = "/user/getBatch";
 
   /// IM
   static const conversationList = "/im/conversation/list";

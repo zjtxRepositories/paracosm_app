@@ -65,6 +65,7 @@ import 'package:paracosm/pages/wallet/wallet_import_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_password_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_tips_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_private_key_page.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../core/models/dApp_hive.dart';
 
@@ -466,7 +467,10 @@ class AppRouter {
       GoRoute(
         path: '/group-list',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const GroupListPage(),
+        builder: (context, state) {
+          final list = state.extra as List<RCIMIWGroupInfo>?;
+          return GroupListPage(groups: list ?? []);
+        },
       ),
       // 发现列表页
       GoRoute(

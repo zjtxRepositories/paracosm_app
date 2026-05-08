@@ -29,12 +29,12 @@ class CustomMessage extends ImMessage {
     final myId = IMEngineManager().currentUserId ?? '';
     String messageID = const Uuid().v4().replaceAll("-", "");
     final model = CustomMessageModel(
-      type: CustomMessageType.friendAdd,
+      type: customMessageType,
       fromUserId: myId,
       toUserId: targetId,
       content: content,
     );
-    final imageMsg = await IMEngineManager().engine?.createCustomMessage(
+    final msg = await IMEngineManager().engine?.createCustomMessage(
         conversationType,
         targetId,
         null,
@@ -42,7 +42,10 @@ class CustomMessage extends ImMessage {
         messageID,
         model.toJson()
     );
-    return imageMsg;
+    msg?.senderUserId = IMEngineManager().currentUserId;
+    msg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    print('toRCMessage----$conversationType---${model.type}---}');
+    return msg;
   }
 }
 

@@ -150,6 +150,35 @@ class ImConversationManager {
   }
 
   /// =========================
+  /// 获取单个会话
+  /// =========================
+  Future<RCIMIWConversation?> getConversation({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+  }) {
+    final completer = Completer<RCIMIWConversation?>();
+
+    IMEngineManager().engine?.getConversation(
+      type,
+      targetId,
+      channelId,
+      callback: IRCIMIWGetConversationCallback(
+        onSuccess: (conversation) {
+          debugPrint("获取会话成功: $conversation");
+          completer.complete(conversation);
+        },
+        onError: (code) {
+          debugPrint("获取会话失败: $code");
+          completer.completeError(code ?? -1);
+        },
+      ),
+    );
+
+    return completer.future;
+  }
+
+  /// =========================
   /// 新消息
   /// =========================
   void _onMessage(RCIMIWMessage msg) {

@@ -9,7 +9,7 @@ import '../../core/models/message_model.dart';
 class ChatDetailMessageMapper {
   ChatDetailMessageMapper._();
 
-  static List<ChatDetailMessage> mapMessages(List<RCIMIWMessage> messages) {
+  static Future<List<ChatDetailMessage>> mapMessages(List<RCIMIWMessage> messages) async {
     final result = <ChatDetailMessage>[];
     int? previousTimestamp;
     for (int i = 0; i < messages.length; i++) {
@@ -26,14 +26,14 @@ class ChatDetailMessageMapper {
         );
       }
 
-      result.add(mapMessage(message));
+      result.add(await mapMessage(message));
       previousTimestamp = timestamp;
     }
 
     return result;
   }
 
-  static ChatDetailMessage mapMessage(RCIMIWMessage message) {
+  static Future<ChatDetailMessage> mapMessage(RCIMIWMessage message) async {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
 
@@ -113,11 +113,12 @@ class ChatDetailMessageMapper {
 
     if (message.messageType == RCIMIWMessageType.custom) {
       MessageModel model = MessageModel(item: message);
+     final content = await model.formatCustomContent();
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
-        kind: ChatDetailMessageKind.fm,
-        sentTime: sentTime,
-        text: model.formatCustomContent(),
+          messageId: message.messageId.toString(),
+          kind: ChatDetailMessageKind.fm,
+          sentTime: sentTime,
+          text: content
       );
     }
 

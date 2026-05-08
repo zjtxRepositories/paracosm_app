@@ -44,28 +44,66 @@ class RongCallSummaryParser {
     );
   }
 
+  static String? stableMessageKey(RCIMIWMessage message) {
+    final data = _callSummaryData(message);
+    if (data == null) return null;
+
+    final callId = _readString(data['callId']);
+    if (callId != null) return 'call:$callId';
+
+    final sessionId = _readString(data['sessionId']);
+    if (sessionId != null) return 'call:$sessionId';
+
+    return [
+      'call',
+      message.conversationType?.index ?? -1,
+      message.targetId ?? '',
+      message.senderUserId ?? '',
+      _readInt(data['startTime']) ?? '',
+      _readInt(data['connectedTime']) ?? '',
+      _readInt(data['endTime']) ?? '',
+      _readInt(data['mediaType']) ?? data['mediaType'] ?? '',
+      _readInt(data['hangupReason']) ?? _readInt(data['reason']) ?? '',
+    ].join(':');
+  }
+
   static Map<String, dynamic>? _callSummaryData(RCIMIWMessage message) {
     if (message is RCIMIWUnknownMessage && message.objectName == objectName) {
-      return _decodeRawData(message.rawData);
+      return _decodeDynamic(message.rawData);
     }
 
     if (message is RCIMIWNativeCustomMessage &&
         message.messageIdentifier == objectName) {
-      return _mapFromDynamic(message.fields);
+      return _decodeDynamic(message.fields);
     }
 
     if (message is RCIMIWCustomMessage && message.identifier == objectName) {
-      return _mapFromDynamic(message.fields);
+      return _decodeDynamic(message.fields);
     }
 
     return null;
   }
 
-  static Map<String, dynamic>? _decodeRawData(String? rawData) {
-    if (rawData == null || rawData.isEmpty) return null;
+  static Map<String, dynamic>? _decodeDynamic(dynamic value) {
+    if (value == null) return null;
 
-    Map<String, dynamic>? decode(String value) {
-      final decoded = jsonDecode(value);
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      return _unwrapPayload(map) ?? map;
+    }
+
+    if (value is String) {
+      return _decodeString(value);
+    }
+
+    return null;
+  }
+
+  static Map<String, dynamic>? _decodeString(String value) {
+    if (value.isEmpty) return null;
+
+    Map<String, dynamic>? decodeJson(String source) {
+      final decoded = jsonDecode(source);
       if (decoded is Map) {
         return Map<String, dynamic>.from(decoded);
       }
@@ -73,19 +111,22 @@ class RongCallSummaryParser {
     }
 
     try {
-      return decode(rawData);
+      return decodeJson(value);
     } catch (_) {
       try {
-        return decode(utf8.decode(base64Decode(rawData)));
+        return decodeJson(utf8.decode(base64Decode(value)));
       } catch (_) {
         return null;
       }
     }
   }
 
-  static Map<String, dynamic>? _mapFromDynamic(Map? value) {
-    if (value == null) return null;
-    return Map<String, dynamic>.from(value);
+  static Map<String, dynamic>? _unwrapPayload(Map<String, dynamic> value) {
+    for (final key in const ['content', 'data', 'payload', 'rawData']) {
+      final nested = _decodeDynamic(value[key]);
+      if (nested != null) return nested;
+    }
+    return null;
   }
 
   static bool _isVideoCall(dynamic mediaType) {
@@ -131,5 +172,11 @@ class RongCallSummaryParser {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  static String? _readString(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
   }
 }

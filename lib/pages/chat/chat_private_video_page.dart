@@ -55,12 +55,16 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     _callState = RongCallManager().state;
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    if (_callState.isVideo && _callState.isActive) {
+      unawaited(RongCallManager().prepareVideoViews());
+    }
   }
 
   @override
   void dispose() {
     _stopCallTimer();
     _callSub?.cancel();
+    RongCallManager().clearVideoViews();
     super.dispose();
   }
 

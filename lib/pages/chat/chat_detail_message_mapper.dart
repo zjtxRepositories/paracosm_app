@@ -9,7 +9,9 @@ import '../../core/models/message_model.dart';
 class ChatDetailMessageMapper {
   ChatDetailMessageMapper._();
 
-  static Future<List<ChatDetailMessage>> mapMessages(List<RCIMIWMessage> messages) async {
+  static Future<List<ChatDetailMessage>> mapMessages(
+    List<RCIMIWMessage> messages,
+  ) async {
     final result = <ChatDetailMessage>[];
     int? previousTimestamp;
     for (int i = 0; i < messages.length; i++) {
@@ -18,7 +20,7 @@ class ChatDetailMessageMapper {
       if (_shouldInsertTimestamp(i, previousTimestamp, timestamp)) {
         result.add(
           ChatDetailMessage(
-            messageId: message.messageId.toString(),
+            messageId: '${_messageKey(message)}:timestamp',
             kind: ChatDetailMessageKind.timestamp,
             text: _formatTimestamp(timestamp!),
             sentTime: timestamp,
@@ -36,11 +38,12 @@ class ChatDetailMessageMapper {
   static Future<ChatDetailMessage> mapMessage(RCIMIWMessage message) async {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
+    final messageKey = _messageKey(message);
 
     final callSummary = RongCallSummaryParser.tryParse(message);
     if (callSummary != null) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.call,
         isMe: isMe,
         sentTime: sentTime,
@@ -51,7 +54,7 @@ class ChatDetailMessageMapper {
 
     if (message is RCIMIWTextMessage) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
         text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
@@ -61,7 +64,7 @@ class ChatDetailMessageMapper {
 
     if (message is RCIMIWImageMessage) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.image,
         isMe: isMe,
         sentTime: sentTime,
@@ -72,7 +75,7 @@ class ChatDetailMessageMapper {
     if (message is RCIMIWSightMessage) {
       // print('video----${message.duration}---${message.thumbnailBase64String}');
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.video,
         isMe: isMe,
         sentTime: sentTime,
@@ -83,7 +86,7 @@ class ChatDetailMessageMapper {
     }
     if (message is RCIMIWVoiceMessage) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.voice,
         isMe: isMe,
         sentTime: sentTime,
@@ -94,7 +97,7 @@ class ChatDetailMessageMapper {
     }
     if (message is RCIMIWFileMessage) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.file,
         isMe: isMe,
         sentTime: sentTime,
@@ -105,7 +108,7 @@ class ChatDetailMessageMapper {
     }
     if (message.messageType == RCIMIWMessageType.recall) {
       return ChatDetailMessage(
-        messageId: message.messageId.toString(),
+        messageId: messageKey,
         kind: ChatDetailMessageKind.withdrawnNotice,
         sentTime: sentTime,
       );
@@ -113,17 +116,17 @@ class ChatDetailMessageMapper {
 
     if (message.messageType == RCIMIWMessageType.custom) {
       MessageModel model = MessageModel(item: message);
-     final content = await model.formatCustomContent();
+      final content = await model.formatCustomContent();
       return ChatDetailMessage(
-          messageId: message.messageId.toString(),
-          kind: ChatDetailMessageKind.fm,
-          sentTime: sentTime,
-          text: content
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.fm,
+        sentTime: sentTime,
+        text: content,
       );
     }
 
     return ChatDetailMessage(
-      messageId: message.messageId.toString(),
+      messageId: messageKey,
       kind: ChatDetailMessageKind.text,
       isMe: isMe,
       text: '[暂不支持的消息类型]',
@@ -140,5 +143,23 @@ class ChatDetailMessageMapper {
 
   static String _formatTimestamp(int timestamp) {
     return formatIMTime(timestamp);
+  }
+
+  static String _messageKey(RCIMIWMessage message) {
+    final callSummaryKey = RongCallSummaryParser.stableMessageKey(message);
+    if (callSummaryKey != null) return callSummaryKey;
+
+    final messageId = message.messageId;
+    if (messageId != null && messageId > 0) return messageId.toString();
+    final messageUId = message.messageUId;
+    if (messageUId != null && messageUId.isNotEmpty) return messageUId;
+    return [
+      message.conversationType?.index,
+      message.targetId,
+      message.channelId,
+      message.senderUserId,
+      message.sentTime ?? message.receivedTime,
+      message.messageType?.index,
+    ].join(':');
   }
 }

@@ -171,8 +171,6 @@ class MetaMaskHandler extends EthWebViewHandler {
         );
         break;
       case 'eth_getBalance':
-        handleMethod(id, origin, web3handler.ethGetBalance);
-        break;
       case 'eth_call':
       case 'eth_estimateGas':
       case 'eth_getTransactionReceipt':

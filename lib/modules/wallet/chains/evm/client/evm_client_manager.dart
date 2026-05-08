@@ -62,7 +62,17 @@ class EvmClientManager {
     return withFallback(
       chain.chainId,
       chain.nodes,
-          (client) => client.makeRPCCall(method, params ?? []),
+          (client) async {
+            print('rpc:method:$method $params--');
+            final result = await client.makeRPCCall(method, params ?? const []);
+        print('rpc:result:$result');
+        return result;
+      },
     );
+    // return withFallback(
+    //   chain.chainId,
+    //   chain.nodes,
+    //       (client) => client.makeRPCCall(method, params ?? []),
+    // );
   }
 }

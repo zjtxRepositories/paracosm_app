@@ -1,12 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/core/models/moment_post_model.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../core/models/social_media_model.dart';
 import '../../util/string_util.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
 import '../../widgets/common/app_action_pop_menu.dart';
 
 class MomentPostCard extends StatelessWidget {
-  final SocialInvitationModel model;
+  final MomentPostModel model;
   final bool isFollowing;
   final bool isBlock;
   final VoidCallback? onTap;
@@ -67,7 +69,7 @@ class MomentPostCard extends StatelessWidget {
             const SizedBox(height: 16),
             /// 内容
             Text(
-              model.content,
+              model.item.content,
               style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF404040),
@@ -78,7 +80,7 @@ class MomentPostCard extends StatelessWidget {
 
             /// 图片
             ImageGrid(
-              medias: model.media,
+              medias: model.item.media,
               onTap: (index){
                 onMediaTap?.call(index);
               }
@@ -88,7 +90,7 @@ class MomentPostCard extends StatelessWidget {
 
             /// 操作栏
             _PostActionBar(
-              model: model,
+              model: model.item,
               onLike: onLike,
               onCollect: onCollect,
               onShare: onShare,
@@ -101,7 +103,7 @@ class MomentPostCard extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  final SocialInvitationModel model;
+  final MomentPostModel model;
   final bool isFollowing;
   final bool isBlock;
   final VoidCallback? onFollow;
@@ -117,7 +119,6 @@ class _Header extends StatelessWidget {
     this.onShare,
     this.onBlock,
     this.onReport,
-
   });
 
   @override
@@ -127,21 +128,26 @@ class _Header extends StatelessWidget {
       children: [
         Row(
           children: [
-            Avatar(url: model.userInfoModel?.avatar ?? ''),
+            UserAvatarWidget(
+              userId: model.user?.profile.userId,
+              avatarUrl: model.user?.profile.portraitUri,
+              size: 36,
+              borderRadius: BorderRadius.circular(8),
+            ),
             const SizedBox(width: 8),
 
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  model.userInfoModel?.nickname ?? '',
+                  model.user?.name ?? '',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  _formatTime(model.timestamp),
+                  _formatTime(model.item.timestamp),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Colors.grey,

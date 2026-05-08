@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import '../../../core/models/social_Invitation_model.dart';
@@ -14,8 +15,8 @@ import '../../../widgets/modals/share_modals.dart';
 /// Controller
 /// ==========================
 class MomentsController extends ChangeNotifier {
-  final List<SocialInvitationModel> _items = [];
-  List<SocialInvitationModel> get items => _items;
+  final List<MomentPostModel> _items = [];
+  List<MomentPostModel> get items => _items;
   List<String> _followIds = [];
   List<String> get followIds => _followIds;
   List<String> _blockIds = [];
@@ -251,11 +252,20 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 数据
-  Future<List<SocialInvitationModel>> _fetchData() async {
-    return await SocialCircleNoteApi.getSocialCircleNoteList(
+  Future<List<MomentPostModel>> _fetchData() async {
+    final data = await SocialCircleNoteApi.getSocialCircleNoteList(
       _page.toString(),
       _pageSize.toString(),
     );
+    List<MomentPostModel> list = [];
+
+    for (final item in data) {
+      final model = MomentPostModel(item: item);
+      list.add(model);
+    }
+    await MomentsResolver().resolve(list);
+
+    return list;
   }
 
   /// 关注列表

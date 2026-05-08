@@ -4,12 +4,14 @@ class UserInfo {
   final String nickname;
   final String avatar;
   final String token;
+  final String account;
 
   UserInfo({
     required this.userId,
     required this.nickname,
     required this.avatar,
     required this.token,
+    required this.account,
   });
 
 
@@ -19,6 +21,7 @@ class UserInfo {
       nickname: json["nickname"] ?? "",
       avatar: json["avatar"] ?? "",
       token: json["access_token"] ?? "",
+      account: json["account"] ?? "",
     );
   }
 
@@ -28,6 +31,7 @@ class UserInfo {
       'nickname': nickname,
       'avatar': avatar,
       'token': token,
+      'account': token,
     };
   }
 }

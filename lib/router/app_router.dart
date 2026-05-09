@@ -431,7 +431,10 @@ class AppRouter {
       GoRoute(
         path: '/create-dao',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const CreateDaoPage(),
+        builder: (context, state) {
+          final data = state.extra as TokenModel?;
+          return data == null ? SizedBox() : CreateDaoPage(token: data);
+        },
       ),
       // 创建俱乐部页
       GoRoute(

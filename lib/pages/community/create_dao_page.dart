@@ -1,29 +1,108 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/core/network/api/create_community_api.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../core/models/community_model.dart';
+import '../../core/models/conversation_model.dart';
+import '../../core/models/custom_message_model.dart';
+import '../../modules/im/manager/im_conversation_manager.dart';
+import '../../modules/im/manager/im_group_manager.dart';
+import '../../modules/im/message/base/im_message.dart';
+import '../../modules/im/message/send/im_sender.dart';
+import '../../widgets/common/app_loading.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 创建 DAO 页面
 class CreateDaoPage extends StatefulWidget {
-  const CreateDaoPage({super.key});
+  final TokenModel token;
+  const CreateDaoPage({super.key, required this.token});
 
   @override
   State<CreateDaoPage> createState() => _CreateDaoPageState();
 }
 
 class _CreateDaoPageState extends State<CreateDaoPage> {
-  final TextEditingController _nameController = TextEditingController(text: 'ETH');
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final int _maxDescriptionLength = 80;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _nameController.text = widget.token.name;
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createCommunity() async {
+    final asset = widget.token;
+    String jid = asset.address;
+    final name = _nameController.text;
+    final desc = _descriptionController.text;
+    final avatarUrl = asset.logo;
+    final roomType = 1;
+    final communityType = 1;
+    if (jid.isEmpty){
+      jid = "${asset.symbol.toLowerCase()}_${asset.chainId}_native_1";
+    }
+    final groupId = generateGroupId(GroupType.dao);
+    final param = CommunityParam(
+      symbol: asset.symbol,
+      chainId: asset.chainId,
+      tokenAddress: asset.address,
+      isNative: asset.address.isEmpty,
+      groupId: groupId
+    );
+    AppLoading.show();
+    final isCreate = await CreateCommunityApi.create(jid, name, desc, avatarUrl, roomType, communityType,jsonEncode(param.toJson()));
+    if (!isCreate){
+      AppLoading.dismiss();
+      AppToast.show('创建群组失败');
+      return;
+    }
+    final groupInfo = RCIMIWGroupInfo.create(
+        groupId: groupId,
+        groupName: name,
+        portraitUri: avatarUrl,
+        introduction:desc
+    );
+    final result = await ImGroupManager().createByGroupInfo(groupInfo, []);
+    if (result == null){
+      AppLoading.dismiss();
+      AppToast.show('创建群组失败');
+      return;
+    }
+    final message = CustomMessage(targetId: groupId,
+        customMessageType: CustomMessageType.systemEvent,
+        conversationType:RCIMIWConversationType.group);
+    final isSend = await ImSender.instance.send(message: message);
+    AppLoading.dismiss();
+    if (!isSend)return;
+    final conversation = await ImConversationManager().getConversation(
+        type: RCIMIWConversationType.group, targetId: groupId);
+    if (conversation == null)return;
+    final model = ConversationModel(info: conversation);
+    await ConversationResolver().resolve(model);
+    AppToast.show('创建成功');
+    context.pop();
   }
 
   @override
@@ -180,9 +259,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: AppButton(
               text: l10n.commonConfirm,
-              onPressed: () {
-                // TODO: 提交逻辑
-              },
+              onPressed: _createCommunity,
             ),
           ),
         ],

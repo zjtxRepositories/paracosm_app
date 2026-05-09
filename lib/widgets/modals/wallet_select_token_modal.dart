@@ -3,12 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/wallet_model.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../base/app_localizations.dart';
 import '../common/app_network_image.dart';
 import '../common/app_search_input.dart';
+enum AssetType {
+  token,
+  nft,
+}
 
 class WalletSelectTokenModal extends StatefulWidget {
   final TokenModel? selectedToken;
   final WalletModel wallet;
+  final AssetType type;
+
   final Future<void> Function(TokenModel token) onSelected;
 
   const WalletSelectTokenModal({
@@ -16,6 +25,8 @@ class WalletSelectTokenModal extends StatefulWidget {
     this.selectedToken,
     required this.onSelected,
     required this.wallet,
+    this.type = AssetType.token,
+
   });
 
   @override
@@ -73,253 +84,238 @@ class _WalletSelectTokenModalState
   }
   @override
   Widget build(BuildContext context) {
-    final hasSearch = _keyword.isNotEmpty;
-
-    /// 🔥 获取 tokens
     List<TokenModel> tokens = [];
+    if (widget.type == AssetType.token){
+      final hasSearch = _keyword.isNotEmpty;
+      if (hasSearch) {
+        /// 👉 跨链搜索
+        for (var c in _chains) {
+          tokens.addAll(c.tokens);
+        }
+      } else {
+        /// 👉 当前链
+        final chain = _chains
+            .where((c) => c.chainId == _selectChainId)
+            .isNotEmpty
+            ? _chains.firstWhere(
+                (c) => c.chainId == _selectChainId)
+            : null;
 
-    if (hasSearch) {
-      /// 👉 跨链搜索
-      for (var c in _chains) {
-        tokens.addAll(c.tokens);
+        tokens = chain?.tokens ?? [];
       }
-    } else {
-      /// 👉 当前链
-      final chain = _chains
-          .where((c) => c.chainId == _selectChainId)
-          .isNotEmpty
-          ? _chains.firstWhere(
-              (c) => c.chainId == _selectChainId)
-          : null;
 
-      tokens = chain?.tokens ?? [];
+      /// 🔍 搜索过滤
+      tokens = tokens.where((t) {
+        if (!hasSearch) return true;
+
+        return t.address.toLowerCase().contains(_keyword) ||
+            t.name.toLowerCase().contains(_keyword) ||
+            t.symbol.toLowerCase().contains(_keyword);
+      }).toList();
+
+      /// 📊 排序（余额高在前）
+      tokens.sort(
+              (a, b) => b.balance.compareTo(a.balance));
     }
 
-    /// 🔍 搜索过滤
-    tokens = tokens.where((t) {
-      if (!hasSearch) return true;
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 搜索框
+        AppSearchInput(
+          controller: _searchController,
+          hintText: widget.type == AssetType.token ? l10n.communityModalSearchTokenHint : 'Search NFT name or contract',
+          onChanged: (value) {
+            if (_keyword == value) return;
 
-      return t.address.toLowerCase().contains(_keyword) ||
-          t.name.toLowerCase().contains(_keyword) ||
-          t.symbol.toLowerCase().contains(_keyword);
-    }).toList();
+            setState(() {
+              _keyword = value.toLowerCase();
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        // 网络筛选 Chip 列表
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(_chains.length, (index) {
+              final chain = _chains[index];
 
-    /// 📊 排序（余额高在前）
-    tokens.sort(
-            (a, b) => b.balance.compareTo(a.balance));
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index == _chains.length - 1 ? 0 : 8,
+                ),
+                child: _buildNetworkChip(
+                  icon: chain.logo,
+                  label: chain.name,
+                  isSelected: chain.chainId == _selectChainId,
+                  showArrow: false,
+                  onTap: () {
+                    if (_selectChainId == chain.chainId) return;
 
-    return SizedBox(
-      height:
-      MediaQuery.of(context).size.height * 0.5,
-      child: Column(
-        children: [
-          /// 🔍 搜索
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: AppSearchInput(
-              controller: _searchController,
-              hintText: '搜索代币名称、合约地址',
-              onChanged: (value) {
-                if (_keyword == value) return;
-
-                setState(() {
-                  _keyword = value.toLowerCase();
-                });
-              },
-            ),
+                    setState(() {
+                      _selectChainId = chain.chainId;
+                    });
+                  },
+                ),
+              );
+            }),
           ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 400,
+          child: tokens.isEmpty
+              ? SizedBox()
+              : ListView.separated(
+            itemCount: tokens.length,
+            separatorBuilder: (_, __) =>
+            const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final token = tokens[index];
 
-          /// 🧱 链选择
-          if (!hasSearch)
-            SizedBox(
-              height: 40,
-              child: ListView.builder(
-                controller: _chainScrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: _chains.length,
-                itemBuilder: (context, index) {
-                  final chain = _chains[index];
-                  final selected =
-                      chain.chainId == _selectChainId;
+              return _buildTokenModalItem(
+                icon: token.logo,
+                symbol: token.symbol,
+                amount: token.showBalance,
+                value: '\$${token.showUsdValue}',
+                onTap: (){
+                  widget.onSelected(token);
+                }
+              );
+            },
+          ),
+        ),
+      ],
+    );
 
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectChainId = chain.chainId;
-                      });
-                    },
-                    child: Container(
-                      margin:
-                      const EdgeInsets.only(
-                          right: 8),
-                      padding:
-                      const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 8),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.blue
-                            .withOpacity(0.1)
-                            : Colors.grey
-                            .withOpacity(0.1),
-                        borderRadius:
-                        BorderRadius.circular(
-                            20),
-                      ),
-                      child: Row(
-                        children: [
-                          AppNetworkImage(
-                            url: chain.logo,
-                            width: 20,
-                            height: 20,
-                            fit: BoxFit.cover,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            chain.name,
-                            style: TextStyle(
-                              color: selected
-                                  ? Colors.blue
-                                  : Colors.black87,
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+  }
+
+
+  /// 构建弹窗中的网络筛选 Chip
+  Widget _buildNetworkChip({
+    required String icon,
+    required String label,
+    required bool isSelected,
+    bool showArrow = false,
+    GestureTapCallback? onTap
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(left: 4,top: 5, right: 12, bottom: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : AppColors.grey200,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppNetworkImage(
+              url: icon,
+              width: 20,
+              height: 20,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: AppColors.grey900,
               ),
             ),
+            if (showArrow) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_down,
+                  size: 16, color: AppColors.grey400),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 12),
-
-          /// 🪙 Token 列表
+  /// 构建弹窗中的代币列表项
+  Widget _buildTokenModalItem({
+    required String icon,
+    required String symbol,
+    required String amount,
+    required String value,
+    GestureTapCallback? onTap
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          // 代币图标
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: AppNetworkImage(
+              url: icon,
+              width: 44,
+              height: 44,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 右侧内容区域（带下划线）
           Expanded(
-            child: tokens.isEmpty
-                ? const Center(
-              child: Text('未找到代币'),
-            )
-                : ListView.builder(
-              keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior
-                  .onDrag,
-              itemCount: tokens.length,
-              itemBuilder:
-                  (context, index) {
-                final token =
-                tokens[index];
-
-                final isSelected =
-                    widget.selectedToken
-                        ?.symbol ==
-                        token.symbol &&
-                        widget.selectedToken
-                            ?.chainId ==
-                            token.chainId;
-
-                return KeyedSubtree(
-                  key: ValueKey(
-                      '${token.chainId}-${token.symbol}'),
-                  child: InkWell(
-                    onTap: () async {
-                      await widget
-                          .onSelected(token);
-                    },
-                    child: Container(
-                      padding:
-                      const EdgeInsets
-                          .symmetric(
-                        vertical: 12,
-                        horizontal: 4,
-                      ),
-                      child: Row(
-                        children: [
-                          /// icon
-                          ClipRRect(
-                            borderRadius:
-                            BorderRadius
-                                .circular(
-                                20),
-                            child:
-                            AppNetworkImage(
-                              url:
-                              token.logo,
-                              width: 36,
-                              height: 36,
-                              fit: BoxFit
-                                  .cover,
-                            ),
-                          ),
-
-                          const SizedBox(
-                              width: 12),
-
-                          /// 名称
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
-                              children: [
-                                Text(
-                                  token
-                                      .symbol,
-                                  style:
-                                  const TextStyle(
-                                    fontSize:
-                                    15,
-                                    fontWeight:
-                                    FontWeight
-                                        .w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          /// 余额
-                          Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment
-                                .end,
-                            children: [
-                              Text(
-                                token
-                                    .showBalance,
-                                style:
-                                const TextStyle(
-                                    fontSize:
-                                    14),
-                              ),
-                              const SizedBox(
-                                  height: 2),
-                              Text(
-                                '\$${token.showUsdValue}',
-                                style:
-                                const TextStyle(
-                                  fontSize:
-                                  12,
-                                  color: Colors
-                                      .grey,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                        ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.grey100, width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // 符号
+                  Expanded(
+                    child: Text(
+                      symbol,
+                      style: AppTextStyles.h2.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.grey900,
                       ),
                     ),
                   ),
-                );
-              },
+                  // 数量和价值
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        amount,
+                        style: AppTextStyles.h2.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.grey900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        value,
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 12,
+                          color: AppColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
 }

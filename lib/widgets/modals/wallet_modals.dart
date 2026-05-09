@@ -18,6 +18,7 @@ import '../common/app_modal.dart';
 import '../common/app_network_image.dart';
 import '../common/app_network_selector.dart';
 import '../common/app_toast.dart';
+import 'community_modals.dart';
 
 class WalletModals {
   /// =========================
@@ -74,16 +75,18 @@ class WalletModals {
     required BuildContext context,
     TokenModel? currentToken,
     required WalletModel wallet,
+     AssetType type = AssetType.token,
     required Function(TokenModel) onSelected,
   }) {
     AppModal.show(
       context,
-      title: '选择转账代币',
+      title: type == AssetType.token ? 'Select Token' : 'Select NFT',
       confirmText: null,
       onConfirm: () {},
       child: WalletSelectTokenModal(
         selectedToken: currentToken,
         wallet: wallet,
+        type: type,
         onSelected: (token) async {
           onSelected(token);
           context.pop();

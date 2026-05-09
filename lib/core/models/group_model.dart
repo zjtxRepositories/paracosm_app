@@ -9,7 +9,8 @@ import '../../modules/im/manager/im_group_member_manager.dart';
 
 enum GroupType {
   normal,
-  community,
+  dao,
+  club,
 }
 
 class GroupModel {
@@ -75,4 +76,8 @@ String generateGroupId(GroupType type) {
   ).join();
 
   return 'group_${type.name}_$randomId';
+}
+
+String generateCommunityGroupId(GroupType type,String jid) {
+  return 'group_${type.name}_$jid';
 }

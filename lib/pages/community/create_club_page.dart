@@ -5,6 +5,7 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:paracosm/widgets/modals/community_modals.dart';
 
 /// 创建俱乐部页面
 class CreateClubPage extends StatefulWidget {
@@ -18,6 +19,7 @@ class _CreateClubPageState extends State<CreateClubPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final int _maxDescriptionLength = 80;
+bool _isNft = false;
 
   @override
   void dispose() {
@@ -114,7 +116,9 @@ class _CreateClubPageState extends State<CreateClubPage> {
                   // 新增: Choose the NFT to stake
                   GestureDetector(
                     onTap: () {
-                      // TODO: 选择 NFT
+                      CommunityModals.showSelectedDao(context: context, onSelected: (select){
+
+                      });
                     },
                     child: Container(
                       height: 52,
@@ -219,9 +223,9 @@ class _CreateClubPageState extends State<CreateClubPage> {
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: AppButton(
               text: l10n.commonConfirm,
-              onPressed: () {
+              onPressed: _nameController.text.isNotEmpty && _isNft ? () {
                 // TODO: 提交逻辑
-              },
+              } : null,
             ),
           ),
         ],

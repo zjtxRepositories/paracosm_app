@@ -159,7 +159,7 @@ class AppModal extends StatelessWidget {
               Container(
                 height: 1,
                 color: AppColors.grey100,
-                margin: const EdgeInsets.only(top: 16, bottom: 24),
+                margin: const EdgeInsets.only(top: 16, bottom: 16),
               ),
               // 内容区域
               Flexible(

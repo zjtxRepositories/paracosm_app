@@ -25,4 +25,8 @@ class ApiPaths {
   /// 朋友圈
   static const circleUrl = 'https://imapi.zjtxy.top/moments/link';
   static const noteList = '/app/note/list';
+
+  /// 社区
+  static const createCommunity = '/room/community/add';
+
 }

@@ -7,6 +7,7 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/modals/community_modals.dart';
 
 /// 社区主页面
 /// 包含顶部推荐社区、分类 TabBar 以及社区列表
@@ -29,7 +30,7 @@ class _CommunityPageState extends State<CommunityPage>
   final List<String> _tabKeys = [
     'community_tab_dao',
     'community_tab_club',
-    'community_tab_key',
+    // 'community_tab_key',
   ];
 
   @override
@@ -63,6 +64,14 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
+  void _showSelectDaoTypeModal() {
+    CommunityModals.showSelectedDao(context: context,
+    onSelected: (token){
+      context.pop();
+      context.push('/create-dao',extra: token);
+    });
+  }
+
   @override
   void dispose() {
     // 销毁控制器
@@ -76,7 +85,7 @@ class _CommunityPageState extends State<CommunityPage>
     final tabs = [
       AppLocalizations.of(context)!.communityTabDao,
       AppLocalizations.of(context)!.communityTabClub,
-      AppLocalizations.of(context)!.communityTabKey,
+      // AppLocalizations.of(context)!.communityTabKey,
     ];
 
     return AppPage(
@@ -163,7 +172,8 @@ class _CommunityPageState extends State<CommunityPage>
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/dao.png',
                     label: l10n.communityMenuCreateDao,
-                    onTap: () => context.push('/create-dao'),
+                    onTap: _showSelectDaoTypeModal
+                    // onTap: () => context.push('/create-dao'),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/club.png',

@@ -22,6 +22,7 @@ class AccountManager extends ChangeNotifier {
   WalletModel? _currentWallet;
 
   bool get isLogin => _currentAccount != null;
+  String get currentUserId => _currentAccount?.id ?? '';
   AccountModel? get currentAccount => _currentAccount;
   WalletModel? get currentWallet => _currentWallet;
 

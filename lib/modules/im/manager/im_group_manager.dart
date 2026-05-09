@@ -142,33 +142,52 @@ class ImGroupManager {
     required String groupId,
     String? groupName,
   }) async {
-    final completer = Completer<String?>();
 
     final groupInfo = RCIMIWGroupInfo.create(
       groupId: groupId,
       groupName: groupName ?? '[默认]',
     );
+    return createByGroupInfo(groupInfo, inviteeUserIds);
+  }
 
-    await IMEngineManager().engine?.createGroup(
-      groupInfo,
-      inviteeUserIds,
-      callback: IRCIMIWCreateGroupCallback(
-        onSuccess: (result) {
-          debugPrint('创建群成功: $result');
-          completer.complete(groupId);
-        },
-        onError: (int? errorCode, String? errorInfo) {
-          debugPrint(
-            '创建群失败: code=$errorCode info=$errorInfo',
-          );
+  Future<String?> createByGroupInfo(
+      RCIMIWGroupInfo groupInfo,
+      List<String> inviteeUserIds,
+      ) async {
+    final completer = Completer<String?>();
+    groupInfo.extProfile = {}; //不加会崩溃
 
-          completer.complete(null);
-        },
-      ),
-    );
+    try {
+      final engine = IMEngineManager().engine;
+      if (engine == null) {
+        debugPrint('IM engine 未初始化');
+        completer.complete(null);
+        return completer.future;
+      }
+
+      await engine.createGroup(
+        groupInfo,
+        inviteeUserIds,
+        callback: IRCIMIWCreateGroupCallback(
+          onSuccess: (result) {
+            debugPrint('创建群成功: $result');
+            completer.complete(groupInfo.groupId);
+          },
+          onError: (int? errorCode, String? errorInfo) {
+            debugPrint('创建群失败: code=$errorCode info=$errorInfo');
+            completer.complete(null);
+          },
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint('创建群异常: $e');
+      debugPrint('$stack');
+      completer.complete(null);
+    }
 
     return completer.future;
   }
+
 
   /// =========================
   /// 加入群

@@ -251,6 +251,7 @@ class _ChatPageState extends State<ChatPage> {
                         onTap: () => _navigateToConversationDetail(
                           item.info,
                           item.title ?? '',
+                          item.portraitUri
                         ),
                       );
                     }
@@ -417,7 +418,8 @@ class _ChatPageState extends State<ChatPage> {
   void _navigateToConversationDetail(
     RCIMIWConversation conversation,
     String title,
-  ) {
+      String? avatar,
+      ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
@@ -428,6 +430,7 @@ class _ChatPageState extends State<ChatPage> {
         name: title,
         channelId: conversation.channelId,
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
+        avatar: avatar
       ),
     );
   }
@@ -575,7 +578,7 @@ class _ChatPageState extends State<ChatPage> {
                         if (conversation == null)return;
                         final model = ConversationModel(info: conversation);
                         await ConversationResolver().resolve(model);
-                        _navigateToConversationDetail(conversation, model.title ?? '');
+                        _navigateToConversationDetail(conversation, model.title ?? '',model.portraitUri);
                       }
                     },
                   ),

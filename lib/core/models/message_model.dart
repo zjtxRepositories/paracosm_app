@@ -31,6 +31,12 @@ class MessageModel {
         final members = await group?.memberName;
         final user = await _getUser(message.fromUserId);
         return '"${user?.name ?? ''}"邀请$members加入了群聊';
+      case CustomMessageType.createDao:
+        final group = await _getGroup(message.toUserId);
+        return '${group?.info.groupName} DAO has been created';
+      case CustomMessageType.createClub:
+        final group = await _getGroup(message.toUserId);
+        return '${group?.name} Club has been created';
       default:
         return _formatContent(message.content ?? '');
     }

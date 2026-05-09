@@ -91,7 +91,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
       return;
     }
     final message = CustomMessage(targetId: groupId,
-        customMessageType: CustomMessageType.systemEvent,
+        customMessageType: CustomMessageType.createDao,
         conversationType:RCIMIWConversationType.group);
     final isSend = await ImSender.instance.send(message: message);
     AppLoading.dismiss();

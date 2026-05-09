@@ -2,7 +2,8 @@ enum CustomMessageType {
   friendAdd,
   groupInvited,
   systemNotice,
-  systemEvent,
+  createDao,
+  createClub,
   recall,
   transfer,
   unknown,
@@ -15,8 +16,10 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.groupInvited;
     case 'system_notice':
       return CustomMessageType.systemNotice;
-    case 'system_event':
-      return CustomMessageType.systemEvent;
+    case 'create_dao':
+      return CustomMessageType.createDao;
+    case 'create_club':
+      return CustomMessageType.createClub;
     case 'recall':
       return CustomMessageType.recall;
     case 'transfer':
@@ -72,8 +75,10 @@ class CustomMessageModel {
         return 'group_invited';
       case CustomMessageType.systemNotice:
         return 'system_notice';
-      case CustomMessageType.systemEvent:
-        return 'system_event';
+      case CustomMessageType.createDao:
+        return 'create_dao';
+      case CustomMessageType.createClub:
+        return 'create_club';
       case CustomMessageType.recall:
         return 'recall';
       case CustomMessageType.transfer:

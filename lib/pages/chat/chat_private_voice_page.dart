@@ -66,6 +66,7 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
       isAddBottomMargin: false,
       backgroundColor: Colors.black,
       backTheme: Brightness.dark,
+      onBeforeBack: _minimizeCallBeforeBack,
       child: Stack(
         children: [
           _buildBackground(),
@@ -161,20 +162,33 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
       left: 20,
       top: topPadding,
       child: GestureDetector(
-        onTap: () {
-          _VoiceMiniOverlayController.show(
-            context: context,
-            name: name,
-            status: status,
-          );
-          Navigator.of(context).maybePop();
-        },
+        onTap: () => _minimizeCall(context),
         child: Image.asset(
           'assets/images/chat/call/voice-small.png',
           width: 32,
           height: 32,
         ),
       ),
+    );
+  }
+
+  Future<bool> _minimizeCallBeforeBack() async {
+    _showMiniOverlay(context);
+    return true;
+  }
+
+  void _minimizeCall(BuildContext context) {
+    _showMiniOverlay(context);
+    if (context.canPop()) {
+      context.pop();
+    }
+  }
+
+  void _showMiniOverlay(BuildContext context) {
+    _VoiceMiniOverlayController.show(
+      context: context,
+      name: name,
+      status: status,
     );
   }
 
@@ -559,6 +573,7 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
   static const double _bubbleHeight = 64;
 
   Offset? _position;
+  bool _isDragging = false;
   late RongCallState _callState;
   StreamSubscription<RongCallState>? _callSub;
   Timer? _callTimer;
@@ -606,6 +621,17 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
     return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
+  Offset _rightDockedPosition(MediaQueryData media) {
+    final maxX = media.size.width - _bubbleWidth - 8.0;
+    return _clampToBounds(Offset(maxX, _position?.dy ?? 0), media);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    setState(() {
+      _isDragging = true;
+    });
+  }
+
   void _handlePanUpdate(DragUpdateDetails details) {
     final media = MediaQuery.of(context);
     setState(() {
@@ -616,17 +642,38 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
     });
   }
 
+  void _handlePanEnd(DragEndDetails details) {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
+  void _handlePanCancel() {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final position = _position ?? Offset.zero;
 
-    return Positioned(
+    return AnimatedPositioned(
+      duration: _isDragging ? Duration.zero : const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       left: position.dx,
       top: position.dy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
+        onPanStart: _handlePanStart,
         onPanUpdate: _handlePanUpdate,
+        onPanEnd: _handlePanEnd,
+        onPanCancel: _handlePanCancel,
         child: Container(
           width: _bubbleWidth,
           height: _bubbleHeight,
@@ -653,7 +700,7 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
               ),
               const SizedBox(height: 4),
               Text(
-                _buildSubtitle(widget.status),
+                _buildSubtitle(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -670,11 +717,8 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
     );
   }
 
-  String _buildSubtitle(String value) {
-    if (value == 'incoming') {
-      return 'Invite you to voice call';
-    }
-    if (value == 'in_call') {
+  String _buildSubtitle() {
+    if (_callState.status == RongCallStatus.inCall) {
       return formatDurationFromMs(_callElapsedMs);
     }
     return 'Waiting...';
@@ -682,7 +726,18 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
 
   void _syncCallState(RongCallState state) {
     if (!mounted) return;
-    _callState = state;
+    if (state.status == RongCallStatus.idle ||
+        state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _VoiceMiniOverlayController.dismiss();
+      });
+      return;
+    }
+    setState(() {
+      _callState = state;
+    });
     if (state.status != RongCallStatus.inCall) {
       _stopCallTimer();
       return;

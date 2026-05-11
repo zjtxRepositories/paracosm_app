@@ -125,8 +125,10 @@ class RongCallManager {
   RCCallEngine? _engine;
   RongCallState _state = const RongCallState.idle();
   bool _isInitializing = false;
-  bool _callSummaryEnabled = false;
+  bool _nativeCallSummaryDisabled = false;
   Future<void>? _videoViewsFuture;
+  bool _localVideoViewBound = false;
+  bool _remoteVideoViewBound = false;
   final Set<String> _sentSummaryKeys = <String>{};
 
   Stream<RongCallState> get stateStream => _stateController.stream;
@@ -138,7 +140,7 @@ class RongCallManager {
     try {
       _engine = await RCCallEngine.create();
       _bindListeners();
-      await _enableCallSummary();
+      await _disableNativeCallSummary();
       await _engine?.setVideoConfig(
         RCCallVideoConfig.create(
           profile: RCCallVideoProfile.profile_480_640_high,
@@ -179,7 +181,6 @@ class RongCallManager {
         cameraEnabled: mediaType == RCCallMediaType.audio_video,
       ),
     );
-    unawaited(prepareVideoViews());
 
     try {
       final session = await _engine?.startCall(
@@ -192,7 +193,7 @@ class RongCallManager {
         AppToast.showInfo('发起通话失败');
         return false;
       }
-      await _enableCallSummary();
+      await _disableNativeCallSummary();
       _setState(_state.copyWith(session: session));
       return true;
     } catch (_) {
@@ -204,7 +205,7 @@ class RongCallManager {
 
   Future<bool> accept() async {
     await init();
-    await _enableCallSummary();
+    await _disableNativeCallSummary();
     if (!await _ensurePermissions(_state.mediaType)) {
       AppToast.showInfo('请开启相机/麦克风权限后再接听');
       return false;
@@ -224,7 +225,7 @@ class RongCallManager {
       _setState(const RongCallState.idle());
       return;
     }
-    await _enableCallSummary();
+    await _disableNativeCallSummary();
     await _engine?.hangup();
     _setState(_state.copyWith(status: RongCallStatus.ended));
   }
@@ -260,6 +261,8 @@ class RongCallManager {
       _setState(_state.copyWith(cameraEnabled: next));
       if (next) {
         await prepareVideoViews();
+      } else {
+        clearVideoViews();
       }
     }
   }
@@ -269,16 +272,68 @@ class RongCallManager {
     await _engine?.switchCamera();
   }
 
+  Future<RCCallView?> createRemoteVideoView() async {
+    final engine = _engine;
+    final targetId = _state.targetId;
+    if (engine == null ||
+        targetId.isEmpty ||
+        !_state.isVideo ||
+        !_state.isActive) {
+      return null;
+    }
+
+    try {
+      final view = await RCCallView.create(fit: BoxFit.cover);
+      if (!_state.isVideo || !_state.isActive || _state.targetId != targetId) {
+        return null;
+      }
+      return view;
+    } catch (e) {
+      debugPrint('create remote video view failed: $e');
+      return null;
+    }
+  }
+
+  Future<bool> bindRemoteVideoView(RCCallView view) async {
+    final engine = _engine;
+    final targetId = _state.targetId;
+    if (engine == null ||
+        targetId.isEmpty ||
+        !_state.isVideo ||
+        _state.status != RongCallStatus.inCall ||
+        !_state.remoteCameraEnabled) {
+      return false;
+    }
+
+    try {
+      final code = await engine.setVideoView(targetId, view);
+      if (code != 0) {
+        debugPrint('bind remote video view failed: $code');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('bind remote video view failed: $e');
+      return false;
+    }
+  }
+
   Future<void> prepareVideoViews() {
     if (!_state.isVideo) return Future.value();
     if (!_state.isActive) return Future.value();
+    if (!_state.cameraEnabled && _state.status == RongCallStatus.inCall) {
+      return Future.value();
+    }
     final engine = _engine;
     final currentUserId = IMEngineManager().currentUserId;
     final targetId = _state.targetId;
     if (engine == null || currentUserId == null || targetId.isEmpty) {
       return Future.value();
     }
-    if (_state.localVideoView != null && _state.remoteVideoView != null) {
+    if (_state.localVideoView != null &&
+        _state.remoteVideoView != null &&
+        _localVideoViewBound &&
+        _remoteVideoViewBound) {
       return Future.value();
     }
 
@@ -310,8 +365,12 @@ class RongCallManager {
         return;
       }
 
-      if (!identical(localView, _state.localVideoView) ||
-          !identical(remoteView, _state.remoteVideoView)) {
+      final viewsChanged =
+          !identical(localView, _state.localVideoView) ||
+          !identical(remoteView, _state.remoteVideoView);
+      if (viewsChanged) {
+        _localVideoViewBound = false;
+        _remoteVideoViewBound = false;
         _setState(
           _state.copyWith(
             localVideoView: localView,
@@ -320,10 +379,36 @@ class RongCallManager {
         );
       }
 
-      await Future.wait<int>([
-        engine.setVideoView(currentUserId, localView),
-        engine.setVideoView(targetId, remoteView),
-      ]);
+      if (viewsChanged ||
+          !_localVideoViewBound ||
+          (_state.status == RongCallStatus.inCall && !_remoteVideoViewBound)) {
+        await WidgetsBinding.instance.endOfFrame;
+        if (!_state.isVideo ||
+            !_state.isActive ||
+            _state.targetId != targetId) {
+          return;
+        }
+      }
+
+      final localCode = await engine.setVideoView(currentUserId, localView);
+      _localVideoViewBound = localCode == 0;
+      if (localCode != 0) {
+        debugPrint('bind local video view failed: $localCode');
+      }
+
+      if (!_state.isVideo || !_state.isActive || _state.targetId != targetId) {
+        return;
+      }
+      if (_state.status != RongCallStatus.inCall) {
+        _remoteVideoViewBound = false;
+        return;
+      }
+
+      final remoteCode = await engine.setVideoView(targetId, remoteView);
+      _remoteVideoViewBound = remoteCode == 0;
+      if (remoteCode != 0) {
+        debugPrint('bind remote video view failed: $remoteCode');
+      }
     } catch (e) {
       debugPrint('prepare video views failed: $e');
     } finally {
@@ -333,6 +418,8 @@ class RongCallManager {
 
   void clearVideoViews() {
     if (_state.localVideoView == null && _state.remoteVideoView == null) return;
+    _localVideoViewBound = false;
+    _remoteVideoViewBound = false;
     _setState(
       RongCallState(
         status: _state.status,
@@ -362,7 +449,7 @@ class RongCallManager {
     if (engine == null) return;
 
     engine.onReceiveCall = (session) {
-      _enableCallSummary();
+      _disableNativeCallSummary();
       final targetId = session.caller?.userId ?? session.targetId;
       final displayName = targetId;
       _setState(
@@ -377,7 +464,6 @@ class RongCallManager {
           speakerEnabled: session.mediaType == RCCallMediaType.audio_video,
         ),
       );
-      unawaited(prepareVideoViews());
       _openIncomingCallPage(displayName, session.mediaType);
       _resolveIncomingDisplayName(targetId);
     };
@@ -391,7 +477,7 @@ class RongCallManager {
     };
 
     engine.onConnect = () async {
-      await _enableCallSummary();
+      await _disableNativeCallSummary();
       final session = await engine.getCurrentCallSession();
       final connectedTime = _connectedTimeFromSession(
         session ?? _state.session,
@@ -433,7 +519,11 @@ class RongCallManager {
     };
 
     engine.onRemoteUserDidChangeCameraState = (_, enabled) {
+      _remoteVideoViewBound = false;
       _setState(_state.copyWith(remoteCameraEnabled: enabled));
+      if (enabled) {
+        unawaited(prepareVideoViews());
+      }
     };
   }
 
@@ -447,19 +537,19 @@ class RongCallManager {
     return true;
   }
 
-  Future<void> _enableCallSummary() async {
-    if (_callSummaryEnabled) return;
+  Future<void> _disableNativeCallSummary() async {
+    if (_nativeCallSummaryDisabled) return;
     try {
       final code = await _engineChannel.invokeMethod<int>('setEngineConfig', {
-        'enableCallSummary': true,
+        'enableCallSummary': false,
       });
       if (code == 0) {
-        _callSummaryEnabled = true;
+        _nativeCallSummaryDisabled = true;
       } else {
-        debugPrint('enable call summary failed: $code');
+        debugPrint('disable native call summary failed: $code');
       }
     } catch (e) {
-      debugPrint('enable call summary failed: $e');
+      debugPrint('disable native call summary failed: $e');
     }
   }
 
@@ -493,7 +583,7 @@ class RongCallManager {
     RongCallState state,
     RCCallDisconnectReason reason,
   ) async {
-    if (!_shouldSendCallSummaryFallback(state, reason)) return;
+    if (!_shouldSendCallSummaryFallback(state)) return;
 
     final engine = IMEngineManager().engine;
     final targetId = state.targetId;
@@ -547,32 +637,29 @@ class RongCallManager {
     }
   }
 
-  bool _shouldSendCallSummaryFallback(
-    RongCallState state,
-    RCCallDisconnectReason reason,
-  ) {
+  bool _shouldSendCallSummaryFallback(RongCallState state) {
     if (state.targetId.isEmpty) return false;
-    switch (reason) {
-      case RCCallDisconnectReason.remote_cancel:
-      case RCCallDisconnectReason.remote_reject:
-      case RCCallDisconnectReason.remote_hangup:
-      case RCCallDisconnectReason.remote_busy_line:
-      case RCCallDisconnectReason.remote_engine_unsupported:
-      case RCCallDisconnectReason.remote_network_error:
-      case RCCallDisconnectReason.remote_resource_error:
-      case RCCallDisconnectReason.remote_publish_error:
-      case RCCallDisconnectReason.remote_subscribe_error:
-      case RCCallDisconnectReason.remote_kicked_by_other_call:
-      case RCCallDisconnectReason.remote_in_other_call:
-      case RCCallDisconnectReason.remote_kicked_by_server:
-        return false;
-      case RCCallDisconnectReason.no_response:
-        return false;
-      case RCCallDisconnectReason.remote_no_response:
-        return state.isOutgoing;
-      default:
-        return true;
+    return _isCurrentUserCallInitiator(state);
+  }
+
+  bool _isCurrentUserCallInitiator(RongCallState state) {
+    final currentUserId = IMEngineManager().currentUserId;
+    if (currentUserId == null || currentUserId.isEmpty) return false;
+
+    final callerUserId = _callInitiatorUserId(state);
+    if (callerUserId != null) return callerUserId == currentUserId;
+
+    return state.isOutgoing;
+  }
+
+  String? _callInitiatorUserId(RongCallState state) {
+    final callerUserId = state.session?.caller?.userId;
+    if (callerUserId != null && callerUserId.isNotEmpty) {
+      return callerUserId;
     }
+
+    if (state.isOutgoing) return IMEngineManager().currentUserId;
+    return null;
   }
 
   int _callDurationMs(RongCallState state, int now) {

@@ -8,6 +8,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
 /// 单人视频通话静态页。
 ///
@@ -40,6 +41,10 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   Timer? _callTimer;
   int _callElapsedMs = 0;
   bool _isClosing = false;
+  bool _isMinimized = false;
+  String? _miniOverlayName;
+  String _miniOverlayStatus = 'dialing';
+  bool _miniOverlayCameraEnabled = true;
 
   String get name =>
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
@@ -65,6 +70,9 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     _stopCallTimer();
     _callSub?.cancel();
     RongCallManager().clearVideoViews();
+    if (_isMinimized) {
+      _showMiniOverlayAfterDispose();
+    }
     super.dispose();
   }
 
@@ -75,6 +83,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       isAddBottomMargin: false,
       backgroundColor: Colors.black,
       backTheme: Brightness.dark,
+      onBeforeBack: _minimizeCallBeforeBack,
       child: Stack(
         children: [
           _buildBackground(),
@@ -240,15 +249,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       left: 20,
       top: topPadding,
       child: GestureDetector(
-        onTap: () {
-          _VideoMiniOverlayController.show(
-            context: context,
-            name: name,
-            status: _status,
-            cameraEnabled: _cameraEnabled,
-          );
-          Navigator.of(context).maybePop();
-        },
+        onTap: () => _minimizeCall(context),
         child: Image.asset(
           'assets/images/chat/call/video-small.png',
           width: 32,
@@ -256,6 +257,43 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
         ),
       ),
     );
+  }
+
+  Future<bool> _minimizeCallBeforeBack() async {
+    _minimizeCallToOverlay();
+    return true;
+  }
+
+  void _minimizeCall(BuildContext context) {
+    _minimizeCallToOverlay();
+    if (context.canPop()) {
+      context.pop();
+    }
+  }
+
+  void _minimizeCallToOverlay() {
+    _isMinimized = true;
+    _miniOverlayName = name;
+    _miniOverlayStatus = _status;
+    _miniOverlayCameraEnabled = _cameraEnabled;
+  }
+
+  void _showMiniOverlayAfterDispose() {
+    final overlayName = _miniOverlayName ?? name;
+    final overlayStatus = _miniOverlayStatus;
+    final overlayCameraEnabled = _miniOverlayCameraEnabled;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!RongCallManager().state.isActive) return;
+      final rootContext = AppRouter.rootNavigatorKey.currentContext;
+      if (rootContext == null) return;
+      _VideoMiniOverlayController.show(
+        context: rootContext,
+        name: overlayName,
+        status: overlayStatus,
+        cameraEnabled: overlayCameraEnabled,
+      );
+    });
   }
 
   String get _callDurationText => formatDurationFromMs(_callElapsedMs);
@@ -629,6 +667,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   Future<void> _closeVideoSession(BuildContext context) async {
     if (_isClosing) return;
     _isClosing = true;
+    _isMinimized = false;
     _VideoMiniOverlayController.dismiss();
     if (RongCallManager().state.isActive) {
       await RongCallManager().hangup();
@@ -648,6 +687,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       _stopCallTimer();
       if (_isClosing) return;
       _isClosing = true;
+      _isMinimized = false;
       _VideoMiniOverlayController.dismiss();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).maybePop();
@@ -661,7 +701,9 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       _cameraEnabled = state.cameraEnabled;
     });
     _syncCallTimer(state);
-    if (state.isVideo && state.status == RongCallStatus.inCall) {
+    if (state.isVideo &&
+        state.status == RongCallStatus.inCall &&
+        state.cameraEnabled) {
       RongCallManager().prepareVideoViews();
     }
   }
@@ -767,6 +809,26 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
   static const double _bubbleHeight = 160;
 
   Offset? _position;
+  bool _isDragging = false;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
+  RCCallView? _remoteVideoView;
+  bool _isPreparingRemoteView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    unawaited(_prepareRemoteVideoViewIfNeeded());
+  }
+
+  @override
+  void dispose() {
+    _callSub?.cancel();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -795,6 +857,17 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
     return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
+  Offset _rightDockedPosition(MediaQueryData media) {
+    final maxX = media.size.width - _bubbleWidth - 8.0;
+    return _clampToBounds(Offset(maxX, _position?.dy ?? 0), media);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    setState(() {
+      _isDragging = true;
+    });
+  }
+
   void _handlePanUpdate(DragUpdateDetails details) {
     final media = MediaQuery.of(context);
     setState(() {
@@ -805,17 +878,42 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
     });
   }
 
+  void _handlePanEnd(DragEndDetails details) {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
+  void _handlePanCancel() {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final position = _position ?? Offset.zero;
+    final showRemoteView =
+        _callState.status == RongCallStatus.inCall &&
+        _callState.remoteCameraEnabled &&
+        _remoteVideoView != null;
 
-    return Positioned(
+    return AnimatedPositioned(
+      duration: _isDragging ? Duration.zero : const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       left: position.dx,
       top: position.dy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
+        onPanStart: _handlePanStart,
         onPanUpdate: _handlePanUpdate,
+        onPanEnd: _handlePanEnd,
+        onPanCancel: _handlePanCancel,
         child: Container(
           width: _bubbleWidth,
           height: _bubbleHeight,
@@ -831,12 +929,58 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
             ],
           ),
           clipBehavior: Clip.hardEdge,
-          child: Image.asset(
-            'assets/images/chat/call/video-bg.png',
-            fit: BoxFit.cover,
-          ),
+          child: showRemoteView
+              ? _remoteVideoView!
+              : Image.asset(
+                  'assets/images/chat/call/video-bg.png',
+                  fit: BoxFit.cover,
+                ),
         ),
       ),
     );
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (state.status == RongCallStatus.idle ||
+        state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _VideoMiniOverlayController.dismiss();
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _callState = state;
+      if (state.status != RongCallStatus.inCall || !state.remoteCameraEnabled) {
+        _remoteVideoView = null;
+      }
+    });
+    unawaited(_prepareRemoteVideoViewIfNeeded());
+  }
+
+  Future<void> _prepareRemoteVideoViewIfNeeded() async {
+    if (_isPreparingRemoteView || _remoteVideoView != null) return;
+    if (_callState.status != RongCallStatus.inCall ||
+        !_callState.remoteCameraEnabled) {
+      return;
+    }
+    _isPreparingRemoteView = true;
+    final view = await RongCallManager().createRemoteVideoView();
+    if (!mounted) return;
+    setState(() {
+      _remoteVideoView = view;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    final isBound = view != null
+        ? await RongCallManager().bindRemoteVideoView(view)
+        : false;
+    if (!mounted) return;
+    setState(() {
+      if (!isBound) {
+        _remoteVideoView = null;
+      }
+      _isPreparingRemoteView = false;
+    });
   }
 }

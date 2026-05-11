@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 class ChatGroupVoicePage extends StatefulWidget {
@@ -65,16 +67,29 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   ];
 
   late String _status;
+  Timer? _callTimer;
+  int? _callStartedAtMs;
+  int _callElapsedMs = 0;
 
   String get name => widget.name;
   String get status => _status;
   bool get _isIncoming => _status == 'incoming';
   bool get _isInCall => _status == 'in_call';
+  String get _callDurationText => formatDurationFromMs(_callElapsedMs);
 
   @override
   void initState() {
     super.initState();
     _status = widget.status;
+    if (_isInCall) {
+      _startCallTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopCallTimer();
+    super.dispose();
   }
 
   @override
@@ -84,6 +99,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       isAddBottomMargin: false,
       backgroundColor: Colors.black,
       backTheme: Brightness.dark,
+      onBeforeBack: _minimizeCallBeforeBack,
       child: Stack(
         children: [
           _buildBackground(),
@@ -175,20 +191,34 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       left: 20,
       top: topPadding,
       child: GestureDetector(
-        onTap: () {
-          _GroupVoiceMiniOverlayController.show(
-            context: context,
-            name: name,
-            status: status,
-          );
-          Navigator.of(context).maybePop();
-        },
+        onTap: () => _minimizeCall(context),
         child: Image.asset(
           'assets/images/chat/call/voice-small.png',
           width: 32,
           height: 32,
         ),
       ),
+    );
+  }
+
+  Future<bool> _minimizeCallBeforeBack() async {
+    _showMiniOverlay(context);
+    return true;
+  }
+
+  void _minimizeCall(BuildContext context) {
+    _showMiniOverlay(context);
+    if (context.canPop()) {
+      context.pop();
+    }
+  }
+
+  void _showMiniOverlay(BuildContext context) {
+    _GroupVoiceMiniOverlayController.show(
+      context: context,
+      name: name,
+      status: status,
+      connectedTimeMs: _callStartedAtMs ?? 0,
     );
   }
 
@@ -205,7 +235,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
         _buildGroupAvatarRing(),
         const SizedBox(height: 56),
         Text(
-          '$displayName''(20)',
+          '$displayName(20)',
           style: AppTextStyles.h1.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -346,7 +376,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       color: AppColors.grey300,
     );
 
-    return Text('00:08:32', textAlign: TextAlign.center, style: baseStyle);
+    return Text(
+      _callDurationText,
+      textAlign: TextAlign.center,
+      style: baseStyle,
+    );
   }
 
   Widget _buildGroupAvatarRing() {
@@ -657,7 +691,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       );
     }
     if (_isInCall) {
-      return Text('00:08:32', textAlign: TextAlign.center, style: baseStyle);
+      return Text(
+        _callDurationText,
+        textAlign: TextAlign.center,
+        style: baseStyle,
+      );
     }
 
     return Text.rich(
@@ -773,6 +811,32 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     setState(() {
       _status = 'in_call';
     });
+    _startCallTimer();
+  }
+
+  void _startCallTimer({int? connectedTimeMs}) {
+    _stopCallTimer();
+    _callStartedAtMs = connectedTimeMs ?? DateTime.now().millisecondsSinceEpoch;
+    _updateCallElapsed();
+    _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsed();
+    });
+  }
+
+  void _updateCallElapsed() {
+    final startedAt = _callStartedAtMs;
+    final elapsed = startedAt == null
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - startedAt;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
   }
 }
 
@@ -850,21 +914,25 @@ class _GroupVoiceMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
   static String _status = 'dialing';
+  static int _connectedTimeMs = 0;
 
   static void show({
     required BuildContext context,
     required String name,
     required String status,
+    required int connectedTimeMs,
   }) {
     dismiss();
     final overlay = Overlay.of(context, rootOverlay: true);
 
     _name = name;
     _status = status;
+    _connectedTimeMs = connectedTimeMs;
     _entry = OverlayEntry(
       builder: (overlayContext) => _GroupVoiceMiniBubble(
         name: _name ?? name,
         status: _status,
+        connectedTimeMs: _connectedTimeMs,
         onTap: () {
           final encodedName = Uri.encodeComponent(_name ?? name);
           final rootContext = AppRouter.rootNavigatorKey.currentContext;
@@ -888,11 +956,13 @@ class _GroupVoiceMiniOverlayController {
 class _GroupVoiceMiniBubble extends StatefulWidget {
   final String name;
   final String status;
+  final int connectedTimeMs;
   final VoidCallback onTap;
 
   const _GroupVoiceMiniBubble({
     required this.name,
     required this.status,
+    required this.connectedTimeMs,
     required this.onTap,
   });
 
@@ -905,6 +975,26 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
   static const double _bubbleHeight = 64;
 
   Offset? _position;
+  bool _isDragging = false;
+  Timer? _callTimer;
+  int _callElapsedMs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.status == 'in_call') {
+      _updateCallElapsed();
+      _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _updateCallElapsed();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _callTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -933,6 +1023,17 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
+  Offset _rightDockedPosition(MediaQueryData media) {
+    final maxX = media.size.width - _bubbleWidth - 8.0;
+    return _clampToBounds(Offset(maxX, _position?.dy ?? 0), media);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    setState(() {
+      _isDragging = true;
+    });
+  }
+
   void _handlePanUpdate(DragUpdateDetails details) {
     final media = MediaQuery.of(context);
     setState(() {
@@ -943,17 +1044,38 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     });
   }
 
+  void _handlePanEnd(DragEndDetails details) {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
+  void _handlePanCancel() {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final position = _position ?? Offset.zero;
 
-    return Positioned(
+    return AnimatedPositioned(
+      duration: _isDragging ? Duration.zero : const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       left: position.dx,
       top: position.dy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
+        onPanStart: _handlePanStart,
         onPanUpdate: _handlePanUpdate,
+        onPanEnd: _handlePanEnd,
+        onPanCancel: _handlePanCancel,
         child: Container(
           width: _bubbleWidth,
           height: _bubbleHeight,
@@ -980,7 +1102,7 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
               ),
               const SizedBox(height: 4),
               Text(
-                _buildSubtitle(widget.status),
+                _buildSubtitle(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -997,14 +1119,22 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     );
   }
 
-  String _buildSubtitle(String value) {
-    if (value == 'incoming') {
-      return 'Invite you to voice call';
-    }
-    if (value == 'in_call') {
-      return '00:08:32';
+  String _buildSubtitle() {
+    if (widget.status == 'in_call') {
+      return formatDurationFromMs(_callElapsedMs);
     }
     return 'Waiting...';
+  }
+
+  void _updateCallElapsed() {
+    final connectedTime = widget.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
   }
 }
 

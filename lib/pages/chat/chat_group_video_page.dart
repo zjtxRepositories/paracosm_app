@@ -48,6 +48,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       isAddBottomMargin: false,
       backgroundColor: Colors.black,
       backTheme: Brightness.dark,
+      onBeforeBack: _minimizeCallBeforeBack,
       child: Stack(
         children: [
           _buildBackground(),
@@ -173,21 +174,34 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       left: 20,
       top: topPadding,
       child: GestureDetector(
-        onTap: () {
-          _GroupVideoMiniOverlayController.show(
-            context: context,
-            name: name,
-            status: _status,
-            cameraEnabled: _cameraEnabled,
-          );
-          Navigator.of(context).maybePop();
-        },
+        onTap: () => _minimizeCall(context),
         child: Image.asset(
           'assets/images/chat/call/video-small.png',
           width: 32,
           height: 32,
         ),
       ),
+    );
+  }
+
+  Future<bool> _minimizeCallBeforeBack() async {
+    _showMiniOverlay(context);
+    return true;
+  }
+
+  void _minimizeCall(BuildContext context) {
+    _showMiniOverlay(context);
+    if (context.canPop()) {
+      context.pop();
+    }
+  }
+
+  void _showMiniOverlay(BuildContext context) {
+    _GroupVideoMiniOverlayController.show(
+      context: context,
+      name: name,
+      status: _status,
+      cameraEnabled: _cameraEnabled,
     );
   }
 
@@ -657,6 +671,7 @@ class _GroupVideoMiniBubbleState extends State<_GroupVideoMiniBubble> {
   static const double _bubbleHeight = 160;
 
   Offset? _position;
+  bool _isDragging = false;
 
   @override
   void didChangeDependencies() {
@@ -685,6 +700,17 @@ class _GroupVideoMiniBubbleState extends State<_GroupVideoMiniBubble> {
     return Offset(value.dx.clamp(minX, maxX), value.dy.clamp(minY, maxY));
   }
 
+  Offset _rightDockedPosition(MediaQueryData media) {
+    final maxX = media.size.width - _bubbleWidth - 8.0;
+    return _clampToBounds(Offset(maxX, _position?.dy ?? 0), media);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    setState(() {
+      _isDragging = true;
+    });
+  }
+
   void _handlePanUpdate(DragUpdateDetails details) {
     final media = MediaQuery.of(context);
     setState(() {
@@ -695,17 +721,38 @@ class _GroupVideoMiniBubbleState extends State<_GroupVideoMiniBubble> {
     });
   }
 
+  void _handlePanEnd(DragEndDetails details) {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
+  void _handlePanCancel() {
+    final media = MediaQuery.of(context);
+    setState(() {
+      _isDragging = false;
+      _position = _rightDockedPosition(media);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final position = _position ?? Offset.zero;
 
-    return Positioned(
+    return AnimatedPositioned(
+      duration: _isDragging ? Duration.zero : const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       left: position.dx,
       top: position.dy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
+        onPanStart: _handlePanStart,
         onPanUpdate: _handlePanUpdate,
+        onPanEnd: _handlePanEnd,
+        onPanCancel: _handlePanCancel,
         child: Container(
           width: _bubbleWidth,
           height: _bubbleHeight,

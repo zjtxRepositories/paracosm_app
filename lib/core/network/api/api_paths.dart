@@ -28,5 +28,7 @@ class ApiPaths {
 
   /// 社区
   static const createCommunity = '/room/community/add';
+  static const recommendCommunity = '/room/community/recommend/list';
+  static const communityList = '/room/community/list';
 
 }

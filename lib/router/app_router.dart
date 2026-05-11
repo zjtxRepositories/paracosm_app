@@ -9,7 +9,7 @@ import 'package:paracosm/pages/profile/token_manager_page.dart';
 import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
-import 'package:paracosm/pages/chat/chat_page.dart';
+import 'package:paracosm/pages/chat/home/chat_page.dart';
 import 'package:paracosm/pages/chat/chat_group_video_page.dart';
 import 'package:paracosm/pages/chat/chat_group_voice_page.dart';
 import 'package:paracosm/pages/chat/chat_private_video_page.dart';

@@ -53,7 +53,7 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
       final members = result ?? [];
 
       _memberAvatars = members;
-      print('hasGroupAvatar-----$hasGroupAvatar---${widget.portraitUri}--$_memberAvatars');
+      // print('hasGroupAvatar-----$hasGroupAvatar---${widget.portraitUri}--$_memberAvatars');
 
       if (mounted) {
         setState(() {

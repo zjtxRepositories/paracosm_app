@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
@@ -7,42 +8,78 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'custom_message_model.dart';
 
-class ConversationModel {
-  final RCIMIWConversation info;
+class ConversationModel extends ChangeNotifier {
+  RCIMIWConversation info;
 
   String? title;
   String? subtitle;
   String? portraitUri;
 
-  ConversationModel({required this.info});
+  ConversationModel({
+    required this.info,
+  });
 
-  int get time => info.operationTime ?? info.lastMessage?.sentTime ?? 0;
+  int get time =>
+      info.operationTime ??
+          info.lastMessage?.sentTime ??
+          0;
+
+  void updateConversation(RCIMIWConversation value) {
+    info = value;
+
+    notifyListeners();
+  }
+
+  void update({
+    String? title,
+    String? subtitle,
+    String? portraitUri,
+  }) {
+    this.title = title ?? this.title;
+    this.subtitle = subtitle ?? this.subtitle;
+    this.portraitUri = portraitUri ?? this.portraitUri;
+    notifyListeners();
+  }
 }
 
 class ConversationResolver {
+  ConversationResolver._();
+
+  static final ConversationResolver _instance =
+  ConversationResolver._();
+
+  factory ConversationResolver() {
+    return _instance;
+  }
   final Map<String, UserModel?> _userCache = {};
   final Map<String, GroupModel?> _groupCache = {};
 
   Future<void> resolve(ConversationModel model) async {
     final info = model.info;
+
+    String? title;
+    String? subtitle;
+    String? portraitUri;
+
     final targetId = info.targetId;
     if (targetId == null) return;
 
     // title + avatar
     if (info.conversationType == RCIMIWConversationType.private) {
       final user = await _getUser(targetId);
-      model.title = user?.name ?? '';
-      model.portraitUri = user?.profile.portraitUri ?? '';
+      title = user?.name ?? '';
+      portraitUri = user?.profile.portraitUri ?? '';
     }
 
     if (info.conversationType == RCIMIWConversationType.group) {
       final group = await _getGroup(targetId);
-      model.title = await group?.name;
-      model.portraitUri = group?.info.portraitUri ?? '';
+      title = await group?.name;
+
+      portraitUri = group?.info.portraitUri ?? '';
     }
 
     if (info.conversationType == RCIMIWConversationType.system) {
-      model.title = '通知';
+      title = '通知';
     }
 
     // subtitle
@@ -51,11 +88,17 @@ class ConversationResolver {
       final content = await _format(msg);
       if (info.conversationType == RCIMIWConversationType.group && msg.messageType != RCIMIWMessageType.custom) {
         final user = await _getUser(msg.senderUserId ?? '');
-        model.subtitle = '${user?.name ?? ''}：$content';
+        subtitle = '${user?.name ?? ''}：$content';
       } else {
-        model.subtitle = content;
+        subtitle = content;
       }
     }
+
+    model.update(
+      title: title,
+      subtitle: subtitle,
+      portraitUri: portraitUri,
+    );
   }
 
   Future<String> _format(RCIMIWMessage message) async {

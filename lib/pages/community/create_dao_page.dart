@@ -61,7 +61,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
     final roomType = 1;
     final communityType = 1;
     if (jid.isEmpty){
-      jid = "${asset.symbol.toLowerCase()}_${asset.chainId}_native_1";
+      jid = "${asset.symbol.toLowerCase()}_${asset.chainId}_native";
     }
     final groupId = generateGroupId(GroupType.dao);
     final param = CommunityParam(
@@ -72,7 +72,8 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
       groupId: groupId
     );
     AppLoading.show();
-    final isCreate = await CreateCommunityApi.create(jid, name, desc, avatarUrl, roomType, communityType,jsonEncode(param.toJson()));
+    final isCreate = await CreateCommunityApi.create(jid, name, desc,
+        asset.address.isNotEmpty ? avatarUrl : '', roomType, communityType,jsonEncode(param.toJson()));
     if (!isCreate){
       AppLoading.dismiss();
       AppToast.show('创建群组失败');

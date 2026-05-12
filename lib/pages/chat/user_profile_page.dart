@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:paracosm/core/models/friend_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';

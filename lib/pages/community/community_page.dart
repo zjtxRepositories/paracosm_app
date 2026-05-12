@@ -1,13 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/community_list_api.dart';
+import 'package:paracosm/core/network/api/recommend_community_api.dart';
+import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/modules/scan/scan_result_handler.dart';
+import 'package:paracosm/pages/chat/home/chat_controller.dart';
+import 'package:paracosm/pages/community/community_list_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/modals/community_modals.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../core/models/community_model.dart';
+import '../../core/models/conversation_model.dart';
+import '../../core/models/custom_message_model.dart';
+import '../../core/models/group_model.dart';
+import '../../modules/im/manager/im_conversation_manager.dart';
+import '../../modules/im/manager/im_group_manager.dart';
+import '../../modules/im/message/base/im_message.dart';
+import '../../modules/im/message/send/im_sender.dart';
+import '../../widgets/chat/select_members_modal.dart';
+import '../../widgets/common/app_loading.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 社区主页面
 /// 包含顶部推荐社区、分类 TabBar 以及社区列表
@@ -32,12 +52,23 @@ class _CommunityPageState extends State<CommunityPage>
     'community_tab_club',
     // 'community_tab_key',
   ];
+  List<CommunityModel> _recommends = [];
+  List<CommunityModel> _daos = [];
+  List<CommunityModel> _clubs = [];
 
   @override
   void initState() {
     super.initState();
     // 初始化 Tab 控制器，长度为 3 (DAO, Club, Key)
     _tabController = TabController(length: _tabKeys.length, vsync: this);
+    _fetchRecommendCommunity();
+  }
+
+  Future<void> _fetchRecommendCommunity() async {
+   final data = await RecommendCommunityApi.get();
+   setState(() {
+     _recommends = data;
+   });
   }
 
   /// 显示筛选底部弹窗
@@ -85,32 +116,38 @@ class _CommunityPageState extends State<CommunityPage>
     final tabs = [
       AppLocalizations.of(context)!.communityTabDao,
       AppLocalizations.of(context)!.communityTabClub,
-      // AppLocalizations.of(context)!.communityTabKey,
     ];
 
     return AppPage(
       showNav: true,
       showBack: false,
       isCustomHeader: true,
-      // 使用自定义头部，包含搜索和添加按钮
       renderCustomHeader: _buildCustomHeader(context),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 12),
+
+          /// 推荐社区
+          _buildRecommendedSection(),
+
+          const SizedBox(height: 16),
+
+          /// TabBar
+          _buildTabBarSection(tabs),
+
+          /// 列表页面
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  // 1. 顶部推荐社区横向滚动列表
-                  _buildRecommendedSection(),
-                  const SizedBox(height: 16),
-                  // 2. 分类 TabBar 和 过滤图标区域
-                  _buildTabBarSection(tabs),
-                  // 3. 社区垂直列表
-                  _buildCommunityList(),
-                ],
-              ),
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                CommunityListPage(
+                  type: RoomType.dao,
+                ),
+                CommunityListPage(
+                  type: RoomType.club,
+                ),
+              ],
             ),
           ),
         ],
@@ -165,8 +202,8 @@ class _CommunityPageState extends State<CommunityPage>
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/group.png',
                     label: l10n.communityMenuCreateGroup,
-                    onTap: () {
-                      // TODO: 跳转创建群组
+                    onTap: () async {
+                      ChatController().createNormalGroup(context);
                     },
                   ),
                   AppActionPopMenuItem(
@@ -208,50 +245,22 @@ class _CommunityPageState extends State<CommunityPage>
   Widget _buildRecommendedSection() {
     final l10n = AppLocalizations.of(context)!;
     return SizedBox(
-      height: 110, // 给卡片内部三行内容留足垂直空间
+      height: 96, // 给卡片内部三行内容留足垂直空间
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: 4, // 模拟数据数量
+        itemCount: _recommends.length,
         itemBuilder: (context, index) {
-          // 模拟不同的推荐社区数据
-          final mockData = [
-            {
-              'name': l10n.communityMockBkokGroup,
-              'trend': '+ 0.19%',
-              'tags': null,
-              'members': l10n.communityMockMemberCount2k,
-              'address': l10n.communityMockAddress1,
-            },
-            {
-              'name': 'W',
-              'trend': null,
-              'tags': [l10n.filterTagAirdrop, l10n.filterTagMeme],
-              'members': l10n.communityMockMemberCount1_2k,
-              'address': l10n.communityMockAddress2,
-            },
-            {
-              'name': 'PARACOSM',
-              'trend': null,
-              'tags': null,
-              'members': l10n.communityMockMemberCount8_9k,
-              'address': l10n.communityMockAddress3,
-            },
-            {
-              'name': 'BIBI DAO',
-              'trend': '+ 0.8%',
-              'tags': [l10n.communityTabDao],
-              'members': l10n.communityMockMemberCount5_0k,
-              'address': l10n.communityMockAddress4,
-            },
-          ];
-          final item = mockData[index % mockData.length];
+          final item = _recommends[index];
           return _buildRecommendedCard(
-            name: item['name'] as String,
-            trend: item['trend'] as String?,
-            tags: item['tags'] as List<String>?,
-            members: item['members'] as String,
-            address: item['address'] as String,
+            item: item,
+            name: item.name ?? '',
+            tags: item.tags,
+            members: item.memberNum.toString(),
+            address: item.displayAddress,
+            desc: item.desc ?? '',
+            groupId: item.communityParam?.groupId ?? '',
+            avatar: item.avatarUrl ?? '',
           );
         },
       ),
@@ -263,18 +272,22 @@ class _CommunityPageState extends State<CommunityPage>
   /// [trend] 趋势百分比 (如 +0.19%)
   /// [tags] 标签列表 (当没有趋势信息时展示)
   Widget _buildRecommendedCard({
+    required CommunityModel item,
     required String name,
-    String? trend,
     List<String>? tags,
     required String members,
     required String address,
+    required String desc,
+    required String groupId,
+    required String avatar,
+
   }) {
     // 判断趋势是否为正 (上涨)
-    final bool isPositive = trend?.startsWith('+') ?? true;
+    // final bool isPositive = trend?.startsWith('+') ?? true;
     final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
-      onTap: () => context.push('/community-detail/$name'),
+      onTap: () => context.push('/community-detail',extra: item),
       child: Container(
         width: 185,
         margin: const EdgeInsets.only(right: 12),
@@ -290,7 +303,11 @@ class _CommunityPageState extends State<CommunityPage>
             // 第一行：头像 + 名称 + 趋势
             Row(
               children: [
-                _buildGroupAvatar(size: 16), // 小号群头像
+                GroupAvatarWidget(
+                  groupId: groupId,
+                  portraitUri: avatar,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -304,25 +321,25 @@ class _CommunityPageState extends State<CommunityPage>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (trend != null) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    isPositive ? Icons.trending_up : Icons.trending_down,
-                    size: 12,
-                    color: isPositive ? AppColors.primaryDark : AppColors.error,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    ' ${trend.substring(1).trim()}',
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 10,
-                      color: isPositive
-                          ? AppColors.primaryDark
-                          : AppColors.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                // if (trend != null) ...[
+                //   const SizedBox(width: 4),
+                //   Icon(
+                //     isPositive ? Icons.trending_up : Icons.trending_down,
+                //     size: 12,
+                //     color: isPositive ? AppColors.primaryDark : AppColors.error,
+                //   ),
+                //   const SizedBox(width: 4),
+                //   Text(
+                //     ' ${trend.substring(1).trim()}',
+                //     style: AppTextStyles.body.copyWith(
+                //       fontSize: 10,
+                //       color: isPositive
+                //           ? AppColors.primaryDark
+                //           : AppColors.error,
+                //       fontWeight: FontWeight.w500,
+                //     ),
+                //   ),
+                // ],
               ],
             ),
             const SizedBox(height: 6),
@@ -351,7 +368,7 @@ class _CommunityPageState extends State<CommunityPage>
                 const SizedBox(width: 2),
                 Expanded(
                   child: Text(
-                    ' $address',
+                    ' ${ellipsisMiddle(address,head: 5,tail: 5)}',
                     style: AppTextStyles.body.copyWith(
                       fontSize: 10,
                       color: AppColors.grey400,
@@ -371,7 +388,7 @@ class _CommunityPageState extends State<CommunityPage>
               )
             else
               Text(
-                l10n.communityMockSalaryDesc,
+                desc,
                 style: AppTextStyles.body.copyWith(
                   fontSize: 10,
                   color: AppColors.grey400,
@@ -449,291 +466,18 @@ class _CommunityPageState extends State<CommunityPage>
             ),
           ),
           // 右侧过滤操作按钮
-          IconButton(
-            onPressed: _showFilterBottomSheet,
-            icon: Image.asset(
-              'assets/images/community/filter.png',
-              width: 16,
-              height: 16,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            tooltip: l10n.communityFilterTooltip,
-          ),
+          // IconButton(
+          //   onPressed: _showFilterBottomSheet,
+          //   icon: Image.asset(
+          //     'assets/images/community/filter.png',
+          //     width: 16,
+          //     height: 16,
+          //   ),
+          //   padding: EdgeInsets.zero,
+          //   constraints: const BoxConstraints(),
+          //   tooltip: l10n.communityFilterTooltip,
+          // ),
         ],
-      ),
-    );
-  }
-
-  /// 构建社区垂直列表
-  /// 展示不同分类下的社区列表项
-  Widget _buildCommunityList() {
-    final l10n = AppLocalizations.of(context)!;
-    // 模拟社区数据源
-    final List<Map<String, dynamic>> items = [
-      {
-        'name': l10n.communityMockBkokGroup,
-        'desc': l10n.communityMockSalaryDesc,
-        'trend': null,
-        'members': l10n.communityMockMemberCount2_5k,
-        'address': l10n.communityMockAddress1,
-      },
-      {
-        'name': 'W',
-        'desc': null,
-        'tags': [
-          l10n.filterTagAirdrop,
-          l10n.filterTagMeme,
-          l10n.filterTagGiveaway,
-        ],
-        'trend': null,
-        'members': l10n.communityMockMemberCount1_2k,
-        'address': l10n.communityMockAddress2,
-      },
-      {
-        'name': 'PARACOSM',
-        'desc': l10n.communityMockLazyMod,
-        'trend': '- 0.19%',
-        'members': l10n.communityMockMemberCount8_9k,
-        'address': l10n.communityMockAddress3,
-      },
-      {
-        'name': 'BIBI DAO',
-        'desc': l10n.communityMockSparkPlan,
-        'trend': null,
-        'members': l10n.communityMockMemberCount5_0k,
-        'address': l10n.communityMockAddress4,
-      },
-      {
-        'name': 'RENA DAO',
-        'desc': l10n.communityMockSalaryDesc,
-        'trend': '+ 1.2%',
-        'members': l10n.communityMockMemberCount3_4k,
-        'address': l10n.communityMockAddress5,
-      },
-      {
-        'name': 'SPARK DAO',
-        'desc': l10n.communityMockLazyMod,
-        'trend': null,
-        'members': l10n.communityMockMemberCount1_1k,
-        'address': l10n.communityMockAddress6,
-      },
-    ];
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics:
-          const NeverScrollableScrollPhysics(), // 禁用内部滚动，由外部 SingleChildScrollView 处理
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _buildCommunityItem(
-          name: item['name'],
-          desc: item['desc'],
-          tags: item['tags'] != null ? List<String>.from(item['tags']) : null,
-          trend: item['trend'],
-          members: item['members'],
-          address: item['address'],
-        );
-      },
-    );
-  }
-
-  /// 构建单个社区列表项
-  /// [name] 社区名称
-  /// [desc] 社区描述
-  /// [tags] 标签列表
-  /// [trend] 趋势信息
-  /// [members] 成员数量
-  /// [address] 关联地址
-  Widget _buildCommunityItem({
-    required String name,
-    String? desc,
-    List<String>? tags,
-    String? trend,
-    required String members,
-    required String address,
-  }) {
-    return GestureDetector(
-      onTap: () => context.push('/community-detail/$name'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.grey200, width: 1),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 左侧：社区群组头像 (2x2网格)
-                  _buildGroupAvatar(size: 42),
-                  const SizedBox(width: 8),
-                  // 右侧：核心内容区域
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 第一行：社区名称 + 成员数 + 地址信息
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.h2.copyWith(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.grey900,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Image.asset(
-                              'assets/images/community/user.png',
-                              width: 12,
-                              height: 12,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              ' $members',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 10,
-                                color: AppColors.grey400,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Image.asset(
-                              'assets/images/community/location.png',
-                              width: 12,
-                              height: 12,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              ' $address',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 10,
-                                color: AppColors.grey400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // 第二行：描述信息/标签列表
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  right: trend != null ? 70 : 0,
-                                ),
-                                child: desc != null
-                                    ? Text(
-                                        desc,
-                                        style: AppTextStyles.body.copyWith(
-                                          fontSize: 10,
-                                          color: AppColors.grey400,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : (tags != null
-                                          ? Wrap(
-                                              spacing: 4,
-                                              children: tags
-                                                  .map((tag) => _buildTag(tag))
-                                                  .toList(),
-                                            )
-                                          : const SizedBox.shrink()),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (trend != null)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey100,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        trend.startsWith('+')
-                            ? Icons.trending_up
-                            : Icons.trending_down,
-                        size: 12,
-                        color: trend.startsWith('+')
-                            ? AppColors.primaryDark
-                            : AppColors.error,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        trend.substring(1).trim(),
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 10,
-                          color: trend.startsWith('+')
-                              ? AppColors.primaryDark
-                              : AppColors.error,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 构建群头像 (2x2网格展示，模拟多用户头像)
-  Widget _buildGroupAvatar({double size = 44}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(2),
-      child: GridView.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 1,
-        crossAxisSpacing: 1,
-        physics: const NeverScrollableScrollPhysics(),
-        children: List.generate(4, (index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Image.asset(
-              'assets/images/chat/avatar.png',
-              fit: BoxFit.cover,
-            ),
-          );
-        }),
       ),
     );
   }

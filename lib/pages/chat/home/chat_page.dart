@@ -21,14 +21,15 @@ import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import '../../core/models/custom_message_model.dart';
-import '../../modules/im/manager/im_connection_manager.dart';
-import '../../modules/im/manager/im_engine_manager.dart';
+import '../../../core/models/custom_message_model.dart';
+import '../../../modules/im/manager/im_connection_manager.dart';
+import '../../../modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
-import '../../modules/im/manager/im_group_manager.dart';
-import '../../modules/im/message/base/im_message.dart';
-import 'contacts_view.dart';
+import '../../../modules/im/manager/im_group_manager.dart';
+import '../../../modules/im/message/base/im_message.dart';
+import '../contacts_view.dart';
+import 'chat_controller.dart';
 
 /// 聊天主列表页面
 class ChatPage extends StatefulWidget {
@@ -40,174 +41,39 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey _addButtonKey = GlobalKey();
-  bool _isChatSelected = true;
-  int _selectedFilterIndex = 0;
   final ScrollController _contactScrollController = ScrollController();
-  int _friendApplicationUnhandledCount = 0;
-
-  /// =========================
-  /// Stream 管理（避免泄漏）
-  /// =========================
-  final List<StreamSubscription> _subs = [];
-
-  final IMEngineManager _engineManager = IMEngineManager();
-  List<ConversationModel> _conversations = [];
-  List<RCIMIWFriendInfo> _friends = [];
-  List<RCIMIWGroupInfo> _groups = [];
-  Map<int, List<RCIMIWConversation>>? _tabCache;
-
-  final resolver = ConversationResolver();
-
-  bool _inited = false;
+  late final ChatController controller;
 
   @override
   void initState() {
     super.initState();
-    initListener();
+    controller = ChatController();
+    controller.init();
   }
-
-  void initListener() {
-    if (_inited) return;
-    _inited = true;
-
-    final sub = _engineManager.connection.eventStream.listen((event) {
-      if (event == ImEvent.connected) {
-        fetchData();
-      }
-    });
-
-    _subs.add(sub);
-  }
-
-  /// =========================
-  /// 数据入口
-  /// =========================
-  void fetchData() {
-    _fetchFriendApplication();
-    _fetchConversation();
-    _fetchContact();
-    _fetchGroup();
-  }
-
-  /// =========================
-  /// 好友申请（防重复监听）
-  /// =========================
-  void _fetchFriendApplication() {
-    final sub = _engineManager.friendApplication.stream.listen((list) {
-      if (!mounted) return;
-
-      setState(() {
-        _friendApplicationUnhandledCount =
-            _engineManager.friendApplication.unhandledCount;
-      });
-    });
-
-    _subs.add(sub);
-
-    _engineManager.friendApplication.fetch();
-  }
-
-  /// =========================
-  /// 会话（核心优化）
-  /// =========================
-  void _fetchConversation() {
-    final sub = _engineManager.conversation.stream.listen((map) {
-      if (!mounted) return;
-
-      _tabCache = map;
-      _refreshConversation();
-    });
-
-    _subs.add(sub);
-  }
-
-  /// =========================
-  /// 刷新会话（减少 rebuild）
-  /// =========================
-  void _refreshConversation() {
-    final tabIndex = _conversationTabIndexForFilter(_selectedFilterIndex);
-    final list = tabIndex == null
-        ? <RCIMIWConversation>[]
-        : _engineManager.conversation.getTabList(tabIndex);
-
-    _conversations = list.map((e) => ConversationModel(info: e)).toList();
-
-    if (mounted) {
-      setState(() {});
-    }
-
-    _resolveConversation(_conversations);
-  }
-
-  /// =========================
-  /// 联系人
-  /// =========================
-  void _fetchContact() {
-    final sub = _engineManager.friend.stream.listen((list) {
-      if (!mounted) return;
-
-      setState(() {
-        _friends = list;
-      });
-    });
-
-    _subs.add(sub);
-
-    _engineManager.friend.fetchFriends();
-  }
-
-  /// =========================
-  /// 群组
-  /// =========================
-  void _fetchGroup() {
-    final sub = _engineManager.group.stream.listen((list) {
-      if (!mounted) return;
-
-      setState(() {
-        _groups = list;
-      });
-    });
-
-    _subs.add(sub);
-
-    _engineManager.group.getAllJoinedGroups();
-  }
-
-  /// =========================
-  /// 分批解析（防卡顿优化）
-  /// =========================
-  Future<void> _resolveConversation(List<ConversationModel> models) async {
-    const batchSize = 10;
-
-    for (int i = 0; i < models.length; i += batchSize) {
-      final batch = models.skip(i).take(batchSize);
-
-      await Future.wait(batch.map((m) => resolver.resolve(m)));
-
-      if (!mounted) return;
-
-      setState(() {}); // 局部刷新
-    }
-  }
-
   @override
   void dispose() {
-    for (final s in _subs) {
-      s.cancel();
-    }
-
+    controller.dispose();
     _contactScrollController.dispose();
+
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      showNav: true,
-      showBack: false,
-      isCustomHeader: true,
-      renderCustomHeader: _buildCustomHeader(context),
-      child: _isChatSelected ? _buildChatView() : _buildContactsView(),
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (_, __) {
+        return AppPage(
+          showNav: true,
+          showBack: false,
+          isCustomHeader: true,
+          renderCustomHeader: _buildCustomHeader(context),
+          child: controller.isChatSelected
+              ? _buildChatView()
+              : _buildContactsView(),
+        );
+      },
     );
   }
 
@@ -218,16 +84,16 @@ class _ChatPageState extends State<ChatPage> {
         _buildFriendRequestCard(),
         _buildFilterBar(),
         Expanded(
-          child: _conversations.isEmpty
+          child: controller.conversations.isEmpty
               ? AppEmptyView(
                   text: AppLocalizations.of(context)!.chatSearchNoData,
                   bottomOffset: 50, // 调整偏移，视觉更平衡
                 )
               : ListView.builder(
                   padding: EdgeInsets.zero,
-                  itemCount: _conversations.length,
+                  itemCount: controller.conversations.length,
                   itemBuilder: (context, index) {
-                    final item = _conversations[index];
+                    final item = controller.conversations[index];
                     if (item.info.conversationType ==
                         RCIMIWConversationType.system) {
                       return SystemNotificationItem(
@@ -242,22 +108,30 @@ class _ChatPageState extends State<ChatPage> {
                         // onTap: () => _navigateToDetail(item['title']),
                       );
                     } else {
-                      return ChatListItem(
-                        title: item.title ?? '',
-                        subtitle: item.subtitle ?? '',
-                        time: formatIMTime(item.time),
-                        unreadCount: item.info.unreadCount ?? 0,
-                        avatar: item.portraitUri ?? '',
-                        targetId: item.info.targetId,
-                        isGroup:
+                      return ListenableBuilder(
+                        listenable: item,
+                        builder: (_, __) {
+                          return ChatListItem(
+                            title: item.title ?? '',
+                            subtitle: item.subtitle ?? '',
+                            time: formatIMTime(item.time),
+                            unreadCount: item.info.unreadCount ?? 0,
+                            avatar: item.portraitUri ?? '',
+                            targetId: item.info.targetId,
+                            isGroup:
                             item.info.conversationType ==
-                            RCIMIWConversationType.group,
-                        isMuted: false,
-                        onTap: () => _navigateToConversationDetail(
-                          item.info,
-                          item.title ?? '',
-                          item.portraitUri,
-                        ),
+                                RCIMIWConversationType.group,
+                            isMuted: false,
+                            onTap: () {
+                              controller.navigateToConversationDetail(
+                                context,
+                                item.info,
+                                item.title ?? '',
+                                item.portraitUri,
+                              );
+                            },
+                          );
+                        },
                       );
                     }
                   },
@@ -269,7 +143,7 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建朋友申请卡片
   Widget _buildFriendRequestCard() {
-    return _friendApplicationUnhandledCount == 0
+    return controller.friendApplicationUnhandledCount == 0
         ? SizedBox()
         : GestureDetector(
             onTap: () => context.push('/friend-request'),
@@ -309,7 +183,7 @@ class _ChatPageState extends State<ChatPage> {
                                   TextSpan(
                                     text: AppLocalizations.of(context)!
                                         .chatFriendRequestCount(
-                                          _friendApplicationUnhandledCount,
+                                      controller.friendApplicationUnhandledCount,
                                         ),
                                   ),
                                 ],
@@ -342,8 +216,8 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人列表视图
   Widget _buildContactsView() {
     return ContactsView(
-      friends: _friends,
-      groups: _groups,
+      friends:controller.friends,
+      groups: controller.groups,
       controller: _contactScrollController,
       buildGroupHeader: _buildGroupHeader,
       onTapContact: (userId) {
@@ -355,7 +229,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
-      onTap: () => context.push('/group-list', extra: _groups),
+      onTap: () => context.push('/group-list',extra: controller.groups),
       behavior: HitTestBehavior.opaque,
       child: Container(
         color: Colors.white,
@@ -402,7 +276,7 @@ class _ChatPageState extends State<ChatPage> {
                         TextSpan(
                           text: AppLocalizations.of(
                             context,
-                          )!.chatGroupManageCount(_groups.length),
+                          )!.chatGroupManageCount(controller.groups.length),
                         ),
                       ],
                     ),
@@ -420,26 +294,6 @@ class _ChatPageState extends State<ChatPage> {
     context.push('/user-profile', extra: userId);
   }
 
-  void _navigateToConversationDetail(
-    RCIMIWConversation conversation,
-    String title,
-    String? avatar,
-  ) {
-    final encodedName = Uri.encodeComponent(title);
-    context.push(
-      '/chat-detail/$encodedName',
-      extra: ChatSessionArgs(
-        targetId: conversation.targetId ?? '',
-        conversationType:
-            conversation.conversationType ?? RCIMIWConversationType.private,
-        name: title,
-        channelId: conversation.channelId,
-        isGroup: conversation.conversationType == RCIMIWConversationType.group,
-        avatar: avatar,
-      ),
-    );
-  }
-
   /// 构建自定义导航栏
   Widget _buildCustomHeader(BuildContext context) {
     return Container(
@@ -455,14 +309,12 @@ class _ChatPageState extends State<ChatPage> {
           // Chat Tab
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isChatSelected = true;
-              });
+              controller.switchTab(true);
             },
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                if (_isChatSelected)
+                if (controller.isChatSelected)
                   Positioned(
                     bottom: 4,
                     left: 0,
@@ -478,11 +330,11 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   AppLocalizations.of(context)!.chatTitle,
                   style: AppTextStyles.h1.copyWith(
-                    fontSize: _isChatSelected ? 24 : 16,
-                    color: _isChatSelected
+                    fontSize:controller.isChatSelected ? 24 : 16,
+                    color: controller.isChatSelected
                         ? AppColors.grey900
                         : AppColors.grey400,
-                    fontWeight: _isChatSelected
+                    fontWeight: controller.isChatSelected
                         ? FontWeight.w600
                         : FontWeight.w400,
                   ),
@@ -494,14 +346,12 @@ class _ChatPageState extends State<ChatPage> {
           // Contacts Tab
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isChatSelected = false;
-              });
+              controller.switchTab(false);
             },
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                if (!_isChatSelected)
+                if (!controller.isChatSelected)
                   Positioned(
                     bottom: 4,
                     left: 0,
@@ -517,11 +367,11 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   AppLocalizations.of(context)!.chatContacts,
                   style: AppTextStyles.h1.copyWith(
-                    fontSize: !_isChatSelected ? 24 : 16,
-                    color: !_isChatSelected
+                    fontSize: !controller.isChatSelected ? 24 : 16,
+                    color: !controller.isChatSelected
                         ? AppColors.grey900
                         : AppColors.grey400,
-                    fontWeight: !_isChatSelected
+                    fontWeight: !controller.isChatSelected
                         ? FontWeight.w600
                         : FontWeight.w400,
                   ),
@@ -562,45 +412,7 @@ class _ChatPageState extends State<ChatPage> {
                     icon: 'assets/images/chat/create-group.png',
                     label: l10n.chatMenuCreateGroup,
                     onTap: () async {
-                      final result = await SelectMembersModal.show(
-                        context,
-                        friends: _friends,
-                      );
-                      if (result != null) {
-                        AppLoading.show();
-                        final groupId = await ImGroupManager().create(
-                          inviteeUserIds: result,
-                          groupId: generateGroupId(GroupType.normal),
-                        );
-                        if (groupId == null) {
-                          AppLoading.dismiss();
-                          AppToast.show('创建群组失败');
-                          return;
-                        }
-                        final message = CustomMessage(
-                          targetId: groupId,
-                          customMessageType: CustomMessageType.groupInvited,
-                          conversationType: RCIMIWConversationType.group,
-                        );
-                        final isSend = await ImSender.instance.send(
-                          message: message,
-                        );
-                        AppLoading.dismiss();
-                        if (!isSend) return;
-                        final conversation = await ImConversationManager()
-                            .getConversation(
-                              type: RCIMIWConversationType.group,
-                              targetId: groupId,
-                            );
-                        if (conversation == null) return;
-                        final model = ConversationModel(info: conversation);
-                        await ConversationResolver().resolve(model);
-                        _navigateToConversationDetail(
-                          conversation,
-                          model.title ?? '',
-                          model.portraitUri,
-                        );
-                      }
+                      controller.createNormalGroup(context);
                     },
                   ),
                   AppActionPopMenuItem(
@@ -628,13 +440,20 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建消息分类过滤栏 (All, Message, DAO...)
   Widget _buildFilterBar() {
-    final l10n = AppLocalizations.of(context)!;
     final filters = [
-      l10n.chatFilterAllCount(_conversationCountForFilter(0)),
-      l10n.chatFilterMessageCount(_conversationCountForFilter(1)),
-      l10n.chatFilterClubCount(_conversationCountForFilter(2)),
-      l10n.chatFilterDaoCount(_conversationCountForFilter(3)),
-      '${l10n.chatFilterOthers} ${_conversationCountForFilter(4)}',
+      AppLocalizations.of(
+        context,
+      )!.chatFilterAllCount(controller.tabCache?[0]?.length ?? 0),
+
+      '私聊 ${controller.tabCache?[1]?.length ?? 0}',
+
+      '群聊 ${controller.tabCache?[2]?.length ?? 0}',
+
+      AppLocalizations.of(
+        context,
+      )!.chatFilterClubCount(controller.tabCache?[3]?.length ?? 0),
+
+      AppLocalizations.of(context)!.chatFilterDaoCount(0),
     ];
     return Container(
       height: 42,
@@ -643,13 +462,10 @@ class _ChatPageState extends State<ChatPage> {
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
         itemBuilder: (context, index) {
-          final isSelected = index == _selectedFilterIndex;
+          final isSelected = index == controller.selectedFilterIndex;
           return GestureDetector(
             onTap: () {
-              setState(() {
-                _selectedFilterIndex = index;
-              });
-              _refreshConversation();
+              controller.switchFilter(index);
             },
             child: Container(
               margin: EdgeInsets.only(right: 24),
@@ -690,27 +506,5 @@ class _ChatPageState extends State<ChatPage> {
         },
       ),
     );
-  }
-
-  int? _conversationTabIndexForFilter(int filterIndex) {
-    switch (filterIndex) {
-      case 0:
-        return 0; // 全部
-      case 1:
-        return 1; // 消息：私聊
-      case 2:
-        return 2; // 俱乐部：群聊
-      case 4:
-        return 3; // 其他：系统通知
-      default:
-        return null; // DAO 暂无会话来源
-    }
-  }
-
-  int _conversationCountForFilter(int filterIndex) {
-    final tabIndex = _conversationTabIndexForFilter(filterIndex);
-    if (tabIndex == null) return 0;
-
-    return _tabCache?[tabIndex]?.length ?? 0;
   }
 }

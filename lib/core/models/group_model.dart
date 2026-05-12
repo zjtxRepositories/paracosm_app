@@ -31,35 +31,34 @@ class GroupModel {
       return name;
     }
 
-    final groupId = info.groupId ?? '';
-    if (groupId.isEmpty) return '';
-    final result = await ImGroupMemberManager().getGroupMembers(groupId);
+    final result = await memberName;
+    return result;
+  }
 
-    final members = result ?? [];
-    if (members.isEmpty) return '';
+  Future<String> get memberName async {
+    final memberList = await members;
+    if (memberList.isEmpty) return '';
     final List<String> list = [];
-    for (final e in members) {
-      if (e.userId == IMEngineManager().currentUserId) continue;
-      final member = GroupMemberModel(item: e);
-      list.add(member.name);
+    for (final e in memberList) {
+      if (e.item.userId == IMEngineManager().currentUserId) continue;
+      list.add(e.name);
     }
     return list.join("、");
   }
 
-  Future<String> get memberName async {
+  Future<List<GroupMemberModel>> get members async {
     final groupId = info.groupId ?? '';
-    if (groupId.isEmpty) return '';
+    if (groupId.isEmpty) return [];
 
     final result = await ImGroupMemberManager().getGroupMembers(groupId);
-    final members = result ?? [];
-    if (members.isEmpty) return '';
-    final List<String> list = [];
-    for (final e in members) {
-      if (e.userId == IMEngineManager().currentUserId) continue;
+    if ((result ?? []).isEmpty) return [];
+    final List<GroupMemberModel> list = [];
+    for (final e in result!) {
       final member = GroupMemberModel(item: e);
-      list.add(member.name);
+      list.add(member);
     }
-    return list.join("、");
+    print('list-----${list.length}');
+    return list;
   }
 
 }

@@ -11,7 +11,7 @@ class ImFriendManager {
   Stream<List<RCIMIWFriendInfo>> get stream => _controller.stream;
 
   final List<RCIMIWFriendInfo> _friends = [];
-
+  List<RCIMIWFriendInfo>  get friends => _friends;
   /// =========================
   /// 初始化监听（核心🔥）
   /// =========================

@@ -13,14 +13,48 @@ class ElectrumNodeManager {
   /// 节点池
   /// =========================
   final List<String> _mainnetNodes = [
+    // Blockstream
     "ssl://electrum.blockstream.info:50002",
+
+    // BlueWallet
     "ssl://electrum1.bluewallet.io:50002",
+    "ssl://electrum2.bluewallet.io:50002",
+
+    // EMZY
+    "ssl://electrum.emzy.de:50002",
+
+    // Litecoin / multi service
     "ssl://btc.litepay.ch:50002",
+
+    // Coinext
+    "ssl://electrum.coinext.com.br:50002",
+
+    // Bitaroo
+    "ssl://electrum.bitaroo.net:50002",
+
+    // 1209k
+    "ssl://electrum.1209k.com:50002",
+
+    // Hsmiths
+    "ssl://ecdsa.net:50002",
+
+    // Arctic
+    "ssl://fortress.qtornado.com:443",
+
+    // Bitcoin.lu
+    "ssl://node.xbt.eu:50002",
+
+    // CryptoClub
+    "ssl://electrum.crypto.club:50002",
+
+    // 自建推荐备用
+    // "ssl://your-node.com:50002",
   ];
 
   final List<String> _testnetNodes = [
     "ssl://electrum.blockstream.info:60002",
     "ssl://electrum1.bluewallet.io:60002",
+    "ssl://testnet.aranguren.org:51002",
   ];
 
   /// =========================

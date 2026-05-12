@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
+import 'package:paracosm/widgets/common/app_loading.dart';
+
+import '../../core/models/group_model.dart';
+import '../../modules/im/manager/im_group_manager.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 群组信息页面
 class GroupInformationPage extends StatefulWidget {
-  final String groupName;
+  final GroupModel group;
 
   const GroupInformationPage({
     super.key,
-    required this.groupName,
+    required this.group,
   });
 
   @override
@@ -26,8 +32,8 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.groupName);
-    _noteController = TextEditingController();
+    _nameController = TextEditingController(text: widget.group.displayName);
+    _noteController = TextEditingController(text: widget.group.info.notice);
   }
 
   @override
@@ -37,6 +43,26 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     super.dispose();
   }
 
+  Future<void> updateGroupInfo() async {
+    AppLoading.show();
+    final groupInfo = widget.group.info;
+    if (_nameController.text.isNotEmpty){
+      groupInfo.groupName = _nameController.text;
+    }
+    if (_noteController.text.isNotEmpty){
+      groupInfo.notice = _noteController.text;
+    }
+    final isOk = await ImGroupManager().updateGroupInfo(
+        groupInfo
+    );
+    AppLoading.dismiss();
+    if (!isOk){
+      AppToast.show('更新失败！');
+      return;
+    }
+    AppToast.show('更新成功');
+    context.pop();
+  }
   @override
   Widget build(BuildContext context) {
     return AppPage(
@@ -126,7 +152,11 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                             ),
                             child: TextField(
                               controller: _nameController,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
+                                hintText: '${AppLocalizations.of(context)!.profileTransferPleaseEnter}${AppLocalizations.of(context)!.chatGroupInfoName}',
+                                hintStyle: const TextStyle(
+                                  color: Color(0xFFBDBDBD),
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
@@ -185,10 +215,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                           // Save Button
                           AppButton(
                             text: AppLocalizations.of(context)!.commonSave,
-                            onPressed: () {
-                              // TODO: 实现保存逻辑
-                              Navigator.pop(context);
-                            },
+                            onPressed: updateGroupInfo,
                           ),
                         ],
                       ),

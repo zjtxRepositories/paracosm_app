@@ -1,40 +1,51 @@
 import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import 'im_message_manager.dart';
+
 import 'im_engine_manager.dart';
+import 'im_group_manager.dart';
+import 'im_message_manager.dart';
 
 class ImConversationManager {
   /// =========================
   /// 单例
   /// =========================
   static final ImConversationManager _instance =
-      ImConversationManager._internal();
+  ImConversationManager._internal();
 
   factory ImConversationManager() => _instance;
 
   ImConversationManager._internal();
 
   /// =========================
-  /// Stream（节流）
+  /// stream
   /// =========================
   final _controller =
-      StreamController<Map<int, List<RCIMIWConversation>>>.broadcast();
+  StreamController<Map<int, List<RCIMIWConversation>>>.broadcast();
 
-  Stream<Map<int, List<RCIMIWConversation>>> get stream => _controller.stream;
+  Stream<Map<int, List<RCIMIWConversation>>> get stream =>
+      _controller.stream;
 
   Timer? _debounce;
 
+  bool _notifying = false;
+
   /// =========================
-  /// 核心数据（唯一源）
+  /// 会话缓存
+  /// key:
+  /// ${type.index}_$targetId
   /// =========================
   final Map<String, RCIMIWConversation> _allMap = {};
 
-  /// Tab -> targetId 列表
+  /// tab -> keys
   final Map<int, List<String>> _tabIds = {};
 
+  /// tab cache
+  final Map<int, List<RCIMIWConversation>> _tabCache = {};
+
   /// =========================
-  /// Tab 类型
+  /// tab 类型
   /// =========================
   final List<List<RCIMIWConversationType>> tabTypes = [
     [
@@ -42,34 +53,81 @@ class ImConversationManager {
       RCIMIWConversationType.group,
       RCIMIWConversationType.system,
     ],
+
     [RCIMIWConversationType.private],
+
     [RCIMIWConversationType.group],
+
     [RCIMIWConversationType.system],
   ];
 
   bool _inited = false;
+
   bool _loading = false;
 
-  StreamSubscription<RCIMIWMessage>? _messageSubscription;
+  StreamSubscription<MessageEvent>? _messageSubscription;
+
+  StreamSubscription<GroupEvent>? _groupEventSubscription;
+
+  /// =========================
+  /// key
+  /// =========================
+  String _buildKey(
+      RCIMIWConversationType type,
+      String targetId,
+      ) {
+    return '${type.index}_$targetId';
+  }
 
   /// =========================
   /// 初始化
   /// =========================
   void initListener() {
     if (_inited) return;
+
     _inited = true;
 
     final engine = IMEngineManager().engine;
 
-    _messageSubscription ??= ImMessageManager().messageStream.listen(
-      _onMessage,
-    );
+    /// 消息监听
+    _messageSubscription ??=
+        ImMessageManager().messageStream.listen(
+          _onMessageEvent,
+        );
+
+    /// 群事件
+    _groupEventSubscription ??=
+        GroupEventBus.instance.stream.listen(
+          _onGroupEvent,
+        );
 
     /// 已读同步
     engine?.onConversationReadStatusSyncMessageReceived =
-        (type, targetId, timestamp) {
-          _onReadSync(targetId);
-        };
+        (
+        type,
+        targetId,
+        timestamp,
+        ) {
+      _onReadSync(
+        type,
+        targetId,
+      );
+    };
+
+    /// 置顶同步
+    engine?.onConversationTopStatusSynced =
+        (
+        type,
+        targetId,
+        channelId,
+        top,
+        ) {
+      _onTopSync(
+        type,
+        targetId,
+        top,
+      );
+    };
 
     getRemoteConversationList();
   }
@@ -79,22 +137,26 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 拉远端
+  /// 拉取远端会话
   /// =========================
   Future<void> getRemoteConversationList() async {
     await _initAllTabs();
   }
 
   /// =========================
-  /// 初始化全部 Tab
+  /// 初始化全部 tab
   /// =========================
   Future<void> _initAllTabs() async {
     if (_loading) return;
+
     _loading = true;
 
     try {
       _allMap.clear();
+
       _tabIds.clear();
+
+      _tabCache.clear();
 
       final futures = <Future>[];
 
@@ -103,6 +165,9 @@ class ImConversationManager {
       }
 
       await Future.wait(futures);
+
+      _rebuildAllTabCache();
+
       _notify();
     } finally {
       _loading = false;
@@ -110,7 +175,7 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 加载单个 Tab
+  /// 加载 tab
   /// =========================
   Future<void> _loadTab(int tabIndex) async {
     final completer = Completer<void>();
@@ -119,24 +184,41 @@ class ImConversationManager {
       onSuccess: (list) {
         final ids = <String>[];
 
-        for (var conv in list ?? []) {
-          final id = conv.targetId;
-          if (id == null) continue;
+        for (final conv in list ?? []) {
+          final targetId = conv.targetId;
 
-          _allMap[id] = conv;
-          ids.add(id);
+          final type = conv.conversationType;
+
+          if (targetId == null || type == null) {
+            continue;
+          }
+
+          final key = _buildKey(
+            type,
+            targetId,
+          );
+
+          _allMap.putIfAbsent(
+            key,
+                () => conv,
+          );
+
+          ids.add(key);
         }
 
         _sortIds(ids);
+
         _tabIds[tabIndex] = ids;
 
         completer.complete();
       },
       onError: (code) {
-        debugPrint("获取会话失败: $code");
+        debugPrint('获取会话失败: $code');
+
         completer.completeError(code ?? -1);
       },
     );
+
     await IMEngineManager().engine?.getConversations(
       tabTypes[tabIndex],
       null,
@@ -144,13 +226,12 @@ class ImConversationManager {
       50,
       callback: callback,
     );
-    debugPrint("获取会话成功: ");
 
     return completer.future;
   }
 
   /// =========================
-  /// 获取单个会话
+  /// 获取会话
   /// =========================
   Future<RCIMIWConversation?> getConversation({
     required RCIMIWConversationType type,
@@ -165,11 +246,9 @@ class ImConversationManager {
       channelId,
       callback: IRCIMIWGetConversationCallback(
         onSuccess: (conversation) {
-          debugPrint("获取会话成功: $conversation");
           completer.complete(conversation);
         },
         onError: (code) {
-          debugPrint("获取会话失败: $code");
           completer.completeError(code ?? -1);
         },
       ),
@@ -179,85 +258,249 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 新消息
+  /// 消息事件
   /// =========================
-  void _onMessage(RCIMIWMessage msg) {
-    final targetId = msg.targetId;
-    if (targetId == null) return;
+  void _onMessageEvent(MessageEvent event) async {
+    final targetId =
+        event.targetId ?? event.message?.targetId;
 
-    final conv = _allMap[targetId];
+    final conversationType =
+        event.conversationType ??
+            event.message?.conversationType;
 
-    /// 已存在
-    if (conv != null) {
-      conv.lastMessage = msg;
-      if (msg.senderUserId != IMEngineManager().currentUserId) {
-        conv.unreadCount = (conv.unreadCount ?? 0) + 1;
+    final message = event.message;
+
+    if (targetId == null ||
+        conversationType == null ||
+        message == null) {
+      return;
+    }
+
+    final key = _buildKey(
+      conversationType,
+      targetId,
+    );
+
+    try {
+      final oldConversation = _allMap[key];
+
+      /// =========================
+      /// 本地已有会话
+      /// =========================
+      if (oldConversation != null) {
+        final oldMsgId =
+            oldConversation.lastMessage?.messageId;
+
+        final newMsgId = message.messageId;
+
+        /// 同一条消息
+        if (oldMsgId == newMsgId) {
+          return;
+        }
+
+        oldConversation.lastMessage = message;
+
+        /// 自己发送不增加未读
+        if (message.senderUserId !=
+            IMEngineManager().currentUserId) {
+          oldConversation.unreadCount =
+              (oldConversation.unreadCount ?? 0) + 1;
+        }
+
+        _moveToTop(key);
+
+        _rebuildAllTabCache();
+
+        _notify();
+
+        return;
       }
 
-      _moveToTop(targetId);
-    } else {
-      /// 新会话
-      _insertNewConversation(msg);
+      /// =========================
+      /// 本地不存在
+      /// 从 SDK 拉取完整会话
+      /// =========================
+      final conversation =
+      await getConversation(
+        type: conversationType,
+        targetId: targetId,
+      );
+
+      if (conversation == null) {
+        return;
+      }
+
+      _allMap[key] = conversation;
+
+      for (int i = 0; i < tabTypes.length; i++) {
+        if (!tabTypes[i].contains(
+          conversationType,
+        )) {
+          continue;
+        }
+
+        _tabIds.putIfAbsent(i, () => []);
+
+        final ids = _tabIds[i]!;
+
+        if (!ids.contains(key)) {
+          ids.insert(0, key);
+        }
+      }
+
+      _moveToTop(key);
+
+      _rebuildAllTabCache();
+
+      _notify();
+    } catch (e) {
+      debugPrint('刷新会话失败: $e');
     }
+  }
+
+  /// =========================
+  /// 群事件
+  /// =========================
+  void _onGroupEvent(GroupEvent event) {
+    switch (event.type) {
+    /// 退群
+      case GroupEventType.quit:
+
+      /// 解散
+      case GroupEventType.dismissed:
+        _removeConversationByGroup(
+          event.groupId,
+        );
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  /// =========================
+  /// 删除群会话
+  /// =========================
+  Future<void> _removeConversationByGroup(
+      String targetId,
+      ) async {
+    final key = _buildKey(
+      RCIMIWConversationType.group,
+      targetId,
+    );
+
+    try {
+      await IMEngineManager()
+          .engine
+          ?.removeConversation(
+        RCIMIWConversationType.group,
+        targetId,
+        null,
+      );
+    } catch (_) {}
+
+    _removeLocalConversation(key);
+  }
+
+  /// =========================
+  /// 删除本地会话
+  /// =========================
+  void _removeLocalConversation(String key) {
+    _allMap.remove(key);
+
+    for (final ids in _tabIds.values) {
+      ids.remove(key);
+    }
+
+    _rebuildAllTabCache();
 
     _notify();
   }
 
   /// =========================
-  /// 插入新会话
+  /// 已读同步
   /// =========================
-  void _insertNewConversation(RCIMIWMessage msg) {
-    final conv = RCIMIWConversation.create();
-    conv.targetId = msg.targetId;
-    conv.conversationType = msg.conversationType;
-    conv.lastMessage = msg;
-    if (msg.senderUserId != IMEngineManager().currentUserId) {
-      conv.unreadCount = 1;
+  void _onReadSync(
+      RCIMIWConversationType? type,
+      String? targetId,
+      ) {
+    if (type == null || targetId == null) {
+      return;
     }
 
-    final id = msg.targetId!;
-    _allMap[id] = conv;
+    final key = _buildKey(
+      type,
+      targetId,
+    );
 
-    for (int i = 0; i < tabTypes.length; i++) {
-      if (tabTypes[i].contains(conv.conversationType)) {
-        _tabIds.putIfAbsent(i, () => []);
-        _tabIds[i]!.insert(0, id);
-      }
+    final conv = _allMap[key];
+
+    if (conv == null) {
+      return;
     }
+
+    conv.unreadCount = 0;
+
+    _rebuildAllTabCache();
+
+    _notify();
   }
 
   /// =========================
-  /// 已读同步
+  /// 置顶同步
   /// =========================
-  void _onReadSync(String? targetId) {
-    if (targetId == null) return;
-    final conv = _allMap[targetId];
-    if (conv != null) {
-      conv.unreadCount = 0;
-      _notify();
+  void _onTopSync(
+      RCIMIWConversationType? type,
+      String? targetId,
+      bool? top,
+      ) {
+    if (type == null || targetId == null) {
+      return;
     }
+
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final conv = _allMap[key];
+
+    if (conv == null) {
+      return;
+    }
+
+    conv.top = top;
+
+    for (final ids in _tabIds.values) {
+      _sortIds(ids);
+    }
+
+    _rebuildAllTabCache();
+
+    _notify();
   }
 
   /// =========================
   /// 删除会话
   /// =========================
   Future<void> removeConversation(
-    RCIMIWConversationType type,
-    String? channelId,
-    String targetId,
-  ) async {
+      RCIMIWConversationType type,
+      String? channelId,
+      String targetId,
+      ) async {
     final completer = Completer<void>();
 
-    final callback = IRCIMIWRemoveConversationCallback(
-      onConversationRemoved: (int? code) {
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final callback =
+    IRCIMIWRemoveConversationCallback(
+      onConversationRemoved: (code) {
         if (code == 0) {
-          _allMap.remove(targetId);
+          _removeLocalConversation(key);
 
-          for (var list in _tabIds.values) {
-            list.remove(targetId);
-          }
-
-          _notify();
           completer.complete();
         } else {
           completer.completeError(code ?? -1);
@@ -265,7 +508,9 @@ class ImConversationManager {
       },
     );
 
-    await IMEngineManager().engine?.removeConversation(
+    await IMEngineManager()
+        .engine
+        ?.removeConversation(
       type,
       targetId,
       channelId,
@@ -276,87 +521,205 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 刷新
+  /// 设置置顶
   /// =========================
-  void onNewMessage(String targetId, RCIMIWMessage message) {
-    final conv = _allMap[targetId];
+  Future<bool> changeConversationTopStatus({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required bool top,
+  }) {
+    final completer = Completer<bool>();
+
+    IMEngineManager()
+        .engine
+        ?.changeConversationTopStatus(
+      type,
+      targetId,
+      channelId,
+      top,
+      callback:
+      IRCIMIWChangeConversationTopStatusCallback(
+        onConversationTopStatusChanged:
+            (code) {
+          completer.complete(code == 0);
+        },
+      ),
+    );
+
+    return completer.future;
+  }
+
+  /// =========================
+  /// 新消息
+  /// =========================
+  void onNewMessage(
+      String targetId,
+      RCIMIWMessage message,
+      ) {
+    final type = message.conversationType;
+
+    if (type == null) return;
+
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final conv = _allMap[key];
 
     if (conv != null) {
+      final oldMsgId =
+          conv.lastMessage?.messageId;
+
+      if (oldMsgId == message.messageId) {
+        return;
+      }
+
       conv.lastMessage = message;
-      _moveToTop(targetId);
-    } else {
-      _insertNewConversation(message);
+
+      _moveToTop(key);
     }
+
+    _rebuildAllTabCache();
 
     _notify();
   }
 
   /// =========================
-  /// 移动到顶部（局部排序）
+  /// 移动顶部
   /// =========================
-  void _moveToTop(String targetId) {
-    for (var list in _tabIds.values) {
-      final index = list.indexOf(targetId);
-      if (index > 0) {
-        list.removeAt(index);
-        list.insert(0, targetId);
+  void _moveToTop(String key) {
+    for (final list in _tabIds.values) {
+      final index = list.indexOf(key);
+
+      if (index <= 0) continue;
+
+      list.removeAt(index);
+
+      final conv = _allMap[key];
+
+      final isTop = conv?.top ?? false;
+
+      /// 置顶
+      if (isTop) {
+        list.insert(0, key);
+
+        continue;
       }
+
+      /// 插入非置顶首位
+      int insertIndex = list.length;
+
+      for (int i = 0; i < list.length; i++) {
+        final item = _allMap[list[i]];
+
+        if (!(item?.top ?? false)) {
+          insertIndex = i;
+
+          break;
+        }
+      }
+
+      list.insert(insertIndex, key);
     }
   }
 
   /// =========================
-  /// 排序（仅初始化用）
+  /// 排序
   /// =========================
   void _sortIds(List<String> ids) {
     ids.sort((a, b) {
       final convA = _allMap[a];
+
       final convB = _allMap[b];
 
       final aTop = convA?.top ?? false;
+
       final bTop = convB?.top ?? false;
 
       if (aTop != bTop) {
-        return (bTop ? 1 : 0) - (aTop ? 1 : 0);
+        return (bTop ? 1 : 0) -
+            (aTop ? 1 : 0);
       }
 
-      final aTime = convA?.lastMessage?.sentTime ?? 0;
-      final bTime = convB?.lastMessage?.sentTime ?? 0;
+      final aTime =
+          convA?.lastMessage?.sentTime ?? 0;
+
+      final bTime =
+          convB?.lastMessage?.sentTime ?? 0;
 
       return bTime.compareTo(aTime);
     });
   }
 
   /// =========================
-  /// 获取 Tab 数据
+  /// 重建 tab cache
   /// =========================
-  List<RCIMIWConversation> getTabList(int tabIndex) {
-    final ids = _tabIds[tabIndex] ?? [];
-    return ids.map((e) => _allMap[e]!).toList();
-  }
+  void _rebuildAllTabCache() {
+    _tabCache.clear();
 
-  /// =========================
-  /// 通知 UI（节流）
-  /// =========================
-  void _notify() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 100), () {
-      if (!_controller.isClosed) {
-        final map = <int, List<RCIMIWConversation>>{};
-        _tabIds.forEach((key, value) {
-          map[key] = value.map((e) => _allMap[e]!).toList();
-        });
-        _controller.add(map);
-      }
+    _tabIds.forEach((tab, ids) {
+      _tabCache[tab] =
+          ids
+              .where(
+                (e) => _allMap[e] != null,
+          )
+              .map((e) => _allMap[e]!)
+              .toList();
     });
   }
 
   /// =========================
-  /// 销毁
+  /// 获取 tab 数据
+  /// =========================
+  List<RCIMIWConversation> getTabList(
+      int tabIndex,
+      ) {
+    return _tabCache[tabIndex] ?? [];
+  }
+
+  /// =========================
+  /// notify
+  /// =========================
+  void _notify() {
+    if (_notifying) return;
+
+    _notifying = true;
+
+    _debounce?.cancel();
+
+    _debounce = Timer(
+      const Duration(milliseconds: 100),
+          () {
+        _notifying = false;
+
+        if (_controller.isClosed) {
+          return;
+        }
+
+        _controller.add(
+          Map.from(_tabCache),
+        );
+      },
+    );
+  }
+
+  /// =========================
+  /// dispose
   /// =========================
   void dispose() {
     _messageSubscription?.cancel();
+
     _messageSubscription = null;
+
+    _groupEventSubscription?.cancel();
+
+    _groupEventSubscription = null;
+
     _debounce?.cancel();
-    _controller.close();
+
+    /// 单例不要 close
+    /// 否则无法再次监听
   }
 }

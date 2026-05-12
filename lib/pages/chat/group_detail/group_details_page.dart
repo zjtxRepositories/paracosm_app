@@ -4,19 +4,24 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+
+import '../../../core/models/group_member_model.dart';
+import '../chat_session_args.dart';
+import 'group_details_controller.dart';
 
 /// 群聊详情页面
 /// 完全参考 [session_details_page.dart] 进行样式重构
 class GroupDetailsPage extends StatefulWidget {
-  final String groupName;
-  final int memberCount;
+  final ChatSessionArgs? args;
 
   const GroupDetailsPage({
     super.key,
-    required this.groupName,
-    this.memberCount = 13,
+    this.args,
   });
 
   @override
@@ -24,79 +29,28 @@ class GroupDetailsPage extends StatefulWidget {
 }
 
 class _GroupDetailsPageState extends State<GroupDetailsPage> {
-  bool _isPinned = false;
-  bool _isMuted = false;
+  late final GroupDetailsController controller;
+  @override
+  void initState() {
+    super.initState();
+    controller = GroupDetailsController(widget.args);
+    controller.addListener(_refresh);
+    controller.init(context);
+  }
 
-  /// 测试数据里同时放好友、星标好友和陌生人，方便点头像后验证资料页状态分支。
-  final List<Map<String, dynamic>> _members = [
-    {
-      'name': 'Mari..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Jane..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'stranger',
-    },
-    {
-      'name': 'Wad..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Broo..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'stranger',
-    },
-    {
-      'name': 'Jenn..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'star',
-      'isStar': true,
-    },
-    {
-      'name': 'Guy ..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Jaco..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Robe..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'stranger',
-    },
-    {
-      'name': 'Darle..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Dian..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-    {
-      'name': 'Dian..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'star',
-      'isStar': true,
-    },
-    {
-      'name': 'Devo..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'stranger',
-    },
-    {
-      'name': 'Floyd..',
-      'avatar': 'assets/images/chat/avatar.png',
-      'mode': 'friend',
-    },
-  ];
+  void _refresh() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.removeListener(_refresh);
+    controller.dispose();
+    super.dispose();
+  }
+
 
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
@@ -128,8 +82,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         ),
       ),
       onConfirm: () {
-        Navigator.pop(context);
-        // TODO: 处理清空逻辑
+        controller.clearHistory(context);
       },
     );
   }
@@ -146,9 +99,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             child: ListView(
               children: [
                 _buildMemberGrid(),
-                _buildViewMore(),
+                controller.isMemberMore ? _buildViewMore() : SizedBox(),
                 const SizedBox(height: 12),
-                _buildOptionItem(
+                controller.isGroup ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingGroupInfo,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -163,23 +116,46 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ],
                   ),
                   onTap: () {
-                    final encodedName = Uri.encodeComponent(widget.groupName);
-                    context.push('/group-information/$encodedName');
+                    context.push('/group-information',extra: controller.group);
                   },
-                ),
-                _buildOptionItem(
+                ) : SizedBox(),
+                controller.isGroup ?  _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingIntroduction,
-                  subtitle: AppLocalizations.of(context)!.chatSettingIntroEmpty,
-                  onTap: () {
-                    context.push('/group-introduction');
-                  },
-                ),
-                _buildOptionItem(
+                  subtitle: (controller.group?.info.introduction ?? '').isEmpty ?
+                  AppLocalizations.of(context)!.chatSettingIntroEmpty : controller.group?.info.introduction ?? '',
+                  isArrow: controller.isManager,
+                  onTap: controller.isManager ? () async {
+                    final text = await context.push<String>(
+                      '/group-introduction',
+                        extra: {
+                          'title': AppLocalizations.of(context)!.chatSettingIntroduction,
+                          'initial':controller.group?.info.introduction ?? ''
+                        }
+                    );
+                    if (text != null && text.isNotEmpty) {
+                      controller.updateGroupInfo(introduction: text);
+                    }
+                  } : null,
+                ) : SizedBox(),
+                controller.isGroup ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingNotice,
-                  subtitle: AppLocalizations.of(context)!.chatSettingIntroEmpty,
+                  subtitle: (controller.group?.info.notice ?? '').isEmpty ?
+                  AppLocalizations.of(context)!.chatSettingIntroEmpty : controller.group?.info.notice ?? '',
                   isFullBorder: true,
-                  onTap: () {},
-                ),
+                  isArrow: controller.isManager,
+                  onTap: controller.isManager ?  () async {
+                    final text = await context.push<String>(
+                      '/group-introduction',
+                        extra: {
+                          'title': AppLocalizations.of(context)!.chatSettingNotice,
+                          'initial':controller.group?.info.notice ?? ''
+                        }
+                    );
+                    if (text != null && text.isNotEmpty) {
+                      controller.updateGroupInfo(notice: text);
+                    }
+                  } : null,
+                ) : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
@@ -196,9 +172,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingPin,
                   trailing: GestureDetector(
-                    onTap: () => setState(() => _isPinned = !_isPinned),
+                    onTap: () => controller.togglePin(),
                     child: Image.asset(
-                      _isPinned
+                      controller.isPinned
                           ? 'assets/images/common/switch-active.png'
                           : 'assets/images/common/switch-default.png',
                       width: 52,
@@ -206,29 +182,29 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
                   ),
                 ),
-                _buildOptionItem(
-                  AppLocalizations.of(context)!.chatSettingMuteAll,
-                  isFullBorder: true,
-                  trailing: GestureDetector(
-                    onTap: () => setState(() => _isMuted = !_isMuted),
-                    child: Image.asset(
-                      _isMuted
-                          ? 'assets/images/common/switch-active.png'
-                          : 'assets/images/common/switch-default.png',
-                      width: 52,
-                      height: 28,
-                    ),
-                  ),
-                ),
+                // controller.isGroup ? _buildOptionItem(
+                //   AppLocalizations.of(context)!.chatSettingMuteAll,
+                //   isFullBorder: true,
+                //   trailing: GestureDetector(
+                //     onTap: () => controller.toggleMute,
+                //     child: Image.asset(
+                //       controller.isMuted
+                //           ? 'assets/images/common/switch-active.png'
+                //           : 'assets/images/common/switch-default.png',
+                //       width: 52,
+                //       height: 28,
+                //     ),
+                //   ),
+                // ) : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                _buildOptionItem(
+                controller.isGroup ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingDisband,
                   isFullBorder: true,
-                  onTap: () {},
-                ),
+                  onTap: () => controller.toggleDisband(context),
+                ) : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
@@ -245,7 +221,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 _buildOptionItem(
                   AppLocalizations.of(context)!.sessionDetailsReport,
                   isFullBorder: true,
-                  onTap: () {},
+                  onTap: () async {
+                    final text = await context.push<String>(
+                        '/group-introduction',
+                        extra: {
+                          'title': AppLocalizations.of(context)!.sessionDetailsReport,
+                          'initial':''
+                        }
+                    );
+                    if (text != null && text.isNotEmpty) {
+                      AppToast.show('投诉已提交！');
+                    }
+                  }
                 ),
                 const SizedBox(height: 40),
               ],
@@ -259,66 +246,79 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   /// 构建成员网格 (参考 session_details_page.dart 的 Wrap 结构)
   Widget _buildMemberGrid() {
-    final visibleMembers = _members
-        .take(widget.memberCount.clamp(0, _members.length))
-        .toList();
+    final visibleMembers = controller.visibleMembers();
+
+    final items = [
+      ...visibleMembers,
+      'add',
+      'remove',
+    ];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 28,
-            runSpacing: 12,
-            children: [
-              ...visibleMembers.map((member) => _buildMemberItem(member)),
-              _buildActionMemberItem('assets/images/common/add-member.png'),
-              _buildActionMemberItem('assets/images/common/remove-member.png'),
-            ],
-          ),
-        ],
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: items.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5, // 每行5个
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.72,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+
+          if (item == 'add') {
+            return _buildActionMemberItem(
+              'assets/images/common/add-member.png',
+            );
+          }
+
+          if (item == 'remove') {
+            return _buildActionMemberItem(
+              'assets/images/common/remove-member.png',
+            );
+          }
+          if (item is GroupMemberModel){
+            return _buildMemberItem(item);
+          }
+          return SizedBox();
+        },
       ),
     );
   }
 
   /// 单个成员项 (参考 session_details_page.dart)
-  Widget _buildMemberItem(Map<String, dynamic> member) {
-    final String name = member['name'] as String? ?? 'User';
-    final String avatarPath =
-        member['avatar'] as String? ?? 'assets/images/chat/avatar.png';
-    final String mode = member['mode'] as String? ?? 'friend';
-    final bool isStar = member['isStar'] == true;
+  Widget _buildMemberItem(GroupMemberModel member) {
+    final String name = member.name;
+    String? avatarPath = member.item.portraitUri;
 
     return GestureDetector(
       onTap: () {
-        final encodedName = Uri.encodeComponent(name);
-        context.push(
-          '/user-profile/$encodedName?mode=$mode${isStar ? '&star=1' : ''}',
-        );
+        context.push('/user-profile', extra: member.item.userId ?? '');
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              image: DecorationImage(
-                image: AssetImage(avatarPath),
-                fit: BoxFit.cover,
-              ),
-            ),
+          UserAvatarWidget(
+            userId: member.item.userId ?? '',
+            avatarUrl: avatarPath,
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
           const SizedBox(height: 4),
-          Text(
-            name.length > 5 ? '${name.substring(0, 4)}..' : name,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.grey900,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
+          SizedBox(
+            width: 56,
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.grey900,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],
@@ -367,31 +367,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   /// 群组头像预览 (适配 session 风格)
   Widget _buildGroupAvatars() {
-    return Container(
-      width: 36,
-      height: 36,
-      padding: const EdgeInsets.all(1.5),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: GridView.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 1,
-        crossAxisSpacing: 1,
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        children: List.generate(
-          4,
-          (index) => ClipRRect(
-            borderRadius: BorderRadius.circular(1),
-            child: Image.asset(
-              'assets/images/chat/avatar.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-      ),
+    return GroupAvatarWidget(
+      groupId: controller.args?.targetId ?? '',
+      portraitUri: controller.args?.avatar,
+      size: 36,
     );
   }
 
@@ -402,7 +381,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     Widget? trailing,
     VoidCallback? onTap,
     bool isFullBorder = false,
-  }) {
+        bool isArrow = true,
+      }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -446,11 +426,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
                   ),
                   trailing ??
-                      Image.asset(
+                      (isArrow
+                          ? Image.asset(
                         'assets/images/common/next.png',
                         width: 20,
                         height: 20,
-                      ),
+                      )
+                          : const SizedBox()),
                 ],
               ),
             ),
@@ -468,7 +450,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         text: AppLocalizations.of(context)!.commonLeave,
         textColor: Colors.white,
         backgroundColor: const Color(0xFFF04438),
-        onPressed: () {},
+        onPressed: ()=> controller.toggleLeave(context),
       ),
     );
   }

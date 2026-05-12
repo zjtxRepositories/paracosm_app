@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/community_model.dart';
+import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -22,7 +23,7 @@ import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';
 import 'package:paracosm/pages/chat/group_information_page.dart';
-import 'package:paracosm/pages/chat/group_details_page.dart';
+import 'package:paracosm/pages/chat/group_detail/group_details_page.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
@@ -323,20 +324,20 @@ class AppRouter {
 
       // 群聊详情页
       GoRoute(
-        path: '/group-details/:name',
+        path: '/group-details',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = state.pathParameters['name'] ?? 'Group';
-          return GroupDetailsPage(groupName: name);
+          final args = state.extra as ChatSessionArgs?;
+          return GroupDetailsPage(args: args);
         },
       ),
       // 群组信息页
       GoRoute(
-        path: '/group-information/:name',
+        path: '/group-information',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = state.pathParameters['name'] ?? 'Group';
-          return GroupInformationPage(groupName: name);
+          final group = state.extra as GroupModel?;
+          return group == null ? SizedBox() :GroupInformationPage(group: group);
         },
       ),
       // 群简介编辑页
@@ -344,10 +345,12 @@ class AppRouter {
         path: '/group-introduction',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final initialIntroduction =
-              state.uri.queryParameters['initialIntroduction'] ?? '';
+          final data = state.extra as Map<String, dynamic>?;
+          final title = data?['title'];
+          final initialIntroduction = data?['initial'];
           return GroupIntroductionPage(
             initialIntroduction: initialIntroduction,
+            title: title,
           );
         },
       ),

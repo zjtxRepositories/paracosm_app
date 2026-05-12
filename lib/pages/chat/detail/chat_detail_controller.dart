@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
@@ -63,7 +64,7 @@ class ChatDetailController {
   /// =========================
   /// Stream
   /// =========================
-  StreamSubscription<RCIMIWMessage>? _messageSub;
+  StreamSubscription<MessageEvent>? _messageSub;
   StreamSubscription<Map<String, bool>>? _onlineSub;
 
   /// =========================
@@ -197,31 +198,162 @@ class ChatDetailController {
   /// =========================
   /// 消息监听
   /// =========================
+  /// =========================
+  /// 消息监听
+  /// =========================
   void _subscribeMessages() {
-    _messageSub = _messageManager.messageStream.listen((message) async {
-      if (args == null) return;
+    _messageSub = _messageManager.messageStream.listen(
+          (event) async {
+        if (args == null) return;
 
-      if (message.targetId != args!.targetId) return;
-      if (message.conversationType != args!.conversationType) return;
+        switch (event.type) {
+        /// =========================
+        /// 新消息
+        /// =========================
+          case MessageEventType.add:
+            final message = event.message;
 
-      final msg = await ChatDetailMessageMapper.mapMessage(message);
+            if (message == null) return;
 
-      /// ⭐ 核心：统一入口
-      engine.append(msg);
+            if (message.targetId != args!.targetId) {
+              return;
+            }
 
-      if (engine.isAtBottom) {
-        engine.scrollToBottom();
-      }
-    });
+            if (message.conversationType !=
+                args!.conversationType) {
+              return;
+            }
 
+            final msg =
+            await ChatDetailMessageMapper
+                .mapMessage(message);
+
+            /// ⭐ append
+            engine.append(msg);
+
+            if (engine.isAtBottom) {
+              engine.scrollToBottom();
+            }
+
+            break;
+
+        /// =========================
+        /// 删除消息
+        /// =========================
+          case MessageEventType.delete:
+            final deleteList =
+                event.messages ?? [];
+
+            if (deleteList.isEmpty) return;
+
+            final ids = deleteList
+                .map((e) => e.messageId)
+                .toSet();
+
+            engine.removeWhere((e) {
+              final raw = e.extra;
+
+              if (raw is! RCIMIWMessage) {
+                return false;
+              }
+
+              return ids.contains(raw.messageId);
+            });
+
+            break;
+
+        /// =========================
+        /// 撤回消息
+        /// =========================
+          case MessageEventType.recall:
+            final recallMessage =
+                event.message;
+
+            if (recallMessage == null) return;
+
+            if (recallMessage.targetId !=
+                args!.targetId) {
+              return;
+            }
+
+            if (recallMessage.conversationType !=
+                args!.conversationType) {
+              return;
+            }
+
+            final newMsg =
+            await ChatDetailMessageMapper
+                .mapMessage(recallMessage);
+
+            engine.replaceWhere(
+                  (e) {
+                final raw = e.extra;
+
+                if (raw is! RCIMIWMessage) {
+                  return false;
+                }
+
+                return raw.messageUId ==
+                    recallMessage.messageUId;
+              },
+              newMsg,
+            );
+
+            break;
+
+        /// =========================
+        /// 清空消息
+        /// =========================
+          case MessageEventType.clear:
+            if (event.targetId !=
+                args!.targetId) {
+              return;
+            }
+
+            if (event.conversationType !=
+                args!.conversationType) {
+              return;
+            }
+
+            engine.removeWhere((e) {
+              final raw = e.extra;
+
+              if (raw is! RCIMIWMessage) {
+                return false;
+              }
+
+              return (raw.sentTime ?? 0) <=
+                  (event.timestamp ?? 0);
+            });
+
+            break;
+
+        /// =========================
+        /// 更新消息
+        /// =========================
+          case MessageEventType.update:
+            break;
+        }
+      },
+    );
+
+    /// =========================
     /// 在线状态
+    /// =========================
     if (args?.isGroup != true) {
-      _onlineSub = _subscribeEventManager.stream.listen((map) {
-        isOnline = map[args!.targetId] ?? false;
-        notify?.call();
-      });
+      _onlineSub =
+          _subscribeEventManager.stream.listen(
+                (map) {
+              isOnline =
+                  map[args!.targetId] ?? false;
 
-      _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
+              notify?.call();
+            },
+          );
+
+      _subscribeEventManager.subscribeOnlineStatus([
+        args!.targetId,
+      ]);
     }
   }
 
@@ -491,6 +623,16 @@ class ChatDetailController {
         transitionDuration: const Duration(milliseconds: 200),
       ),
     );
+  }
+
+  void navigateToDetail() {
+    if (args?.isGroup ?? false) {
+      context?.push('/group-details',
+          extra: args
+      );
+    } else {
+      // context.push('/user-profile/$encoded');
+    }
   }
 
 }

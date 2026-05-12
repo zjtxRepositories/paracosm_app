@@ -13,10 +13,13 @@ class ChatListItem extends StatefulWidget {
   final int unreadCount;
   final bool isMuted;
   final bool isGroup;
+  final bool isPinned;
   final String? avatar;
   final String? targetId;
   final VoidCallback? onTap;
   final VoidCallback? onAvatarTap;
+  final VoidCallback? onPinTap;
+  final VoidCallback? onDeleteTap;
 
   const ChatListItem({
     super.key,
@@ -24,12 +27,15 @@ class ChatListItem extends StatefulWidget {
     required this.subtitle,
     required this.time,
     required this.isGroup,
+    required this.isPinned,
     this.unreadCount = 0,
     this.isMuted = false,
     this.avatar,
     this.targetId,
     this.onTap,
     this.onAvatarTap,
+    this.onPinTap,
+    this.onDeleteTap,
   });
 
   @override
@@ -46,6 +52,7 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _isPinned = widget.isPinned;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -117,9 +124,7 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                       offset: Offset((1 - value) * 88, 0),
                       child: GestureDetector(
                         onTap: () {
-                          setState(() {
-                            _isPinned = !_isPinned;
-                          });
+                          widget.onPinTap?.call();
                           _close();
                         },
                         child: Container(
@@ -148,6 +153,7 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                       offset: Offset((1 - value) * 144, 0),
                       child: GestureDetector(
                         onTap: () {
+                          widget.onDeleteTap?.call();
                           _close();
                           // TODO: 删除逻辑预留
                         },

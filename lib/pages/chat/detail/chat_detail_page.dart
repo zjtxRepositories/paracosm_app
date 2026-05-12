@@ -64,7 +64,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         avatar: _headerAvatar,
         targetId: _targetId,
         isOnline: controller.isOnline,
-        onMoreTap: _navigateToDetail,
+        onMoreTap: controller.navigateToDetail,
       ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
@@ -249,17 +249,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     ChatMessageContextMenu.show(context, position: position);
-  }
-
-  void _navigateToDetail() {
-    final name = widget.sessionArgs?.name ?? widget.fallbackName;
-    final encoded = Uri.encodeComponent(name);
-
-    if (_isGroupSession) {
-      context.push('/group-details/$encoded');
-    } else {
-      context.push('/user-profile/$encoded');
-    }
   }
 
   Future<void> _openCallPage({required bool isVideo}) async {

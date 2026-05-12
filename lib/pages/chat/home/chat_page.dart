@@ -121,6 +121,7 @@ class _ChatPageState extends State<ChatPage> {
                             isGroup:
                             item.info.conversationType ==
                                 RCIMIWConversationType.group,
+                            isPinned: item.info.top ?? false,
                             isMuted: false,
                             onTap: () {
                               controller.navigateToConversationDetail(
@@ -130,6 +131,8 @@ class _ChatPageState extends State<ChatPage> {
                                 item.portraitUri,
                               );
                             },
+                            onPinTap:()=> controller.toggleConversationTop(item),
+                            onDeleteTap:()=> controller.removeConversation(item),
                           );
                         },
                       );

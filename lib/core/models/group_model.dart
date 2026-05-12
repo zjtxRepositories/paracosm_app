@@ -21,6 +21,8 @@ class GroupModel {
     required this.info,
   });
 
+  String? get displayName => info.groupName != '[默认]' ? info.groupName : null;
+
   Future<String> get name async {
     final remark = info.remark;
     if (remark != null && remark.isNotEmpty) {
@@ -57,7 +59,6 @@ class GroupModel {
       final member = GroupMemberModel(item: e);
       list.add(member);
     }
-    print('list-----${list.length}');
     return list;
   }
 

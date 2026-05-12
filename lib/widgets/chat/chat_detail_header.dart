@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -16,6 +15,7 @@ class ChatDetailHeader extends StatelessWidget {
     required this.targetId,
     required this.isOnline,
     required this.onMoreTap,
+    this.onAvatarTap,
   });
 
   final String name;
@@ -24,6 +24,7 @@ class ChatDetailHeader extends StatelessWidget {
   final String targetId;
   final bool isOnline;
   final VoidCallback onMoreTap;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -45,41 +46,40 @@ class ChatDetailHeader extends StatelessWidget {
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          GestureDetector(
-            onTap: () {
-              final encodedName = Uri.encodeComponent(name);
-              context.push('/session-details/$encodedName');
-            },
-            child: _buildAvatar(),
-          ),
+          GestureDetector(onTap: onAvatarTap, child: _buildAvatar()),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  name,
-                  style: AppTextStyles.h2.copyWith(fontSize: 16),
-                ),
+                Text(name, style: AppTextStyles.h2.copyWith(fontSize: 16)),
                 Row(
                   children: [
-                   isGroup ? SizedBox() : Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isOnline ?  AppColors.onlineBg : AppColors.grey400,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    isGroup ? SizedBox() :   const SizedBox(width: 4),
-                    isGroup ? SizedBox() :   Text(
-                      isOnline ? AppLocalizations.of(context)!.chatDetailActive : '离线',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.grey400,
-                        fontSize: 12,
-                      ),
-                    ),
+                    isGroup
+                        ? SizedBox()
+                        : Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isOnline
+                                  ? AppColors.onlineBg
+                                  : AppColors.grey400,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                    isGroup ? SizedBox() : const SizedBox(width: 4),
+                    isGroup
+                        ? SizedBox()
+                        : Text(
+                            isOnline
+                                ? AppLocalizations.of(context)!.chatDetailActive
+                                : '离线',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.grey400,
+                              fontSize: 12,
+                            ),
+                          ),
                   ],
                 ),
               ],
@@ -108,67 +108,6 @@ class ChatDetailHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       );
     }
-    return GroupAvatarWidget(
-      groupId: targetId,
-      portraitUri: avatar,
-      size: 44,
-    );
-  }
-
-}
-
-class _HeaderAvatar extends StatelessWidget {
-  const _HeaderAvatar({
-    required this.isGroup,
-    required this.avatars,
-  });
-
-  final bool isGroup;
-  final List<String> avatars;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isGroup || avatars.isEmpty) {
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          image: const DecorationImage(
-            image: AssetImage('assets/images/chat/avatar.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: 44,
-      height: 44,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 1,
-          mainAxisSpacing: 1,
-        ),
-        itemCount: avatars.length > 4 ? 4 : avatars.length,
-        itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Image.asset(
-              avatars[index],
-              fit: BoxFit.cover,
-            ),
-          );
-        },
-      ),
-    );
+    return GroupAvatarWidget(groupId: targetId, portraitUri: avatar, size: 44);
   }
 }

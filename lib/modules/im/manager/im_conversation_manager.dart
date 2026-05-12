@@ -238,6 +238,107 @@ class ImConversationManager {
     }
   }
 
+  Future<bool> markConversationRead({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    int? timestamp,
+  }) async {
+    final readTime = timestamp ?? DateTime.now().millisecondsSinceEpoch;
+    final cleared = await clearUnreadCount(
+      type: type,
+      targetId: targetId,
+      channelId: channelId,
+      timestamp: readTime,
+    );
+
+    if (cleared && type == RCIMIWConversationType.private) {
+      await syncConversationReadStatus(
+        type: type,
+        targetId: targetId,
+        channelId: channelId,
+        timestamp: readTime,
+      );
+    }
+
+    return cleared;
+  }
+
+  Future<bool> clearUnreadCount({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required int timestamp,
+  }) async {
+    final completer = Completer<bool>();
+
+    final code = await IMEngineManager().engine?.clearUnreadCount(
+      type,
+      targetId,
+      channelId,
+      timestamp,
+      callback: IRCIMIWClearUnreadCountCallback(
+        onUnreadCountCleared: (code) {
+          if (code == 0) {
+            _clearLocalUnreadCount(targetId);
+            completer.complete(true);
+          } else {
+            debugPrint("清除会话未读数失败: $code");
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 && !completer.isCompleted) {
+      debugPrint("清除会话未读数调用失败: $code");
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  Future<bool> syncConversationReadStatus({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required int timestamp,
+  }) async {
+    final completer = Completer<bool>();
+
+    final code = await IMEngineManager().engine?.syncConversationReadStatus(
+      type,
+      targetId,
+      channelId,
+      timestamp,
+      callback: IRCIMIWSyncConversationReadStatusCallback(
+        onConversationReadStatusSynced: (code) {
+          if (code == 0) {
+            completer.complete(true);
+          } else {
+            debugPrint("同步会话已读状态失败: $code");
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 && !completer.isCompleted) {
+      debugPrint("同步会话已读状态调用失败: $code");
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  void _clearLocalUnreadCount(String targetId) {
+    final conv = _allMap[targetId];
+    if (conv == null || conv.unreadCount == 0) return;
+
+    conv.unreadCount = 0;
+    _notify();
+  }
+
   /// =========================
   /// 删除会话
   /// =========================

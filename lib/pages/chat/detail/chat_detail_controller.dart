@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
@@ -30,8 +31,9 @@ class ChatDetailController {
   BuildContext? context;
 
   final ImMessageManager _messageManager = ImMessageManager();
+  final ImConversationManager _conversationManager = ImConversationManager();
   final ImSubscribeEventManager _subscribeEventManager =
-  ImSubscribeEventManager();
+      ImSubscribeEventManager();
 
   final inputController = TextEditingController();
 
@@ -60,6 +62,7 @@ class ChatDetailController {
   int? _oldestTime;
   final voiceManager = VoiceRecordManager();
   final voicePlayerManager = VoicePlayerManager();
+
   /// =========================
   /// Stream
   /// =========================
@@ -83,6 +86,7 @@ class ChatDetailController {
 
     _loadMessages().then((list) {
       engine.merge(list);
+      _markConversationRead();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         engine.onFirstLoaded();
@@ -91,7 +95,6 @@ class ChatDetailController {
 
     _subscribeMessages();
     _subscribeVoice();
-
   }
 
   void dispose() {
@@ -120,8 +123,7 @@ class ChatDetailController {
   /// =========================
   /// UI 直接用 engine 数据
   /// =========================
-  List<ChatDetailMessage> get messages =>
-      engine.list.cast<ChatDetailMessage>();
+  List<ChatDetailMessage> get messages => engine.list.cast<ChatDetailMessage>();
 
   /// =========================
   /// 初始加载
@@ -141,7 +143,9 @@ class ChatDetailController {
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list = await ChatDetailMessageMapper.mapMessages(result.reversed.toList());
+      final list = await ChatDetailMessageMapper.mapMessages(
+        result.reversed.toList(),
+      );
 
       if (list.isNotEmpty) {
         _oldestTime = list.first.sentTime;
@@ -176,7 +180,9 @@ class ChatDetailController {
         policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list = await ChatDetailMessageMapper.mapMessages(result.reversed.toList());
+      final list = await ChatDetailMessageMapper.mapMessages(
+        result.reversed.toList(),
+      );
 
       if (list.isEmpty) {
         hasMore = false;
@@ -208,6 +214,7 @@ class ChatDetailController {
 
       /// ⭐ 核心：统一入口
       engine.append(msg);
+      _markConversationRead(timestamp: message.sentTime);
 
       if (engine.isAtBottom) {
         engine.scrollToBottom();
@@ -223,6 +230,17 @@ class ChatDetailController {
 
       _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
     }
+  }
+
+  Future<void> _markConversationRead({int? timestamp}) async {
+    if (args == null) return;
+
+    await _conversationManager.markConversationRead(
+      type: args!.conversationType,
+      targetId: args!.targetId,
+      channelId: args!.channelId,
+      timestamp: timestamp,
+    );
   }
 
   /// =========================
@@ -250,12 +268,11 @@ class ChatDetailController {
     };
 
     voiceManager.onTooShort = () {
-      VoiceRecordOverlay.update(isTooShort: true,text: '录音太短');
+      VoiceRecordOverlay.update(isTooShort: true, text: '录音太短');
       Future.delayed(const Duration(milliseconds: 800), () {
         VoiceRecordOverlay.hide();
       });
     };
-
   }
 
   /// =========================
@@ -286,7 +303,7 @@ class ChatDetailController {
     );
   }
 
-  Future<void> sendVideo(MediaInfo media,String thumbnailBase64String) async {
+  Future<void> sendVideo(MediaInfo media, String thumbnailBase64String) async {
     await ImSender.instance.send(
       message: VideoMessage(
         conversationType: args!.conversationType,
@@ -298,7 +315,7 @@ class ChatDetailController {
     );
   }
 
-  Future<void> sendFile(String path,int size,String name) async {
+  Future<void> sendFile(String path, int size, String name) async {
     await ImSender.instance.send(
       message: FileMessage(
         conversationType: args!.conversationType,
@@ -310,7 +327,7 @@ class ChatDetailController {
     );
   }
 
-  Future<void> sendVoice(String path,int duration) async {
+  Future<void> sendVoice(String path, int duration) async {
     await ImSender.instance.send(
       message: VoiceMessage(
         conversationType: args!.conversationType,
@@ -356,20 +373,13 @@ class ChatDetailController {
     final cancel = dy < -50;
     if (cancel != isCancelling) {
       isCancelling = cancel;
-      VoiceRecordOverlay.update(
-        isUp: cancel,
-        text: cancel ? "松开取消" : "松开发送",
-      );
+      VoiceRecordOverlay.update(isUp: cancel, text: cancel ? "松开取消" : "松开发送");
     }
   }
 
-  Future<void> voicePlay(String id,{String? path, String? url}) async {
+  Future<void> voicePlay(String id, {String? path, String? url}) async {
     if (path == null) return;
-    voicePlayerManager.play(
-      id: id,
-      path: path,
-      url: url
-    );
+    voicePlayerManager.play(id: id, path: path, url: url);
   }
 
   /// =========================
@@ -417,7 +427,7 @@ class ChatDetailController {
   Future<void> toggleCamera() async {
     final AssetEntity? entity = await CameraPicker.pickFromCamera(
       context!,
-      pickerConfig: CameraPickerConfig(enableRecording:true),
+      pickerConfig: CameraPickerConfig(enableRecording: true),
     );
 
     if (entity == null) return;
@@ -457,10 +467,7 @@ class ChatDetailController {
     final compressed = await MediaHandleUtil.compressedVideoQuality(file);
     if (compressed?.video == null) return;
 
-    sendVideo(
-      compressed!.video!,
-      thumbnailBase64String,
-    );
+    sendVideo(compressed!.video!, thumbnailBase64String);
   }
 
   Future<void> _handleImage(File file) async {
@@ -469,28 +476,17 @@ class ChatDetailController {
   }
 
   Future<void> _handleFile(File file, String name, int size) async {
-    sendFile(
-      file.path,
-      size,
-      name,
-    );
+    sendFile(file.path, size, name);
   }
 
-  void openMediaViewer({
-    required List<MediaItem> list,
-    required int index,
-  }) {
+  void openMediaViewer({required List<MediaItem> list, required int index}) {
     Navigator.push(
       context!,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            AppMediaGallery(
-          list: list,
-          initialIndex: index,
-        ),
+            AppMediaGallery(list: list, initialIndex: index),
         transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
-
 }

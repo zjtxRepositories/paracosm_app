@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 
@@ -11,11 +10,13 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 /// 包含成员列表、聊天配置选项（免打扰、置顶、清除记录等）以及阅后即焚设置
 class SessionDetailsPage extends StatefulWidget {
   final String name;
+  final String userId;
   final String mode;
 
   const SessionDetailsPage({
     super.key,
     required this.name,
+    this.userId = '',
     this.mode = 'friend',
   });
 
@@ -26,9 +27,10 @@ class SessionDetailsPage extends StatefulWidget {
 class _SessionDetailsPageState extends State<SessionDetailsPage> {
   bool _doNotDisturb = true;
   bool get _isFriend => widget.mode == 'friend';
-  bool get _isStranger => widget.mode == 'stranger';
+
   /// 阅后即焚当前选中的档位值 (0-5)
-  double _burnAfterReadingValue = 1.0; // 0: Close, 1: 10s, 2: 1m, 3: 5m, 4: 10m, 5: 30m
+  double _burnAfterReadingValue =
+      1.0; // 0: Close, 1: 10s, 2: 1m, 3: 5m, 4: 10m, 5: 30m
 
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
@@ -75,7 +77,10 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
       child: ListView(
         children: [
           _buildMemberGrid(),
-          _buildOptionItem(AppLocalizations.of(context)!.chatSettingSearchHistory, onTap: () {}),
+          _buildOptionItem(
+            AppLocalizations.of(context)!.chatSettingSearchHistory,
+            onTap: () {},
+          ),
           _buildOptionItem(
             AppLocalizations.of(context)!.chatSettingMessageDoNotDisturb,
             isFullBorder: false,
@@ -113,11 +118,28 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
                 ),
               ),
             ),
-          Container(height: 10,decoration: const BoxDecoration(color: AppColors.grey100)),
-          _buildOptionItem(AppLocalizations.of(context)!.chatSettingClearHistory, isFullBorder: true, onTap: _showClearHistoryModal),
-          Container(height: 10,decoration: const BoxDecoration(color: AppColors.grey100)),
-          _buildOptionItem(AppLocalizations.of(context)!.sessionDetailsReport, isFullBorder: true, onTap: () {}),
-          Container(height: 10,decoration: const BoxDecoration(color: AppColors.grey100)),
+          Container(
+            height: 10,
+            decoration: const BoxDecoration(color: AppColors.grey100),
+          ),
+          _buildOptionItem(
+            AppLocalizations.of(context)!.chatSettingClearHistory,
+            isFullBorder: true,
+            onTap: _showClearHistoryModal,
+          ),
+          Container(
+            height: 10,
+            decoration: const BoxDecoration(color: AppColors.grey100),
+          ),
+          _buildOptionItem(
+            AppLocalizations.of(context)!.sessionDetailsReport,
+            isFullBorder: true,
+            onTap: () {},
+          ),
+          Container(
+            height: 10,
+            decoration: const BoxDecoration(color: AppColors.grey100),
+          ),
           _buildBurnAfterReading(),
         ],
       ),
@@ -143,9 +165,8 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
   Widget _buildMemberItem(String name, String avatarPath) {
     return GestureDetector(
       onTap: () {
-        final encodedName = Uri.encodeComponent(name);
-        final mode = _isStranger ? 'stranger' : 'friend';
-        context.push('/user-profile/$encodedName?mode=$mode');
+        if (widget.userId.isEmpty) return;
+        context.push('/user-profile', extra: widget.userId);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -211,10 +232,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
               left: isFullBorder ? 0 : 20,
               right: isFullBorder ? 0 : 20,
               bottom: 0,
-              child: Container(
-                height: 0.5,
-                color: AppColors.grey200,
-              ),
+              child: Container(height: 0.5, color: AppColors.grey200),
             ),
             Positioned.fill(
               child: Padding(
@@ -307,7 +325,10 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
                     children: List.generate(labels.length, (index) {
                       // 当前选中的项留空，由 Slider 的 Thumb 覆盖，以显示 Thumb 的白色中心
                       // 同时保持 index == 0 的项不显示（即“关闭”位置不显示绿色圆点，仅显示滑块）
-                      if (index == 0 || index == _burnAfterReadingValue.toInt()) return const SizedBox(width: 0);
+                      if (index == 0 ||
+                          index == _burnAfterReadingValue.toInt()) {
+                        return const SizedBox(width: 0);
+                      }
                       final isReached = index <= _burnAfterReadingValue.toInt();
                       return SizedBox(
                         width: 0,
@@ -317,7 +338,9 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
                             width: 12,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: isReached ? AppColors.primary : AppColors.grey200,
+                              color: isReached
+                                  ? AppColors.primary
+                                  : AppColors.grey200,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -344,9 +367,13 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
                     child: Text(
                       label,
                       style: AppTextStyles.caption.copyWith(
-                        color: isSelected ? AppColors.grey900 : AppColors.grey400,
+                        color: isSelected
+                            ? AppColors.grey900
+                            : AppColors.grey400,
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                        fontWeight: isSelected
+                            ? FontWeight.w500
+                            : FontWeight.w400,
                       ),
                       softWrap: false,
                     ),
@@ -413,7 +440,8 @@ class CustomTrackShape extends RoundedRectSliderTrackShape {
   }) {
     final double trackHeight = sliderTheme.trackHeight!;
     final double trackLeft = offset.dx + 12;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackTop =
+        offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width - 24;
     return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }
@@ -429,10 +457,12 @@ class DottedBorderPainter extends CustomPainter {
 
     final path = Path();
     const radius = 12.0;
-    path.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      const Radius.circular(radius),
-    ));
+    path.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(radius),
+      ),
+    );
 
     final dashPath = Path();
     const dashWidth = 4.0;

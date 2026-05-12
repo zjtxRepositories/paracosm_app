@@ -415,7 +415,8 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? 'Session';
-          return SessionDetailsPage(name: name);
+          final userId = state.extra as String?;
+          return SessionDetailsPage(name: name, userId: userId ?? '');
         },
       ),
       // 社区详情页

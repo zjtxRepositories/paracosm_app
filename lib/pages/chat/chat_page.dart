@@ -125,7 +125,10 @@ class _ChatPageState extends State<ChatPage> {
   /// 刷新会话（减少 rebuild）
   /// =========================
   void _refreshConversation() {
-    final list = _engineManager.conversation.getTabList(_selectedFilterIndex);
+    final tabIndex = _conversationTabIndexForFilter(_selectedFilterIndex);
+    final list = tabIndex == null
+        ? <RCIMIWConversation>[]
+        : _engineManager.conversation.getTabList(tabIndex);
 
     _conversations = list.map((e) => ConversationModel(info: e)).toList();
 
@@ -246,12 +249,14 @@ class _ChatPageState extends State<ChatPage> {
                         unreadCount: item.info.unreadCount ?? 0,
                         avatar: item.portraitUri ?? '',
                         targetId: item.info.targetId,
-                        isGroup: item.info.conversationType == RCIMIWConversationType.group,
+                        isGroup:
+                            item.info.conversationType ==
+                            RCIMIWConversationType.group,
                         isMuted: false,
                         onTap: () => _navigateToConversationDetail(
                           item.info,
                           item.title ?? '',
-                          item.portraitUri
+                          item.portraitUri,
                         ),
                       );
                     }
@@ -350,7 +355,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
-      onTap: () => context.push('/group-list',extra: _groups),
+      onTap: () => context.push('/group-list', extra: _groups),
       behavior: HitTestBehavior.opaque,
       child: Container(
         color: Colors.white,
@@ -418,8 +423,8 @@ class _ChatPageState extends State<ChatPage> {
   void _navigateToConversationDetail(
     RCIMIWConversation conversation,
     String title,
-      String? avatar,
-      ) {
+    String? avatar,
+  ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
@@ -430,7 +435,7 @@ class _ChatPageState extends State<ChatPage> {
         name: title,
         channelId: conversation.channelId,
         isGroup: conversation.conversationType == RCIMIWConversationType.group,
-        avatar: avatar
+        avatar: avatar,
       ),
     );
   }
@@ -557,28 +562,44 @@ class _ChatPageState extends State<ChatPage> {
                     icon: 'assets/images/chat/create-group.png',
                     label: l10n.chatMenuCreateGroup,
                     onTap: () async {
-                      final result = await SelectMembersModal.show(context,friends: _friends);
+                      final result = await SelectMembersModal.show(
+                        context,
+                        friends: _friends,
+                      );
                       if (result != null) {
                         AppLoading.show();
-                        final groupId = await ImGroupManager().create(inviteeUserIds: result,
-                            groupId: generateGroupId(GroupType.normal));
-                        if (groupId == null){
+                        final groupId = await ImGroupManager().create(
+                          inviteeUserIds: result,
+                          groupId: generateGroupId(GroupType.normal),
+                        );
+                        if (groupId == null) {
                           AppLoading.dismiss();
                           AppToast.show('创建群组失败');
                           return;
                         }
-                        final message = CustomMessage(targetId: groupId,
-                            customMessageType: CustomMessageType.groupInvited,
-                            conversationType:RCIMIWConversationType.group);
-                        final isSend = await ImSender.instance.send(message: message);
+                        final message = CustomMessage(
+                          targetId: groupId,
+                          customMessageType: CustomMessageType.groupInvited,
+                          conversationType: RCIMIWConversationType.group,
+                        );
+                        final isSend = await ImSender.instance.send(
+                          message: message,
+                        );
                         AppLoading.dismiss();
-                        if (!isSend)return;
-                        final conversation = await ImConversationManager().getConversation(
-                            type: RCIMIWConversationType.group, targetId: groupId);
-                        if (conversation == null)return;
+                        if (!isSend) return;
+                        final conversation = await ImConversationManager()
+                            .getConversation(
+                              type: RCIMIWConversationType.group,
+                              targetId: groupId,
+                            );
+                        if (conversation == null) return;
                         final model = ConversationModel(info: conversation);
                         await ConversationResolver().resolve(model);
-                        _navigateToConversationDetail(conversation, model.title ?? '',model.portraitUri);
+                        _navigateToConversationDetail(
+                          conversation,
+                          model.title ?? '',
+                          model.portraitUri,
+                        );
                       }
                     },
                   ),
@@ -607,20 +628,13 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建消息分类过滤栏 (All, Message, DAO...)
   Widget _buildFilterBar() {
+    final l10n = AppLocalizations.of(context)!;
     final filters = [
-      AppLocalizations.of(
-        context,
-      )!.chatFilterAllCount(_tabCache?[0]?.length ?? 0),
-
-      '私聊 ${_tabCache?[1]?.length ?? 0}',
-
-      '群聊 ${_tabCache?[2]?.length ?? 0}',
-
-      AppLocalizations.of(
-        context,
-      )!.chatFilterClubCount(_tabCache?[3]?.length ?? 0),
-
-      AppLocalizations.of(context)!.chatFilterDaoCount(0),
+      l10n.chatFilterAllCount(_conversationCountForFilter(0)),
+      l10n.chatFilterMessageCount(_conversationCountForFilter(1)),
+      l10n.chatFilterClubCount(_conversationCountForFilter(2)),
+      l10n.chatFilterDaoCount(_conversationCountForFilter(3)),
+      '${l10n.chatFilterOthers} ${_conversationCountForFilter(4)}',
     ];
     return Container(
       height: 42,
@@ -676,5 +690,27 @@ class _ChatPageState extends State<ChatPage> {
         },
       ),
     );
+  }
+
+  int? _conversationTabIndexForFilter(int filterIndex) {
+    switch (filterIndex) {
+      case 0:
+        return 0; // 全部
+      case 1:
+        return 1; // 消息：私聊
+      case 2:
+        return 2; // 俱乐部：群聊
+      case 4:
+        return 3; // 其他：系统通知
+      default:
+        return null; // DAO 暂无会话来源
+    }
+  }
+
+  int _conversationCountForFilter(int filterIndex) {
+    final tabIndex = _conversationTabIndexForFilter(filterIndex);
+    if (tabIndex == null) return 0;
+
+    return _tabCache?[tabIndex]?.length ?? 0;
   }
 }

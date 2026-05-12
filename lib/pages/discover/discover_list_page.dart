@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -31,7 +32,12 @@ class DiscoverListPage extends StatelessWidget {
         itemCount: dappList.length,
         itemBuilder: (context, index) {
           final item = dappList[index];
-          return _buildListItem(item, isLast: index == dappList.length - 1);
+          return GestureDetector(
+            onTap: (){
+              context.push('/dapp', extra: item);
+            },
+            child: _buildListItem(item, isLast: index == dappList.length - 1),
+          );
         },
       ),
     );

@@ -1,57 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/community_model.dart';
+import 'package:paracosm/core/models/group_member_model.dart';
+import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../chat/chat_session_args.dart';
+import 'community_detail_controller.dart';
 
 /// 社区详情页
 /// 展示社区背景图、基本信息、成员列表以及 Tab 分类内容
 class CommunityDetailPage extends StatefulWidget {
-  final String communityName;
+  final CommunityModel communityModel;
 
-  const CommunityDetailPage({super.key, this.communityName = 'BKOK持仓群'});
+  const CommunityDetailPage({super.key, required this.communityModel});
 
   @override
   State<CommunityDetailPage> createState() => _CommunityDetailPageState();
 }
 
-class _CommunityDetailPageState extends State<CommunityDetailPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CommunityDetailPageState extends State<CommunityDetailPage> {
+
+  late CommunityDetailController controller;
 
   @override
   void initState() {
     super.initState();
-    // 延迟初始化 TabController，因为需要 context 来获取 tabs 长度
-    _tabController = TabController(length: 3, vsync: this);
-    // 添加监听器以触发页面重绘，从而更新下方内容列表
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
-      }
-    });
-  }
+    controller = CommunityDetailController(communityModel: widget.communityModel);
+    controller.addListener(_onRefresh);
 
+    controller.init();
+  }
+  void _onRefresh() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
   @override
   void dispose() {
-    _tabController.dispose();
+    controller.removeListener(_onRefresh);
+    controller.dispose();
+
     super.dispose();
   }
+
+  Future<void> navigateToConversationDetail() async {
+    final group = controller.group;
+    final name = await group?.name;
+    if (name == null) return;
+    final encodedName = Uri.encodeComponent(name);
+    context.push(
+      '/chat-detail/$encodedName',
+      extra: ChatSessionArgs(
+          targetId: group!.info.groupId ?? '',
+          conversationType: RCIMIWConversationType.group,
+          name: name,
+          isGroup: true,
+          avatar: group.info.portraitUri
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final List<String> tabs = [
-      l10n.communityDetailTabDashboard,
-      l10n.communityDetailTabAsset,
-      l10n.communityDetailTabPick
-    ];
-
     return AppPage(
       showNav: true,
       isCustomHeader: true,
@@ -100,13 +125,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
                               _buildCommunityTitleAndAddress(),
                               const SizedBox(height: 8),
                               // 1.3 社区描述
-                              _buildDescription(l10n),
+                              _buildDescription(controller.communityModel.desc ?? ''),
                               const SizedBox(height: 8),
                               // 1.4 社区标签
-                              _buildTags(l10n),
+                              _buildTags(controller.communityModel.tags ?? []),
                               const SizedBox(height: 12),
                               // 1.5 成员信息 (包含头像叠加)
-                              _buildMemberInfo(l10n),
+                              _buildMemberInfo(controller.members),
                               const SizedBox(height: 16),
                               const Divider(
                                 height: 1,
@@ -117,7 +142,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
                         ),
 
                         // 2. Tab 分类区域
-                        _buildTabBar(tabs),
+                        // _buildTabBar(tabs),
 
                         // 3. 内容列表
                         _buildContentList(l10n),
@@ -171,8 +196,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
   /// 构建头像及加入按钮
   Widget _buildAvatarAndJoinAction(BuildContext context, AppLocalizations l10n) {
     // 根据 Tab 动态切换按钮文字和样式
-    final bool isPickTab = _tabController.index == 2;
-
     return SizedBox(
       height: 64, // 占位高度，决定了下方内容（标题）的垂直位置
       child: Stack(
@@ -182,16 +205,20 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
           Positioned(
             top: -16, // 向上偏移半个头像的高度
             left: 0,
-            child: _buildGridAvatar(),
+            child: GroupAvatarWidget(
+                portraitUri: controller.communityModel.avatarUrl,
+                groupId: controller.communityModel.communityParam?.groupId ?? '',
+              size: 64,
+            ),
           ),
           // 动态按钮 (Join 或 Chat)
           Positioned(
             bottom: 16,
             right: 0,
-            child: isPickTab
+            child: controller.isJoined
                 ? AppButton(
                     text: l10n.communityDetailBtnChat,
-                    onPressed: () {},
+                    onPressed: ()=> navigateToConversationDetail,
                     width: 100,
                     height: 32,
                     borderRadius: 32,
@@ -203,7 +230,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
                   )
                 : AppButton(
                     text: l10n.communityDetailBtnJoin,
-                    onPressed: () {},
+                    onPressed: ()=> controller.joined,
                     width: 85,
                     height: 28,
                     borderRadius: 28,
@@ -259,7 +286,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              widget.communityName,
+              controller.communityModel.name ?? '',
               style: AppTextStyles.h1.copyWith(
                 fontSize: 20, // 根据 UI 调整
                 fontWeight: FontWeight.w600,
@@ -284,13 +311,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
                     height: 12,
                   ),
                   const SizedBox(width: 2),
-                  Text(
-                    l10n.communityMockAddressDetail,
+                  controller.communityModel.tokenAddress.isNotEmpty ?  Text(
+                    ellipsisMiddle(controller.communityModel.tokenAddress,tail: 4),
                     style: AppTextStyles.body.copyWith(
                       fontSize: 10,
                       color: AppColors.grey900,
                     ),
-                  ),
+                  ) : SizedBox(),
                 ],
               ),
             ),
@@ -301,9 +328,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
   }
 
   /// 构建社区描述
-  Widget _buildDescription(AppLocalizations l10n) {
+  Widget _buildDescription(String desc) {
     return Text(
-      l10n.communityDetailMockDesc,
+      desc,
       style: AppTextStyles.body.copyWith(
         fontSize: 12,
         color: AppColors.grey400, // 稍微加深一点颜色
@@ -313,12 +340,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
   }
 
   /// 构建标签列表
-  Widget _buildTags(AppLocalizations l10n) {
-    final tags = [
-      l10n.filterTagAirdrop,
-      l10n.filterTagMeme,
-      l10n.filterTagGiveaway
-    ];
+  Widget _buildTags(List<String> tags) {
+
     return Wrap(
       spacing: 4,
       runSpacing: 4,
@@ -343,13 +366,24 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
   }
 
   /// 构建成员信息区域 (头像叠放)
-  Widget _buildMemberInfo(AppLocalizations l10n) {
+  Widget _buildMemberInfo(List<GroupMemberModel> members) {
+    final l10n = AppLocalizations.of(context)!;
+
+    final list = members.take(6).toList();
+    final showMore = members.length > 6;
+
+    /// 整体宽度
+    final width =
+        ((list.length - 1) * 14) +
+            20 +
+            (showMore ? 24 : 0);
+
     return Row(
       children: [
         Text(
-          l10n.communityMockMemberCount1_2k,
+          members.length.toString(),
           style: AppTextStyles.body.copyWith(
-            fontSize: 14, // 根据 UI 调整
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.grey900,
           ),
@@ -362,96 +396,104 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
             color: AppColors.grey400,
           ),
         ),
+
         const Spacer(),
-        // 成员头像叠放效果
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 84, // 根据头像数量调整
-              height: 20,
-              child: Stack(
-                children: List.generate(6, (index) {
-                  return Positioned(
-                    left: index * 14, // 调整叠放间距
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.white, width: 1.5),
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/chat/avatar.png',
-                          fit: BoxFit.cover,
-                        ),
+
+        SizedBox(
+          width: width.toDouble(),
+          height: 20,
+          child: Stack(
+            children: [
+              // 头像
+              ...List.generate(list.length, (index) {
+                final member = list[index];
+
+                return Positioned(
+                  right:
+                  (showMore ? 24 : 0) + (index * 14),
+
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.white,
+                        width: 1.5,
                       ),
                     ),
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(width: 4),
-            // 更多按钮
-            GestureDetector(
-              onTap: () {},
-              child: Image.asset(
-                'assets/images/community/more.png',
-                width: 20,
-                height: 20,
-              ),
-            ),
-          ],
+                    child: UserAvatarWidget(
+                      userId: member.item.userId,
+                      avatarUrl: member.item.portraitUri,
+                    ),
+                  ),
+                );
+              }),
+
+              // more
+              if (showMore)
+                Positioned(
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: Image.asset(
+                      'assets/images/community/more.png',
+                      width: 20,
+                      height: 20,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  /// 构建 TabBar
-  Widget _buildTabBar(List<String> tabs) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: TabBar(
-        controller: _tabController,
-        tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: AppColors.grey900,
-        unselectedLabelColor: AppColors.grey400,
-        labelStyle: AppTextStyles.h2.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ), // 加粗
-        unselectedLabelStyle: AppTextStyles.body.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-        ), // 字体大小一致
-        indicator: _FixedWidthUnderlineTabIndicator(
-          borderSide: const BorderSide(
-            width: 3,
-            color: AppColors.primary,
-          ), // 亮绿色指示器
-          width: 12,
-        ),
-        dividerColor: Colors.transparent,
-        labelPadding: const EdgeInsets.only(right: 24), // 增大间距
-      ),
-    );
-  }
-
-  /// 构建标签内容区域
+  // /// 构建 TabBar
+  // Widget _buildTabBar(List<String> tabs) {
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 20),
+  //     child: TabBar(
+  //       controller: _tabController,
+  //       tabs: tabs.map((tab) => Tab(text: tab)).toList(),
+  //       isScrollable: true,
+  //       tabAlignment: TabAlignment.start,
+  //       labelColor: AppColors.grey900,
+  //       unselectedLabelColor: AppColors.grey400,
+  //       labelStyle: AppTextStyles.h2.copyWith(
+  //         fontSize: 14,
+  //         fontWeight: FontWeight.w600,
+  //       ), // 加粗
+  //       unselectedLabelStyle: AppTextStyles.body.copyWith(
+  //         fontSize: 14,
+  //         fontWeight: FontWeight.w400,
+  //       ), // 字体大小一致
+  //       indicator: _FixedWidthUnderlineTabIndicator(
+  //         borderSide: const BorderSide(
+  //           width: 3,
+  //           color: AppColors.primary,
+  //         ), // 亮绿色指示器
+  //         width: 12,
+  //       ),
+  //       dividerColor: Colors.transparent,
+  //       labelPadding: const EdgeInsets.only(right: 24), // 增大间距
+  //     ),
+  //   );
+  // }
+  //
+  // /// 构建标签内容区域
   Widget _buildContentList(AppLocalizations l10n) {
-    switch (_tabController.index) {
-      case 0:
+    // switch (_tabController.index) {
+    //   case 0:
         return _buildDashboardTabContent(l10n);
-      case 1:
-        return _buildAssetTabContent(l10n);
-      case 2:
-        return _buildPickTabContent(l10n);
-      default:
-        return const SizedBox.shrink();
-    }
+      // case 1:
+      //   return _buildAssetTabContent(l10n);
+      // case 2:
+      //   return _buildPickTabContent(l10n);
+      // default:
+      //   return const SizedBox.shrink();
+    // }
   }
 
   /// 构建 Dashboard 标签页内容
@@ -460,14 +502,14 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      itemCount: 2,
+      itemCount: controller.dynamics.length,
       separatorBuilder: (context, index) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         return Column(
           children: [
-            _buildPostItem(l10n),
-            const SizedBox(height: 12),
-            _buildPostInteraction(l10n),
+            _buildPostItem(controller.dynamics[index]),
+            // const SizedBox(height: 12),
+            // _buildPostInteraction(l10n),
           ],
         );
       },
@@ -1456,27 +1498,20 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
   }
 
   /// 构建动态列表 (Dashboard 原内容)
-  Widget _buildPostItem(AppLocalizations l10n) {
+  Widget _buildPostItem(CommunityPostModel item) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 用户信息
         Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/images/chat/avatar.png',
-                width: 36,
-                height: 36,
-              ),
-            ),
+            UserAvatarWidget(userId: item.user?.profile.userId,avatarUrl: item.user?.profile.portraitUri,size: 36,borderRadius: BorderRadius.all(Radius.circular(8)),),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Kristen',
+                  item.user?.name ?? '',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.grey900,
@@ -1484,7 +1519,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
                   ),
                 ),
                 Text(
-                  '22:03 2025-04-18',
+                  formatIMTime(item.time),
                   style: AppTextStyles.body.copyWith(
                     fontSize: 10,
                     color: AppColors.grey400,
@@ -1498,17 +1533,25 @@ class _CommunityDetailPageState extends State<CommunityDetailPage>
         const SizedBox(height: 16),
         // 文字内容
         Text(
-          'What kind of photos can a novice take after learning by himself for half a What kind of photos can a novice take after learning by himself for half 🚗🚗🚗',
+         item.text,
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             color: const Color(0xFF404040),
             height: 1.5,
           ),
         ),
+
+        // const SizedBox(height: 12),
+        // // 图片网格
+        // _buildPostImageGrid(),
+        // const SizedBox(height: 12),
         const SizedBox(height: 12),
-        // 图片网格
-        _buildPostImageGrid(),
-        const SizedBox(height: 12),
+
+        const Divider(
+          height: 1,
+          thickness: 1,
+          color: AppColors.grey200,
+        ),
       ],
     );
   }

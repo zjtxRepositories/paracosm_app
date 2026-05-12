@@ -75,7 +75,7 @@ class _CommunityListPageState
 
   Widget _buildCommunityItem(CommunityModel item) {
     return GestureDetector(
-      onTap: () => context.push('/community-detail/${item.name}'),
+      onTap: () => context.push('/community-detail',extra: item),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(

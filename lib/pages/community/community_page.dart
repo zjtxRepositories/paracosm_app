@@ -253,6 +253,7 @@ class _CommunityPageState extends State<CommunityPage>
         itemBuilder: (context, index) {
           final item = _recommends[index];
           return _buildRecommendedCard(
+            item: item,
             name: item.name ?? '',
             tags: item.tags,
             members: item.memberNum.toString(),
@@ -271,6 +272,7 @@ class _CommunityPageState extends State<CommunityPage>
   /// [trend] 趋势百分比 (如 +0.19%)
   /// [tags] 标签列表 (当没有趋势信息时展示)
   Widget _buildRecommendedCard({
+    required CommunityModel item,
     required String name,
     List<String>? tags,
     required String members,
@@ -285,7 +287,7 @@ class _CommunityPageState extends State<CommunityPage>
     final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
-      onTap: () => context.push('/community-detail/$name'),
+      onTap: () => context.push('/community-detail',extra: item),
       child: Container(
         width: 185,
         margin: const EdgeInsets.only(right: 12),

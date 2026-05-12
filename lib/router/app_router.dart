@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/community_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -420,11 +421,11 @@ class AppRouter {
       ),
       // 社区详情页
       GoRoute(
-        path: '/community-detail/:name',
+        path: '/community-detail',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = state.pathParameters['name'] ?? 'BKOK持仓群';
-          return CommunityDetailPage(communityName: name);
+          final model = state.extra as CommunityModel?;
+          return model == null ? SizedBox() :CommunityDetailPage(communityModel: model,);
         },
       ),
       // 创建 DAO 页

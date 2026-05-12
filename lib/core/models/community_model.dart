@@ -1,5 +1,14 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
+import 'package:paracosm/core/models/user_model.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../modules/im/manager/im_engine_manager.dart';
+import '../../modules/im/manager/im_user_manager.dart';
+import '../network/api/get_uer_info_api.dart';
+import 'im_user_profile_resolver.dart';
+
 enum RoomType {
   dao,    // 1 DAO
   club,   // 2 Club
@@ -76,6 +85,7 @@ class CommunityModel {
     this.desc,
     this.tags,
   });
+
   String get displayAddress {
     if (communityParam == null){
       return jid ?? '';
@@ -85,6 +95,10 @@ class CommunityModel {
     }
 
     return communityParam!.tokenAddress ?? '--';
+  }
+
+  String get tokenAddress {
+    return communityParam?.tokenAddress ?? '';
   }
 
   factory CommunityModel.fromJson(Map<String, dynamic> json) {
@@ -174,4 +188,190 @@ class CommunityParam {
     );
   }
 }
+class CommunityPostPageModel {
+  CommunityPostPageModel({
+    required this.pageCount,
+    required this.pageData,
+  });
 
+  final int pageCount;
+
+  final List<CommunityPostModel> pageData;
+
+  factory CommunityPostPageModel.fromJson(
+      Map<String, dynamic> json,
+      ) {
+    return CommunityPostPageModel(
+      pageCount: json['pageCount'] is int
+          ? json['pageCount']
+          : int.tryParse(
+        json['pageCount'].toString(),
+      ) ??
+          0,
+
+      pageData: (json['pageData'] as List<dynamic>? ?? [])
+          .map(
+            (e) => CommunityPostModel.fromJson(
+          e as Map<String, dynamic>,
+        ),
+      )
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'pageCount': pageCount,
+      'pageData': pageData
+          .map((e) => e.toJson())
+          .toList(),
+    };
+  }
+
+  bool get hasData => pageData.isNotEmpty;
+
+  bool get isEmpty => pageData.isEmpty;
+}
+class CommunityPostModel {
+  CommunityPostModel({
+    required this.id,
+    required this.nickname,
+    required this.roomId,
+    required this.text,
+    required this.time,
+    required this.typeNum,
+    required this.userId,
+  });
+
+  final String id;
+
+  /// 发布人昵称
+  final String nickname;
+
+  /// 社区/房间 ID
+  final String roomId;
+
+  /// 动态内容
+  final String text;
+
+  /// 秒级时间戳
+  final int time;
+
+  /// 动态类型
+  final int typeNum;
+
+  /// 用户 ID
+  final int userId;
+
+  UserModel? user;
+
+  factory CommunityPostModel.fromJson(
+      Map<String, dynamic> json,
+      ) {
+    return CommunityPostModel(
+      id: json['id']?.toString() ?? '',
+      nickname: json['nickname']?.toString() ?? '',
+      roomId: json['roomId']?.toString() ?? '',
+      text: json['text']?.toString() ?? '',
+      time: json['time'] is int
+          ? json['time']
+          : int.tryParse(
+        json['time'].toString(),
+      ) ??
+          0,
+      typeNum: json['typeNum'] is int
+          ? json['typeNum']
+          : int.tryParse(
+        json['typeNum'].toString(),
+      ) ??
+          0,
+      userId: json['userId'] is int
+          ? json['userId']
+          : int.tryParse(
+        json['userId'].toString(),
+      ) ??
+          0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nickname': nickname,
+      'roomId': roomId,
+      'text': text,
+      'time': time,
+      'typeNum': typeNum,
+      'userId': userId,
+    };
+  }
+
+  /// 发布时间
+  DateTime get dateTime {
+    return DateTime.fromMillisecondsSinceEpoch(
+      time * 1000,
+    );
+  }
+
+  /// 是否文本动态
+  bool get isTextPost => typeNum == 0;
+}
+
+
+class CommunityResolver {
+  final ImUserManager _manager = ImUserManager();
+
+  /// 内存缓存
+  final Map<String, UserModel> _cache = {};
+
+  Future<void> resolve(List<CommunityPostModel> models) async {
+    if (models.isEmpty) return;
+
+    try {
+      /// 1. 收集 socialId
+      final socialUserIds = models
+          .map((e) => e.userId.toString())
+          .toSet()
+          .toList();
+
+      /// 2. 过滤缓存
+      final needLoadIds = socialUserIds
+          .where((e) => !_cache.containsKey(e))
+          .toList();
+
+      /// 3. 获取业务用户
+      final userInfos =
+      await GetUerInfoApi.getList(needLoadIds);
+
+      /// 4. 直接交给 IM resolver（关键优化点🔥）
+      final imResolver = IMUserProfileResolver(_manager);
+
+      final profileMap =
+      await imResolver.resolveFromSocialUsers(
+        userInfos: userInfos,
+        currentUserId: IMEngineManager().currentUserId,
+      );
+
+      /// 5. 只做缓存 + model 回填
+      for (final item in userInfos) {
+        final imId = item.account;
+        final profile = profileMap[imId];
+
+        if (profile != null) {
+          _cache[item.userId] =
+              UserModel(profile: profile);
+        }
+      }
+
+      for (final model in models) {
+        model.user = _cache[model.userId];
+      }
+    } catch (e) {
+      debugPrint("MomentsResolver resolve error: $e");
+    }
+  }
+
+  void clearCache() {
+    _cache.clear();
+  }
+}

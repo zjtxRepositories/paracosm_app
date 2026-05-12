@@ -101,7 +101,6 @@ class MomentsResolver {
       /// 8. 回填数据
       for (final model in models) {
         final socialId = model.item.userId;
-        print('data-----$socialId---${_cache[socialId]}');
         model.user = _cache[socialId];
 
       }

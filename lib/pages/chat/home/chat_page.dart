@@ -111,8 +111,6 @@ class _ChatPageState extends State<ChatPage> {
                       return ListenableBuilder(
                         listenable: item,
                         builder: (_, __) {
-                          print('refresh----${item.info.targetId}---${item.title}');
-
                           return ChatListItem(
                             title: item.title ?? '',
                             subtitle: item.subtitle ?? '',

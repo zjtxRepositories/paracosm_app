@@ -214,7 +214,49 @@ class ImMessageManager {
       ),
     );
 
-    if (ret != null && ret != 0) {
+    if (ret == null) {
+      return ImResult.error(code: -1);
+    }
+
+    if (ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
+
+  Future<ImResult<List<RCIMIWMessage>>> getMessagesAroundTime({
+    required RCIMIWConversationType type,
+    required String targetId,
+    required int sentTime,
+    int beforeCount = 10,
+    int afterCount = 10,
+    String? channelId,
+  }) async {
+    final completer = Completer<ImResult<List<RCIMIWMessage>>>();
+
+    final ret = await IMEngineManager().engine?.getMessagesAroundTime(
+      type,
+      targetId,
+      channelId,
+      sentTime,
+      beforeCount,
+      afterCount,
+      callback: IRCIMIWGetMessagesAroundTimeCallback(
+        onSuccess: (List<RCIMIWMessage>? t) {
+          completer.complete(ImResult.success(data: t ?? []));
+        },
+        onError: (code) {
+          completer.complete(ImResult.error(code: code ?? -1));
+        },
+      ),
+    );
+
+    if (ret == null) {
+      return ImResult.error(code: -1);
+    }
+
+    if (ret != 0) {
       return ImResult.error(code: ret);
     }
 
@@ -312,14 +354,14 @@ class ImMessageManager {
     final callSummaryKey = RongCallSummaryParser.stableMessageKey(message);
     if (callSummaryKey != null) return callSummaryKey;
 
-    final messageUId = message.messageUId;
-    if (messageUId != null && messageUId.isNotEmpty) {
-      return 'uid:$messageUId';
-    }
-
     final messageId = message.messageId;
     if (messageId != null && messageId > 0) {
       return 'id:$messageId';
+    }
+
+    final messageUId = message.messageUId;
+    if (messageUId != null && messageUId.isNotEmpty) {
+      return 'uid:$messageUId';
     }
 
     final timestamp = message.sentTime ?? message.receivedTime;

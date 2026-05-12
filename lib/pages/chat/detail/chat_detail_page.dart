@@ -37,6 +37,8 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   late final ChatDetailController controller;
+  final Map<String, GlobalKey> _messageKeys = {};
+  bool _didScrollToAnchor = false;
 
   @override
   void initState() {
@@ -129,6 +131,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+    _scheduleAnchorScroll();
     return NotificationListener<ScrollNotification>(
       onNotification: (scroll) {
         if (scroll.metrics.pixels <= 100 && controller.messages.isNotEmpty) {
@@ -142,10 +145,37 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         itemCount: controller.messages.length,
         itemBuilder: (context, index) {
           final message = controller.messages[index];
-          return _buildMessageNode(message);
+          return KeyedSubtree(
+            key: _keyForMessage(message.messageId),
+            child: _buildMessageNode(message),
+          );
         },
       ),
     );
+  }
+
+  GlobalKey _keyForMessage(String messageId) {
+    return _messageKeys.putIfAbsent(messageId, GlobalKey.new);
+  }
+
+  void _scheduleAnchorScroll() {
+    final anchorMessageId = controller.anchorMessageId;
+    if (_didScrollToAnchor || anchorMessageId == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didScrollToAnchor) return;
+
+      final targetContext = _messageKeys[anchorMessageId]?.currentContext;
+      if (targetContext == null) return;
+
+      _didScrollToAnchor = true;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        alignment: 0.35,
+      );
+    });
   }
 
   Widget _buildMessageNode(ChatDetailMessage message) {
@@ -257,9 +287,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final encoded = Uri.encodeComponent(name);
 
     if (_isGroupSession) {
-      context.push('/group-details/$encoded');
+      context.push('/group-details/$encoded', extra: widget.sessionArgs);
     } else {
-      context.push('/session-details/$encoded', extra: _targetId);
+      context.push('/session-details/$encoded', extra: widget.sessionArgs);
     }
   }
 

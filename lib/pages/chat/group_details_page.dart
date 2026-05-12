@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 /// 群聊详情页面
 /// 完全参考 [session_details_page.dart] 进行样式重构
 class GroupDetailsPage extends StatefulWidget {
   final String groupName;
   final int memberCount;
+  final ChatSessionArgs? sessionArgs;
 
   const GroupDetailsPage({
     super.key,
     required this.groupName,
     this.memberCount = 13,
+    this.sessionArgs,
   });
 
   @override
@@ -25,7 +31,9 @@ class GroupDetailsPage extends StatefulWidget {
 
 class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isPinned = false;
+  bool _isSettingPinned = false;
   bool _isMuted = false;
+  bool _isSettingMuted = false;
 
   /// 测试数据里同时放好友、星标好友和陌生人，方便点头像后验证资料页状态分支。
   final List<Map<String, dynamic>> _members = [
@@ -97,6 +105,106 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       'mode': 'friend',
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTopStatus();
+    _loadDoNotDisturb();
+  }
+
+  Future<void> _loadDoNotDisturb() async {
+    final args = widget.sessionArgs;
+    if (args == null) return;
+
+    final level = await ImConversationManager()
+        .getConversationNotificationLevel(
+          type: args.conversationType,
+          targetId: args.targetId,
+          channelId: args.channelId,
+        );
+    if (!mounted || level == null) return;
+
+    setState(() {
+      _isMuted = level == RCIMIWPushNotificationLevel.blocked;
+    });
+  }
+
+  Future<void> _toggleDoNotDisturb() async {
+    final args = widget.sessionArgs;
+    if (args == null || _isSettingMuted) return;
+
+    final nextValue = !_isMuted;
+    setState(() {
+      _isMuted = nextValue;
+      _isSettingMuted = true;
+    });
+
+    final success = await ImConversationManager().setConversationDoNotDisturb(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+      enabled: nextValue,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSettingMuted = false;
+      if (!success) {
+        _isMuted = !nextValue;
+      }
+    });
+
+    if (!success) {
+      AppToast.show('设置失败');
+    }
+  }
+
+  Future<void> _loadTopStatus() async {
+    final args = widget.sessionArgs;
+    if (args == null) return;
+
+    final top = await ImConversationManager().getConversationTopStatus(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+    );
+    if (!mounted || top == null) return;
+
+    setState(() {
+      _isPinned = top;
+    });
+  }
+
+  Future<void> _toggleTopStatus() async {
+    final args = widget.sessionArgs;
+    if (args == null || _isSettingPinned) return;
+
+    final nextValue = !_isPinned;
+    setState(() {
+      _isPinned = nextValue;
+      _isSettingPinned = true;
+    });
+
+    final success = await ImConversationManager().setConversationTopStatus(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+      top: nextValue,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSettingPinned = false;
+      if (!success) {
+        _isPinned = !nextValue;
+      }
+    });
+
+    if (!success) {
+      AppToast.show('设置失败');
+    }
+  }
 
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
@@ -187,7 +295,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingSearchHistory,
                   isFullBorder: true,
-                  onTap: () {},
+                  onTap: _navigateToHistorySearch,
                 ),
                 Container(
                   height: 10,
@@ -196,7 +304,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingPin,
                   trailing: GestureDetector(
-                    onTap: () => setState(() => _isPinned = !_isPinned),
+                    onTap: widget.sessionArgs == null ? null : _toggleTopStatus,
                     child: Image.asset(
                       _isPinned
                           ? 'assets/images/common/switch-active.png'
@@ -210,7 +318,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   AppLocalizations.of(context)!.chatSettingMuteAll,
                   isFullBorder: true,
                   trailing: GestureDetector(
-                    onTap: () => setState(() => _isMuted = !_isMuted),
+                    onTap: widget.sessionArgs == null
+                        ? null
+                        : _toggleDoNotDisturb,
                     child: Image.asset(
                       _isMuted
                           ? 'assets/images/common/switch-active.png'
@@ -281,6 +391,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         ],
       ),
     );
+  }
+
+  void _navigateToHistorySearch() {
+    if (widget.sessionArgs == null) return;
+    context.push('/chat-history-search', extra: widget.sessionArgs);
   }
 
   /// 单个成员项 (参考 session_details_page.dart)

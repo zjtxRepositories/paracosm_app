@@ -15,14 +15,9 @@ class ConversationModel extends ChangeNotifier {
   String? subtitle;
   String? portraitUri;
 
-  ConversationModel({
-    required this.info,
-  });
+  ConversationModel({required this.info});
 
-  int get time =>
-      info.operationTime ??
-          info.lastMessage?.sentTime ??
-          0;
+  int get time => info.operationTime ?? info.lastMessage?.sentTime ?? 0;
 
   void updateConversation(RCIMIWConversation value) {
     info = value;
@@ -30,11 +25,7 @@ class ConversationModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void update({
-    String? title,
-    String? subtitle,
-    String? portraitUri,
-  }) {
+  void update({String? title, String? subtitle, String? portraitUri}) {
     this.title = title ?? this.title;
     this.subtitle = subtitle ?? this.subtitle;
     this.portraitUri = portraitUri ?? this.portraitUri;
@@ -45,8 +36,7 @@ class ConversationModel extends ChangeNotifier {
 class ConversationResolver {
   ConversationResolver._();
 
-  static final ConversationResolver _instance =
-  ConversationResolver._();
+  static final ConversationResolver _instance = ConversationResolver._();
 
   factory ConversationResolver() {
     return _instance;
@@ -56,6 +46,11 @@ class ConversationResolver {
 
   Future<void> resolve(ConversationModel model) async {
     final info = model.info;
+    final lastMessage = info.lastMessage;
+    final expectedTargetId = info.targetId;
+    final expectedMessageId = lastMessage?.messageId;
+    final expectedMessageUId = lastMessage?.messageUId;
+    final expectedSentTime = lastMessage?.sentTime;
 
     String? title;
     String? subtitle;
@@ -83,10 +78,11 @@ class ConversationResolver {
     }
 
     // subtitle
-    final msg = info.lastMessage;
+    final msg = lastMessage;
     if (msg != null) {
       final content = await _format(msg);
-      if (info.conversationType == RCIMIWConversationType.group && msg.messageType != RCIMIWMessageType.custom) {
+      if (info.conversationType == RCIMIWConversationType.group &&
+          msg.messageType != RCIMIWMessageType.custom) {
         final user = await _getUser(msg.senderUserId ?? '');
         subtitle = '${user?.name ?? ''}：$content';
       } else {
@@ -94,11 +90,15 @@ class ConversationResolver {
       }
     }
 
-    model.update(
-      title: title,
-      subtitle: subtitle,
-      portraitUri: portraitUri,
-    );
+    final currentMessage = model.info.lastMessage;
+    if (model.info.targetId != expectedTargetId ||
+        currentMessage?.messageId != expectedMessageId ||
+        currentMessage?.messageUId != expectedMessageUId ||
+        currentMessage?.sentTime != expectedSentTime) {
+      return;
+    }
+
+    model.update(title: title, subtitle: subtitle, portraitUri: portraitUri);
   }
 
   Future<String> _format(RCIMIWMessage message) async {
@@ -129,7 +129,7 @@ class ConversationResolver {
         final model = CustomMessageModel.fromJson(
           Map<String, dynamic>.from(data),
         );
-        return  _formatCustomMessage(model);
+        return _formatCustomMessage(model);
       default:
         return '[消息]';
     }

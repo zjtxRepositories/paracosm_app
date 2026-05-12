@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 /// 会话详情页面
 /// 包含成员列表、聊天配置选项（免打扰、置顶、清除记录等）以及阅后即焚设置
 class SessionDetailsPage extends StatefulWidget {
   final String name;
   final String userId;
+  final ChatSessionArgs? sessionArgs;
   final String mode;
 
   const SessionDetailsPage({
     super.key,
     required this.name,
     this.userId = '',
+    this.sessionArgs,
     this.mode = 'friend',
   });
 
@@ -25,12 +31,115 @@ class SessionDetailsPage extends StatefulWidget {
 }
 
 class _SessionDetailsPageState extends State<SessionDetailsPage> {
-  bool _doNotDisturb = true;
+  bool _isDoNotDisturb = false;
+  bool _isSettingDoNotDisturb = false;
+  bool _isPinned = false;
+  bool _isSettingPinned = false;
   bool get _isFriend => widget.mode == 'friend';
 
   /// 阅后即焚当前选中的档位值 (0-5)
   double _burnAfterReadingValue =
       1.0; // 0: Close, 1: 10s, 2: 1m, 3: 5m, 4: 10m, 5: 30m
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoNotDisturb();
+    _loadTopStatus();
+  }
+
+  Future<void> _loadDoNotDisturb() async {
+    final args = widget.sessionArgs;
+    if (args == null) return;
+
+    final level = await ImConversationManager()
+        .getConversationNotificationLevel(
+          type: args.conversationType,
+          targetId: args.targetId,
+          channelId: args.channelId,
+        );
+    if (!mounted || level == null) return;
+
+    setState(() {
+      _isDoNotDisturb = level == RCIMIWPushNotificationLevel.blocked;
+    });
+  }
+
+  Future<void> _toggleDoNotDisturb() async {
+    final args = widget.sessionArgs;
+    if (args == null || _isSettingDoNotDisturb) return;
+
+    final nextValue = !_isDoNotDisturb;
+    setState(() {
+      _isDoNotDisturb = nextValue;
+      _isSettingDoNotDisturb = true;
+    });
+
+    final success = await ImConversationManager().setConversationDoNotDisturb(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+      enabled: nextValue,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSettingDoNotDisturb = false;
+      if (!success) {
+        _isDoNotDisturb = !nextValue;
+      }
+    });
+
+    if (!success) {
+      AppToast.show('设置失败');
+    }
+  }
+
+  Future<void> _loadTopStatus() async {
+    final args = widget.sessionArgs;
+    if (args == null) return;
+
+    final top = await ImConversationManager().getConversationTopStatus(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+    );
+    if (!mounted || top == null) return;
+
+    setState(() {
+      _isPinned = top;
+    });
+  }
+
+  Future<void> _toggleTopStatus() async {
+    final args = widget.sessionArgs;
+    if (args == null || _isSettingPinned) return;
+
+    final nextValue = !_isPinned;
+    setState(() {
+      _isPinned = nextValue;
+      _isSettingPinned = true;
+    });
+
+    final success = await ImConversationManager().setConversationTopStatus(
+      type: args.conversationType,
+      targetId: args.targetId,
+      channelId: args.channelId,
+      top: nextValue,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSettingPinned = false;
+      if (!success) {
+        _isPinned = !nextValue;
+      }
+    });
+
+    if (!success) {
+      AppToast.show('设置失败');
+    }
+  }
 
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
@@ -79,19 +188,15 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
           _buildMemberGrid(),
           _buildOptionItem(
             AppLocalizations.of(context)!.chatSettingSearchHistory,
-            onTap: () {},
+            onTap: _navigateToHistorySearch,
           ),
           _buildOptionItem(
             AppLocalizations.of(context)!.chatSettingMessageDoNotDisturb,
             isFullBorder: false,
             trailing: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _doNotDisturb = !_doNotDisturb;
-                });
-              },
+              onTap: widget.sessionArgs == null ? null : _toggleDoNotDisturb,
               child: Image.asset(
-                _doNotDisturb
+                _isDoNotDisturb
                     ? 'assets/images/common/switch-active.png'
                     : 'assets/images/common/switch-default.png',
                 width: 52,
@@ -104,13 +209,9 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
               AppLocalizations.of(context)!.chatSettingPin,
               isFullBorder: true,
               trailing: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _doNotDisturb = !_doNotDisturb;
-                  });
-                },
+                onTap: widget.sessionArgs == null ? null : _toggleTopStatus,
                 child: Image.asset(
-                  _doNotDisturb
+                  _isPinned
                       ? 'assets/images/common/switch-active.png'
                       : 'assets/images/common/switch-default.png',
                   width: 52,
@@ -194,6 +295,11 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
         ],
       ),
     );
+  }
+
+  void _navigateToHistorySearch() {
+    if (widget.sessionArgs == null) return;
+    context.push('/chat-history-search', extra: widget.sessionArgs);
   }
 
   /// 构建添加成员按钮

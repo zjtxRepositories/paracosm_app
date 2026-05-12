@@ -6,18 +6,14 @@ import 'im_message_manager.dart';
 /// =========================
 /// 发送状态
 /// =========================
-enum MessageSendStatus {
-  sending,
-  success,
-  failed,
-  canceled,
-}
+enum MessageSendStatus { sending, success, failed, canceled }
 
 /// UI 更新
 typedef OnMessageUpdate = void Function(RCIMIWMessage message);
 
 /// 上传进度
 typedef OnProgress = void Function(String messageId, int progress);
+
 class ImSendManager {
   ImSendManager._();
   static final ImSendManager instance = ImSendManager._();
@@ -28,7 +24,6 @@ class ImSendManager {
   /// 唯一职责：发送消息（给队列调用）
   /// =========================
   Future<bool> sendMessage(RCIMIWMessage message) async {
-    ImMessageManager().pushLocalMessage(message);
     if (message is RCIMIWMediaMessage) {
       return _sendMediaMessage(message);
     } else {
@@ -45,7 +40,6 @@ class ImSendManager {
     final listener = RCIMIWSendMessageCallback(
       onMessageSaved: (msg) {
         ImMessageManager().pushLocalMessage(msg ?? message);
-        print('插入消息----');
       },
       onMessageSent: (code, msg) {
         ImMessageManager().pushLocalMessage(msg ?? message);
@@ -55,10 +49,7 @@ class ImSendManager {
       },
     );
 
-    final ret = await _engine?.sendMessage(
-      message,
-      callback: listener,
-    );
+    final ret = await _engine?.sendMessage(message, callback: listener);
 
     if (ret != 0) {
       return false;
@@ -77,7 +68,7 @@ class ImSendManager {
       onMediaMessageSaved: (msg) {
         ImMessageManager().pushLocalMessage(msg ?? message);
       },
-      onMediaMessageSending: (_, __) {},
+      onMediaMessageSending: (message, progress) {},
       onMediaMessageSent: (code, msg) {
         ImMessageManager().pushLocalMessage(msg ?? message);
         if (!completer.isCompleted) {
@@ -91,10 +82,7 @@ class ImSendManager {
       },
     );
 
-    final ret = await _engine?.sendMediaMessage(
-      message,
-      listener: listener,
-    );
+    final ret = await _engine?.sendMediaMessage(message, listener: listener);
 
     if (ret != 0) {
       return false;

@@ -21,8 +21,7 @@ import '../chat_session_args.dart';
 class ChatController extends ChangeNotifier {
   ChatController._();
 
-  static final ChatController _instance =
-  ChatController._();
+  static final ChatController _instance = ChatController._();
 
   factory ChatController() {
     return _instance;
@@ -49,6 +48,7 @@ class ChatController extends ChangeNotifier {
 
   bool _inited = false;
   final Map<String, ConversationModel> _conversationMap = {};
+
   /// 初始化
   void init() {
     if (_inited) return;
@@ -60,7 +60,6 @@ class ChatController extends ChangeNotifier {
     _fetchContact();
     _fetchGroup();
     _fetchFriendApplication();
-
   }
 
   /// =========================
@@ -118,9 +117,7 @@ class ChatController extends ChangeNotifier {
   }
 
   Future<void> refreshConversation() async {
-    final list = _engineManager.conversation.getTabList(
-      selectedFilterIndex,
-    );
+    final list = _engineManager.conversation.getTabList(selectedFilterIndex);
 
     final temp = <ConversationModel>[];
 
@@ -133,6 +130,7 @@ class ChatController extends ChangeNotifier {
         model = _conversationMap[targetId]!;
 
         model.updateConversation(item);
+        resolve(model);
       } else {
         model = ConversationModel(info: item);
         resolve(model);
@@ -150,6 +148,7 @@ class ChatController extends ChangeNotifier {
     await resolver.resolve(model);
     _conversationMap[model.info.targetId ?? ''] = model;
   }
+
   /// =========================
   /// 联系人
   /// =========================
@@ -194,57 +193,68 @@ class ChatController extends ChangeNotifier {
     refreshConversation();
   }
 
-
   /// =========================
   /// event
   /// =========================
   Future<void> createNormalGroup(BuildContext context) async {
-    final result = await SelectMembersModal.show(context,friends: friends);
+    final result = await SelectMembersModal.show(context, friends: friends);
     if (result != null) {
       AppLoading.show();
-      final groupId = await ImGroupManager().create(inviteeUserIds: result,
-          groupId: generateGroupId(GroupType.normal));
-      if (groupId == null){
+      final groupId = await ImGroupManager().create(
+        inviteeUserIds: result,
+        groupId: generateGroupId(GroupType.normal),
+      );
+      if (groupId == null) {
         AppLoading.dismiss();
         AppToast.show('创建群组失败');
         return;
       }
-      final message = CustomMessage(targetId: groupId,
-          customMessageType: CustomMessageType.groupInvited,
-          conversationType:RCIMIWConversationType.group);
+      final message = CustomMessage(
+        targetId: groupId,
+        customMessageType: CustomMessageType.groupInvited,
+        conversationType: RCIMIWConversationType.group,
+      );
       final isSend = await ImSender.instance.send(message: message);
       AppLoading.dismiss();
-      if (!isSend)return;
+      if (!isSend) return;
       final conversation = await ImConversationManager().getConversation(
-          type: RCIMIWConversationType.group, targetId: groupId);
-      if (conversation == null)return;
+        type: RCIMIWConversationType.group,
+        targetId: groupId,
+      );
+      if (conversation == null) return;
       final model = ConversationModel(info: conversation);
       await ConversationResolver().resolve(model);
-      navigateToConversationDetail(context,conversation, model.title ?? '',model.portraitUri);
+      if (!context.mounted) return;
+      navigateToConversationDetail(
+        context,
+        conversation,
+        model.title ?? '',
+        model.portraitUri,
+      );
     }
   }
 
   void navigateToConversationDetail(
-      BuildContext context,
-      RCIMIWConversation conversation,
-      String title,
-      String? avatar,
-      ) {
+    BuildContext context,
+    RCIMIWConversation conversation,
+    String title,
+    String? avatar,
+  ) {
     final encodedName = Uri.encodeComponent(title);
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
-          targetId: conversation.targetId ?? '',
-          conversationType:
-          conversation.conversationType ?? RCIMIWConversationType.private,
-          name: title,
-          channelId: conversation.channelId,
-          isGroup: conversation.conversationType ==
-              RCIMIWConversationType.group,
-          avatar: avatar
+        targetId: conversation.targetId ?? '',
+        conversationType:
+            conversation.conversationType ?? RCIMIWConversationType.private,
+        name: title,
+        channelId: conversation.channelId,
+        isGroup: conversation.conversationType == RCIMIWConversationType.group,
+        avatar: avatar,
       ),
     );
   }
+
   /// =========================
   /// dispose
   /// =========================

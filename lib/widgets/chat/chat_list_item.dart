@@ -12,6 +12,7 @@ class ChatListItem extends StatefulWidget {
   final String time;
   final int unreadCount;
   final bool isMuted;
+  final bool isPinned;
   final bool isGroup;
   final String? avatar;
   final String? targetId;
@@ -26,6 +27,7 @@ class ChatListItem extends StatefulWidget {
     required this.isGroup,
     this.unreadCount = 0,
     this.isMuted = false,
+    this.isPinned = false,
     this.avatar,
     this.targetId,
     this.onTap,
@@ -36,27 +38,29 @@ class ChatListItem extends StatefulWidget {
   State<ChatListItem> createState() => _ChatListItemState();
 }
 
-class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderStateMixin {
+class _ChatListItemState extends State<ChatListItem>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<Offset> _offsetAnimation;
   double _dragExtent = 0;
-  final double _actionWidth = 144.0; // 展开后的总位移距离
+  final double _actionWidth = 144.0;
   bool _isPinned = false;
 
   @override
   void initState() {
     super.initState();
+    _isPinned = widget.isPinned;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _offsetAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(-144.0, 0.0),
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatListItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isPinned != widget.isPinned) {
+      _isPinned = widget.isPinned;
+    }
   }
 
   @override
@@ -100,7 +104,6 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 背景层：操作按钮
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _controller,
@@ -108,7 +111,6 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
               final value = _controller.value;
               return Stack(
                 children: [
-                  // 置顶按钮 (现在在右侧，被覆盖在下层)
                   Positioned(
                     right: 0,
                     top: 0,
@@ -125,12 +127,14 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                         child: Container(
                           width: 88,
                           decoration: BoxDecoration(
-                            color: AppColors.topBg, // 浅灰色背景
+                            color: AppColors.topBg,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
                             child: Image.asset(
-                              _isPinned ? 'assets/images/chat/top-off.png' : 'assets/images/chat/top.png',
+                              _isPinned
+                                  ? 'assets/images/chat/top-off.png'
+                                  : 'assets/images/chat/top.png',
                               width: 24,
                               height: 24,
                             ),
@@ -139,9 +143,8 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                       ),
                     ),
                   ),
-                  // 删除按钮 (现在在左侧，覆盖在置顶按钮上)
                   Positioned(
-                    right: 70, // 与置顶按钮产生重叠
+                    right: 70,
                     top: 0,
                     bottom: 0,
                     child: Transform.translate(
@@ -149,12 +152,11 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                       child: GestureDetector(
                         onTap: () {
                           _close();
-                          // TODO: 删除逻辑预留
                         },
                         child: Container(
                           width: 88,
                           decoration: BoxDecoration(
-                            color: AppColors.deleteBg, // 浅红色背景
+                            color: AppColors.deleteBg,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
@@ -173,7 +175,6 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
             },
           ),
         ),
-        // 前景层：内容主体
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -193,7 +194,6 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 头像部分
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: GestureDetector(
@@ -203,7 +203,6 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // 内容部分
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.only(right: 20, bottom: 16),
@@ -219,22 +218,41 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    widget.title,
-                                    style: AppTextStyles.h2.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (widget.isMuted) ...[
-                                    const SizedBox(width: 4),
-                                    Image.asset('assets/images/chat/notifications-off.png', width: 14, height: 14),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        widget.title,
+                                        style: AppTextStyles.h2.copyWith(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (widget.isPinned) ...[
+                                      const SizedBox(width: 4),
+                                      Image.asset(
+                                        'assets/images/chat/top.png',
+                                        width: 14,
+                                        height: 14,
+                                      ),
+                                    ],
+                                    if (widget.isMuted) ...[
+                                      const SizedBox(width: 4),
+                                      Image.asset(
+                                        'assets/images/chat/notifications-off.png',
+                                        width: 14,
+                                        height: 14,
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 widget.time,
                                 style: AppTextStyles.caption.copyWith(
@@ -258,14 +276,21 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
                               if (widget.unreadCount > 0) ...[
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: AppColors.error,
                                     borderRadius: BorderRadius.circular(100),
                                   ),
-                                  constraints: const BoxConstraints(minWidth: 18),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                  ),
                                   child: Text(
-                                    widget.unreadCount > 99 ? '99+' : widget.unreadCount.toString(),
+                                    widget.unreadCount > 99
+                                        ? '99+'
+                                        : widget.unreadCount.toString(),
                                     style: AppTextStyles.overline.copyWith(
                                       color: AppColors.white,
                                       fontSize: 10,
@@ -291,18 +316,19 @@ class _ChatListItemState extends State<ChatListItem> with SingleTickerProviderSt
   }
 
   Widget _buildAvatar() {
-    if (!widget.isGroup) {
-      return UserAvatarWidget(
-        userId: widget.targetId,
-        avatarUrl: widget.avatar,
+    if (widget.isGroup) {
+      return GroupAvatarWidget(
+        groupId: widget.targetId ?? '',
+        portraitUri: widget.avatar,
         size: 44,
-        borderRadius: BorderRadius.circular(10),
       );
     }
-    return GroupAvatarWidget(
-      groupId: widget.targetId ?? '',
-      portraitUri: widget.avatar,
+
+    return UserAvatarWidget(
+      userId: widget.targetId,
+      avatarUrl: widget.avatar,
       size: 44,
+      borderRadius: BorderRadius.circular(10),
     );
   }
 }

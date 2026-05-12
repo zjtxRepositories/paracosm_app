@@ -84,11 +84,12 @@ class ChatDetailController {
 
     _initInputListener();
 
-    _loadMessages().then((list) {
+    _loadInitialMessages().then((list) {
       engine.merge(list);
       _markConversationRead();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (hasAnchor) return;
         engine.onFirstLoaded();
       });
     });
@@ -125,9 +126,21 @@ class ChatDetailController {
   /// =========================
   List<ChatDetailMessage> get messages => engine.list.cast<ChatDetailMessage>();
 
+  bool get hasAnchor => args?.anchorSentTime != null;
+
+  String? get anchorMessageId => args?.anchorMessageId;
+
   /// =========================
   /// 初始加载
   /// =========================
+  Future<List<ChatDetailMessage>> _loadInitialMessages() {
+    if (hasAnchor) {
+      return _loadMessagesAroundAnchor();
+    }
+
+    return _loadMessages();
+  }
+
   Future<List<ChatDetailMessage>> _loadMessages() async {
     if (args == null) return [];
 
@@ -155,6 +168,45 @@ class ChatDetailController {
     } catch (e) {
       debugPrint("load error: $e");
       return [];
+    } finally {
+      isLoading = false;
+      notify?.call();
+    }
+  }
+
+  Future<List<ChatDetailMessage>> _loadMessagesAroundAnchor() async {
+    if (args == null || args!.anchorSentTime == null) return [];
+
+    isLoading = true;
+    notify?.call();
+
+    try {
+      final result = await _messageManager.getMessagesAroundTime(
+        type: args!.conversationType,
+        targetId: args!.targetId,
+        channelId: args!.channelId,
+        sentTime: args!.anchorSentTime!,
+        beforeCount: 10,
+        afterCount: 10,
+      );
+
+      if (!result.success) {
+        return _loadMessages();
+      }
+
+      final rawMessages = result.data ?? [];
+      final list = await ChatDetailMessageMapper.mapMessages(
+        rawMessages.reversed.toList(),
+      );
+
+      if (list.isNotEmpty) {
+        _oldestTime = list.first.sentTime;
+      }
+
+      return list;
+    } catch (e) {
+      debugPrint("load anchor error: $e");
+      return _loadMessages();
     } finally {
       isLoading = false;
       notify?.call();

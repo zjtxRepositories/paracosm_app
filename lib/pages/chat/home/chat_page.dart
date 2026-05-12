@@ -1,13 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/models/conversation_model.dart';
-import 'package:paracosm/core/models/group_model.dart';
-import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
-import 'package:paracosm/modules/im/message/send/im_sender.dart';
 import 'package:paracosm/modules/scan/scan_result_handler.dart';
-import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -17,17 +10,9 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/chat_list_item.dart';
 import 'package:paracosm/widgets/chat/system_notification_item.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
-import 'package:paracosm/widgets/chat/select_members_modal.dart';
-import 'package:paracosm/widgets/common/app_loading.dart';
-import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import '../../../core/models/custom_message_model.dart';
-import '../../../modules/im/manager/im_connection_manager.dart';
-import '../../../modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
-import '../../../modules/im/manager/im_group_manager.dart';
-import '../../../modules/im/message/base/im_message.dart';
 import '../contacts_view.dart';
 import 'chat_controller.dart';
 
@@ -50,6 +35,7 @@ class _ChatPageState extends State<ChatPage> {
     controller = ChatController();
     controller.init();
   }
+
   @override
   void dispose() {
     controller.dispose();
@@ -58,12 +44,11 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: controller,
-      builder: (_, __) {
+      builder: (context, child) {
         return AppPage(
           showNav: true,
           showBack: false,
@@ -110,7 +95,7 @@ class _ChatPageState extends State<ChatPage> {
                     } else {
                       return ListenableBuilder(
                         listenable: item,
-                        builder: (_, __) {
+                        builder: (context, child) {
                           return ChatListItem(
                             title: item.title ?? '',
                             subtitle: item.subtitle ?? '',
@@ -119,9 +104,12 @@ class _ChatPageState extends State<ChatPage> {
                             avatar: item.portraitUri ?? '',
                             targetId: item.info.targetId,
                             isGroup:
-                            item.info.conversationType ==
+                                item.info.conversationType ==
                                 RCIMIWConversationType.group,
-                            isMuted: false,
+                            isMuted:
+                                item.info.notificationLevel ==
+                                RCIMIWPushNotificationLevel.blocked,
+                            isPinned: item.info.top ?? false,
                             onTap: () {
                               controller.navigateToConversationDetail(
                                 context,
@@ -183,7 +171,8 @@ class _ChatPageState extends State<ChatPage> {
                                   TextSpan(
                                     text: AppLocalizations.of(context)!
                                         .chatFriendRequestCount(
-                                      controller.friendApplicationUnhandledCount,
+                                          controller
+                                              .friendApplicationUnhandledCount,
                                         ),
                                   ),
                                 ],
@@ -216,7 +205,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人列表视图
   Widget _buildContactsView() {
     return ContactsView(
-      friends:controller.friends,
+      friends: controller.friends,
       groups: controller.groups,
       controller: _contactScrollController,
       buildGroupHeader: _buildGroupHeader,
@@ -229,7 +218,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
     return GestureDetector(
-      onTap: () => context.push('/group-list',extra: controller.groups),
+      onTap: () => context.push('/group-list', extra: controller.groups),
       behavior: HitTestBehavior.opaque,
       child: Container(
         color: Colors.white,
@@ -330,7 +319,7 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   AppLocalizations.of(context)!.chatTitle,
                   style: AppTextStyles.h1.copyWith(
-                    fontSize:controller.isChatSelected ? 24 : 16,
+                    fontSize: controller.isChatSelected ? 24 : 16,
                     color: controller.isChatSelected
                         ? AppColors.grey900
                         : AppColors.grey400,

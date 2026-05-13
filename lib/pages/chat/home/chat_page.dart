@@ -97,6 +97,9 @@ class _ChatPageState extends State<ChatPage> {
                         listenable: item,
                         builder: (context, child) {
                           return ChatListItem(
+                            key: ValueKey(
+                              '${item.info.conversationType}_${item.info.targetId}',
+                            ),
                             title: item.title ?? '',
                             subtitle: item.subtitle ?? '',
                             time: formatIMTime(item.time),

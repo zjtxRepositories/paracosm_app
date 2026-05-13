@@ -21,76 +21,61 @@ import '../chat_session_args.dart';
 class ChatController extends ChangeNotifier {
   ChatController._();
 
-  static final ChatController _instance =
-  ChatController._();
+  static final ChatController _instance = ChatController._();
 
-  factory ChatController() {
-    return _instance;
-  }
+  factory ChatController() => _instance;
 
-  final IMEngineManager _engineManager =
-  IMEngineManager();
+  final IMEngineManager _engineManager = IMEngineManager();
 
   final List<StreamSubscription> _subs = [];
 
-  final resolver = ConversationResolver();
-
-  /// 防重复 resolve
   final Set<String> _resolvingIds = {};
 
-  /// notify 节流
   Timer? _notifyDebounce;
 
   bool isChatSelected = true;
-
   int selectedFilterIndex = 0;
 
   int friendApplicationUnhandledCount = 0;
 
-  /// 固定引用（不要重新赋值）
-  final List<ConversationModel>
-  conversations = [];
+  /// =========================
+  /// conversations
+  /// =========================
+  final List<ConversationModel> conversations = [];
+
+  final Map<String, ConversationModel> _conversationMap = {};
 
   List<RCIMIWFriendInfo> friends = [];
-
   List<RCIMIWGroupInfo> groups = [];
 
-  Map<int, List<RCIMIWConversation>>?
-  tabCache;
+  Map<int, List<RCIMIWConversation>>? tabCache;
 
   bool _inited = false;
 
-  /// targetId -> model
-  final Map<String, ConversationModel>
-  _conversationMap = {};
+  /// 会话变更订阅
+  StreamSubscription? _conversationChangeSub;
 
   /// =========================
-  /// 初始化
+  /// init
   /// =========================
   void init() {
     if (_inited) return;
-
     _inited = true;
 
     _listenConnection();
+    _listenConversation();
+    _fetchContact();
+    _fetchGroup();
+    _fetchFriendApplication();
 
     _fetchConversation();
-
-    _fetchContact();
-
-    _fetchGroup();
-
-    _fetchFriendApplication();
   }
 
   /// =========================
   /// connection
   /// =========================
   void _listenConnection() {
-    final sub = _engineManager
-        .connection
-        .eventStream
-        .listen((event) {
+    final sub = _engineManager.connection.eventStream.listen((event) {
       if (event == ImEvent.connected) {
         fetchData();
       }
@@ -100,121 +85,77 @@ class ChatController extends ChangeNotifier {
   }
 
   /// =========================
-  /// 数据入口
+  /// 数据入口（只做初始化触发）
   /// =========================
   void fetchData() {
     _engineManager.friendApplication.fetch();
-
     _engineManager.friend.fetchFriends();
-
     _engineManager.group.getAllJoinedGroups();
-
-    refreshConversation();
   }
 
   /// =========================
-  /// friend request
+  /// conversation stream（关键新增）
   /// =========================
-  void _fetchFriendApplication() {
-    final sub = _engineManager
-        .friendApplication
-        .stream
-        .listen((list) {
-      friendApplicationUnhandledCount =
-          _engineManager
-              .friendApplication
-              .unhandledCount;
+  void _listenConversation() {
+    _conversationChangeSub =
+        ImConversationManager().changeStream.listen(_onConversationChange);
 
-      _notify();
-    });
-
-    _subs.add(sub);
+    _subs.add(_conversationChangeSub!);
   }
 
   /// =========================
-  /// conversation
+  /// 首次加载（只做一次）
   /// =========================
   void _fetchConversation() {
-    final sub = _engineManager
-        .conversation
-        .stream
-        .listen((map) {
+    final sub = _engineManager.conversation.stream.listen((map) {
       tabCache = map;
-
-      refreshConversation();
+      _buildConversationList();
     });
 
     _subs.add(sub);
   }
 
   /// =========================
-  /// conversation refresh
+  /// 核心：增量构建列表（替代 refreshConversation）
   /// =========================
-  Future<void>
-  refreshConversation() async {
-    final list = _engineManager
-        .conversation
-        .getTabList(
-      selectedFilterIndex,
-    );
+  void _buildConversationList() {
+
+    final list =
+    _engineManager.conversation.getTabList(selectedFilterIndex);
 
     final ids = <String>{};
 
     final newList = <ConversationModel>[];
 
     for (final item in list) {
-      final targetId =
-          item.targetId ?? '';
-
-      if (targetId.isEmpty) {
-        continue;
-      }
+      final targetId = item.targetId ?? '';
+      if (targetId.isEmpty) continue;
 
       ids.add(targetId);
 
-      ConversationModel model;
+      final existing = _conversationMap[targetId];
 
-      /// 已存在
-      if (_conversationMap.containsKey(
-        targetId,
-      )) {
-        model =
-        _conversationMap[targetId]!;
+      if (existing != null) {
+        existing.updateConversation(item);
+        newList.add(existing);
+        _resolveSafe(existing);
 
-        /// 更新 conversation
-        model.updateConversation(item);
-
-        /// 后台 resolve
-        _resolveSafe(model);
       } else {
-        /// 新会话
-        model = ConversationModel(
-          info: item,
-        );
-
-        _conversationMap[targetId] =
-            model;
-
-        /// 异步解析
+        final model = ConversationModel(info: item);
+        _conversationMap[targetId] = model;
+        newList.add(model);
         _resolveSafe(model);
       }
-
-      newList.add(model);
     }
 
-    /// 删除不存在会话
+    /// 删除不存在的会话
     final removeKeys =
-    _conversationMap.keys
-        .where(
-          (e) => !ids.contains(e),
-    )
-        .toList();
+    _conversationMap.keys.where((e) => !ids.contains(e)).toList();
 
     for (final key in removeKeys) {
       _conversationMap.remove(key);
     }
 
-    /// 保持 list 引用不变
     conversations
       ..clear()
       ..addAll(newList);
@@ -223,68 +164,123 @@ class ChatController extends ChangeNotifier {
   }
 
   /// =========================
-  /// 安全 resolve
+  /// 会话变更处理（🔥核心）
   /// =========================
-  Future<void> _resolveSafe(
-      ConversationModel model,
-      ) async {
-    final id =
-        model.info.targetId ?? '';
+  void _onConversationChange(ConversationChangeEvent event) {
+    final conv = event.conversation;
+    final key = event.key;
 
-    if (id.isEmpty) {
+    final targetId = conv?.targetId ?? '';
+    if (targetId.isEmpty && event.type != ConversationChangeType.delete) {
       return;
     }
 
-    /// 防重复
-    if (_resolvingIds.contains(id)) {
-      return;
+    switch (event.type) {
+      case ConversationChangeType.insert:
+        _handleInsert(conv!);
+        break;
+
+      case ConversationChangeType.update:
+        _handleUpdate(conv!);
+        break;
+
+      case ConversationChangeType.delete:
+        _handleDelete(targetId);
+        break;
     }
+
+    _notify();
+  }
+
+  /// =========================
+  /// insert
+  /// =========================
+  void _handleInsert(RCIMIWConversation conv) {
+    final targetId = conv.targetId ?? '';
+    if (targetId.isEmpty) return;
+
+    final model = _conversationMap[targetId];
+
+    if (model != null) {
+      model.updateConversation(conv);
+    } else {
+      final newModel = ConversationModel(info: conv);
+      _conversationMap[targetId] = newModel;
+      conversations.insert(0, newModel);
+    }
+  }
+
+  /// =========================
+  /// update
+  /// =========================
+  void _handleUpdate(RCIMIWConversation conv) {
+    final targetId = conv.targetId ?? '';
+    if (targetId.isEmpty) return;
+
+    final model = _conversationMap[targetId];
+    if (model == null) return;
+
+    model.updateConversation(conv);
+  }
+
+  /// =========================
+  /// delete
+  /// =========================
+  void _handleDelete(String targetId) {
+    final model = _conversationMap.remove(targetId);
+    if (model == null) return;
+
+    conversations.remove(model);
+  }
+
+  /// =========================
+  /// resolve
+  /// =========================
+  Future<void> _resolveSafe(ConversationModel model) async {
+    final id = model.info.targetId ?? '';
+    if (id.isEmpty) return;
+
+    if (_resolvingIds.contains(id)) return;
 
     _resolvingIds.add(id);
 
     try {
-      if (!_engineManager
-          .connection
-          .isConnected) {
-        return;
-      }
+      if (!_engineManager.connection.isConnected) return;
 
-      await resolver.resolve(model);
+      ConversationResolver().resolve(model);
 
       _notify();
-    } catch (e) {
-      debugPrint(
-        'resolve conversation error: $e',
-      );
     } finally {
       _resolvingIds.remove(id);
     }
   }
 
   /// =========================
-  /// 联系人
+  /// friend / group
   /// =========================
+  void _fetchFriendApplication() {
+    final sub =
+    _engineManager.friendApplication.stream.listen((list) {
+      friendApplicationUnhandledCount =
+          _engineManager.friendApplication.unhandledCount;
+      _notify();
+    });
+
+    _subs.add(sub);
+  }
+
   void _fetchContact() {
-    final sub = _engineManager
-        .friend
-        .stream
-        .listen((list) {
+    final sub = _engineManager.friend.stream.listen((list) {
       friends = list;
-
       _notify();
     });
 
     _subs.add(sub);
   }
 
-  /// =========================
-  /// 群组
-  /// =========================
   void _fetchGroup() {
-    final sub = _engineManager.group.stream
-        .listen((list) {
+    final sub = _engineManager.group.stream.listen((list) {
       groups = list;
-
       _notify();
     });
 
@@ -292,105 +288,67 @@ class ChatController extends ChangeNotifier {
   }
 
   /// =========================
-  /// tab
+  /// tab switch
   /// =========================
-  void switchTab(bool isChat) {
-    if (isChatSelected == isChat) {
-      return;
-    }
-
-    isChatSelected = isChat;
-
-    _notify();
-  }
-
   void switchFilter(int index) {
-    if (selectedFilterIndex == index) {
-      return;
-    }
+    if (selectedFilterIndex == index) return;
 
     selectedFilterIndex = index;
 
-    refreshConversation();
+    /// ❗ 不再 refreshConversation，全量由 stream 驱动
+    _buildConversationList();
   }
 
   /// =========================
   /// create group
   /// =========================
-  Future<void> createNormalGroup(
-      BuildContext context,
-      ) async {
-    final result =
-    await SelectMembersModal.show(
+  Future<void> createNormalGroup(BuildContext context) async {
+    final result = await SelectMembersModal.show(
       context,
       friends: friends,
     );
 
-    if (result == null ||
-        result.isEmpty) {
-      return;
-    }
+    if (result == null || result.isEmpty) return;
 
     AppLoading.show();
 
     try {
-      final groupId =
-      await ImGroupManager().create(
+      final groupId = await ImGroupManager().create(
         inviteeUserIds: result,
-        groupId: generateGroupId(
-          GroupType.normal,
-        ),
+        groupId: generateGroupId(GroupType.normal),
       );
 
       if (groupId == null) {
         AppLoading.dismiss();
-
         AppToast.show('创建群组失败');
-
         return;
       }
 
       final message = CustomMessage(
         targetId: groupId,
-        customMessageType:
-        CustomMessageType
-            .groupInvited,
-        conversationType:
-        RCIMIWConversationType.group,
+        customMessageType: CustomMessageType.groupInvited,
+        conversationType: RCIMIWConversationType.group,
       );
 
-      final isSend =
-      await ImSender.instance.send(
-        message: message,
-      );
+      final isSend = await ImSender.instance.send(message: message);
 
       AppLoading.dismiss();
 
-      if (!isSend) {
-        return;
-      }
+      if (!isSend) return;
 
       final conversation =
-      await ImConversationManager()
-          .getConversation(
-        type:
-        RCIMIWConversationType.group,
+      await ImConversationManager().getConversation(
+        type: RCIMIWConversationType.group,
         targetId: groupId,
       );
 
-      if (conversation == null) {
-        return;
-      }
+      if (conversation == null) return;
 
-      final model = ConversationModel(
-        info: conversation,
-      );
+      final model = ConversationModel(info: conversation);
 
-      await resolver.resolve(model);
+      await ConversationResolver().resolve(model);
 
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
 
       navigateToConversationDetail(
         context,
@@ -400,215 +358,83 @@ class ChatController extends ChangeNotifier {
       );
     } catch (e) {
       AppLoading.dismiss();
-
       AppToast.show('创建群组失败');
-
-      debugPrint(
-        'create group error: $e',
-      );
     }
   }
 
   /// =========================
-  /// 会话置顶
+  /// top
   /// =========================
-  Future<void>
-  toggleConversationTop(
-      ConversationModel model,
-      ) async {
+  Future<void> toggleConversationTop(ConversationModel model) async {
     final info = model.info;
 
     final targetId = info.targetId;
+    final type = info.conversationType;
 
-    final type =
-        info.conversationType;
-
-    if (targetId == null ||
-        type == null) {
-      return;
-    }
+    if (targetId == null || type == null) return;
 
     final top = !(info.top ?? false);
 
-    /// 乐观更新
-    info.top = top;
-
-    model.updateConversation(info);
-
-    /// 本地排序
-    _sortConversationList();
-
-    _notify();
-
-    try {
-      final success =
-      await _engineManager
-          .conversation
-          .setConversationTopStatus(
-        type: type,
-        targetId: targetId,
-        channelId: info.channelId,
-        top: top,
-      );
-
-      if (!success) {
-        /// 回滚
-        info.top = !top;
-
-        model.updateConversation(info);
-
-        _sortConversationList();
-
-        _notify();
-
-        AppToast.show(
-          top
-              ? '置顶失败'
-              : '取消置顶失败',
-        );
-      }
-    } catch (e) {
-      /// 回滚
-      info.top = !top;
-
-      model.updateConversation(info);
-
-      _sortConversationList();
-
-      _notify();
-
-      debugPrint(
-        'toggleConversationTop error: $e',
-      );
-    }
+    await _engineManager.conversation
+        .setConversationTopStatus(
+      type: type,
+      targetId: targetId,
+      channelId: info.channelId,
+      top: top,
+    );
   }
 
   /// =========================
-  /// 删除会话
+  /// delete
   /// =========================
-  Future<void> removeConversation(
-      ConversationModel model,
-      ) async {
+  Future<void> removeConversation(ConversationModel model) async {
     final info = model.info;
 
     final targetId = info.targetId;
+    final type = info.conversationType;
 
-    final type =
-        info.conversationType;
+    if (targetId == null || type == null) return;
 
-    if (targetId == null ||
-        type == null) {
-      return;
-    }
+    final backup = model;
+    final index = conversations.indexOf(model);
 
-    /// 先缓存
-    final backupIndex =
-    conversations.indexOf(model);
-
-    final backupModel = model;
-
-    /// 乐观删除
     conversations.remove(model);
-
-    _conversationMap.remove(
-      targetId,
-    );
+    _conversationMap.remove(targetId);
 
     _notify();
 
     try {
-      await _engineManager.conversation
-          .removeConversation(
+      await _engineManager.conversation.removeConversation(
         type,
         info.channelId,
         targetId,
       );
 
       AppToast.show('删除成功');
-    } catch (e) {
-      /// 回滚
-      conversations.insert(
-        backupIndex,
-        backupModel,
-      );
-
-      _conversationMap[targetId] =
-          backupModel;
-
-      _sortConversationList();
-
+    } catch (_) {
+      conversations.insert(index, backup);
+      _conversationMap[targetId] = backup;
       _notify();
 
       AppToast.show('删除失败');
-
-      debugPrint(
-        'removeConversation error: $e',
-      );
     }
   }
 
   /// =========================
-  /// 本地排序
+  /// sort
   /// =========================
   void _sortConversationList() {
     conversations.sort((a, b) {
-      final aTop =
-          a.info.top ?? false;
+      final at = a.info.lastMessage?.sentTime ?? 0;
+      final bt = b.info.lastMessage?.sentTime ?? 0;
 
-      final bTop =
-          b.info.top ?? false;
+      final aTop = a.info.top ?? false;
+      final bTop = b.info.top ?? false;
 
-      /// 置顶优先
-      if (aTop != bTop) {
-        return (bTop ? 1 : 0) -
-            (aTop ? 1 : 0);
-      }
+      if (aTop != bTop) return bTop ? 1 : -1;
 
-      final aTime =
-          a.info.lastMessage?.sentTime ??
-              0;
-
-      final bTime =
-          b.info.lastMessage?.sentTime ??
-              0;
-
-      return bTime.compareTo(aTime);
+      return bt.compareTo(at);
     });
-  }
-
-  /// =========================
-  /// chat detail
-  /// =========================
-  void navigateToConversationDetail(
-      BuildContext context,
-      RCIMIWConversation conversation,
-      String title,
-      String? avatar,
-      ) {
-    final encodedName =
-    Uri.encodeComponent(title);
-
-    context.push(
-      '/chat-detail/$encodedName',
-      extra: ChatSessionArgs(
-        targetId:
-        conversation.targetId ?? '',
-        conversationType:
-        conversation
-            .conversationType ??
-            RCIMIWConversationType
-                .private,
-        name: title,
-        channelId:
-        conversation.channelId,
-        isGroup:
-        conversation
-            .conversationType ==
-            RCIMIWConversationType
-                .group,
-        avatar: avatar,
-      ),
-    );
   }
 
   /// =========================
@@ -618,13 +444,45 @@ class ChatController extends ChangeNotifier {
     _notifyDebounce?.cancel();
 
     _notifyDebounce = Timer(
-      const Duration(
-        milliseconds: 16,
-      ),
-          () {
-        notifyListeners();
-      },
+      const Duration(milliseconds: 16),
+      notifyListeners,
     );
+  }
+
+  /// =========================
+  /// navigate
+  /// =========================
+  void navigateToConversationDetail(
+      BuildContext context,
+      RCIMIWConversation conversation,
+      String title,
+      String? avatar,
+      ) {
+    context.push(
+      '/chat-detail/${Uri.encodeComponent(title)}',
+      extra: ChatSessionArgs(
+        targetId: conversation.targetId ?? '',
+        conversationType:
+        conversation.conversationType ??
+            RCIMIWConversationType.private,
+        name: title,
+        channelId: conversation.channelId,
+        isGroup: conversation.conversationType ==
+            RCIMIWConversationType.group,
+        avatar: avatar,
+      ),
+    );
+  }
+
+  /// =========================
+  /// switchTab
+  /// =========================
+  void switchTab(bool isChat) {
+    if (isChatSelected == isChat) return;
+
+    isChatSelected = isChat;
+
+    _notify();
   }
 
   /// =========================
@@ -637,6 +495,7 @@ class ChatController extends ChangeNotifier {
     }
 
     _notifyDebounce?.cancel();
+    _conversationChangeSub?.cancel();
 
     super.dispose();
   }

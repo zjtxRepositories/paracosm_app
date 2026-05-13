@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'im_engine_manager.dart';
+import '../listener/im_data_center.dart';
 
 class _GroupMemberPageState {
   List<RCIMIWGroupMemberInfo> list = [];
@@ -29,32 +30,19 @@ class ImGroupMemberManager {
   final Map<String, _GroupMemberPageState> _cache = {};
 
   /// =========================
-  /// notifier
+  /// Stream Controller（核心新增）
   /// =========================
-  final Map<
-      String,
-      ValueNotifier<List<RCIMIWGroupMemberInfo>>>
-  _notifiers = {};
+  final StreamController<
+      Map<String, List<RCIMIWGroupMemberInfo>>> _controller =
+  StreamController.broadcast();
+
+  Stream<Map<String, List<RCIMIWGroupMemberInfo>>> get stream =>
+      _controller.stream;
 
   /// =========================
-  /// watch
+  /// state getter
   /// =========================
-  ValueNotifier<List<RCIMIWGroupMemberInfo>> watch(
-      String groupId,
-      ) {
-    final state = _getState(groupId);
-
-    return _notifiers.putIfAbsent(
-      groupId,
-          () => ValueNotifier(
-        List.from(state.list),
-      ),
-    );
-  }
-
-  _GroupMemberPageState _getState(
-      String groupId,
-      ) {
+  _GroupMemberPageState _getState(String groupId) {
     return _cache.putIfAbsent(
       groupId,
           () => _GroupMemberPageState(),
@@ -62,7 +50,30 @@ class ImGroupMemberManager {
   }
 
   /// =========================================================
-  /// 获取成员
+  /// 订阅UI（Stream版本）
+  /// =========================================================
+  ValueNotifier<List<RCIMIWGroupMemberInfo>> watch(
+      String groupId,
+      ) {
+    final state = _getState(groupId);
+
+    final notifier = ValueNotifier<List<RCIMIWGroupMemberInfo>>(
+      List.from(state.list),
+    );
+
+    /// 👇 同步 stream 更新到 notifier（可选）
+    stream.listen((map) {
+      final list = map[groupId];
+      if (list != null) {
+        notifier.value = List.from(list);
+      }
+    });
+
+    return notifier;
+  }
+
+  /// =========================================================
+  /// request
   /// =========================================================
   Future<List<RCIMIWGroupMemberInfo>> getGroupMembers(
       String groupId, {
@@ -71,14 +82,11 @@ class ImGroupMemberManager {
       }) async {
     final state = _getState(groupId);
 
-    /// cache first
     if (!refresh && state.list.isNotEmpty) {
       return state.list;
     }
 
-    if (!IMEngineManager()
-        .connection
-        .isConnected) {
+    if (!IMEngineManager().connection.isConnected) {
       return [];
     }
 
@@ -91,44 +99,9 @@ class ImGroupMemberManager {
   }
 
   /// =========================================================
-  /// load more
+  /// request core
   /// =========================================================
-  Future<void> loadMore(
-      String groupId, {
-        int count = 20,
-      }) async {
-    final state = _cache[groupId];
-
-    if (state == null ||
-        state.loading ||
-        !state.hasMore) {
-      return;
-    }
-
-    await _request(
-      groupId,
-      count: count,
-    );
-  }
-
-  /// =========================================================
-  /// refresh
-  /// =========================================================
-  Future<void> refresh(
-      String groupId,
-      ) async {
-    await _request(
-      groupId,
-      refresh: true,
-      reset: true,
-    );
-  }
-
-  /// =========================================================
-  /// 统一请求入口
-  /// =========================================================
-  Future<List<RCIMIWGroupMemberInfo>>
-  _request(
+  Future<List<RCIMIWGroupMemberInfo>> _request(
       String groupId, {
         int count = 20,
         bool refresh = false,
@@ -136,21 +109,17 @@ class ImGroupMemberManager {
       }) async {
     final state = _getState(groupId);
 
-    if (state.loading) {
-      return state.list;
-    }
+    if (state.loading) return state.list;
 
     state.loading = true;
 
     try {
-      /// reset
       if (reset) {
         state.pageToken = "";
         state.hasMore = true;
       }
 
-      final option =
-      RCIMIWPagingQueryOption.create(
+      final option = RCIMIWPagingQueryOption.create(
         count: count,
         pageToken: state.pageToken,
         order: false,
@@ -170,30 +139,21 @@ class ImGroupMemberManager {
           onSuccess: (info) {
             final data = info?.data ?? [];
 
-            state.pageToken =
-                info?.pageToken ?? "";
-
-            state.hasMore =
-                data.length >= count;
+            state.pageToken = info?.pageToken ?? "";
+            state.hasMore = data.length >= count;
 
             final latest = refresh
                 ? data
-                : _mergeMembers(
-              state.list,
-              data,
-            );
+                : _merge(state.list, data);
 
-            _updateIfChanged(
-              groupId,
-              latest,
-            );
+            state.list = latest;
+
+            _emit(groupId, latest);
 
             completer.complete(latest);
           },
           onError: (_) {
-            completer.complete(
-              state.list,
-            );
+            completer.complete(state.list);
           },
         ),
       );
@@ -205,15 +165,13 @@ class ImGroupMemberManager {
   }
 
   /// =========================================================
-  /// merge + deduplicate
+  /// merge
   /// =========================================================
-  List<RCIMIWGroupMemberInfo>
-  _mergeMembers(
+  List<RCIMIWGroupMemberInfo> _merge(
       List<RCIMIWGroupMemberInfo> oldList,
       List<RCIMIWGroupMemberInfo> newList,
       ) {
-    final map =
-    <String, RCIMIWGroupMemberInfo>{};
+    final map = <String, RCIMIWGroupMemberInfo>{};
 
     for (final item in oldList) {
       map[item.userId ?? ""] = item;
@@ -227,81 +185,77 @@ class ImGroupMemberManager {
   }
 
   /// =========================================================
-  /// update if changed
+  /// emit single group
   /// =========================================================
-  void _updateIfChanged(
+  void _emit(
       String groupId,
-      List<RCIMIWGroupMemberInfo> newList,
+      List<RCIMIWGroupMemberInfo> list,
       ) {
-    final notifier = _notifiers[groupId];
+    if (!_controller.isClosed) {
+      _controller.add({groupId: List.from(list)});
+    }
+  }
 
-    final oldList = notifier?.value ?? [];
+  /// =========================================================
+  /// emit all (profile change use)
+  /// =========================================================
+  void _emitAll() {
+    if (_controller.isClosed) return;
 
-    if (_isSameList(oldList, newList)) {
+    final map = <String, List<RCIMIWGroupMemberInfo>>{};
+
+    _cache.forEach((key, value) {
+      map[key] = List.from(value.list);
+    });
+
+    _controller.add(map);
+
+    debugPrint('群成员因用户资料更新刷新');
+  }
+
+  /// =========================================================
+  /// load more / refresh
+  /// =========================================================
+  Future<void> loadMore(String groupId, {int count = 20}) async {
+    final state = _cache[groupId];
+
+    if (state == null || state.loading || !state.hasMore) {
       return;
     }
 
-    final state = _cache[groupId];
+    await _request(groupId, count: count);
+  }
 
-    if (state != null) {
-      state.list = List.from(newList);
-    }
-
-    notifier?.value = List.from(newList);
-
-    debugPrint(
-      '群成员更新: $groupId',
+  Future<void> refresh(String groupId) async {
+    await _request(
+      groupId,
+      refresh: true,
+      reset: true,
     );
   }
 
   /// =========================================================
-  /// diff
+  /// dispose
   /// =========================================================
-  bool _isSameList(
-      List<RCIMIWGroupMemberInfo> oldList,
-      List<RCIMIWGroupMemberInfo> newList,
-      ) {
-    if (identical(oldList, newList)) {
-      return true;
-    }
-
-    if (oldList.length != newList.length) {
-      return false;
-    }
-
-    for (int i = 0; i < oldList.length; i++) {
-      if (oldList[i].userId !=
-          newList[i].userId) {
-        return false;
-      }
-    }
-
-    return true;
+  void dispose() {
+    _controller.close();
   }
 
-  /// =========================
-  /// has more
-  /// =========================
+  /// =========================================================
+  /// hasMore
+  /// =========================================================
   bool hasMore(String groupId) {
-    return _cache[groupId]?.hasMore ??
-        false;
+    return _cache[groupId]?.hasMore ?? false;
   }
 
-  /// =========================
+  /// =========================================================
   /// clear
-  /// =========================
+  /// =========================================================
   void clear(String groupId) {
     _cache.remove(groupId);
 
-    _notifiers[groupId]?.value = [];
-  }
-
-  void clearAll() {
-    _cache.clear();
-
-    for (final item
-    in _notifiers.values) {
-      item.value = [];
+    if (!_controller.isClosed) {
+      _controller.add({groupId: []});
     }
   }
 }

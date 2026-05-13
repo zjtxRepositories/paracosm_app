@@ -7,6 +7,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../../core/models/conversation_model.dart';
 import '../../../core/models/custom_message_model.dart';
 import '../../../core/models/group_model.dart';
+import '../../../modules/im/listener/im_data_center.dart';
 import '../../../modules/im/manager/im_connection_manager.dart';
 import '../../../modules/im/manager/im_conversation_manager.dart';
 import '../../../modules/im/manager/im_engine_manager.dart';
@@ -55,6 +56,8 @@ class ChatController extends ChangeNotifier {
   /// 会话变更订阅
   StreamSubscription? _conversationChangeSub;
 
+  final ImDataCenter _dataCenter = ImDataCenter();
+
   /// =========================
   /// init
   /// =========================
@@ -101,6 +104,27 @@ class ChatController extends ChangeNotifier {
         ImConversationManager().changeStream.listen(_onConversationChange);
 
     _subs.add(_conversationChangeSub!);
+
+    _dataCenter.profileStream.listen((map) {
+      map.forEach((userId, profile) {
+        final model = _conversationMap[userId];
+        if (model != null) {
+          ConversationResolver().resolve(model);
+        }
+      });
+    });
+
+    _dataCenter.groupMemberStream.listen((map) {
+      map.forEach((groupId, profile) {
+        final model = _conversationMap[groupId];
+        if (model != null) {
+          ConversationResolver().resolve(model);
+        }
+      });
+
+      // print('profile listeners: $map');
+    });
+
   }
 
   /// =========================

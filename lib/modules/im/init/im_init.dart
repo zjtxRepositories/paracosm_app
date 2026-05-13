@@ -22,6 +22,7 @@ class ImInit {
     IMEngineManager().conversation.initListener();
     IMEngineManager().group.initListener();
     IMEngineManager().subscribe.initListener();
+    IMEngineManager().dataCenter.initListener();
     await RongCallManager().init();
 
     /// 3. 自动登录

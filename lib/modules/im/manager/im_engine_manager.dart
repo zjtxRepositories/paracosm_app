@@ -1,9 +1,11 @@
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
+import 'package:paracosm/modules/im/manager/im_group_member_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../listener/im_data_center.dart';
 import '../service/im_service.dart';
 import 'im_connection_manager.dart';
 import 'im_friend_applications_manager.dart';
@@ -23,6 +25,8 @@ class IMEngineManager {
   final conversation = ImConversationManager();
   final group = ImGroupManager();
   final subscribe = ImSubscribeEventManager();
+  final dataCenter = ImDataCenter();
+  final groupMember = ImGroupMemberManager();
 
   RCIMIWEngine? _engine;
 

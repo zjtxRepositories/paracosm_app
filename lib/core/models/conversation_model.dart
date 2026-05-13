@@ -6,6 +6,7 @@ import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../modules/im/listener/user_state_center.dart';
 import 'custom_message_model.dart';
 
 class ConversationModel extends ChangeNotifier {
@@ -29,6 +30,7 @@ class ConversationModel extends ChangeNotifier {
     this.title = title ?? this.title;
     this.subtitle = subtitle ?? this.subtitle;
     this.portraitUri = portraitUri ?? this.portraitUri;
+
     notifyListeners();
   }
 }
@@ -41,7 +43,6 @@ class ConversationResolver {
   factory ConversationResolver() {
     return _instance;
   }
-  final Map<String, UserModel?> _userCache = {};
   final Map<String, GroupModel?> _groupCache = {};
 
   Future<void> resolve(ConversationModel model) async {
@@ -179,17 +180,11 @@ class ConversationResolver {
   }
 
   Future<UserModel?> _getUser(String id) async {
-    return _userCache[id] ??= await _fetchUser(id);
+    return UserStateCenter().getUser(id);
   }
 
   Future<GroupModel?> _getGroup(String id) async {
     return _groupCache[id] ??= await _fetchGroup(id);
-  }
-
-  Future<UserModel?> _fetchUser(String id) async {
-    final users = await ImUserManager().getUserProfiles([id]);
-    if (users == null || users.isEmpty) return null;
-    return UserModel(profile: users.first);
   }
 
   Future<GroupModel?> _fetchGroup(String id) async {

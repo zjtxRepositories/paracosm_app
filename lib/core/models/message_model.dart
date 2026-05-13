@@ -2,6 +2,7 @@
 
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/modules/im/listener/user_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -13,7 +14,6 @@ class MessageModel {
   String? portraitUri;
   String? content;
   MessageModel({required this.item});
-  final Map<String, UserModel?> _userCache = {};
   final Map<String, GroupModel?> _groupCache = {};
 
   Future<String> formatCustomContent() async {
@@ -66,17 +66,11 @@ class MessageModel {
 
 
   Future<UserModel?> _getUser(String id) async {
-    return _userCache[id] ??= await _fetchUser(id);
+    return UserStateCenter().getUser(id);
   }
 
   Future<GroupModel?> _getGroup(String id) async {
     return _groupCache[id] ??= await _fetchGroup(id);
-  }
-
-  Future<UserModel?> _fetchUser(String id) async {
-    final users = await ImUserManager().getUserProfiles([id]);
-    if (users == null || users.isEmpty) return null;
-    return UserModel(profile: users.first);
   }
 
   Future<GroupModel?> _fetchGroup(String id) async {

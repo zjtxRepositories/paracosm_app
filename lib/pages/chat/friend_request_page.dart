@@ -105,7 +105,6 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
         name: model.name,
       ),
     );
-    print('去聊天呀');
   }
 
   /// 显示拒绝确认弹窗

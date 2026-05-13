@@ -85,7 +85,7 @@ class _QrCodePageState
   /// 二维码内容
   /// =========================
   String get _qrContent {
-    return 'paracosm://user/${widget.userId}';
+    return 'paracosm://user?userId=${widget.userId}';
   }
 
   /// =========================

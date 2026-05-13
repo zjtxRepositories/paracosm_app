@@ -85,7 +85,7 @@ class ChatDetailController {
   /// =========================
   StreamSubscription<MessageEvent>?_messageSub;
 
-  StreamSubscription<Map<String, bool>>? _onlineSub;
+  StreamSubscription<Map<String, PresenceState>>? _eventSub;
 
   /// =========================
   /// UI notify
@@ -109,8 +109,7 @@ class ChatDetailController {
 
       _markConversationRead();
 
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (hasAnchor) {
           return;
         }
@@ -135,7 +134,7 @@ class ChatDetailController {
 
     _messageSub?.cancel();
 
-    _onlineSub?.cancel();
+    _eventSub?.cancel();
   }
 
   /// =========================
@@ -158,22 +157,16 @@ class ChatDetailController {
   /// =========================
   /// UI 直接用 engine 数据
   /// =========================
-  List<ChatDetailMessage>
-  get messages =>
-      engine.list
-          .cast<ChatDetailMessage>();
+  List<ChatDetailMessage> get messages => engine.list.cast<ChatDetailMessage>();
 
-  bool get hasAnchor =>
-      args?.anchorSentTime != null;
+  bool get hasAnchor => args?.anchorSentTime != null;
 
-  String? get anchorMessageId =>
-      args?.anchorMessageId;
+  String? get anchorMessageId => args?.anchorMessageId;
 
   /// =========================
   /// 初始加载
   /// =========================
-  Future<List<ChatDetailMessage>>
-  _loadInitialMessages() {
+  Future<List<ChatDetailMessage>> _loadInitialMessages() {
     if (hasAnchor) {
       return _loadMessagesAroundAnchor();
     }
@@ -181,8 +174,7 @@ class ChatDetailController {
     return _loadMessages();
   }
 
-  Future<List<ChatDetailMessage>>
-  _loadMessages() async {
+  Future<List<ChatDetailMessage>> _loadMessages() async {
     if (args == null) {
       return [];
     }
@@ -192,28 +184,20 @@ class ChatDetailController {
     notify?.call();
 
     try {
-      final result =
-      await _messageManager
-          .getMessages(
+      final result = await _messageManager.getMessages(
         type: args!.conversationType,
         targetId: args!.targetId,
-        sentTime: DateTime.now()
-            .millisecondsSinceEpoch,
+        sentTime: DateTime.now().millisecondsSinceEpoch,
         order: RCIMIWTimeOrder.before,
-        policy:
-        RCIMIWMessageOperationPolicy
-            .localRemote,
+        policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list =
-      await ChatDetailMessageMapper
-          .mapMessages(
+      final list = await ChatDetailMessageMapper.mapMessages(
         result.reversed.toList(),
       );
 
       if (list.isNotEmpty) {
-        _oldestTime =
-            list.first.sentTime;
+        _oldestTime = list.first.sentTime;
       }
 
       return list;
@@ -230,11 +214,8 @@ class ChatDetailController {
     }
   }
 
-  Future<List<ChatDetailMessage>>
-  _loadMessagesAroundAnchor() async {
-    if (args == null ||
-        args!.anchorSentTime ==
-            null) {
+  Future<List<ChatDetailMessage>> _loadMessagesAroundAnchor() async {
+    if (args == null || args!.anchorSentTime == null) {
       return [];
     }
 
@@ -243,9 +224,7 @@ class ChatDetailController {
     notify?.call();
 
     try {
-      final result =
-      await _messageManager
-          .getMessagesAroundTime(
+      final result = await _messageManager.getMessagesAroundTime(
         type: args!.conversationType,
         targetId: args!.targetId,
         channelId: args!.channelId,
@@ -262,9 +241,7 @@ class ChatDetailController {
       final rawMessages =
           result.data ?? [];
 
-      final list =
-      await ChatDetailMessageMapper
-          .mapMessages(
+      final list = await ChatDetailMessageMapper.mapMessages(
         rawMessages.reversed
             .toList(),
       );
@@ -291,15 +268,12 @@ class ChatDetailController {
   /// =========================
   /// 加载更多
   /// =========================
-  Future<void>
-  loadMoreMessages() async {
+  Future<void> loadMoreMessages() async {
     if (args == null) {
       return;
     }
 
-    if (isLoadingMore ||
-        !hasMore ||
-        _oldestTime == null) {
+    if (isLoadingMore || !hasMore || _oldestTime == null) {
       return;
     }
 
@@ -309,28 +283,22 @@ class ChatDetailController {
 
     try {
       final result =
-      await _messageManager
-          .getMessages(
+      await _messageManager.getMessages(
         type: args!.conversationType,
         targetId: args!.targetId,
         sentTime: _oldestTime!,
         order: RCIMIWTimeOrder.before,
-        policy:
-        RCIMIWMessageOperationPolicy
-            .localRemote,
+        policy: RCIMIWMessageOperationPolicy.localRemote,
       );
 
-      final list =
-      await ChatDetailMessageMapper
-          .mapMessages(
+      final list = await ChatDetailMessageMapper.mapMessages(
         result.reversed.toList(),
       );
 
       if (list.isEmpty) {
         hasMore = false;
       } else {
-        _oldestTime =
-            list.first.sentTime;
+        _oldestTime = list.first.sentTime;
 
         /// ⭐ 核心：只交给 engine
         engine.prepend(list);
@@ -350,10 +318,7 @@ class ChatDetailController {
   /// 消息监听
   /// =========================
   Future<void> _subscribeMessages() async {
-    _messageSub =
-        _messageManager.messageStream
-            .listen(
-              (event) async {
+    _messageSub = _messageManager.messageStream.listen((event) async {
             if (args == null) {
               return;
             }
@@ -363,28 +328,21 @@ class ChatDetailController {
             /// 新消息
             /// =========================
               case MessageEventType.add:
-                final message =
-                    event.message;
+                final message = event.message;
 
                 if (message == null) {
                   return;
                 }
 
-                if (message.targetId !=
-                    args!.targetId) {
+                if (message.targetId != args!.targetId) {
                   return;
                 }
 
-                if (message
-                    .conversationType !=
-                    args!
-                        .conversationType) {
+                if (message.conversationType != args!.conversationType) {
                   return;
                 }
 
-                final msg =
-                await ChatDetailMessageMapper
-                    .mapMessage(
+                final msg = await ChatDetailMessageMapper.mapMessage(
                   message,
                 );
 
@@ -392,14 +350,10 @@ class ChatDetailController {
                 engine.append(msg);
 
                 /// 标记已读
-                _markConversationRead(
-                  timestamp:
-                  message.sentTime,
-                );
+                _markConversationRead(timestamp: message.sentTime);
 
                 if (engine.isAtBottom) {
-                  engine
-                      .scrollToBottom();
+                  engine.scrollToBottom();
                 }
 
                 break;
@@ -408,30 +362,22 @@ class ChatDetailController {
             /// 删除消息
             /// =========================
               case MessageEventType.delete:
-                final deleteList =
-                    event.messages ?? [];
+                final deleteList = event.messages ?? [];
 
                 if (deleteList.isEmpty) {
                   return;
                 }
 
-                final ids = deleteList
-                    .map(
-                      (e) => e.messageId,
-                )
-                    .toSet();
+                final ids = deleteList.map((e) => e.messageId).toSet();
 
                 engine.removeWhere((e) {
                   final raw = e.extra;
 
-                  if (raw
-                  is! RCIMIWMessage) {
+                  if (raw is! RCIMIWMessage) {
                     return false;
                   }
 
-                  return ids.contains(
-                    raw.messageId,
-                  );
+                  return ids.contains(raw.messageId);
                 });
 
                 break;
@@ -440,30 +386,21 @@ class ChatDetailController {
             /// 撤回消息
             /// =========================
               case MessageEventType.recall:
-                final recallMessage =
-                    event.message;
+                final recallMessage = event.message;
 
-                if (recallMessage ==
-                    null) {
+                if (recallMessage == null) {
                   return;
                 }
 
-                if (recallMessage
-                    .targetId !=
-                    args!.targetId) {
+                if (recallMessage.targetId != args!.targetId) {
                   return;
                 }
 
-                if (recallMessage
-                    .conversationType !=
-                    args!
-                        .conversationType) {
+                if (recallMessage.conversationType != args!.conversationType) {
                   return;
                 }
 
-                final newMsg =
-                await ChatDetailMessageMapper
-                    .mapMessage(
+                final newMsg = await ChatDetailMessageMapper.mapMessage(
                   recallMessage,
                 );
 
@@ -471,15 +408,11 @@ class ChatDetailController {
                       (e) {
                     final raw = e.extra;
 
-                    if (raw
-                    is! RCIMIWMessage) {
+                    if (raw is! RCIMIWMessage) {
                       return false;
                     }
 
-                    return raw
-                        .messageUId ==
-                        recallMessage
-                            .messageUId;
+                    return raw.messageUId == recallMessage.messageUId;
                   },
                   newMsg,
                 );
@@ -490,30 +423,22 @@ class ChatDetailController {
             /// 清空消息
             /// =========================
               case MessageEventType.clear:
-                if (event.targetId !=
-                    args!.targetId) {
+                if (event.targetId != args!.targetId) {
                   return;
                 }
 
-                if (event
-                    .conversationType !=
-                    args!
-                        .conversationType) {
+                if (event.conversationType != args!.conversationType) {
                   return;
                 }
 
                 engine.removeWhere((e) {
                   final raw = e.extra;
 
-                  if (raw
-                  is! RCIMIWMessage) {
+                  if (raw is! RCIMIWMessage) {
                     return false;
                   }
 
-                  return (raw.sentTime ??
-                      0) <=
-                      (event.timestamp ??
-                          0);
+                  return (raw.sentTime ?? 0) <= (event.timestamp ?? 0);
                 });
 
                 break;
@@ -531,34 +456,24 @@ class ChatDetailController {
     /// 在线状态
     /// =========================
     if (args?.isGroup != true) {
-      _onlineSub = _subscribeEventManager.stream.listen((map) {
-        print('在线状态！--${map}');
-            isOnline =
-                map[args!.targetId] ??
-                    false;
+      _eventSub = _subscribeEventManager.stream.listen((map) {
+            final status = map[args!.targetId] ?? PresenceState.unknown;
+            isOnline = status == PresenceState.online;
             notify?.call();
           });
 
-      _subscribeEventManager
-          .subscribeOnlineStatus([
-        args!.targetId,
-      ]);
-
+      _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
     }
 
 
   }
 
-  Future<void>
-  _markConversationRead({
-    int? timestamp,
-  }) async {
+  Future<void> _markConversationRead({int? timestamp}) async {
     if (args == null) {
       return;
     }
 
-    await _conversationManager
-        .markConversationRead(
+    await _conversationManager.markConversationRead(
       type: args!.conversationType,
       targetId: args!.targetId,
       channelId: args!.channelId,

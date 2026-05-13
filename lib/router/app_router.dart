@@ -543,7 +543,10 @@ class AppRouter {
       GoRoute(
         path: '/qr-code',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const QrCodePage(),
+        builder: (context, state) {
+          final userId = state.extra as String?;
+          return QrCodePage(userId: userId ?? '');
+        },
       ),
       // 转账页
       GoRoute(

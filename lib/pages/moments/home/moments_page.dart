@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
+import '../../../widgets/common/app_empty_view.dart';
 import '../moment_post_card.dart';
 import 'moments_controller.dart';
 
@@ -47,7 +49,7 @@ class _MomentsPageState extends State<MomentsPage> {
             const SizedBox(height: 8),
             _buildHeader(context),
             _buildStories(),
-            Expanded(
+           Expanded(
               child: _buildBody()
             ),
           ],
@@ -66,8 +68,9 @@ class _MomentsPageState extends State<MomentsPage> {
 
     /// 空状态
     if (controller.items.isEmpty) {
-      return const Center(
-        child: Text("No moments"),
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.chatSearchNoData,
+        bottomOffset: 50,
       );
     }
 

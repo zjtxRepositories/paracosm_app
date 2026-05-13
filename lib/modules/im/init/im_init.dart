@@ -19,7 +19,6 @@ class ImInit {
     IMEngineManager().message.initListener();
     IMEngineManager().friend.initListener();
     IMEngineManager().friendApplication.initListener();
-    IMEngineManager().user.initListener();
     IMEngineManager().conversation.initListener();
     IMEngineManager().group.initListener();
     IMEngineManager().subscribe.initListener();

@@ -79,6 +79,8 @@ dependencies:
   flutter_sound: ^9.30.0
   audioplayers: ^6.6.0
   permission_handler: ^12.0.1
+  screenshot: ^3.0.0
+  pretty_qr_code: ^3.6.0
 
 dev_dependencies:
   flutter_test:

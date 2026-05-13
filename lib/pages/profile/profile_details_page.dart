@@ -282,7 +282,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           // 二维码图标
           GestureDetector(
             onTap: () {
-              context.push('/qr-code');
+              context.push('/qr-code',extra: _account?.accountId);
             },
             child: Image.asset(
               'assets/images/profile/user/qrcode.png',

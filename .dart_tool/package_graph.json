@@ -39,9 +39,11 @@
         "path",
         "permission_handler",
         "photo_manager",
+        "pretty_qr_code",
         "record",
         "rongcloud_call_wrapper_plugin",
         "rongcloud_im_wrapper_plugin",
+        "screenshot",
         "shared_preferences",
         "solana",
         "sqflite",
@@ -97,6 +99,22 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "pretty_qr_code",
+      "version": "3.6.0",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "qr"
+      ]
+    },
+    {
+      "name": "screenshot",
+      "version": "3.0.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {
@@ -2207,6 +2225,13 @@
       "dependencies": [
         "collection",
         "hooks"
+      ]
+    },
+    {
+      "name": "qr",
+      "version": "3.0.2",
+      "dependencies": [
+        "meta"
       ]
     }
   ],

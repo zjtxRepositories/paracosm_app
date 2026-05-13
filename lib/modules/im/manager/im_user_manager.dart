@@ -1,139 +1,322 @@
 import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
 import 'im_engine_manager.dart';
 
 class ImUserManager {
+  ImUserManager._internal();
 
-  final _controller = StreamController<List<RCIMIWFriendInfo>>.broadcast();
-  Stream<List<RCIMIWFriendInfo>> get stream => _controller.stream;
+  static final ImUserManager _instance =
+  ImUserManager._internal();
 
-  /// =========================
-  /// 初始化监听（核心🔥）
-  /// =========================
-  void initListener() {
-    final engine = IMEngineManager().engine;
+  factory ImUserManager() => _instance;
 
-    engine?.onEventChange = (List<RCIMIWSubscribeInfoEvent>? subscribeEvents) {
-      // 用户信息托管变更
-    };
+  final _profileController =
+  StreamController<RCIMIWUserProfile>.broadcast();
 
-    engine?.onSubscriptionSyncCompleted = (RCIMIWSubscribeType? type) {
-      // 订阅数据同步完成
-    };
+  Stream<RCIMIWUserProfile> get profileStream =>
+      _profileController.stream;
 
-    engine?.onSubscriptionChangedOnOtherDevices = (
-        List<RCIMIWSubscribeEvent>? subscribeEvents,
-        ) {
-      // 其他设备订阅信息变更
-    };
-  }
+  bool _initialized = false;
+
+  /// 用户缓存
+  final Map<String, RCIMIWUserProfile> _profileCache = {};
+
+  RCIMIWEngine? get _engine =>
+      IMEngineManager().engine;
 
   /// =========================
   /// 获取当前用户信息
   /// =========================
-  Future<RCIMIWUserProfile?> getMyUserProfile() async {
-    final completer = Completer<RCIMIWUserProfile?>();
-    final ret = await IMEngineManager().engine?.getMyUserProfile(
-      callback: IRCIMIWGetMyUserProfileCallback(
-        onSuccess: (RCIMIWUserProfile? userProfile) {
-          debugPrint('getMyUserProfile success');
-          completer.complete(userProfile);
-        },
-        onError: (int? code) {
-          debugPrint('getMyUserProfile failed => $code ');
-          completer.complete(null);
-        },
-      ),
-    );
-    if (ret != null && ret != 0) {
+  Future<RCIMIWUserProfile?> getMyUserProfile({
+    bool refresh = false,
+  }) async {
+    try {
+      final completer =
+      Completer<RCIMIWUserProfile?>();
+
+      final ret = await _engine?.getMyUserProfile(
+        callback: IRCIMIWGetMyUserProfileCallback(
+          onSuccess: (
+              RCIMIWUserProfile? userProfile,
+              ) {
+            if (userProfile != null) {
+              _cacheProfile(userProfile);
+            }
+
+            completer.complete(userProfile);
+          },
+          onError: (int? code) {
+            _log(
+              'getMyUserProfile failed',
+              code,
+            );
+
+            completer.complete(null);
+          },
+        ),
+      );
+
+      if (_isSdkError(ret)) {
+        return null;
+      }
+
+      return completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => null,
+      );
+    } catch (e) {
+      debugPrint(
+        'getMyUserProfile exception => $e',
+      );
       return null;
     }
-    return completer.future;
   }
 
   /// =========================
   /// 批量获取用户信息
   /// =========================
-  Future<List<RCIMIWUserProfile>?> getUserProfiles(List<String> userIds) async {
-    final completer = Completer<List<RCIMIWUserProfile>?>();
-    final ret = await IMEngineManager().engine?.getUserProfiles(
-      userIds,
-      callback: IRCIMIWGetUserProfilesCallback(
-        onSuccess: (List<RCIMIWUserProfile>? userProfiles) {
-          debugPrint('getUserProfiles success---${userProfiles?.length}');
-          completer.complete(userProfiles);
-        },
-        onError: (int? code) {
-          debugPrint('getUserProfiles failed => $code ');
-          completer.complete(null);
-        },
-      ),
-    );
-    if (ret != null && ret != 0) {
+  Future<List<RCIMIWUserProfile>?> getUserProfiles(
+      List<String> userIds, {
+        bool refresh = false,
+      }) async {
+    try {
+      /// 命中缓存
+      if (!refresh) {
+        final cached = userIds
+            .map((e) => _profileCache[e])
+            .whereType<RCIMIWUserProfile>()
+            .toList();
+
+        if (cached.length == userIds.length) {
+          return cached;
+        }
+      }
+
+      final completer =
+      Completer<List<RCIMIWUserProfile>?>();
+
+      final ret = await _engine?.getUserProfiles(
+        userIds,
+        callback: IRCIMIWGetUserProfilesCallback(
+          onSuccess: (
+              List<RCIMIWUserProfile>? userProfiles,
+              ) {
+            if (userProfiles != null) {
+              for (final item in userProfiles) {
+                _cacheProfile(item);
+              }
+            }
+
+            completer.complete(userProfiles);
+          },
+          onError: (int? code) {
+            _log(
+              'getUserProfiles failed',
+              code,
+            );
+
+            completer.complete(null);
+          },
+        ),
+      );
+
+      if (_isSdkError(ret)) {
+        return null;
+      }
+
+      return completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => null,
+      );
+    } catch (e) {
+      debugPrint(
+        'getUserProfiles exception => $e',
+      );
       return null;
     }
-    return completer.future;
   }
 
   /// =========================
   /// 搜索用户
   /// =========================
-  Future<RCIMIWUserProfile?> searchUserProfileByUniqueId( String uniqueId) async {
-    final completer = Completer<RCIMIWUserProfile?>();
-    final ret = await IMEngineManager().engine?.searchUserProfileByUniqueId(
-      uniqueId,
-      callback: IRCIMIWSearchUserProfileByUniqueIdCallback(
-        onSuccess: (RCIMIWUserProfile? userProfile) {
-          debugPrint('searchUserProfileByUniqueId success');
-          completer.complete(userProfile);
-        },
-        onError: (int? code) {
-          debugPrint('searchUserProfileByUniqueId failed => $code ');
-          completer.complete(null);
-        },
-      ),
-    );
-    if (ret != null && ret != 0) {
+  Future<RCIMIWUserProfile?>
+  searchUserProfileByUniqueId(
+      String uniqueId,
+      ) async {
+    try {
+      final completer =
+      Completer<RCIMIWUserProfile?>();
+
+      final ret =
+      await _engine?.searchUserProfileByUniqueId(
+        uniqueId,
+        callback:
+        IRCIMIWSearchUserProfileByUniqueIdCallback(
+          onSuccess: (
+              RCIMIWUserProfile? userProfile,
+              ) {
+            if (userProfile != null) {
+              _cacheProfile(userProfile);
+            }
+
+            completer.complete(userProfile);
+          },
+          onError: (int? code) {
+            _log(
+              'searchUserProfileByUniqueId failed',
+              code,
+            );
+
+            completer.complete(null);
+          },
+        ),
+      );
+
+      if (_isSdkError(ret)) {
+        return null;
+      }
+
+      return completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => null,
+      );
+    } catch (e) {
+      debugPrint(
+        'searchUserProfileByUniqueId exception => $e',
+      );
       return null;
     }
-    return completer.future;
   }
 
   /// =========================
-  /// 设置用户信息
+  /// 更新当前用户信息
   /// =========================
   Future<bool> updateMyUserProfile({
     required RCIMIWUserProfile userProfile,
   }) async {
-    final completer = Completer<bool>();
-    final ret = await IMEngineManager().engine?.updateMyUserProfile(
-      userProfile,
-      callback: IRCIMIWUpdateMyUserProfileCallback(
-        onSuccess: () {
-          debugPrint('updateMyUserProfile success');
-          completer.complete(true);
-        },
-        onError: (int? code, List<String>? errorKeys) {
-          debugPrint('updateMyUserProfile failed => $code $errorKeys');
-          completer.complete(false);
-        },
-      ),
-    );
-    /// SDK 层直接失败
-    if (ret != null && ret != 0) {
+    try {
+      final completer = Completer<bool>();
+
+      final ret =
+      await _engine?.updateMyUserProfile(
+        userProfile,
+        callback:
+        IRCIMIWUpdateMyUserProfileCallback(
+          onSuccess: () {
+            _cacheProfile(userProfile);
+
+            _safeAdd(userProfile);
+
+            completer.complete(true);
+          },
+          onError: (
+              int? code,
+              List<String>? errorKeys,
+              ) {
+            debugPrint(
+              'updateMyUserProfile failed => '
+                  '$code $errorKeys',
+            );
+
+            completer.complete(false);
+          },
+        ),
+      );
+
+      if (_isSdkError(ret)) {
+        return false;
+      }
+
+      return completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => false,
+      );
+    } catch (e) {
+      debugPrint(
+        'updateMyUserProfile exception => $e',
+      );
+
       return false;
     }
-    return completer.future;
   }
 
   /// =========================
-  /// 内部方法
+  /// 获取缓存
   /// =========================
-  void _notify() {
+  RCIMIWUserProfile? getCachedProfile(
+      String userId,
+      ) {
+    return _profileCache[userId];
   }
 
+  /// =========================
+  /// 清空缓存
+  /// =========================
+  void clearCache() {
+    _profileCache.clear();
+  }
+
+  /// =========================
+  /// 缓存用户
+  /// =========================
+  void _cacheProfile(
+      RCIMIWUserProfile profile,
+      ) {
+    final userId = profile.userId;
+
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    _profileCache[userId] = profile;
+  }
+
+  /// =========================
+  /// SDK 错误
+  /// =========================
+  bool _isSdkError(int? ret) {
+    if (ret != null && ret != 0) {
+      debugPrint('SDK invoke failed => $ret');
+      return true;
+    }
+
+    return false;
+  }
+
+  /// =========================
+  /// 安全通知
+  /// =========================
+  void _safeAdd(
+      RCIMIWUserProfile profile,
+      ) {
+    if (_profileController.isClosed) {
+      return;
+    }
+
+    _profileController.add(profile);
+  }
+
+  /// =========================
+  /// 日志
+  /// =========================
+  void _log(
+      String message,
+      int? code,
+      ) {
+    debugPrint('$message => $code');
+  }
+
+  /// =========================
+  /// 销毁
+  /// =========================
   void dispose() {
-    _controller.close();
+    _profileCache.clear();
+
+    _profileController.close();
+
+    _initialized = false;
   }
 }

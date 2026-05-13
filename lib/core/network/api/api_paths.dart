@@ -23,7 +23,7 @@ class ApiPaths {
   static const dappList = '/prod-api/im/app/dApp/list';
 
   /// 朋友圈
-  static const circleUrl = 'https://imapi.zjtxy.top/moments/link';
+  static const circleUrl = 'https://imapi.zjtxy.top//moments/friend97';
   static const noteList = '/app/note/list';
 
   /// 社区

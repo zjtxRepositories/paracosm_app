@@ -29,8 +29,6 @@ class ImConversationManager {
 
   Timer? _debounce;
 
-  bool _notifying = false;
-
   /// =========================
   /// 会话缓存
   /// key:
@@ -198,10 +196,7 @@ class ImConversationManager {
             targetId,
           );
 
-          _allMap.putIfAbsent(
-            key,
-                () => conv,
-          );
+          _allMap[key] = conv;
 
           ids.add(key);
         }
@@ -284,9 +279,7 @@ class ImConversationManager {
     try {
       final oldConversation = _allMap[key];
 
-      /// =========================
-      /// 本地已有会话
-      /// =========================
+      /// 已存在会话
       if (oldConversation != null) {
         final oldMsgId =
             oldConversation.lastMessage?.messageId;
@@ -300,14 +293,14 @@ class ImConversationManager {
 
         oldConversation.lastMessage = message;
 
-        /// 自己发送不增加未读
+        /// 非自己发送增加未读
         if (message.senderUserId !=
             IMEngineManager().currentUserId) {
           oldConversation.unreadCount =
               (oldConversation.unreadCount ?? 0) + 1;
         }
 
-        _moveToTop(key);
+        _sortAllTabs();
 
         _rebuildAllTabCache();
 
@@ -316,10 +309,7 @@ class ImConversationManager {
         return;
       }
 
-      /// =========================
-      /// 本地不存在
-      /// 从 SDK 拉取完整会话
-      /// =========================
+      /// 新会话
       final conversation =
       await getConversation(
         type: conversationType,
@@ -344,11 +334,11 @@ class ImConversationManager {
         final ids = _tabIds[i]!;
 
         if (!ids.contains(key)) {
-          ids.insert(0, key);
+          ids.add(key);
         }
       }
 
-      _moveToTop(key);
+      _sortAllTabs();
 
       _rebuildAllTabCache();
 
@@ -471,9 +461,443 @@ class ImConversationManager {
 
     conv.top = top;
 
-    for (final ids in _tabIds.values) {
-      _sortIds(ids);
+    _sortAllTabs();
+
+    _rebuildAllTabCache();
+
+    _notify();
+  }
+
+  Future<bool> markConversationRead({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    int? timestamp,
+  }) async {
+    final readTime =
+        timestamp ??
+            DateTime.now().millisecondsSinceEpoch;
+
+    final cleared =
+    await clearUnreadCount(
+      type: type,
+      targetId: targetId,
+      channelId: channelId,
+      timestamp: readTime,
+    );
+
+    if (cleared &&
+        type ==
+            RCIMIWConversationType.private) {
+      await syncConversationReadStatus(
+        type: type,
+        targetId: targetId,
+        channelId: channelId,
+        timestamp: readTime,
+      );
     }
+
+    return cleared;
+  }
+
+  Future<bool> clearUnreadCount({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required int timestamp,
+  }) async {
+    final completer = Completer<bool>();
+
+    final code =
+    await IMEngineManager()
+        .engine
+        ?.clearUnreadCount(
+      type,
+      targetId,
+      channelId,
+      timestamp,
+      callback:
+      IRCIMIWClearUnreadCountCallback(
+        onUnreadCountCleared: (code) {
+          if (code == 0) {
+            _clearLocalUnreadCount(
+              type,
+              targetId,
+            );
+
+            completer.complete(true);
+          } else {
+            debugPrint(
+              "清除会话未读数失败: $code",
+            );
+
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "清除会话未读数调用失败: $code",
+      );
+
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  Future<bool> syncConversationReadStatus({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required int timestamp,
+  }) async {
+    final completer = Completer<bool>();
+
+    final code =
+    await IMEngineManager()
+        .engine
+        ?.syncConversationReadStatus(
+      type,
+      targetId,
+      channelId,
+      timestamp,
+      callback:
+      IRCIMIWSyncConversationReadStatusCallback(
+        onConversationReadStatusSynced:
+            (code) {
+          if (code == 0) {
+            completer.complete(true);
+          } else {
+            debugPrint(
+              "同步会话已读状态失败: $code",
+            );
+
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "同步会话已读状态调用失败: $code",
+      );
+
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  Future<RCIMIWPushNotificationLevel?>
+  getConversationNotificationLevel({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+  }) async {
+    final engine =
+        IMEngineManager().engine;
+
+    if (engine == null) {
+      debugPrint(
+        "获取会话通知级别失败: engine is null",
+      );
+
+      return null;
+    }
+
+    final completer =
+    Completer<
+        RCIMIWPushNotificationLevel?>();
+
+    final code =
+    await engine
+        .getConversationNotificationLevel(
+      type,
+      targetId,
+      channelId,
+      callback:
+      IRCIMIWGetConversationNotificationLevelCallback(
+        onSuccess: (level) {
+          _updateLocalNotificationLevel(
+            type,
+            targetId,
+            level,
+          );
+
+          completer.complete(level);
+        },
+        onError: (code) {
+          debugPrint(
+            "获取会话通知级别失败: $code",
+          );
+
+          completer.complete(null);
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "获取会话通知级别调用失败: $code",
+      );
+
+      completer.complete(null);
+    }
+
+    return completer.future;
+  }
+
+  Future<bool> setConversationDoNotDisturb({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required bool enabled,
+  }) async {
+    final engine =
+        IMEngineManager().engine;
+
+    if (engine == null) {
+      debugPrint(
+        "设置会话免打扰失败: engine is null",
+      );
+
+      return false;
+    }
+
+    final level = enabled
+        ? RCIMIWPushNotificationLevel
+        .blocked
+        : RCIMIWPushNotificationLevel
+        .allMessage;
+
+    final completer = Completer<bool>();
+
+    final code =
+    await engine
+        .changeConversationNotificationLevel(
+      type,
+      targetId,
+      channelId,
+      level,
+      callback:
+      IRCIMIWChangeConversationNotificationLevelCallback(
+        onConversationNotificationLevelChanged:
+            (code) {
+          if (code == 0) {
+            _updateLocalNotificationLevel(
+              type,
+              targetId,
+              level,
+            );
+
+            completer.complete(true);
+          } else {
+            debugPrint(
+              "设置会话免打扰失败: $code",
+            );
+
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "设置会话免打扰调用失败: $code",
+      );
+
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  Future<bool?> getConversationTopStatus({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+  }) async {
+    final engine =
+        IMEngineManager().engine;
+
+    if (engine == null) {
+      debugPrint(
+        "获取会话置顶状态失败: engine is null",
+      );
+
+      return null;
+    }
+
+    final completer = Completer<bool?>();
+
+    final code =
+    await engine.getConversationTopStatus(
+      type,
+      targetId,
+      channelId,
+      callback:
+      IRCIMIWGetConversationTopStatusCallback(
+        onSuccess: (top) {
+          _updateLocalTopStatus(
+            type,
+            targetId,
+            top ?? false,
+          );
+
+          completer.complete(top);
+        },
+        onError: (code) {
+          debugPrint(
+            "获取会话置顶状态失败: $code",
+          );
+
+          completer.complete(null);
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "获取会话置顶状态调用失败: $code",
+      );
+
+      completer.complete(null);
+    }
+
+    return completer.future;
+  }
+
+  Future<bool> setConversationTopStatus({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required bool top,
+  }) async {
+    final engine =
+        IMEngineManager().engine;
+
+    if (engine == null) {
+      debugPrint(
+        "设置会话置顶失败: engine is null",
+      );
+
+      return false;
+    }
+
+    final completer = Completer<bool>();
+
+    final code =
+    await engine.changeConversationTopStatus(
+      type,
+      targetId,
+      channelId,
+      top,
+      callback:
+      IRCIMIWChangeConversationTopStatusCallback(
+        onConversationTopStatusChanged:
+            (code) {
+          if (code == 0) {
+            _updateLocalTopStatus(
+              type,
+              targetId,
+              top,
+            );
+
+            completer.complete(true);
+          } else {
+            debugPrint(
+              "设置会话置顶失败: $code",
+            );
+
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    if (code != 0 &&
+        !completer.isCompleted) {
+      debugPrint(
+        "设置会话置顶调用失败: $code",
+      );
+
+      completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  void _clearLocalUnreadCount(
+      RCIMIWConversationType type,
+      String targetId,
+      ) {
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final conv = _allMap[key];
+
+    if (conv == null ||
+        conv.unreadCount == 0) {
+      return;
+    }
+
+    conv.unreadCount = 0;
+
+    _rebuildAllTabCache();
+
+    _notify();
+  }
+
+  void _updateLocalNotificationLevel(
+      RCIMIWConversationType type,
+      String targetId,
+      RCIMIWPushNotificationLevel? level,
+      ) {
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final conv = _allMap[key];
+
+    if (conv == null) return;
+
+    conv.notificationLevel = level;
+
+    _rebuildAllTabCache();
+
+    _notify();
+  }
+
+  void _updateLocalTopStatus(
+      RCIMIWConversationType type,
+      String targetId,
+      bool top,
+      ) {
+    final key = _buildKey(
+      type,
+      targetId,
+    );
+
+    final conv = _allMap[key];
+
+    if (conv == null) return;
+
+    conv.top = top;
+
+    _sortAllTabs();
 
     _rebuildAllTabCache();
 
@@ -503,7 +927,9 @@ class ImConversationManager {
 
           completer.complete();
         } else {
-          completer.completeError(code ?? -1);
+          completer.completeError(
+            code ?? -1,
+          );
         }
       },
     );
@@ -521,107 +947,11 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 设置置顶
+  /// 排序全部 tab
   /// =========================
-  Future<bool> changeConversationTopStatus({
-    required RCIMIWConversationType type,
-    required String targetId,
-    String? channelId,
-    required bool top,
-  }) {
-    final completer = Completer<bool>();
-
-    IMEngineManager()
-        .engine
-        ?.changeConversationTopStatus(
-      type,
-      targetId,
-      channelId,
-      top,
-      callback:
-      IRCIMIWChangeConversationTopStatusCallback(
-        onConversationTopStatusChanged:
-            (code) {
-          completer.complete(code == 0);
-        },
-      ),
-    );
-
-    return completer.future;
-  }
-
-  /// =========================
-  /// 新消息
-  /// =========================
-  void onNewMessage(
-      String targetId,
-      RCIMIWMessage message,
-      ) {
-    final type = message.conversationType;
-
-    if (type == null) return;
-
-    final key = _buildKey(
-      type,
-      targetId,
-    );
-
-    final conv = _allMap[key];
-
-    if (conv != null) {
-      final oldMsgId =
-          conv.lastMessage?.messageId;
-
-      if (oldMsgId == message.messageId) {
-        return;
-      }
-
-      conv.lastMessage = message;
-
-      _moveToTop(key);
-    }
-
-    _rebuildAllTabCache();
-
-    _notify();
-  }
-
-  /// =========================
-  /// 移动顶部
-  /// =========================
-  void _moveToTop(String key) {
-    for (final list in _tabIds.values) {
-      final index = list.indexOf(key);
-
-      if (index <= 0) continue;
-
-      list.removeAt(index);
-
-      final conv = _allMap[key];
-
-      final isTop = conv?.top ?? false;
-
-      /// 置顶
-      if (isTop) {
-        list.insert(0, key);
-
-        continue;
-      }
-
-      /// 插入非置顶首位
-      int insertIndex = list.length;
-
-      for (int i = 0; i < list.length; i++) {
-        final item = _allMap[list[i]];
-
-        if (!(item?.top ?? false)) {
-          insertIndex = i;
-
-          break;
-        }
-      }
-
-      list.insert(insertIndex, key);
+  void _sortAllTabs() {
+    for (final ids in _tabIds.values) {
+      _sortIds(ids);
     }
   }
 
@@ -644,10 +974,12 @@ class ImConversationManager {
       }
 
       final aTime =
-          convA?.lastMessage?.sentTime ?? 0;
+          convA?.lastMessage?.sentTime ??
+              0;
 
       final bTime =
-          convB?.lastMessage?.sentTime ?? 0;
+          convB?.lastMessage?.sentTime ??
+              0;
 
       return bTime.compareTo(aTime);
     });
@@ -660,13 +992,12 @@ class ImConversationManager {
     _tabCache.clear();
 
     _tabIds.forEach((tab, ids) {
-      _tabCache[tab] =
-          ids
-              .where(
-                (e) => _allMap[e] != null,
-          )
-              .map((e) => _allMap[e]!)
-              .toList();
+      _tabCache[tab] = ids
+          .where(
+            (e) => _allMap[e] != null,
+      )
+          .map((e) => _allMap[e]!)
+          .toList();
     });
   }
 
@@ -683,17 +1014,11 @@ class ImConversationManager {
   /// notify
   /// =========================
   void _notify() {
-    if (_notifying) return;
-
-    _notifying = true;
-
     _debounce?.cancel();
 
     _debounce = Timer(
       const Duration(milliseconds: 100),
           () {
-        _notifying = false;
-
         if (_controller.isClosed) {
           return;
         }

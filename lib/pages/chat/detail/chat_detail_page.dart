@@ -37,6 +37,8 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   late final ChatDetailController controller;
+  final Map<String, GlobalKey> _messageKeys = {};
+  bool _didScrollToAnchor = false;
 
   @override
   void initState() {
@@ -59,12 +61,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       isCustomHeader: true,
       isAddBottomMargin: false,
       renderCustomHeader: ChatDetailHeader(
-        name: _sessionName,
-        isGroup: _isGroupSession,
-        avatar: _headerAvatar,
-        targetId: _targetId,
+        name: controller.sessionName,
+        isGroup:controller.isGroupSession,
+        avatar: controller.headerAvatar,
+        targetId: controller.targetId,
         isOnline: controller.isOnline,
-        onMoreTap: controller.navigateToDetail,
+        onMoreTap:controller.navigateToSettings,
+        onAvatarTap:controller.navigateToProfile,
       ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
@@ -102,9 +105,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       case ChatMoreAction.camera:
                         controller.toggleCamera();
                       case ChatMoreAction.videoCall:
-                        await _openCallPage(isVideo: true);
+                        await controller.openCallPage(isVideo: true);
                       case ChatMoreAction.audioCall:
-                        await _openCallPage(isVideo: false);
+                        await controller.openCallPage(isVideo: false);
                       case ChatMoreAction.redbag:
                         // TODO: Handle this case.
                         throw UnimplementedError();
@@ -128,6 +131,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+    _scheduleAnchorScroll();
     return NotificationListener<ScrollNotification>(
       onNotification: (scroll) {
         if (scroll.metrics.pixels <= 100 && controller.messages.isNotEmpty) {
@@ -141,10 +145,37 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         itemCount: controller.messages.length,
         itemBuilder: (context, index) {
           final message = controller.messages[index];
-          return _buildMessageNode(message);
+          return KeyedSubtree(
+            key: _keyForMessage(message.messageId),
+            child: _buildMessageNode(message),
+          );
         },
       ),
     );
+  }
+
+  GlobalKey _keyForMessage(String messageId) {
+    return _messageKeys.putIfAbsent(messageId, GlobalKey.new);
+  }
+
+  void _scheduleAnchorScroll() {
+    final anchorMessageId = controller.anchorMessageId;
+    if (_didScrollToAnchor || anchorMessageId == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didScrollToAnchor) return;
+
+      final targetContext = _messageKeys[anchorMessageId]?.currentContext;
+      if (targetContext == null) return;
+
+      _didScrollToAnchor = true;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        alignment: 0.35,
+      );
+    });
   }
 
   Widget _buildMessageNode(ChatDetailMessage message) {
@@ -251,28 +282,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     ChatMessageContextMenu.show(context, position: position);
   }
 
-  Future<void> _openCallPage({required bool isVideo}) async {
-    if (_isGroupSession) {
-      AppToast.showInfo('群通话暂未开放');
-      controller.isMenuExpanded = false;
-      setState(() {});
-      return;
-    }
-
-    final encoded = Uri.encodeComponent(_sessionName);
-    final media = isVideo ? 'video' : 'voice';
-
-    controller.isMenuExpanded = false;
-    setState(() {});
-    final started = await RongCallManager().startPrivateCall(
-      targetId: _targetId,
-      displayName: _sessionName,
-      mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
-    );
-    if (!mounted || !started) return;
-    context.push('/chat-private-$media/$encoded');
-  }
-
   List<MediaItem> _buildMediaList(ChatDetailMessage current) {
     final list = <MediaItem>[];
 
@@ -311,11 +320,4 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return 0;
   }
 
-  String get _sessionName => widget.sessionArgs?.name ?? widget.fallbackName;
-
-  bool get _isGroupSession => widget.sessionArgs?.isGroup ?? false;
-
-  String get _targetId => widget.sessionArgs?.targetId ?? '';
-
-  String get _headerAvatar => widget.sessionArgs?.avatar ?? '';
 }

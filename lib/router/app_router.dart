@@ -24,6 +24,7 @@ import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';
 import 'package:paracosm/pages/chat/group_information_page.dart';
 import 'package:paracosm/pages/chat/group_detail/group_details_page.dart';
+import 'package:paracosm/pages/chat/chat_history_search_page.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
@@ -419,7 +420,14 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? 'Session';
-          return SessionDetailsPage(name: name);
+          final extra = state.extra;
+          final args = extra is ChatSessionArgs ? extra : null;
+          final userId = extra is String ? extra : args?.targetId;
+          return SessionDetailsPage(
+            name: name,
+            userId: userId ?? '',
+            sessionArgs: args,
+          );
         },
       ),
       // 社区详情页
@@ -428,7 +436,9 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final model = state.extra as CommunityModel?;
-          return model == null ? SizedBox() :CommunityDetailPage(communityModel: model,);
+          return model == null
+              ? SizedBox()
+              : CommunityDetailPage(communityModel: model);
         },
       ),
       // 创建 DAO 页
@@ -453,6 +463,17 @@ class AppRouter {
         builder: (context, state) {
           final type = state.extra as ChatSearchType?;
           return ChatSearchPage(type: type ?? ChatSearchType.all);
+        },
+      ),
+      // 会话内聊天记录搜索页
+      GoRoute(
+        path: '/chat-history-search',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final args = state.extra as ChatSessionArgs?;
+          return args == null
+              ? const SizedBox()
+              : ChatHistorySearchPage(sessionArgs: args);
         },
       ),
       // 好友申请页

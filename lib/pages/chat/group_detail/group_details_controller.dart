@@ -109,7 +109,7 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> togglePin() async {
     if (args == null) return;
-    final isOk = await ImConversationManager().changeConversationTopStatus(
+    final isOk = await ImConversationManager().setConversationTopStatus(
         type: args!.conversationType,
         targetId: args!.targetId,
         top: !isPinned

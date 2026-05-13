@@ -34,11 +34,13 @@ class MessageEvent {
   final MessageEventType type;
 
   final RCIMIWMessage? message;
+
   final List<RCIMIWMessage>? messages;
 
   final RCIMIWConversationType? conversationType;
 
   final String? targetId;
+
   final String? channelId;
 
   final int? timestamp;
@@ -170,7 +172,10 @@ class ImMessageManager {
   void onMessageReceived(RCIMIWMessage message) {
     if (_disposed) return;
 
-    _debugLogMessage('收到消息', message);
+    _debugLogMessage(
+      '收到消息',
+      message,
+    );
 
     _dispatchMessage(
       message,
@@ -233,7 +238,7 @@ class ImMessageManager {
     final completer =
     Completer<List<RCIMIWMessage>>();
 
-    IRCIMIWGetMessagesCallback? callback =
+    final callback =
     IRCIMIWGetMessagesCallback(
       onSuccess: (
           List<RCIMIWMessage>? t,
@@ -265,7 +270,7 @@ class ImMessageManager {
       },
       onError: (int? code) {
         completer.completeError(
-          Exception("获取历史消息: $code"),
+          Exception("获取历史消息失败: $code"),
         );
       },
     );
@@ -394,17 +399,21 @@ class ImMessageManager {
     String? channelId,
   }) async {
     final completer =
-    Completer<ImResult<List<RCIMIWMessage>>>();
+    Completer<
+        ImResult<List<RCIMIWMessage>>>();
 
     final ret =
-    await IMEngineManager().engine?.searchMessages(
+    await IMEngineManager()
+        .engine
+        ?.searchMessages(
       type,
       targetId,
       channelId,
       keyword,
       startTime,
       count,
-      callback: IRCIMIWSearchMessagesCallback(
+      callback:
+      IRCIMIWSearchMessagesCallback(
         onSuccess: (
             List<RCIMIWMessage>? t,
             ) {
@@ -422,7 +431,66 @@ class ImMessageManager {
       ),
     );
 
-    if (ret != null && ret != 0) {
+    if (ret == null) {
+      return ImResult.error(code: -1);
+    }
+
+    if (ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
+
+  Future<ImResult<List<RCIMIWMessage>>>
+  getMessagesAroundTime({
+    required RCIMIWConversationType type,
+    required String targetId,
+    required int sentTime,
+    int beforeCount = 10,
+    int afterCount = 10,
+    String? channelId,
+  }) async {
+    final completer =
+    Completer<
+        ImResult<List<RCIMIWMessage>>>();
+
+    final ret =
+    await IMEngineManager()
+        .engine
+        ?.getMessagesAroundTime(
+      type,
+      targetId,
+      channelId,
+      sentTime,
+      beforeCount,
+      afterCount,
+      callback:
+      IRCIMIWGetMessagesAroundTimeCallback(
+        onSuccess: (
+            List<RCIMIWMessage>? t,
+            ) {
+          completer.complete(
+            ImResult.success(
+              data: t ?? [],
+            ),
+          );
+        },
+        onError: (code) {
+          completer.complete(
+            ImResult.error(
+              code: code ?? -1,
+            ),
+          );
+        },
+      ),
+    );
+
+    if (ret == null) {
+      return ImResult.error(code: -1);
+    }
+
+    if (ret != 0) {
       return ImResult.error(code: ret);
     }
 
@@ -459,7 +527,9 @@ class ImMessageManager {
     final code =
     await IMEngineManager()
         .engine
-        ?.sendGroupReadReceiptRequest(message);
+        ?.sendGroupReadReceiptRequest(
+      message,
+    );
 
     return code == 0;
   }
@@ -487,7 +557,9 @@ class ImMessageManager {
   /// =========================
   /// 本地推送消息
   /// =========================
-  void pushLocalMessage(RCIMIWMessage message) {
+  void pushLocalMessage(
+      RCIMIWMessage message,
+      ) {
     if (_disposed) return;
 
     _dispatchMessage(
@@ -515,7 +587,8 @@ class ImMessageManager {
     }
 
     /// LRU
-    if (_messageCache.length > _maxCacheSize) {
+    if (_messageCache.length >=
+        _maxCacheSize) {
       _messageCache.remove(
         _messageCache.keys.first,
       );
@@ -545,32 +618,40 @@ class ImMessageManager {
   String? _messageCacheKey(
       RCIMIWMessage message,
       ) {
+    /// 通话消息稳定 key
     final callSummaryKey =
-    RongCallSummaryParser.stableMessageKey(
-      message,
-    );
+    RongCallSummaryParser
+        .stableMessageKey(message);
 
     if (callSummaryKey != null) {
       return callSummaryKey;
     }
 
-    final messageUId = message.messageUId;
+    /// messageUId 优先
+    final messageUId =
+        message.messageUId;
 
     if (messageUId != null &&
         messageUId.isNotEmpty) {
       return 'uid:$messageUId';
     }
 
-    final messageId = message.messageId;
+    /// messageId 次之
+    final messageId =
+        message.messageId;
 
-    if (messageId != null && messageId > 0) {
+    if (messageId != null &&
+        messageId > 0) {
       return 'id:$messageId';
     }
 
+    /// fallback
     final timestamp =
-        message.sentTime ?? message.receivedTime;
+        message.sentTime ??
+            message.receivedTime;
 
-    final targetId = message.targetId;
+    final targetId =
+        message.targetId;
 
     if (timestamp == null ||
         targetId == null ||
@@ -580,7 +661,8 @@ class ImMessageManager {
 
     return [
       'fallback',
-      message.conversationType?.index ?? -1,
+      message.conversationType?.index ??
+          -1,
       targetId,
       message.channelId ?? '',
       message.senderUserId ?? '',
@@ -601,7 +683,12 @@ class ImMessageManager {
           () {
         if (_disposed) return;
 
-        for (final msg in _buffer) {
+        final messages =
+        List<RCIMIWMessage>.from(_buffer);
+
+        _buffer.clear();
+
+        for (final msg in messages) {
           _messageController.add(
             MessageEvent(
               type: MessageEventType.add,
@@ -609,8 +696,6 @@ class ImMessageManager {
             ),
           );
         }
-
-        _buffer.clear();
       },
     );
   }
@@ -642,7 +727,8 @@ class ImMessageManager {
       return message.objectName;
     }
 
-    if (message is RCIMIWNativeCustomMessage) {
+    if (message
+    is RCIMIWNativeCustomMessage) {
       return message.messageIdentifier;
     }
 
@@ -653,18 +739,26 @@ class ImMessageManager {
     return null;
   }
 
-  bool _hasRawData(RCIMIWMessage message) {
+  bool _hasRawData(
+      RCIMIWMessage message,
+      ) {
     return message is RCIMIWUnknownMessage &&
-        (message.rawData?.isNotEmpty ?? false);
+        (message.rawData?.isNotEmpty ??
+            false);
   }
 
-  bool _hasFields(RCIMIWMessage message) {
-    if (message is RCIMIWNativeCustomMessage) {
-      return message.fields?.isNotEmpty ?? false;
+  bool _hasFields(
+      RCIMIWMessage message,
+      ) {
+    if (message
+    is RCIMIWNativeCustomMessage) {
+      return message.fields?.isNotEmpty ??
+          false;
     }
 
     if (message is RCIMIWCustomMessage) {
-      return message.fields?.isNotEmpty ?? false;
+      return message.fields?.isNotEmpty ??
+          false;
     }
 
     return false;
@@ -680,10 +774,10 @@ class ImMessageManager {
 
     _flushTimer?.cancel();
 
-    _messageController.close();
-
     _messageCache.clear();
 
     _buffer.clear();
+
+    _messageController.close();
   }
 }

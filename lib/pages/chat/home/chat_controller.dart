@@ -48,8 +48,8 @@ class ChatController extends ChangeNotifier {
   int friendApplicationUnhandledCount = 0;
 
   /// 固定引用（不要重新赋值）
-  final List<ConversationModel> conversations =
-  [];
+  final List<ConversationModel>
+  conversations = [];
 
   List<RCIMIWFriendInfo> friends = [];
 
@@ -150,17 +150,25 @@ class ChatController extends ChangeNotifier {
   /// =========================
   /// conversation refresh
   /// =========================
-  Future<void> refreshConversation() async {
+  Future<void>
+  refreshConversation() async {
     final list = _engineManager
         .conversation
-        .getTabList(selectedFilterIndex);
+        .getTabList(
+      selectedFilterIndex,
+    );
 
     final ids = <String>{};
 
     final newList = <ConversationModel>[];
 
     for (final item in list) {
-      final targetId = item.targetId ?? '';
+      final targetId =
+          item.targetId ?? '';
+
+      if (targetId.isEmpty) {
+        continue;
+      }
 
       ids.add(targetId);
 
@@ -170,15 +178,22 @@ class ChatController extends ChangeNotifier {
       if (_conversationMap.containsKey(
         targetId,
       )) {
-        model = _conversationMap[targetId]!;
+        model =
+        _conversationMap[targetId]!;
 
-        /// 只更新 conversation
+        /// 更新 conversation
         model.updateConversation(item);
+
+        /// 后台 resolve
+        _resolveSafe(model);
       } else {
         /// 新会话
-        model = ConversationModel(info: item);
+        model = ConversationModel(
+          info: item,
+        );
 
-        _conversationMap[targetId] = model;
+        _conversationMap[targetId] =
+            model;
 
         /// 异步解析
         _resolveSafe(model);
@@ -188,8 +203,11 @@ class ChatController extends ChangeNotifier {
     }
 
     /// 删除不存在会话
-    final removeKeys = _conversationMap.keys
-        .where((e) => !ids.contains(e))
+    final removeKeys =
+    _conversationMap.keys
+        .where(
+          (e) => !ids.contains(e),
+    )
         .toList();
 
     for (final key in removeKeys) {
@@ -210,7 +228,12 @@ class ChatController extends ChangeNotifier {
   Future<void> _resolveSafe(
       ConversationModel model,
       ) async {
-    final id = model.info.targetId ?? '';
+    final id =
+        model.info.targetId ?? '';
+
+    if (id.isEmpty) {
+      return;
+    }
 
     /// 防重复
     if (_resolvingIds.contains(id)) {
@@ -228,9 +251,6 @@ class ChatController extends ChangeNotifier {
 
       await resolver.resolve(model);
 
-      /// model 是引用对象
-      /// 不需要 replace
-
       _notify();
     } catch (e) {
       debugPrint(
@@ -245,7 +265,9 @@ class ChatController extends ChangeNotifier {
   /// 联系人
   /// =========================
   void _fetchContact() {
-    final sub = _engineManager.friend.stream
+    final sub = _engineManager
+        .friend
+        .stream
         .listen((list) {
       friends = list;
 
@@ -259,10 +281,8 @@ class ChatController extends ChangeNotifier {
   /// 群组
   /// =========================
   void _fetchGroup() {
-    final sub =
-    _engineManager.group.stream.listen((
-        list,
-        ) {
+    final sub = _engineManager.group.stream
+        .listen((list) {
       groups = list;
 
       _notify();
@@ -306,15 +326,16 @@ class ChatController extends ChangeNotifier {
       friends: friends,
     );
 
-    if (result == null || result.isEmpty) {
+    if (result == null ||
+        result.isEmpty) {
       return;
     }
 
     AppLoading.show();
 
     try {
-      final groupId = await ImGroupManager()
-          .create(
+      final groupId =
+      await ImGroupManager().create(
         inviteeUserIds: result,
         groupId: generateGroupId(
           GroupType.normal,
@@ -332,17 +353,22 @@ class ChatController extends ChangeNotifier {
       final message = CustomMessage(
         targetId: groupId,
         customMessageType:
-        CustomMessageType.groupInvited,
+        CustomMessageType
+            .groupInvited,
         conversationType:
         RCIMIWConversationType.group,
       );
 
-      final isSend = await ImSender.instance
-          .send(message: message);
+      final isSend =
+      await ImSender.instance.send(
+        message: message,
+      );
 
       AppLoading.dismiss();
 
-      if (!isSend) return;
+      if (!isSend) {
+        return;
+      }
 
       final conversation =
       await ImConversationManager()
@@ -352,13 +378,19 @@ class ChatController extends ChangeNotifier {
         targetId: groupId,
       );
 
-      if (conversation == null) return;
+      if (conversation == null) {
+        return;
+      }
 
       final model = ConversationModel(
         info: conversation,
       );
 
       await resolver.resolve(model);
+
+      if (!context.mounted) {
+        return;
+      }
 
       navigateToConversationDetail(
         context,
@@ -380,16 +412,19 @@ class ChatController extends ChangeNotifier {
   /// =========================
   /// 会话置顶
   /// =========================
-  Future<void> toggleConversationTop(
+  Future<void>
+  toggleConversationTop(
       ConversationModel model,
       ) async {
     final info = model.info;
 
     final targetId = info.targetId;
 
-    final type = info.conversationType;
+    final type =
+        info.conversationType;
 
-    if (targetId == null || type == null) {
+    if (targetId == null ||
+        type == null) {
       return;
     }
 
@@ -397,6 +432,7 @@ class ChatController extends ChangeNotifier {
 
     /// 乐观更新
     info.top = top;
+
     model.updateConversation(info);
 
     /// 本地排序
@@ -405,9 +441,10 @@ class ChatController extends ChangeNotifier {
     _notify();
 
     try {
-      final success = await _engineManager
+      final success =
+      await _engineManager
           .conversation
-          .changeConversationTopStatus(
+          .setConversationTopStatus(
         type: type,
         targetId: targetId,
         channelId: info.channelId,
@@ -417,6 +454,7 @@ class ChatController extends ChangeNotifier {
       if (!success) {
         /// 回滚
         info.top = !top;
+
         model.updateConversation(info);
 
         _sortConversationList();
@@ -424,13 +462,17 @@ class ChatController extends ChangeNotifier {
         _notify();
 
         AppToast.show(
-          top ? '置顶失败' : '取消置顶失败',
+          top
+              ? '置顶失败'
+              : '取消置顶失败',
         );
       }
     } catch (e) {
       /// 回滚
       info.top = !top;
+
       model.updateConversation(info);
+
       _sortConversationList();
 
       _notify();
@@ -451,9 +493,11 @@ class ChatController extends ChangeNotifier {
 
     final targetId = info.targetId;
 
-    final type = info.conversationType;
+    final type =
+        info.conversationType;
 
-    if (targetId == null || type == null) {
+    if (targetId == null ||
+        type == null) {
       return;
     }
 
@@ -466,7 +510,9 @@ class ChatController extends ChangeNotifier {
     /// 乐观删除
     conversations.remove(model);
 
-    _conversationMap.remove(targetId);
+    _conversationMap.remove(
+      targetId,
+    );
 
     _notify();
 
@@ -489,6 +535,8 @@ class ChatController extends ChangeNotifier {
       _conversationMap[targetId] =
           backupModel;
 
+      _sortConversationList();
+
       _notify();
 
       AppToast.show('删除失败');
@@ -504,9 +552,11 @@ class ChatController extends ChangeNotifier {
   /// =========================
   void _sortConversationList() {
     conversations.sort((a, b) {
-      final aTop = a.info.top ?? false;
+      final aTop =
+          a.info.top ?? false;
 
-      final bTop = b.info.top ?? false;
+      final bTop =
+          b.info.top ?? false;
 
       /// 置顶优先
       if (aTop != bTop) {
@@ -515,10 +565,12 @@ class ChatController extends ChangeNotifier {
       }
 
       final aTime =
-          a.info.lastMessage?.sentTime ?? 0;
+          a.info.lastMessage?.sentTime ??
+              0;
 
       final bTime =
-          b.info.lastMessage?.sentTime ?? 0;
+          b.info.lastMessage?.sentTime ??
+              0;
 
       return bTime.compareTo(aTime);
     });
@@ -542,13 +594,18 @@ class ChatController extends ChangeNotifier {
         targetId:
         conversation.targetId ?? '',
         conversationType:
-        conversation.conversationType ??
-            RCIMIWConversationType.private,
+        conversation
+            .conversationType ??
+            RCIMIWConversationType
+                .private,
         name: title,
-        channelId: conversation.channelId,
+        channelId:
+        conversation.channelId,
         isGroup:
-        conversation.conversationType ==
-            RCIMIWConversationType.group,
+        conversation
+            .conversationType ==
+            RCIMIWConversationType
+                .group,
         avatar: avatar,
       ),
     );
@@ -561,7 +618,9 @@ class ChatController extends ChangeNotifier {
     _notifyDebounce?.cancel();
 
     _notifyDebounce = Timer(
-      const Duration(milliseconds: 16),
+      const Duration(
+        milliseconds: 16,
+      ),
           () {
         notifyListeners();
       },

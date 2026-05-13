@@ -237,11 +237,11 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
             isFullBorder: true,
             onTap: () {},
           ),
-          Container(
-            height: 10,
-            decoration: const BoxDecoration(color: AppColors.grey100),
-          ),
-          _buildBurnAfterReading(),
+          // Container(
+          //   height: 10,
+          //   decoration: const BoxDecoration(color: AppColors.grey100),
+          // ),
+          // _buildBurnAfterReading(),
         ],
       ),
     );

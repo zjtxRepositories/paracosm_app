@@ -176,4 +176,5 @@ class GroupDetailsController extends ChangeNotifier {
       AppToast.show('已清空聊天记录');
     }
   }
+
 }

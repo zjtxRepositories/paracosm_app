@@ -995,7 +995,8 @@ class ChatDetailController {
         extra: args,
       );
     } else {
-      context?.push('/session-details/:${args?.name}', extra:args);
+      final encodedName = Uri.encodeComponent(sessionName);
+      context?.push('/session-details/$encodedName', extra: args);
     }
   }
 

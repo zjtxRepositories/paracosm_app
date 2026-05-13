@@ -1,8 +1,12 @@
 import 'dart:async';
 
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
+import 'package:paracosm/modules/im/listener/user_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_member_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../../core/models/user_model.dart';
 import '../manager/im_subscribe_event_manager.dart';
 
 class ImDataCenter {
@@ -30,19 +34,25 @@ class ImDataCenter {
   StreamController<Map<String, PresenceState>>.broadcast();
 
   final _profileController =
-  StreamController<Map<String, RCIMIWUserProfile>>.broadcast();
+  StreamController<List<String>>.broadcast();
 
   final _groupMemberController =
-  StreamController<Map<String, List<RCIMIWGroupMemberInfo>>>.broadcast();
+  StreamController<List<String>>.broadcast();
+
+  final _groupInfoController =
+  StreamController<List<String>>.broadcast();
 
   Stream<Map<String, PresenceState>> get presenceStream =>
       _presenceController.stream;
 
-  Stream<Map<String, RCIMIWUserProfile>> get profileStream =>
+  Stream<List<String>> get profileStream =>
       _profileController.stream;
 
-  Stream<Map<String, List<RCIMIWGroupMemberInfo>>> get groupMemberStream =>
+  Stream<List<String>> get groupMemberStream =>
       _groupMemberController.stream;
+
+  Stream<List<String>> get groupInfoStream =>
+      _groupInfoController.stream;
 
   /// =========================
   /// init（防重复）
@@ -62,7 +72,7 @@ class ImDataCenter {
     /// profile
     _subscribe.profileStream.listen((map) {
       _profileCache.addAll(map);
-      _emitProfile();
+      _emitProfile(map);
       _patchGroupMemberByProfile(map);
     });
 
@@ -71,9 +81,17 @@ class ImDataCenter {
       map.forEach((groupId, list) {
         _groupMemberCache[groupId] = list;
       });
-
-      _emitGroupMember();
     });
+
+    /// group
+    GroupEventBus.instance.stream.listen((event) {
+      if (event.type == GroupEventType.infoChanged && event.groupInfo != null) {
+        GroupStateCenter().updateGroupInfo(event.groupInfo!);
+        _emitGroup([event.groupInfo!.groupId ?? '']);
+      }
+
+    });
+
   }
 
   /// =========================
@@ -84,23 +102,28 @@ class ImDataCenter {
       ) {
     bool changed = false;
 
-    for (final entry in map.entries) {
-      final userId = entry.key;
-      final profile = entry.value;
+    final Set<String> affectedGroupIds = {};
 
-      for (final groupList in _groupMemberCache.values) {
-        for (final member in groupList) {
-          if (member.userId == userId) {
-            member.name = profile.name;
-            member.portraitUri = profile.portraitUri;
-            changed = true;
-          }
-        }
+    _groupMemberCache.forEach((groupId, groupList) {
+      final newList = groupList.map((member) {
+        final profile = map[member.userId];
+        if (profile == null) return member;
+
+        changed = true;
+        affectedGroupIds.add(groupId);
+        member.name = profile.name;
+        member.portraitUri = profile.portraitUri;
+        return member;
+      }).toList();
+
+      if (changed) {
+        _groupMemberCache[groupId] =
+            List.unmodifiable(newList);
       }
-    }
+    });
 
-    if (changed) {
-      _emitGroupMember();
+    if (affectedGroupIds.isNotEmpty) {
+      _emitGroupMember(affectedGroupIds.toList());
     }
   }
 
@@ -157,20 +180,28 @@ class ImDataCenter {
     }
   }
 
-  void _emitProfile() {
+  void _emitProfile(Map<String, RCIMIWUserProfile> map) {
+    List<String> userIds = [];
+    map.forEach((userId, profile) {
+      UserStateCenter().updateUser(UserModel(profile: profile));
+      userIds.add(userId);
+    });
     if (!_profileController.isClosed) {
-      _profileController.add(Map.unmodifiable(_profileCache));
+      _profileController.add(userIds);
     }
   }
 
-  void _emitGroupMember() {
+  void _emitGroupMember(List<String> groupIds) {
     if (!_groupMemberController.isClosed) {
-      _groupMemberController.add(
-        Map.unmodifiable(_groupMemberCache),
-      );
+      _groupMemberController.add(groupIds);
     }
   }
 
+  void _emitGroup(List<String> groupIds) {
+    if (!_groupInfoController.isClosed) {
+      _groupInfoController.add(groupIds);
+    }
+  }
   /// =========================
   /// dispose
   /// =========================

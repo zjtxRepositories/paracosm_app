@@ -105,26 +105,33 @@ class ChatController extends ChangeNotifier {
 
     _subs.add(_conversationChangeSub!);
 
-    _dataCenter.profileStream.listen((map) {
-      map.forEach((userId, profile) {
+    _dataCenter.profileStream.listen((userIds) {
+      for (var userId in userIds) {
         final model = _conversationMap[userId];
         if (model != null) {
           ConversationResolver().resolve(model);
         }
-      });
+      }
     });
 
-    _dataCenter.groupMemberStream.listen((map) {
-      map.forEach((groupId, profile) {
+    _dataCenter.groupMemberStream.listen((groupIds) {
+      for (var groupId in groupIds) {
         final model = _conversationMap[groupId];
         if (model != null) {
           ConversationResolver().resolve(model);
         }
-      });
-
-      // print('profile listeners: $map');
+      }
     });
 
+
+    _dataCenter.groupInfoStream.listen((groupIds) {
+      for (var groupId in groupIds) {
+        final model = _conversationMap[groupId];
+        if (model != null) {
+          ConversationResolver().resolve(model);
+        }
+      }
+    });
   }
 
   /// =========================

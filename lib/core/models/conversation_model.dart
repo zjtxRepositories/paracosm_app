@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -43,7 +44,6 @@ class ConversationResolver {
   factory ConversationResolver() {
     return _instance;
   }
-  final Map<String, GroupModel?> _groupCache = {};
 
   Future<void> resolve(ConversationModel model) async {
     final info = model.info;
@@ -184,12 +184,9 @@ class ConversationResolver {
   }
 
   Future<GroupModel?> _getGroup(String id) async {
-    return _groupCache[id] ??= await _fetchGroup(id);
+    final group = await GroupStateCenter().getGroup(id);
+    if (group == null) return null;
+    return GroupModel(info: group);
   }
 
-  Future<GroupModel?> _fetchGroup(String id) async {
-    final groups = await ImGroupManager().getGroupsInfo([id]);
-    if (groups == null || groups.isEmpty) return null;
-    return GroupModel(info: groups.first);
-  }
 }

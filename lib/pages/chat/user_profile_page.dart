@@ -149,8 +149,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         _user!.profile.name = controller.text;
-        final result = await ImUserManager().updateMyUserProfile(
-          userProfile: _user!.profile,
+        final result = await ImFriendManager().setFriendInfo(
+          userId: _user!.profile.userId ?? '',
+          remark: controller.text,
         );
         AppLoading.dismiss();
         if (!result) {

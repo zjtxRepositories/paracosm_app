@@ -7,6 +7,7 @@ import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../modules/im/listener/group_state_center.dart';
 import 'custom_message_model.dart';
 class MessageModel {
   final RCIMIWMessage item;
@@ -70,13 +71,9 @@ class MessageModel {
   }
 
   Future<GroupModel?> _getGroup(String id) async {
-    return _groupCache[id] ??= await _fetchGroup(id);
-  }
-
-  Future<GroupModel?> _fetchGroup(String id) async {
-    final groups = await ImGroupManager().getGroupsInfo([id]);
-    if (groups == null || groups.isEmpty) return null;
-    return GroupModel(info: groups.first);
+    final group = await GroupStateCenter().getGroup(id);
+    if (group == null) return null;
+    return GroupModel(info: group);
   }
 }
 //

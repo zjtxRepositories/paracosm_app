@@ -155,7 +155,6 @@ type=$type
 
     _profileCache[userId] = profile;
 
-    UserStateCenter().updateUser(UserModel(profile: profile));
     debugPrint("""
 用户资料更新:
 userId=$userId

@@ -163,7 +163,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingSearchHistory,
                   isFullBorder: true,
-                  onTap: () {},
+                  onTap: () {
+                    if (widget.args == null) return;
+                    context.push('/chat-history-search', extra: widget.args);
+                  },
                 ),
                 Container(
                   height: 10,

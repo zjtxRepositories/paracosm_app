@@ -988,17 +988,6 @@ class ChatDetailController {
     );
   }
 
-  void navigateToDetail() {
-    if (args?.isGroup ?? false) {
-      context?.push(
-        '/group-details',
-        extra: args,
-      );
-    } else {
-      // TODO:
-      // context?.push('/user-profile');
-    }
-  }
   void navigateToSettings() {
     if (args?.isGroup ?? false) {
       context?.push(

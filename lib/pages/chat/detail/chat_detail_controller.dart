@@ -36,19 +36,13 @@ class ChatDetailController {
 
   BuildContext? context;
 
-  final ImMessageManager _messageManager =
-  ImMessageManager();
+  final ImMessageManager _messageManager = ImMessageManager();
 
-  final ImConversationManager
-  _conversationManager =
-  ImConversationManager();
+  final ImConversationManager _conversationManager = ImConversationManager();
 
-  final ImSubscribeEventManager
-  _subscribeEventManager =
-  ImSubscribeEventManager();
+  final ImSubscribeEventManager _subscribeEventManager = ImSubscribeEventManager();
 
-  final inputController =
-  TextEditingController();
+  final inputController = TextEditingController();
 
   /// =========================
   /// Scroll Engine（唯一数据源）
@@ -82,20 +76,16 @@ class ChatDetailController {
 
   int? _oldestTime;
 
-  final voiceManager =
-  VoiceRecordManager();
+  final voiceManager = VoiceRecordManager();
 
-  final voicePlayerManager =
-  VoicePlayerManager();
+  final voicePlayerManager = VoicePlayerManager();
 
   /// =========================
   /// Stream
   /// =========================
-  StreamSubscription<MessageEvent>?
-  _messageSub;
+  StreamSubscription<MessageEvent>?_messageSub;
 
-  StreamSubscription<
-      Map<String, bool>>? _onlineSub;
+  StreamSubscription<Map<String, bool>>? _onlineSub;
 
   /// =========================
   /// UI notify
@@ -359,7 +349,7 @@ class ChatDetailController {
   /// =========================
   /// 消息监听
   /// =========================
-  void _subscribeMessages() {
+  Future<void> _subscribeMessages() async {
     _messageSub =
         _messageManager.messageStream
             .listen(
@@ -541,14 +531,11 @@ class ChatDetailController {
     /// 在线状态
     /// =========================
     if (args?.isGroup != true) {
-      _onlineSub =
-          _subscribeEventManager
-              .stream
-              .listen((map) {
+      _onlineSub = _subscribeEventManager.stream.listen((map) {
+        print('在线状态！--${map}');
             isOnline =
                 map[args!.targetId] ??
                     false;
-
             notify?.call();
           });
 
@@ -556,7 +543,10 @@ class ChatDetailController {
           .subscribeOnlineStatus([
         args!.targetId,
       ]);
+
     }
+
+
   }
 
   Future<void>

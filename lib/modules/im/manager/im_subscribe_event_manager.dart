@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'im_engine_manager.dart';
@@ -41,15 +42,17 @@ class ImSubscribeEventManager {
       if (events == null) return;
 
       for (final e in events) {
+
         final userId = e.userId;
 
         /// ⚠️ 这里不同SDK字段可能不同，通常是 status / value
         final status = e.subscribeType;
+        debugPrint("订阅: $status----$userId");
 
         if (userId == null || status == null) continue;
 
         /// 1 = online, 0 = offline（按常规IM定义）
-        _onlineCache[userId] = status == RCIMIWSubscribeType.friendOnlineStatus;
+        _onlineCache[userId] = status == RCIMIWSubscribeType.onlineStatus;
       }
 
       _notify();

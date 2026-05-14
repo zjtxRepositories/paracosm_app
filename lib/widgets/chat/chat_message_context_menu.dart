@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/chat/chat_bubble_painters.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 
 class ChatMessageContextMenu {
   ChatMessageContextMenu._();
@@ -7,8 +10,13 @@ class ChatMessageContextMenu {
   static Future<void> show(
     BuildContext context, {
     required Offset position,
+    String? copyText,
+    VoidCallback? onDelete,
+    VoidCallback? onRecall,
   }) {
     final screenHeight = MediaQuery.of(context).size.height;
+    final trimmedCopyText = copyText?.trim();
+    final canCopy = trimmedCopyText != null && trimmedCopyText.isNotEmpty;
 
     return showDialog<void>(
       context: context,
@@ -38,32 +46,62 @@ class ChatMessageContextMenu {
                       spacing: 0,
                       runSpacing: 20,
                       alignment: WrapAlignment.start,
-                      children: const [
+                      children: [
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/copy.png',
                           label: 'Copy',
+                          enabled: canCopy,
+                          onTap: canCopy
+                              ? () async {
+                                  await Clipboard.setData(
+                                    ClipboardData(text: trimmedCopyText),
+                                  );
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(dialogContext);
+                                  }
+                                  if (context.mounted) {
+                                    AppToast.show(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.commonCopied,
+                                    );
+                                  }
+                                }
+                              : null,
                         ),
-                        _ChatMessageContextMenuItem(
+                        const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/share.png',
                           label: 'transpond',
                         ),
-                        _ChatMessageContextMenuItem(
+                        const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/translate.png',
                           label: 'translate',
                         ),
-                        _ChatMessageContextMenuItem(
+                        const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/quote.png',
                           label: 'quote',
                         ),
-                        _ChatMessageContextMenuItem(
-                          icon: 'assets/images/chat/recall.png',
-                          label: 'recall',
-                        ),
+                        if (onRecall != null)
+                          _ChatMessageContextMenuItem(
+                            icon: 'assets/images/chat/recall.png',
+                            label: 'recall',
+                            onTap: () {
+                              Navigator.pop(dialogContext);
+                              onRecall();
+                            },
+                          ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/delete-msg.png',
                           label: 'Delete',
+                          enabled: onDelete != null,
+                          onTap: onDelete == null
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  onDelete();
+                                },
                         ),
-                        _ChatMessageContextMenuItem(
+                        const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/select.png',
                           label: 'select',
                         ),
@@ -96,30 +134,37 @@ class _ChatMessageContextMenuItem extends StatelessWidget {
   const _ChatMessageContextMenuItem({
     required this.icon,
     required this.label,
+    this.enabled = true,
+    this.onTap,
   });
 
   final String icon;
   final String label;
+  final bool enabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
-      child: SizedBox(
-        width: (MediaQuery.of(context).size.width - 72) / 4,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(icon, width: 24, height: 24, color: Colors.white),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+      onTap: enabled ? (onTap ?? () => Navigator.pop(context)) : null,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.35,
+        child: SizedBox(
+          width: (MediaQuery.of(context).size.width - 72) / 4,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(icon, width: 24, height: 24, color: Colors.white),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

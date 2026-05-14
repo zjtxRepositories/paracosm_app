@@ -1,15 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
 import '../../../core/models/media_item.dart';
-import '../../../modules/call/rong_call_manager.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
-import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
 import '../../../widgets/chat/chat_input_bar.dart';
@@ -20,6 +17,7 @@ import '../../../widgets/chat/chat_more_panel.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
 import 'chat_detail_controller.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final ChatSessionArgs? sessionArgs;
@@ -62,12 +60,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       isAddBottomMargin: false,
       renderCustomHeader: ChatDetailHeader(
         name: controller.sessionName,
-        isGroup:controller.isGroupSession,
+        isGroup: controller.isGroupSession,
         avatar: controller.headerAvatar,
         targetId: controller.targetId,
         isOnline: controller.isOnline,
-        onMoreTap:controller.navigateToSettings,
-        onAvatarTap:controller.navigateToProfile,
+        onMoreTap: controller.navigateToSettings,
+        onAvatarTap: controller.navigateToProfile,
       ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
@@ -181,28 +179,48 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildMessageNode(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.timestamp:
-      case ChatDetailMessageKind.fm:
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Text(
-              message.text ?? '',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.grey400,
-                fontSize: 12,
-              ),
-            ),
+        return _buildCenterTextMessage(message);
+      case ChatDetailMessageKind.withdrawnNotice:
+        return _buildCenterTextMessage(
+          ChatDetailMessage(
+            messageId: message.messageId,
+            kind: message.kind,
+            text: AppLocalizations.of(context)!.chatDetailWithdrewMessage,
+            sentTime: message.sentTime,
+            extra: message.extra,
           ),
+        );
+      case ChatDetailMessageKind.fm:
+        return GestureDetector(
+          onLongPressStart: (d) =>
+              _showContextMenu(context, d.globalPosition, message),
+          child: _buildCenterTextMessage(message),
         );
       default:
         return ChatMessageItem(
           isMe: message.isMe,
           isUnread: message.isUnread,
           showBubble: message.showBubble,
-          onLongPressStart: (d) => _showContextMenu(context, d.globalPosition),
+          onLongPressStart: (d) =>
+              _showContextMenu(context, d.globalPosition, message),
           child: _buildMessageContent(message),
         );
     }
+  }
+
+  Widget _buildCenterTextMessage(ChatDetailMessage message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(
+          message.text ?? '',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.grey400,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildMessageContent(ChatDetailMessage message) {
@@ -278,8 +296,54 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  void _showContextMenu(BuildContext context, Offset position) {
-    ChatMessageContextMenu.show(context, position: position);
+  void _showContextMenu(
+    BuildContext context,
+    Offset position,
+    ChatDetailMessage message,
+  ) {
+    ChatMessageContextMenu.show(
+      context,
+      position: position,
+      copyText: _copyTextForMessage(message),
+      onRecall: _canRecallMessage(message)
+          ? () => controller.recallMessage(message)
+          : null,
+      onDelete: _canDeleteMessage(message)
+          ? () => controller.deleteMessage(message)
+          : null,
+    );
+  }
+
+  bool _canRecallMessage(ChatDetailMessage message) {
+    if (!message.isMe) return false;
+    if (message.kind == ChatDetailMessageKind.timestamp ||
+        message.kind == ChatDetailMessageKind.withdrawnNotice) {
+      return false;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return false;
+
+    final sentTime = message.sentTime ?? raw.sentTime ?? raw.receivedTime;
+    if (sentTime == null || sentTime <= 0) return false;
+
+    final elapsed = DateTime.now().millisecondsSinceEpoch - sentTime;
+    return elapsed <= const Duration(minutes: 2).inMilliseconds;
+  }
+
+  bool _canDeleteMessage(ChatDetailMessage message) {
+    return message.extra is RCIMIWMessage;
+  }
+
+  String? _copyTextForMessage(ChatDetailMessage message) {
+    switch (message.kind) {
+      case ChatDetailMessageKind.text:
+      case ChatDetailMessageKind.fm:
+      case ChatDetailMessageKind.call:
+        return message.text;
+      default:
+        return null;
+    }
   }
 
   List<MediaItem> _buildMediaList(ChatDetailMessage current) {
@@ -319,5 +383,4 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     return 0;
   }
-
 }

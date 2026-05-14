@@ -40,15 +40,15 @@ class ChatDetailController {
 
   final ImConversationManager _conversationManager = ImConversationManager();
 
-  final ImSubscribeEventManager _subscribeEventManager = ImSubscribeEventManager();
+  final ImSubscribeEventManager _subscribeEventManager =
+      ImSubscribeEventManager();
 
   final inputController = TextEditingController();
 
   /// =========================
   /// Scroll Engine（唯一数据源）
   /// =========================
-  late final ScrollEngine engine =
-  ScrollEngine(
+  late final ScrollEngine engine = ScrollEngine(
     getId: (msg) => msg.messageId,
     onUpdate: () => notify?.call(),
   );
@@ -83,7 +83,7 @@ class ChatDetailController {
   /// =========================
   /// Stream
   /// =========================
-  StreamSubscription<MessageEvent>?_messageSub;
+  StreamSubscription<MessageEvent>? _messageSub;
 
   StreamSubscription<Map<String, PresenceState>>? _eventSub;
 
@@ -102,9 +102,7 @@ class ChatDetailController {
 
     _initInputListener();
 
-    _loadInitialMessages().then((
-        list,
-        ) {
+    _loadInitialMessages().then((list) {
       engine.merge(list);
 
       _markConversationRead();
@@ -124,9 +122,7 @@ class ChatDetailController {
   }
 
   void dispose() {
-    _subscribeEventManager.unsubscribe([
-      args!.targetId,
-    ]);
+    _subscribeEventManager.unsubscribe([args!.targetId]);
 
     inputController.dispose();
 
@@ -142,9 +138,7 @@ class ChatDetailController {
   /// =========================
   void _initInputListener() {
     inputController.addListener(() {
-      final empty = inputController.text
-          .trim()
-          .isEmpty;
+      final empty = inputController.text.trim().isEmpty;
 
       if (empty != isInputEmpty) {
         isInputEmpty = empty;
@@ -202,9 +196,7 @@ class ChatDetailController {
 
       return list;
     } catch (e) {
-      debugPrint(
-        'load error: $e',
-      );
+      debugPrint('load error: $e');
 
       return [];
     } finally {
@@ -228,8 +220,7 @@ class ChatDetailController {
         type: args!.conversationType,
         targetId: args!.targetId,
         channelId: args!.channelId,
-        sentTime:
-        args!.anchorSentTime!,
+        sentTime: args!.anchorSentTime!,
         beforeCount: 10,
         afterCount: 10,
       );
@@ -238,24 +229,19 @@ class ChatDetailController {
         return _loadMessages();
       }
 
-      final rawMessages =
-          result.data ?? [];
+      final rawMessages = result.data ?? [];
 
       final list = await ChatDetailMessageMapper.mapMessages(
-        rawMessages.reversed
-            .toList(),
+        rawMessages.reversed.toList(),
       );
 
       if (list.isNotEmpty) {
-        _oldestTime =
-            list.first.sentTime;
+        _oldestTime = list.first.sentTime;
       }
 
       return list;
     } catch (e) {
-      debugPrint(
-        'load anchor error: $e',
-      );
+      debugPrint('load anchor error: $e');
 
       return _loadMessages();
     } finally {
@@ -282,8 +268,7 @@ class ChatDetailController {
     notify?.call();
 
     try {
-      final result =
-      await _messageManager.getMessages(
+      final result = await _messageManager.getMessages(
         type: args!.conversationType,
         targetId: args!.targetId,
         sentTime: _oldestTime!,
@@ -304,9 +289,7 @@ class ChatDetailController {
         engine.prepend(list);
       }
     } catch (e) {
-      debugPrint(
-        'load more error: $e',
-      );
+      debugPrint('load more error: $e');
     }
 
     isLoadingMore = false;
@@ -314,158 +297,268 @@ class ChatDetailController {
     notify?.call();
   }
 
+  Future<void> deleteMessage(ChatDetailMessage message) async {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) {
+      AppToast.show('删除失败');
+      return;
+    }
+
+    final success = await _messageManager.deleteLocalMessages(messages: [raw]);
+
+    if (!success) {
+      AppToast.show('删除失败');
+    }
+  }
+
+  Future<void> recallMessage(ChatDetailMessage message) async {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) {
+      AppToast.show('撤回失败');
+      return;
+    }
+
+    final success = await _messageManager.recallMessage(message: raw);
+
+    if (!success) {
+      AppToast.show('撤回失败');
+    }
+  }
+
   /// =========================
   /// 消息监听
   /// =========================
   Future<void> _subscribeMessages() async {
     _messageSub = _messageManager.messageStream.listen((event) async {
-            if (args == null) {
-              return;
+      if (args == null) {
+        return;
+      }
+
+      switch (event.type) {
+        /// =========================
+        /// 新消息
+        /// =========================
+        case MessageEventType.add:
+          final message = event.message;
+
+          if (message == null) {
+            return;
+          }
+
+          if (message.targetId != args!.targetId) {
+            return;
+          }
+
+          if (message.conversationType != args!.conversationType) {
+            return;
+          }
+
+          final msg = await ChatDetailMessageMapper.mapMessage(message);
+
+          /// ⭐ append
+          engine.append(msg);
+
+          /// 标记已读
+          _markConversationRead(timestamp: message.sentTime);
+
+          if (engine.isAtBottom) {
+            engine.scrollToBottom();
+          }
+
+          break;
+
+        /// =========================
+        /// 删除消息
+        /// =========================
+        case MessageEventType.delete:
+          final deleteList = event.messages ?? [];
+
+          if (deleteList.isEmpty) {
+            return;
+          }
+
+          final uids = deleteList
+              .map((e) => e.messageUId)
+              .whereType<String>()
+              .where((e) => e.isNotEmpty)
+              .toSet();
+          final ids = deleteList
+              .map((e) => e.messageId)
+              .whereType<int>()
+              .where((e) => e > 0)
+              .toSet();
+
+          engine.removeWhere((e) {
+            final raw = e.extra;
+
+            if (raw is! RCIMIWMessage) {
+              return false;
             }
 
-            switch (event.type) {
-            /// =========================
-            /// 新消息
-            /// =========================
-              case MessageEventType.add:
-                final message = event.message;
-
-                if (message == null) {
-                  return;
-                }
-
-                if (message.targetId != args!.targetId) {
-                  return;
-                }
-
-                if (message.conversationType != args!.conversationType) {
-                  return;
-                }
-
-                final msg = await ChatDetailMessageMapper.mapMessage(
-                  message,
-                );
-
-                /// ⭐ append
-                engine.append(msg);
-
-                /// 标记已读
-                _markConversationRead(timestamp: message.sentTime);
-
-                if (engine.isAtBottom) {
-                  engine.scrollToBottom();
-                }
-
-                break;
-
-            /// =========================
-            /// 删除消息
-            /// =========================
-              case MessageEventType.delete:
-                final deleteList = event.messages ?? [];
-
-                if (deleteList.isEmpty) {
-                  return;
-                }
-
-                final ids = deleteList.map((e) => e.messageId).toSet();
-
-                engine.removeWhere((e) {
-                  final raw = e.extra;
-
-                  if (raw is! RCIMIWMessage) {
-                    return false;
-                  }
-
-                  return ids.contains(raw.messageId);
-                });
-
-                break;
-
-            /// =========================
-            /// 撤回消息
-            /// =========================
-              case MessageEventType.recall:
-                final recallMessage = event.message;
-
-                if (recallMessage == null) {
-                  return;
-                }
-
-                if (recallMessage.targetId != args!.targetId) {
-                  return;
-                }
-
-                if (recallMessage.conversationType != args!.conversationType) {
-                  return;
-                }
-
-                final newMsg = await ChatDetailMessageMapper.mapMessage(
-                  recallMessage,
-                );
-
-                engine.replaceWhere(
-                      (e) {
-                    final raw = e.extra;
-
-                    if (raw is! RCIMIWMessage) {
-                      return false;
-                    }
-
-                    return raw.messageUId == recallMessage.messageUId;
-                  },
-                  newMsg,
-                );
-
-                break;
-
-            /// =========================
-            /// 清空消息
-            /// =========================
-              case MessageEventType.clear:
-                if (event.targetId != args!.targetId) {
-                  return;
-                }
-
-                if (event.conversationType != args!.conversationType) {
-                  return;
-                }
-
-                engine.removeWhere((e) {
-                  final raw = e.extra;
-
-                  if (raw is! RCIMIWMessage) {
-                    return false;
-                  }
-
-                  return (raw.sentTime ?? 0) <= (event.timestamp ?? 0);
-                });
-
-                break;
-
-            /// =========================
-            /// 更新消息
-            /// =========================
-              case MessageEventType.update:
-                break;
+            if (raw.targetId != args!.targetId) {
+              return false;
             }
-          },
-        );
+
+            if (raw.conversationType != args!.conversationType) {
+              return false;
+            }
+
+            final uid = raw.messageUId;
+            if (uid != null && uid.isNotEmpty && uids.contains(uid)) {
+              return true;
+            }
+
+            final id = raw.messageId;
+            return id != null && id > 0 && ids.contains(id);
+          });
+
+          break;
+
+        /// =========================
+        /// 撤回消息
+        /// =========================
+        case MessageEventType.recall:
+          final recallMessage = event.message;
+
+          if (recallMessage == null) {
+            return;
+          }
+
+          if (!_isMessageInCurrentConversation(recallMessage)) {
+            return;
+          }
+
+          final newMsg = await ChatDetailMessageMapper.mapMessage(
+            recallMessage,
+          );
+
+          engine.replaceWhere(
+            (e) => _matchesRecallMessage(e, recallMessage),
+            newMsg,
+          );
+
+          break;
+
+        /// =========================
+        /// 清空消息
+        /// =========================
+        case MessageEventType.clear:
+          if (event.targetId != args!.targetId) {
+            return;
+          }
+
+          if (event.conversationType != args!.conversationType) {
+            return;
+          }
+
+          engine.removeWhere((e) {
+            final raw = e.extra;
+
+            if (raw is! RCIMIWMessage) {
+              return false;
+            }
+
+            return (raw.sentTime ?? 0) <= (event.timestamp ?? 0);
+          });
+
+          break;
+
+        /// =========================
+        /// 更新消息
+        /// =========================
+        case MessageEventType.update:
+          break;
+      }
+    });
 
     /// =========================
     /// 在线状态
     /// =========================
     if (args?.isGroup != true) {
       _eventSub = _subscribeEventManager.stream.listen((map) {
-            final status = map[args!.targetId] ?? PresenceState.unknown;
-            isOnline = status == PresenceState.online;
-            notify?.call();
-          });
+        final status = map[args!.targetId] ?? PresenceState.unknown;
+        isOnline = status == PresenceState.online;
+        notify?.call();
+      });
 
       _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
     }
+  }
 
+  bool _matchesRecallMessage(
+    ChatDetailMessage item,
+    RCIMIWMessage recallMessage,
+  ) {
+    final raw = item.extra;
 
+    if (raw is! RCIMIWMessage) {
+      return false;
+    }
+
+    if (raw.targetId != args!.targetId) {
+      return false;
+    }
+
+    if (raw.conversationType != args!.conversationType) {
+      return false;
+    }
+
+    final originalMessage = recallMessage is RCIMIWRecallNotificationMessage
+        ? recallMessage.originalMessage
+        : null;
+
+    if (originalMessage != null && _isSameMessage(raw, originalMessage)) {
+      return true;
+    }
+
+    if (_isSameMessage(raw, recallMessage)) {
+      return true;
+    }
+
+    final recallTime = recallMessage is RCIMIWRecallNotificationMessage
+        ? recallMessage.recallTime
+        : null;
+    if (recallTime != null && recallTime > 0) {
+      final rawTime = raw.sentTime ?? raw.receivedTime;
+      return rawTime != null && rawTime == recallTime;
+    }
+
+    return false;
+  }
+
+  bool _isMessageInCurrentConversation(RCIMIWMessage message) {
+    if (_isSameConversation(message)) {
+      return true;
+    }
+
+    final originalMessage = message is RCIMIWRecallNotificationMessage
+        ? message.originalMessage
+        : null;
+    return originalMessage != null && _isSameConversation(originalMessage);
+  }
+
+  bool _isSameConversation(RCIMIWMessage message) {
+    return message.targetId == args!.targetId &&
+        message.conversationType == args!.conversationType;
+  }
+
+  bool _isSameMessage(RCIMIWMessage left, RCIMIWMessage right) {
+    final leftUid = left.messageUId;
+    final rightUid = right.messageUId;
+    if (leftUid != null &&
+        leftUid.isNotEmpty &&
+        rightUid != null &&
+        rightUid.isNotEmpty) {
+      return leftUid == rightUid;
+    }
+
+    final leftId = left.messageId;
+    final rightId = right.messageId;
+    return leftId != null &&
+        leftId > 0 &&
+        rightId != null &&
+        rightId > 0 &&
+        leftId == rightId;
   }
 
   Future<void> _markConversationRead({int? timestamp}) async {
@@ -485,8 +578,7 @@ class ChatDetailController {
   /// 语音监听
   /// =========================
   void _subscribeVoice() {
-    voiceManager.onSend =
-        (path, duration) {
+    voiceManager.onSend = (path, duration) {
       sendVoice(path, duration);
 
       VoiceRecordOverlay.hide();
@@ -506,27 +598,16 @@ class ChatDetailController {
       VoiceRecordOverlay.hide();
     };
 
-    voiceManager.onVolume =
-        (volume) {
-      VoiceRecordOverlay.update(
-        volume: volume,
-      );
+    voiceManager.onVolume = (volume) {
+      VoiceRecordOverlay.update(volume: volume);
     };
 
     voiceManager.onTooShort = () {
-      VoiceRecordOverlay.update(
-        isTooShort: true,
-        text: '录音太短',
-      );
+      VoiceRecordOverlay.update(isTooShort: true, text: '录音太短');
 
-      Future.delayed(
-        const Duration(
-          milliseconds: 800,
-        ),
-            () {
-          VoiceRecordOverlay.hide();
-        },
-      );
+      Future.delayed(const Duration(milliseconds: 800), () {
+        VoiceRecordOverlay.hide();
+      });
     };
   }
 
@@ -534,18 +615,15 @@ class ChatDetailController {
   /// 发送消息
   /// =========================
   Future<void> sendText() async {
-    final text = inputController.text
-        .trim();
+    final text = inputController.text.trim();
 
-    if (args == null ||
-        text.isEmpty) {
+    if (args == null || text.isEmpty) {
       return;
     }
 
     await ImSender.instance.send(
       message: TextMessage(
-        conversationType:
-        args!.conversationType,
+        conversationType: args!.conversationType,
         targetId: args!.targetId,
         content: text,
       ),
@@ -554,47 +632,32 @@ class ChatDetailController {
     inputController.clear();
   }
 
-  Future<void> sendImage(
-      String path,
-      ) async {
+  Future<void> sendImage(String path) async {
     await ImSender.instance.send(
       message: ImageMessage(
-        conversationType:
-        args!.conversationType,
+        conversationType: args!.conversationType,
         targetId: args!.targetId,
         path: path,
       ),
     );
   }
 
-  Future<void> sendVideo(
-      MediaInfo media,
-      String thumbnailBase64String,
-      ) async {
+  Future<void> sendVideo(MediaInfo media, String thumbnailBase64String) async {
     await ImSender.instance.send(
       message: VideoMessage(
-        conversationType:
-        args!.conversationType,
+        conversationType: args!.conversationType,
         targetId: args!.targetId,
         path: media.path ?? '',
-        duration:
-        (media.duration ?? 0)
-            .toInt(),
-        thumbnailBase64String:
-        thumbnailBase64String,
+        duration: (media.duration ?? 0).toInt(),
+        thumbnailBase64String: thumbnailBase64String,
       ),
     );
   }
 
-  Future<void> sendFile(
-      String path,
-      int size,
-      String name,
-      ) async {
+  Future<void> sendFile(String path, int size, String name) async {
     await ImSender.instance.send(
       message: FileMessage(
-        conversationType:
-        args!.conversationType,
+        conversationType: args!.conversationType,
         targetId: args!.targetId,
         path: path,
         size: size,
@@ -603,14 +666,10 @@ class ChatDetailController {
     );
   }
 
-  Future<void> sendVoice(
-      String path,
-      int duration,
-      ) async {
+  Future<void> sendVoice(String path, int duration) async {
     await ImSender.instance.send(
       message: VoiceMessage(
-        conversationType:
-        args!.conversationType,
+        conversationType: args!.conversationType,
         targetId: args!.targetId,
         path: path,
         duration: duration,
@@ -618,21 +677,15 @@ class ChatDetailController {
     );
   }
 
-  Future<void> handleAssetEntity(
-      AssetEntity entity,
-      ) async {
+  Future<void> handleAssetEntity(AssetEntity entity) async {
     final file = await entity.file;
 
     if (file == null) {
       return;
     }
 
-    if (entity.type ==
-        AssetType.video) {
-      await _handleVideo(
-        file,
-        entity,
-      );
+    if (entity.type == AssetType.video) {
+      await _handleVideo(file, entity);
     } else {
       await _handleImage(file);
     }
@@ -644,18 +697,12 @@ class ChatDetailController {
   Future<void> voiceStart() async {
     await voiceManager.startRecord();
 
-    VoiceRecordOverlay.show(
-      context!,
-      isUp: false,
-      volume: 0.1,
-      text: '松开发送',
-    );
+    VoiceRecordOverlay.show(context!, isUp: false, volume: 0.1, text: '松开发送');
   }
 
   Future<void> voiceEnd() async {
     if (isCancelling) {
-      await voiceManager
-          .cancelRecord();
+      await voiceManager.cancelRecord();
     } else {
       await voiceManager.stopRecord();
     }
@@ -667,9 +714,7 @@ class ChatDetailController {
     notify?.call();
   }
 
-  Future<void> voiceUpdate(
-      LongPressMoveUpdateDetails d,
-      ) async {
+  Future<void> voiceUpdate(LongPressMoveUpdateDetails d) async {
     final dy = d.localPosition.dy;
 
     final cancel = dy < -50;
@@ -677,30 +722,16 @@ class ChatDetailController {
     if (cancel != isCancelling) {
       isCancelling = cancel;
 
-      VoiceRecordOverlay.update(
-        isUp: cancel,
-        text:
-        cancel
-            ? '松开取消'
-            : '松开发送',
-      );
+      VoiceRecordOverlay.update(isUp: cancel, text: cancel ? '松开取消' : '松开发送');
     }
   }
 
-  Future<void> voicePlay(
-      String id, {
-        String? path,
-        String? url,
-      }) async {
+  Future<void> voicePlay(String id, {String? path, String? url}) async {
     if (path == null) {
       return;
     }
 
-    voicePlayerManager.play(
-      id: id,
-      path: path,
-      url: url,
-    );
+    voicePlayerManager.play(id: id, path: path, url: url);
   }
 
   /// =========================
@@ -711,11 +742,9 @@ class ChatDetailController {
       engine.scrollToBottom();
     }
 
-    FocusScope.of(context!)
-        .unfocus();
+    FocusScope.of(context!).unfocus();
 
-    isMenuExpanded =
-    !isMenuExpanded;
+    isMenuExpanded = !isMenuExpanded;
 
     isVoiceMode = false;
 
@@ -723,8 +752,7 @@ class ChatDetailController {
   }
 
   void toggleVoice() {
-    FocusScope.of(context!)
-        .unfocus();
+    FocusScope.of(context!).unfocus();
 
     isVoiceMode = !isVoiceMode;
 
@@ -735,8 +763,7 @@ class ChatDetailController {
 
   void toggleAction() {
     if (isInputEmpty) {
-      FocusScope.of(context!)
-          .unfocus();
+      FocusScope.of(context!).unfocus();
 
       toggleMenu();
     } else {
@@ -745,11 +772,9 @@ class ChatDetailController {
   }
 
   Future<void> toggleAlbum() async {
-    final List<AssetEntity>? result =
-    await AssetPicker.pickAssets(
+    final List<AssetEntity>? result = await AssetPicker.pickAssets(
       context!,
-      pickerConfig:
-      const AssetPickerConfig(),
+      pickerConfig: const AssetPickerConfig(),
     );
 
     if (result == null) {
@@ -762,14 +787,9 @@ class ChatDetailController {
   }
 
   Future<void> toggleCamera() async {
-    final AssetEntity? entity =
-    await CameraPicker
-        .pickFromCamera(
+    final AssetEntity? entity = await CameraPicker.pickFromCamera(
       context!,
-      pickerConfig:
-      const CameraPickerConfig(
-        enableRecording: true,
-      ),
+      pickerConfig: const CameraPickerConfig(enableRecording: true),
     );
 
     if (entity == null) {
@@ -780,8 +800,7 @@ class ChatDetailController {
   }
 
   Future<void> toggleFile() async {
-    final result =
-    await FilePicker.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: false,
     );
@@ -799,106 +818,54 @@ class ChatDetailController {
 
       final file = File(path);
 
-      await _handleFile(
-        file,
-        f.name,
-        f.size,
-      );
+      await _handleFile(file, f.name, f.size);
     }
   }
 
-  Future<void> _handleVideo(
-      File file,
-      AssetEntity entity,
-      ) async {
-    final thumb =
-    await entity
-        .thumbnailDataWithSize(
-      const ThumbnailSize(
-        200,
-        200,
-      ),
+  Future<void> _handleVideo(File file, AssetEntity entity) async {
+    final thumb = await entity.thumbnailDataWithSize(
+      const ThumbnailSize(200, 200),
     );
 
-    String thumbnailBase64String =
-        '';
+    String thumbnailBase64String = '';
 
-    if (thumb != null &&
-        thumb.isNotEmpty) {
-      thumbnailBase64String =
-          base64Encode(thumb);
+    if (thumb != null && thumb.isNotEmpty) {
+      thumbnailBase64String = base64Encode(thumb);
     }
 
-    final compressed =
-    await MediaHandleUtil
-        .compressedVideoQuality(
-      file,
-    );
+    final compressed = await MediaHandleUtil.compressedVideoQuality(file);
 
     if (compressed?.video == null) {
       return;
     }
 
-    sendVideo(
-      compressed!.video!,
-      thumbnailBase64String,
-    );
+    sendVideo(compressed!.video!, thumbnailBase64String);
   }
 
-  Future<void> _handleImage(
-      File file,
-      ) async {
-    final path =
-    await MediaHandleUtil
-        .compressedImageQuality(
-      file.path,
-    );
+  Future<void> _handleImage(File file) async {
+    final path = await MediaHandleUtil.compressedImageQuality(file.path);
 
     sendImage(path);
   }
 
-  Future<void> _handleFile(
-      File file,
-      String name,
-      int size,
-      ) async {
-    sendFile(
-      file.path,
-      size,
-      name,
-    );
+  Future<void> _handleFile(File file, String name, int size) async {
+    sendFile(file.path, size, name);
   }
 
-  void openMediaViewer({
-    required List<MediaItem> list,
-    required int index,
-  }) {
+  void openMediaViewer({required List<MediaItem> list, required int index}) {
     Navigator.push(
       context!,
       PageRouteBuilder(
-        pageBuilder:
-            (
-            context,
-            animation,
-            secondaryAnimation,
-            ) => AppMediaGallery(
-          list: list,
-          initialIndex: index,
-        ),
-        transitionDuration:
-        const Duration(
-          milliseconds: 200,
-        ),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            AppMediaGallery(list: list, initialIndex: index),
+        transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
 
   void navigateToSettings() {
     if (args?.isGroup ?? false) {
-      context?.push(
-        '/group-details',
-        extra: args,
-      );
+      context?.push('/group-details', extra: args);
     } else {
       final encodedName = Uri.encodeComponent(sessionName);
       context?.push('/session-details/$encodedName', extra: args);
@@ -936,7 +903,6 @@ class ChatDetailController {
     context?.push('/chat-private-$media/$encoded');
   }
 
-
   String get sessionName => args?.name ?? '';
 
   bool get isGroupSession => args?.isGroup ?? false;
@@ -944,5 +910,4 @@ class ChatDetailController {
   String get targetId => args?.targetId ?? '';
 
   String get headerAvatar => args?.avatar ?? '';
-
 }

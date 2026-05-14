@@ -1,13 +1,18 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
+import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
+import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/user/model/user_info.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_action_sheet.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
@@ -40,7 +45,32 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
   bool _isLoading = true;
-  bool get _isSelf => widget.mode == 'self';
+  bool _isFollowLoading = false;
+  bool _isFollowingUser = false;
+  int _followingCount = 0;
+  int _followersCount = 0;
+  _MomentProfileHeaderData? _profileHeader;
+
+  bool get _isSelf {
+    if (widget.mode == 'self') return true;
+
+    final userId = widget.userId.trim().toLowerCase();
+    final account = AccountManager().currentAccount;
+    if (userId.isEmpty || account == null) return false;
+
+    return userId == account.userId.toLowerCase() ||
+        userId == account.accountId.toLowerCase();
+  }
+
+  String get _profileUserId {
+    final userId = widget.userId.trim().toLowerCase();
+    if (userId.isNotEmpty) return userId;
+    if (_isSelf) {
+      return AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+    }
+    return '';
+  }
+
   String get _currentUserId =>
       AccountManager().currentAccount?.userId.toLowerCase() ?? '';
 
@@ -53,33 +83,49 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   @override
   void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.userId != widget.userId) {
+    if (oldWidget.userId != widget.userId || oldWidget.mode != widget.mode) {
       _loadPosts();
     }
   }
 
   Future<void> _loadPosts() async {
-    final userId = widget.userId.trim();
+    final userId = _profileUserId;
     setState(() {
       _isLoading = true;
       _posts.clear();
+      _followingCount = 0;
+      _followersCount = 0;
+      _isFollowingUser = false;
+      _isFollowLoading = false;
     });
 
     if (userId.isEmpty) {
       if (!mounted) return;
       setState(() {
+        _profileHeader = _MomentProfileHeaderData.fallback(userId);
         _isLoading = false;
       });
       return;
     }
 
+    Future<_MomentProfileHeaderData?>? profileFuture;
+    Future<_MomentProfileSocialStats>? socialStatsFuture;
     try {
+      profileFuture = _loadProfileHeader(userId);
+      socialStatsFuture = _loadSocialStats(userId);
       final posts = await SocialCircleNoteApi.getSocialCircleUserNoteList(
         userId,
       );
       final hydratedPosts = await _hydratePostInteractionStates(posts);
-      if (!mounted || widget.userId.trim() != userId) return;
+      final profileHeader = await profileFuture;
+      final socialStats = await socialStatsFuture;
+      if (!mounted || _profileUserId != userId) return;
       setState(() {
+        _profileHeader =
+            profileHeader ??
+            _headerFromPost(posts) ??
+            _MomentProfileHeaderData.fallback(userId);
+        _applySocialStats(socialStats);
         _posts
           ..clear()
           ..addAll(hydratedPosts);
@@ -87,11 +133,102 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       });
     } catch (e) {
       debugPrint('load moment user posts failed: $e');
+      final profileHeader = await profileFuture;
+      final socialStats = await socialStatsFuture;
       if (!mounted) return;
       setState(() {
+        _profileHeader =
+            profileHeader ??
+            _profileHeader ??
+            _MomentProfileHeaderData.fallback(userId);
+        if (socialStats != null) {
+          _applySocialStats(socialStats);
+        }
         _isLoading = false;
       });
     }
+  }
+
+  Future<_MomentProfileSocialStats> _loadSocialStats(String userId) async {
+    final profileFollowingFuture = _loadUserIdListSafely(
+      SocialCircleUserApi.getSocialCircleUserFollow(userId: userId),
+    );
+    final profileFollowersFuture = _loadUserIdListSafely(
+      SocialCircleUserApi.getSocialCircleUserFans(userId: userId),
+    );
+    final currentFollowingFuture = _isSelf
+        ? Future<List<String>>.value(const [])
+        : _loadUserIdListSafely(
+            SocialCircleUserApi.getSocialCircleUserFollow(),
+          );
+
+    final profileFollowing = await profileFollowingFuture;
+    final profileFollowers = await profileFollowersFuture;
+    final currentFollowing = await currentFollowingFuture;
+    final normalizedUserId = userId.toLowerCase();
+
+    return _MomentProfileSocialStats(
+      followingCount: profileFollowing.length,
+      followersCount: profileFollowers.length,
+      isFollowingUser:
+          !_isSelf &&
+          currentFollowing
+              .map((id) => id.trim().toLowerCase())
+              .contains(normalizedUserId),
+    );
+  }
+
+  Future<List<String>> _loadUserIdListSafely(
+    Future<List<String>> future,
+  ) async {
+    try {
+      return await future;
+    } catch (e) {
+      debugPrint('load moment user relation list failed: $e');
+      return const [];
+    }
+  }
+
+  void _applySocialStats(_MomentProfileSocialStats stats) {
+    _followingCount = stats.followingCount;
+    _followersCount = stats.followersCount;
+    _isFollowingUser = stats.isFollowingUser;
+  }
+
+  Future<_MomentProfileHeaderData?> _loadProfileHeader(String userId) async {
+    final account = AccountManager().currentAccount;
+    if (_isSelf && account != null) {
+      return _MomentProfileHeaderData(
+        userId: account.userId,
+        nickname: account.name,
+        avatar: account.avatar,
+        account: account.accountId,
+      );
+    }
+
+    try {
+      final user = await GetUerInfoApi.get(userId);
+      return _MomentProfileHeaderData.fromUserInfo(
+        user,
+        fallbackUserId: userId,
+      );
+    } catch (e) {
+      debugPrint('load moment user profile failed: $e');
+      return null;
+    }
+  }
+
+  _MomentProfileHeaderData? _headerFromPost(List<SocialInvitationModel> posts) {
+    for (final post in posts) {
+      final userInfo = post.userInfoModel;
+      if (userInfo != null) {
+        return _MomentProfileHeaderData.fromUserInfo(
+          userInfo,
+          fallbackUserId: post.userId,
+        );
+      }
+    }
+    return null;
   }
 
   Future<List<SocialInvitationModel>> _hydratePostInteractionStates(
@@ -280,6 +417,53 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
     onSuccess();
     AppToast.show(successText);
+  }
+
+  Future<void> _toggleProfileFollow() async {
+    if (_isSelf || _isFollowLoading) return;
+
+    final userId = _profileUserId;
+    if (userId.isEmpty) {
+      AppToast.show('用户信息为空！');
+      return;
+    }
+
+    final nextIsFollowing = !_isFollowingUser;
+    var success = false;
+
+    setState(() {
+      _isFollowLoading = true;
+    });
+
+    try {
+      AppLoading.show();
+      success = await SocialCircleUserApi.socialCircleUserFollowToggle(
+        userId,
+        nextIsFollowing,
+      );
+    } catch (e) {
+      debugPrint('toggle moment user follow failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!mounted) return;
+
+    if (!success) {
+      setState(() {
+        _isFollowLoading = false;
+      });
+      AppToast.show(nextIsFollowing ? '关注失败！' : '取消关注失败！');
+      return;
+    }
+
+    setState(() {
+      _isFollowingUser = nextIsFollowing;
+      _followersCount = nextIsFollowing
+          ? _followersCount + 1
+          : (_followersCount > 0 ? _followersCount - 1 : 0);
+      _isFollowLoading = false;
+    });
   }
 
   int _nextCount(int count, bool increment) {
@@ -477,35 +661,11 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             Positioned(
               right: 0,
               bottom: 16,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 85),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.grey900,
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 5,
-                      ),
-                      child: Text(
-                        l10n.translate('moments_follow'),
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              child: _ProfileFollowButton(
+                isFollowing: _isFollowingUser,
+                isLoading: _isFollowLoading,
+                onTap: _toggleProfileFollow,
+                l10n: l10n,
               ),
             ),
         ],
@@ -515,19 +675,19 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 社区标题和地址
   Widget _buildProfileAvatar({required bool showPhotoIcon}) {
+    final header =
+        _profileHeader ?? _MomentProfileHeaderData.fallback(_profileUserId);
     final avatar = SizedBox(
       width: 64,
       height: 64,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: Image.asset(
-              'assets/images/chat/avatar.png',
-              fit: BoxFit.cover,
-            ),
+          UserAvatarWidget(
+            userId: header.avatarSeed,
+            avatarUrl: header.avatar,
+            size: 64,
+            borderRadius: BorderRadius.circular(8),
           ),
           if (showPhotoIcon)
             Positioned(
@@ -566,120 +726,52 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   Widget _buildCommunityTitleAndAddress() {
-    if (_isSelf) {
-      return _buildSelfCommunityTitleAndAddress();
-    }
-
-    return _buildFriendCommunityTitleAndAddress();
+    return _buildProfileTitleAndAddress();
   }
 
-  Widget _buildSelfCommunityTitleAndAddress() {
-    final l10n = AppLocalizations.of(context)!;
+  Widget _buildProfileTitleAndAddress() {
+    final header =
+        _profileHeader ?? _MomentProfileHeaderData.fallback(_profileUserId);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              widget.communityName,
-              style: AppTextStyles.h1.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.grey900,
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                context.push(
-                  '/user-profile/${Uri.encodeComponent(widget.communityName)}?mode=self',
-                );
-              },
-              child: Image.asset(
-                'assets/images/moments/edit.png',
-                width: 16,
-                height: 16,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            border: Border.all(color: AppColors.grey200, width: 1),
-            borderRadius: BorderRadius.circular(61),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/moments/copy.png',
-                width: 12,
-                height: 12,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.communityMockAddressDetail,
-                style: AppTextStyles.body.copyWith(
-                  fontSize: 10,
+            Flexible(
+              child: Text(
+                header.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.h1.copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.grey900,
                 ),
               ),
+            ),
+            if (_isSelf) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  context.push('/user-profile', extra: header.account);
+                },
+                child: Image.asset(
+                  'assets/images/moments/edit.png',
+                  width: 16,
+                  height: 16,
+                ),
+              ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFriendCommunityTitleAndAddress() {
-    final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              widget.communityName,
-              style: AppTextStyles.h1.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.grey900,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                border: Border.all(color: AppColors.grey200, width: 1),
-                borderRadius: BorderRadius.circular(61),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/images/common/copy-black.png',
-                    width: 12,
-                    height: 12,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    l10n.communityMockAddressDetail,
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 10,
-                      color: AppColors.grey900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
+        ),
+        const SizedBox(height: 8),
+        _ProfileAddressChip(
+          value: header.address,
+          icon: _isSelf
+              ? 'assets/images/moments/copy.png'
+              : 'assets/images/common/copy-black.png',
         ),
       ],
     );
@@ -691,9 +783,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     if (_isSelf) {
       return Row(
         children: [
-          _buildFollowStatColumn('10', l10n.translate('moments_following')),
+          _buildFollowStatColumn(
+            '$_followingCount',
+            l10n.translate('moments_following'),
+          ),
           const SizedBox(width: 24),
-          _buildFollowStatColumn('16,987', l10n.translate('moments_followers')),
+          _buildFollowStatColumn(
+            '$_followersCount',
+            l10n.translate('moments_followers'),
+          ),
         ],
       );
     }
@@ -701,7 +799,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     return Row(
       children: [
         Text(
-          '10',
+          '$_followingCount',
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -718,7 +816,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 12),
         Text(
-          '16,987',
+          '$_followersCount',
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -885,6 +983,180 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       onComment: () => _openComments(post),
       onShare: () => _showShare(post),
       onForward: () => _forwardPost(post),
+    );
+  }
+}
+
+class _MomentProfileHeaderData {
+  final String userId;
+  final String nickname;
+  final String avatar;
+  final String account;
+
+  const _MomentProfileHeaderData({
+    required this.userId,
+    required this.nickname,
+    required this.avatar,
+    required this.account,
+  });
+
+  factory _MomentProfileHeaderData.fromUserInfo(
+    UserInfo userInfo, {
+    required String fallbackUserId,
+  }) {
+    return _MomentProfileHeaderData(
+      userId: userInfo.userId.isNotEmpty ? userInfo.userId : fallbackUserId,
+      nickname: userInfo.nickname,
+      avatar: userInfo.avatar,
+      account: userInfo.account,
+    );
+  }
+
+  factory _MomentProfileHeaderData.fallback(String userId) {
+    return _MomentProfileHeaderData(
+      userId: userId,
+      nickname: '',
+      avatar: '',
+      account: userId,
+    );
+  }
+
+  String get displayName {
+    final name = nickname.trim();
+    if (name.isNotEmpty) return name;
+
+    final accountText = account.trim();
+    if (accountText.isNotEmpty) {
+      return ellipsisMiddle(accountText, head: 4, tail: 4);
+    }
+
+    final id = userId.trim();
+    if (id.isEmpty) return '';
+    return ellipsisMiddle(id, head: 4, tail: 4);
+  }
+
+  String get address {
+    final accountText = account.trim();
+    if (accountText.isNotEmpty) return accountText;
+    return userId.trim();
+  }
+
+  String get avatarSeed {
+    final accountText = account.trim();
+    if (accountText.isNotEmpty) return accountText;
+    return userId.trim();
+  }
+}
+
+class _MomentProfileSocialStats {
+  final int followingCount;
+  final int followersCount;
+  final bool isFollowingUser;
+
+  const _MomentProfileSocialStats({
+    required this.followingCount,
+    required this.followersCount,
+    required this.isFollowingUser,
+  });
+}
+
+class _ProfileFollowButton extends StatelessWidget {
+  final bool isFollowing;
+  final bool isLoading;
+  final VoidCallback onTap;
+  final AppLocalizations l10n;
+
+  const _ProfileFollowButton({
+    required this.isFollowing,
+    required this.isLoading,
+    required this.onTap,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = isFollowing
+        ? l10n.translate('moments_following')
+        : l10n.translate('moments_follow');
+
+    return Opacity(
+      opacity: isLoading ? 0.65 : 1,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: isLoading ? null : onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 85),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: isFollowing ? AppColors.white : AppColors.grey900,
+              borderRadius: BorderRadius.circular(28),
+              border: isFollowing
+                  ? Border.all(color: AppColors.grey200, width: 1)
+                  : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: isFollowing ? AppColors.grey900 : AppColors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAddressChip extends StatelessWidget {
+  final String value;
+  final String icon;
+
+  const _ProfileAddressChip({required this.value, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final address = value.trim();
+    if (address.isEmpty) return const SizedBox.shrink();
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: address));
+        if (!context.mounted) return;
+        AppToast.show(AppLocalizations.of(context)!.commonCopied);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border.all(color: AppColors.grey200, width: 1),
+          borderRadius: BorderRadius.circular(61),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(icon, width: 12, height: 12),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                ellipsisMiddle(address),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 10,
+                  color: AppColors.grey900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -34,6 +34,7 @@ class ChatDetailMessage {
     this.thumbnailBase64String,
     this.path,
     this.remote,
+    this.extra,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -54,4 +55,5 @@ class ChatDetailMessage {
   final String? thumbnailBase64String;
   final String? path;
   final String? remote;
+  final Object? extra;
 }

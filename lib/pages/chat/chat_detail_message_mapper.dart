@@ -40,6 +40,15 @@ class ChatDetailMessageMapper {
     final sentTime = message.sentTime ?? message.receivedTime;
     final messageKey = _messageKey(message);
 
+    if (_isRecallMessage(message)) {
+      return ChatDetailMessage(
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.withdrawnNotice,
+        sentTime: sentTime,
+        extra: message,
+      );
+    }
+
     final callSummary = RongCallSummaryParser.tryParse(message);
     if (callSummary != null) {
       return ChatDetailMessage(
@@ -49,6 +58,7 @@ class ChatDetailMessageMapper {
         sentTime: sentTime,
         isVideo: callSummary.isVideo,
         text: callSummary.text,
+        extra: message,
       );
     }
 
@@ -59,6 +69,7 @@ class ChatDetailMessageMapper {
         isMe: isMe,
         text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
         sentTime: sentTime,
+        extra: message,
       );
     }
 
@@ -69,6 +80,7 @@ class ChatDetailMessageMapper {
         isMe: isMe,
         sentTime: sentTime,
         imagePath: message.local,
+        extra: message,
       );
     }
 
@@ -82,6 +94,7 @@ class ChatDetailMessageMapper {
         thumbnailBase64String: message.thumbnailBase64String,
         path: message.local,
         duration: formatDurationFromMs(message.duration ?? 0),
+        extra: message,
       );
     }
     if (message is RCIMIWVoiceMessage) {
@@ -93,6 +106,7 @@ class ChatDetailMessageMapper {
         path: message.local,
         remote: message.remote,
         duration: formatDurationFromMs(message.duration ?? 0),
+        extra: message,
       );
     }
     if (message is RCIMIWFileMessage) {
@@ -104,13 +118,7 @@ class ChatDetailMessageMapper {
         fileName: message.name,
         fileSize: formatFileSize(message.size ?? 0),
         path: message.local,
-      );
-    }
-    if (message.messageType == RCIMIWMessageType.recall) {
-      return ChatDetailMessage(
-        messageId: messageKey,
-        kind: ChatDetailMessageKind.withdrawnNotice,
-        sentTime: sentTime,
+        extra: message,
       );
     }
 
@@ -122,6 +130,7 @@ class ChatDetailMessageMapper {
         kind: ChatDetailMessageKind.fm,
         sentTime: sentTime,
         text: content,
+        extra: message,
       );
     }
 
@@ -131,6 +140,7 @@ class ChatDetailMessageMapper {
       isMe: isMe,
       text: '[暂不支持的消息类型]',
       sentTime: sentTime,
+      extra: message,
     );
   }
 
@@ -143,6 +153,11 @@ class ChatDetailMessageMapper {
 
   static String _formatTimestamp(int timestamp) {
     return formatIMTime(timestamp);
+  }
+
+  static bool _isRecallMessage(RCIMIWMessage message) {
+    return message is RCIMIWRecallNotificationMessage ||
+        message.messageType == RCIMIWMessageType.recall;
   }
 
   static String _messageKey(RCIMIWMessage message) {

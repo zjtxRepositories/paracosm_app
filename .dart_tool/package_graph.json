@@ -739,6 +739,13 @@
       ]
     },
     {
+      "name": "qr",
+      "version": "3.0.2",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "permission_handler_platform_interface",
       "version": "4.3.0",
       "dependencies": [
@@ -2225,13 +2232,6 @@
       "dependencies": [
         "collection",
         "hooks"
-      ]
-    },
-    {
-      "name": "qr",
-      "version": "3.0.2",
-      "dependencies": [
-        "meta"
       ]
     }
   ],

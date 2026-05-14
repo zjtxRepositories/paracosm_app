@@ -1,12 +1,10 @@
-
 import '../../../modules/account/manager/account_manager.dart';
 import '../../models/social_Invitation_model.dart';
 import '../client/base_client.dart';
 import 'api_paths.dart';
 
 class SocialCircleUserApi {
-  static final BaseClient _httpUtil =
-  BaseClient(ApiPaths.circleUrl);
+  static final BaseClient _httpUtil = BaseClient(ApiPaths.circleUrl);
   static String? get _userId =>
       AccountManager().currentAccount?.userId.toLowerCase();
 
@@ -25,6 +23,12 @@ class SocialCircleUserApi {
 
   static bool _isOk(dynamic res) => res?["code"] == 1;
 
+  static String? _resolveUserId(String? userId) {
+    final value = userId?.trim().toLowerCase();
+    if (value != null && value.isNotEmpty) return value;
+    return _userId;
+  }
+
   /// =========================
   /// GET 列表
   /// =========================
@@ -37,19 +41,21 @@ class SocialCircleUserApi {
     return _parseStringList(res["data"]);
   }
 
-  static Future<List<String>> getSocialCircleUserFollow() async {
+  static Future<List<String>> getSocialCircleUserFollow({
+    String? userId,
+  }) async {
     final res = await _httpUtil.get(
       "/app/user/follow",
-      params: {"user_id": _userId},
+      params: {"user_id": _resolveUserId(userId)},
     );
 
     return _parseStringList(res["data"]);
   }
 
-  static Future<List<String>> getSocialCircleUserFans() async {
+  static Future<List<String>> getSocialCircleUserFans({String? userId}) async {
     final res = await _httpUtil.get(
       "/app/user/fans",
-      params: {"user_id": _userId},
+      params: {"user_id": _resolveUserId(userId)},
     );
 
     return _parseStringList(res["data"]);
@@ -58,9 +64,7 @@ class SocialCircleUserApi {
   static Future<List<SocialInvitationModel>> getSocialCircleUserNote() async {
     final res = await _httpUtil.get(
       "/app/user/note",
-      params: {
-        "user_id": _userId,
-      },
+      params: {"user_id": _userId},
     );
 
     return _parseInvitationList(res["data"]);
@@ -70,19 +74,14 @@ class SocialCircleUserApi {
   /// follow / unfollow（合并）
   /// =========================
   static Future<bool> socialCircleUserFollowToggle(
-      String followUserId,
-      bool isFollow,
-      ) async {
-    final path = isFollow
-        ? "/app/user/follow"
-        : "/app/user/unfollow";
+    String followUserId,
+    bool isFollow,
+  ) async {
+    final path = isFollow ? "/app/user/follow" : "/app/user/unfollow";
 
     final res = await _httpUtil.post(
       path,
-      data: {
-        "user_id": _userId,
-        "follow_user_id": followUserId,
-      },
+      data: {"user_id": _userId, "follow_user_id": followUserId},
     );
     return _isOk(res);
   }
@@ -91,19 +90,14 @@ class SocialCircleUserApi {
   /// block / unblock（合并）
   /// =========================
   static Future<bool> socialCircleUserBlockToggle(
-      String blockUserId,
-      bool isBlock,
-      ) async {
-    final path = isBlock
-        ? "/app/user/block"
-        : "/app/user/unblock";
+    String blockUserId,
+    bool isBlock,
+  ) async {
+    final path = isBlock ? "/app/user/block" : "/app/user/unblock";
 
     final res = await _httpUtil.post(
       path,
-      data: {
-        "user_id": _userId,
-        "block_user_id": blockUserId,
-      },
+      data: {"user_id": _userId, "block_user_id": blockUserId},
     );
 
     return _isOk(res);
@@ -113,10 +107,10 @@ class SocialCircleUserApi {
   /// report（单一行为）
   /// =========================
   static Future<bool> socialCircleUserReport(
-      String userId,
-      String reportUserId,
-      String content,
-      ) async {
+    String userId,
+    String reportUserId,
+    String content,
+  ) async {
     final res = await _httpUtil.post(
       "/app/user/report",
       data: {

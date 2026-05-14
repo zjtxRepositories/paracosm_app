@@ -254,8 +254,19 @@ class AppRouter {
         path: '/moment-user-profile',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final userId = state.extra as String?;
-          return MomentUserProfilePage(userId: userId ?? '');
+          final extra = state.extra;
+          final mode = state.uri.queryParameters['mode'] ?? 'friend';
+          var userId = '';
+          if (extra is String) {
+            userId = extra;
+          } else if (extra is Map<String, dynamic>) {
+            userId = extra['userId']?.toString() ?? '';
+          }
+          if (userId.isEmpty && mode == 'self') {
+            userId =
+                AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+          }
+          return MomentUserProfilePage(userId: userId, mode: mode);
         },
       ),
       GoRoute(

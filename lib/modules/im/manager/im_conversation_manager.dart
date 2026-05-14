@@ -240,6 +240,7 @@ class ImConversationManager {
       if (msg.senderUserId != IMEngineManager().currentUserId) {
         old.unreadCount = (old.unreadCount ?? 0) + 1;
       }
+      old.operationTime = msg.sentTime ?? old.operationTime;
 
       _sortAllTabs();
       _rebuildAllTabCache();
@@ -249,7 +250,7 @@ class ImConversationManager {
         key,
         conversation: old,
       );
-
+      _notify();
       return;
     }
 

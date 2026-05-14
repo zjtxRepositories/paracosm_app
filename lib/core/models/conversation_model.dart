@@ -119,6 +119,10 @@ class ConversationResolver {
         return '[文件]';
       case RCIMIWMessageType.recall:
         return '撤回了一条消息';
+      case RCIMIWMessageType.reference:
+        return message is RCIMIWReferenceMessage
+            ? (message.text?.isNotEmpty ?? false ? message.text! : '[消息]')
+            : '[消息]';
       case RCIMIWMessageType.custom:
         RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(
           message.toJson(),
@@ -186,5 +190,4 @@ class ConversationResolver {
     if (group == null) return null;
     return GroupModel(info: group);
   }
-
 }

@@ -74,6 +74,10 @@ class ChatDetailController {
 
   bool hasMore = true;
 
+  RCIMIWMessage? quotedMessage;
+
+  String? quotedText;
+
   int? _oldestTime;
 
   final voiceManager = VoiceRecordManager();
@@ -297,6 +301,57 @@ class ChatDetailController {
     notify?.call();
   }
 
+  Future<bool> loadMessagesAroundTime(int sentTime) async {
+    if (args == null || isLoadingMore) {
+      return false;
+    }
+
+    isLoadingMore = true;
+    notify?.call();
+
+    try {
+      final result = await _messageManager.getMessagesAroundTime(
+        type: args!.conversationType,
+        targetId: args!.targetId,
+        channelId: args!.channelId,
+        sentTime: sentTime,
+        beforeCount: 10,
+        afterCount: 10,
+      );
+
+      if (!result.success) {
+        return false;
+      }
+
+      final rawMessages = result.data ?? [];
+      if (rawMessages.isEmpty) {
+        return false;
+      }
+
+      final list = await ChatDetailMessageMapper.mapMessages(
+        rawMessages.reversed.toList(),
+      );
+      if (list.isEmpty) {
+        return false;
+      }
+
+      final firstSentTime = list.first.sentTime;
+      if (firstSentTime != null &&
+          (_oldestTime == null || firstSentTime < _oldestTime!)) {
+        _oldestTime = firstSentTime;
+      }
+
+      engine.merge(list);
+      return true;
+    } catch (e) {
+      debugPrint('load around time error: $e');
+      return false;
+    } finally {
+      isLoadingMore = false;
+      notify?.call();
+    }
+  }
+
   Future<void> deleteMessage(ChatDetailMessage message) async {
     final raw = message.extra;
     if (raw is! RCIMIWMessage) {
@@ -323,6 +378,25 @@ class ChatDetailController {
     if (!success) {
       AppToast.show('撤回失败');
     }
+  }
+
+  Future<void> quoteMessage(ChatDetailMessage message) async {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {
+      return;
+    }
+
+    quotedMessage = raw;
+    quotedText = await ChatDetailMessageMapper.quoteSummaryForMessage(raw);
+    isMenuExpanded = false;
+    isVoiceMode = false;
+    notify?.call();
+  }
+
+  void clearQuote() {
+    quotedMessage = null;
+    quotedText = null;
+    notify?.call();
   }
 
   /// =========================
@@ -561,6 +635,11 @@ class ChatDetailController {
         leftId == rightId;
   }
 
+  bool _isRecallMessage(RCIMIWMessage message) {
+    return message is RCIMIWRecallNotificationMessage ||
+        message.messageType == RCIMIWMessageType.recall;
+  }
+
   Future<void> _markConversationRead({int? timestamp}) async {
     if (args == null) {
       return;
@@ -621,15 +700,27 @@ class ChatDetailController {
       return;
     }
 
-    await ImSender.instance.send(
-      message: TextMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
-        content: text,
-      ),
-    );
+    final quote = quotedMessage;
+    final message = quote == null
+        ? TextMessage(
+            conversationType: args!.conversationType,
+            targetId: args!.targetId,
+            content: text,
+          )
+        : ReferenceMessage(
+            conversationType: args!.conversationType,
+            targetId: args!.targetId,
+            channelId: args!.channelId,
+            referenceMessage: quote,
+            content: text,
+          );
+
+    await ImSender.instance.send(message: message);
 
     inputController.clear();
+    quotedMessage = null;
+    quotedText = null;
+    notify?.call();
   }
 
   Future<void> sendImage(String path) async {

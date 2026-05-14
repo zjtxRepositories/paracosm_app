@@ -35,6 +35,13 @@ class ChatDetailMessage {
     this.path,
     this.remote,
     this.extra,
+    this.quoteText,
+    this.quoteMessageId,
+    this.quoteSentTime,
+    this.quoteMessageUId,
+    this.quoteRawMessageId,
+    this.quoteSenderUserId,
+    this.quoteMessageType,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -56,4 +63,11 @@ class ChatDetailMessage {
   final String? path;
   final String? remote;
   final Object? extra;
+  final String? quoteText;
+  final String? quoteMessageId;
+  final int? quoteSentTime;
+  final String? quoteMessageUId;
+  final int? quoteRawMessageId;
+  final String? quoteSenderUserId;
+  final int? quoteMessageType;
 }

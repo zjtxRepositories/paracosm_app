@@ -11,6 +11,7 @@ class ChatMessageContextMenu {
     BuildContext context, {
     required Offset position,
     String? copyText,
+    VoidCallback? onQuote,
     VoidCallback? onDelete,
     VoidCallback? onRecall,
   }) {
@@ -77,9 +78,16 @@ class ChatMessageContextMenu {
                           icon: 'assets/images/chat/translate.png',
                           label: 'translate',
                         ),
-                        const _ChatMessageContextMenuItem(
+                        _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/quote.png',
                           label: 'quote',
+                          enabled: onQuote != null,
+                          onTap: onQuote == null
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  onQuote();
+                                },
                         ),
                         if (onRecall != null)
                           _ChatMessageContextMenuItem(

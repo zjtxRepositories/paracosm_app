@@ -9,6 +9,7 @@ abstract class ImMessage {
 
   Future<RCIMIWMessage?> toRCMessage();
 }
+
 class CustomMessage extends ImMessage {
   final String targetId;
   final CustomMessageType customMessageType;
@@ -35,16 +36,15 @@ class CustomMessage extends ImMessage {
       content: content,
     );
     final msg = await IMEngineManager().engine?.createCustomMessage(
-        conversationType,
-        targetId,
-        null,
-        RCIMIWCustomMessagePolicy.normal,
-        messageID,
-        model.toJson()
+      conversationType,
+      targetId,
+      null,
+      RCIMIWCustomMessagePolicy.normal,
+      messageID,
+      model.toJson(),
     );
     msg?.senderUserId = IMEngineManager().currentUserId;
     msg?.sentTime = DateTime.now().millisecondsSinceEpoch;
-    print('toRCMessage----$conversationType---${model.type}---}');
     return msg;
   }
 }
@@ -53,7 +53,11 @@ class TextMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
   final String content;
-  TextMessage({required this.conversationType, required this.targetId,required this.content});
+  TextMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.content,
+  });
 
   @override
   RCIMIWMessageType get type => RCIMIWMessageType.text;
@@ -72,11 +76,48 @@ class TextMessage extends ImMessage {
   }
 }
 
+class ReferenceMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String? channelId;
+  final RCIMIWMessage referenceMessage;
+  final String content;
+
+  ReferenceMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.referenceMessage,
+    required this.content,
+    this.channelId,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.reference;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final referenceMsg = await IMEngineManager().engine?.createReferenceMessage(
+      conversationType,
+      targetId,
+      channelId,
+      referenceMessage,
+      content,
+    );
+    referenceMsg?.senderUserId = IMEngineManager().currentUserId;
+    referenceMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return referenceMsg;
+  }
+}
+
 class ImageMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
   final String path;
-  ImageMessage({required this.conversationType, required this.targetId,required this.path});
+  ImageMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.path,
+  });
 
   @override
   RCIMIWMessageType get type => RCIMIWMessageType.image;
@@ -119,7 +160,7 @@ class VideoMessage extends ImMessage {
       targetId,
       null,
       path,
-      duration
+      duration,
     );
     videoMsg?.thumbnailBase64String = thumbnailBase64String;
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
@@ -148,10 +189,10 @@ class FileMessage extends ImMessage {
   @override
   Future<RCIMIWMessage?> toRCMessage() async {
     final videoMsg = await IMEngineManager().engine?.createFileMessage(
-        conversationType,
-        targetId,
-        null,
-        path,
+      conversationType,
+      targetId,
+      null,
+      path,
     );
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
@@ -182,7 +223,7 @@ class VoiceMessage extends ImMessage {
       targetId,
       null,
       path,
-      duration
+      duration,
     );
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;

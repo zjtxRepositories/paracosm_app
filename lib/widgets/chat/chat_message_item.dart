@@ -10,12 +10,14 @@ class ChatMessageItem extends StatelessWidget {
     required this.onLongPressStart,
     this.isUnread = false,
     this.showBubble = true,
+    this.isFlashing = false,
   });
 
   final bool isMe;
   final Widget child;
   final bool isUnread;
   final bool showBubble;
+  final bool isFlashing;
   final GestureLongPressStartCallback onLongPressStart;
 
   @override
@@ -23,10 +25,12 @@ class ChatMessageItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           if (!isMe) const _ChatMessageAvatar(),
           if (!isMe) const SizedBox(width: 12),
@@ -39,17 +43,10 @@ class ChatMessageItem extends StatelessWidget {
                   child: GestureDetector(
                     onLongPressStart: onLongPressStart,
                     child: showBubble
-                        ? CustomPaint(
-                            painter: ChatBubblePainter(
-                              color: isMe
-                                  ? const Color(0xFFF1FADC)
-                                  : Colors.white,
-                              isMe: isMe,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: child,
-                            ),
+                        ? _FlashingChatBubble(
+                            isMe: isMe,
+                            isFlashing: isFlashing,
+                            child: child,
                           )
                         : child,
                   ),
@@ -70,6 +67,40 @@ class ChatMessageItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FlashingChatBubble extends StatelessWidget {
+  const _FlashingChatBubble({
+    required this.isMe,
+    required this.isFlashing,
+    required this.child,
+  });
+
+  final bool isMe;
+  final bool isFlashing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = isMe ? const Color(0xFFF1FADC) : Colors.white;
+    final flashColor = isMe ? const Color(0xFFE4FF8A) : const Color(0xFFEDEDED);
+
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(
+        begin: baseColor,
+        end: isFlashing ? flashColor : baseColor,
+      ),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, color, child) {
+        return CustomPaint(
+          painter: ChatBubblePainter(color: color ?? baseColor, isMe: isMe),
+          child: Padding(padding: const EdgeInsets.all(10), child: child),
+        );
+      },
+      child: child,
     );
   }
 }

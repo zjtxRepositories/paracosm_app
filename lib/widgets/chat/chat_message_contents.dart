@@ -8,27 +8,77 @@ class ChatTextMessageContent extends StatelessWidget {
   const ChatTextMessageContent({
     super.key,
     required this.message,
+    this.quoteText,
+    this.onQuoteTap,
   });
 
   final String message;
+  final String? quoteText;
+  final VoidCallback? onQuoteTap;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      message,
-      style: AppTextStyles.body.copyWith(
-        color: AppColors.grey900,
-        fontSize: 16,
-      ),
+    final quote = quoteText?.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (quote != null && quote.isNotEmpty) ...[
+          _ChatQuotePreview(text: quote, onTap: onQuoteTap),
+          const SizedBox(height: 8),
+        ],
+        Text(
+          message,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey900,
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 }
 
+class _ChatQuotePreview extends StatelessWidget {
+  const _ChatQuotePreview({required this.text, this.onTap});
+
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(6),
+        border: const Border(
+          left: BorderSide(color: AppColors.grey400, width: 3),
+        ),
+      ),
+      child: Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.grey500,
+          fontSize: 12,
+        ),
+      ),
+    );
+
+    if (onTap == null) {
+      return child;
+    }
+
+    return GestureDetector(onTap: onTap, child: child);
+  }
+}
+
 class ChatImageMessageContent extends StatelessWidget {
-  const ChatImageMessageContent({
-    super.key,
-    required this.imagePath,
-  });
+  const ChatImageMessageContent({super.key, required this.imagePath});
 
   final String imagePath;
 
@@ -59,10 +109,7 @@ class ChatVideoMessageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: 140,
-        maxHeight: 140,
-      ),
+      constraints: const BoxConstraints(maxWidth: 140, maxHeight: 140),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
@@ -79,9 +126,7 @@ class ChatVideoMessageContent extends StatelessWidget {
 
               /// 🌫️ 遮罩层（增强对比）
               Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.25),
-                ),
+                child: Container(color: Colors.black.withValues(alpha: 0.25)),
               ),
 
               /// ▶️ 播放按钮
@@ -104,7 +149,7 @@ class ChatVideoMessageContent extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -140,8 +185,7 @@ class ChatVoiceMessageContent extends StatefulWidget {
       _ChatVoiceMessageContentState();
 }
 
-class _ChatVoiceMessageContentState
-    extends State<ChatVoiceMessageContent>
+class _ChatVoiceMessageContentState extends State<ChatVoiceMessageContent>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scale;
@@ -156,13 +200,15 @@ class _ChatVoiceMessageContentState
       duration: const Duration(milliseconds: 900),
     );
 
-    _scale = Tween<double>(begin: 0.9, end: 1.3).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 0.9,
+      end: 1.3,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    _opacity = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacity = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     if (widget.isPlaying) {
       _controller.repeat(reverse: true);
     }
@@ -202,18 +248,15 @@ class _ChatVoiceMessageContentState
       children: [
         widget.isPlaying
             ? AnimatedBuilder(
-          animation: _controller,
-          builder: (_, child) {
-            return Opacity(
-              opacity: _opacity.value,
-              child: Transform.scale(
-                scale: _scale.value,
-                child: child,
-              ),
-            );
-          },
-          child: icon,
-        )
+                animation: _controller,
+                builder: (_, child) {
+                  return Opacity(
+                    opacity: _opacity.value,
+                    child: Transform.scale(scale: _scale.value, child: child),
+                  );
+                },
+                child: icon,
+              )
             : icon,
 
         const SizedBox(width: 10),
@@ -313,7 +356,8 @@ class ChatFileMessageContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(width: 180,
+              SizedBox(
+                width: 180,
                 child: Text(
                   fileName,
                   maxLines: 2,
@@ -403,10 +447,7 @@ class ChatContactCardMessageContent extends StatelessWidget {
 }
 
 class ChatRedBagMessageContent extends StatelessWidget {
-  const ChatRedBagMessageContent({
-    super.key,
-    required this.isClaimed,
-  });
+  const ChatRedBagMessageContent({super.key, required this.isClaimed});
 
   final bool isClaimed;
 

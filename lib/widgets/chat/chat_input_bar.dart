@@ -18,6 +18,8 @@ class ChatInputBar extends StatelessWidget {
     required this.onVoiceLongPressStart,
     required this.onVoiceLongPressMoveUpdate,
     required this.onVoiceLongPressEnd,
+    this.quoteText,
+    this.onClearQuote,
   });
 
   final TextEditingController controller;
@@ -32,88 +34,136 @@ class ChatInputBar extends StatelessWidget {
   final GestureLongPressStartCallback onVoiceLongPressStart;
   final GestureLongPressMoveUpdateCallback onVoiceLongPressMoveUpdate;
   final GestureLongPressEndCallback onVoiceLongPressEnd;
+  final String? quoteText;
+  final VoidCallback? onClearQuote;
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
+    final quote = quoteText?.trim();
     return Container(
       padding: EdgeInsets.only(
         left: 12,
         right: 12,
         top: 12,
-        bottom: bottom > 0 ? bottom : bottom + 12 ,
+        bottom: bottom > 0 ? bottom : bottom + 12,
       ),
       decoration: const BoxDecoration(color: Colors.white),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            onTap: onToggleVoiceMode,
-            child: Image.asset(
-              isVoiceMode
-                  ? 'assets/images/chat/keyboard.png'
-                  : 'assets/images/chat/microphone.png',
-              width: 24,
-              height: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: isVoiceMode
-                ? GestureDetector(
-                    onLongPressStart: onVoiceLongPressStart,
-                    onLongPressMoveUpdate: onVoiceLongPressMoveUpdate,
-                    onLongPressEnd: onVoiceLongPressEnd,
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.topBg,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        isRecording
-                            ? (isCancelling
-                                ? AppLocalizations.of(context)!.chatDetailReleaseToCancel
-                                : AppLocalizations.of(context)!.chatDetailReleaseToEnd)
-                            : AppLocalizations.of(context)!.chatDetailHoldToTalk,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.grey900,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  )
-                : Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.topBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: TextField(
-                      controller: controller,
-                      onTap: onTextFieldTap,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
+          if (quote != null && quote.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.topBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      quote,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.grey500,
+                        fontSize: 12,
                       ),
                     ),
                   ),
-          ),
-          const SizedBox(width: 12),
-          Image.asset('assets/images/chat/emoj.png', width: 24, height: 24),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onActionTap,
-            child: Image.asset(
-              !isInputEmpty
-                  ? 'assets/images/chat/send.png'
-                  : (isMenuExpanded
-                      ? 'assets/images/chat/function-close.png'
-                      : 'assets/images/chat/more-function.png'),
-              width: 24,
-              height: 24,
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: onClearQuote,
+                    child: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppColors.grey500,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ],
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onToggleVoiceMode,
+                child: Image.asset(
+                  isVoiceMode
+                      ? 'assets/images/chat/keyboard.png'
+                      : 'assets/images/chat/microphone.png',
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: isVoiceMode
+                    ? GestureDetector(
+                        onLongPressStart: onVoiceLongPressStart,
+                        onLongPressMoveUpdate: onVoiceLongPressMoveUpdate,
+                        onLongPressEnd: onVoiceLongPressEnd,
+                        child: Container(
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.topBg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isRecording
+                                ? (isCancelling
+                                      ? AppLocalizations.of(
+                                          context,
+                                        )!.chatDetailReleaseToCancel
+                                      : AppLocalizations.of(
+                                          context,
+                                        )!.chatDetailReleaseToEnd)
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.chatDetailHoldToTalk,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.grey900,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.topBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: TextField(
+                          controller: controller,
+                          onTap: onTextFieldTap,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Image.asset('assets/images/chat/emoj.png', width: 24, height: 24),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: onActionTap,
+                child: Image.asset(
+                  !isInputEmpty
+                      ? 'assets/images/chat/send.png'
+                      : (isMenuExpanded
+                            ? 'assets/images/chat/function-close.png'
+                            : 'assets/images/chat/more-function.png'),
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+            ],
           ),
         ],
       ),

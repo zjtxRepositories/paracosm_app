@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/chat/chat_message_context_menu.dart';
 import '../../../widgets/chat/chat_message_item.dart';
 import '../../../widgets/chat/chat_more_panel.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
 import 'chat_detail_controller.dart';
@@ -37,6 +39,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   late final ChatDetailController controller;
   final Map<String, GlobalKey> _messageKeys = {};
   bool _didScrollToAnchor = false;
+  String? _flashMessageId;
+  int _flashToken = 0;
 
   @override
   void initState() {
@@ -82,6 +86,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 isCancelling: controller.isCancelling,
                 isMenuExpanded: controller.isMenuExpanded,
                 isInputEmpty: controller.isInputEmpty,
+                quoteText: controller.quotedText,
+                onClearQuote: controller.clearQuote,
                 onToggleVoiceMode: controller.toggleVoice,
                 onTextFieldTap: () {
                   if (controller.isMenuExpanded) {
@@ -176,6 +182,214 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     });
   }
 
+  Future<void> _jumpToQuotedMessage(ChatDetailMessage message) async {
+    var target = _findQuotedMessage(message);
+    if (target != null && await _scrollToMessage(target.messageId)) {
+      return;
+    }
+
+    final quoteSentTime = message.quoteSentTime;
+    if (quoteSentTime == null || quoteSentTime <= 0) {
+      AppToast.show('消息未找到');
+      return;
+    }
+
+    final loaded = await controller.loadMessagesAroundTime(quoteSentTime);
+    if (!loaded) {
+      AppToast.show('消息未找到');
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await _waitForNextFrame();
+    if (!mounted) {
+      return;
+    }
+
+    target = _findQuotedMessage(message);
+    if (target != null && await _scrollToMessage(target.messageId)) {
+      return;
+    }
+
+    AppToast.show('消息未找到');
+  }
+
+  ChatDetailMessage? _findQuotedMessage(ChatDetailMessage quoteMessage) {
+    final quoteMessageUId = quoteMessage.quoteMessageUId;
+    if (quoteMessageUId != null && quoteMessageUId.isNotEmpty) {
+      final target = _findMessageByRaw(
+        (raw) => raw.messageUId == quoteMessageUId,
+      );
+      if (target != null) {
+        return target;
+      }
+    }
+
+    final quoteRawMessageId = quoteMessage.quoteRawMessageId;
+    if (quoteRawMessageId != null && quoteRawMessageId > 0) {
+      final target = _findMessageByRaw(
+        (raw) => raw.messageId != null && raw.messageId == quoteRawMessageId,
+      );
+      if (target != null) {
+        return target;
+      }
+    }
+
+    final quoteMessageId = quoteMessage.quoteMessageId;
+    if (quoteMessageId != null && quoteMessageId.isNotEmpty) {
+      final target = _findMessage((e) => e.messageId == quoteMessageId);
+      if (target != null) {
+        return target;
+      }
+    }
+
+    final quoteSentTime = quoteMessage.quoteSentTime;
+    final quoteSenderUserId = quoteMessage.quoteSenderUserId;
+    final quoteMessageType = quoteMessage.quoteMessageType;
+    if (quoteSentTime == null ||
+        quoteSentTime <= 0 ||
+        quoteSenderUserId == null ||
+        quoteSenderUserId.isEmpty ||
+        quoteMessageType == null) {
+      return null;
+    }
+
+    return _findMessageByRaw((raw) {
+      final rawTime = raw.sentTime ?? raw.receivedTime;
+      return rawTime == quoteSentTime &&
+          raw.senderUserId == quoteSenderUserId &&
+          raw.messageType?.index == quoteMessageType;
+    });
+  }
+
+  ChatDetailMessage? _findMessage(
+    bool Function(ChatDetailMessage message) test,
+  ) {
+    for (final message in controller.messages) {
+      if (test(message)) {
+        return message;
+      }
+    }
+
+    return null;
+  }
+
+  ChatDetailMessage? _findMessageByRaw(bool Function(RCIMIWMessage raw) test) {
+    for (final message in controller.messages) {
+      final raw = message.extra;
+      if (raw is RCIMIWMessage && test(raw)) {
+        return message;
+      }
+    }
+
+    return null;
+  }
+
+  bool _hasQuoteLocator(ChatDetailMessage message) {
+    return (message.quoteMessageUId?.isNotEmpty ?? false) ||
+        (message.quoteRawMessageId != null && message.quoteRawMessageId! > 0) ||
+        (message.quoteMessageId?.isNotEmpty ?? false) ||
+        (message.quoteSentTime != null &&
+            message.quoteSentTime! > 0 &&
+            (message.quoteSenderUserId?.isNotEmpty ?? false) &&
+            message.quoteMessageType != null);
+  }
+
+  Future<bool> _scrollToMessage(String messageId) async {
+    var targetContext = _messageKeys[messageId]?.currentContext;
+    if (targetContext != null) {
+      await _ensureVisibleMessage(targetContext);
+      return true;
+    }
+
+    final index = controller.messages.indexWhere(
+      (e) => e.messageId == messageId,
+    );
+    if (index < 0) {
+      return false;
+    }
+
+    final scrollController = controller.engine.scrollController;
+    if (!scrollController.hasClients || controller.messages.length <= 1) {
+      return false;
+    }
+
+    final maxExtent = scrollController.position.maxScrollExtent;
+    final targetOffset = (maxExtent * index / (controller.messages.length - 1))
+        .clamp(0.0, maxExtent)
+        .toDouble();
+
+    await scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+    await _waitForNextFrame();
+
+    if (!mounted) {
+      return false;
+    }
+
+    final visibleContext = _messageKeys[messageId]?.currentContext;
+    if (visibleContext == null || !visibleContext.mounted) {
+      return false;
+    }
+
+    await _ensureVisibleMessage(visibleContext);
+    return true;
+  }
+
+  Future<void> _ensureVisibleMessage(BuildContext targetContext) async {
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      alignment: 0.35,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    final token = ++_flashToken;
+    setState(() {
+      _flashMessageId = _messageIdForContext(targetContext);
+    });
+
+    Future.delayed(const Duration(milliseconds: 650), () {
+      if (!mounted || token != _flashToken) {
+        return;
+      }
+
+      setState(() {
+        _flashMessageId = null;
+      });
+    });
+  }
+
+  String? _messageIdForContext(BuildContext targetContext) {
+    for (final entry in _messageKeys.entries) {
+      if (entry.value.currentContext == targetContext) {
+        return entry.key;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _waitForNextFrame() {
+    final completer = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    });
+    return completer.future;
+  }
+
   Widget _buildMessageNode(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.timestamp:
@@ -201,6 +415,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           isMe: message.isMe,
           isUnread: message.isUnread,
           showBubble: message.showBubble,
+          isFlashing: _flashMessageId == message.messageId,
           onLongPressStart: (d) =>
               _showContextMenu(context, d.globalPosition, message),
           child: _buildMessageContent(message),
@@ -226,11 +441,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildMessageContent(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.text:
-        return ChatTextMessageContent(message: message.text ?? '');
+        return ChatTextMessageContent(
+          message: message.text ?? '',
+          quoteText: message.quoteText,
+          onQuoteTap: !_hasQuoteLocator(message)
+              ? null
+              : () => _jumpToQuotedMessage(message),
+        );
       case ChatDetailMessageKind.voice:
         return buildVoiceItem(message, key: ValueKey(message.messageId));
       case ChatDetailMessageKind.fm:
-        return ChatTextMessageContent(message: message.text ?? '');
+        return ChatTextMessageContent(
+          message: message.text ?? '',
+          quoteText: message.quoteText,
+          onQuoteTap: !_hasQuoteLocator(message)
+              ? null
+              : () => _jumpToQuotedMessage(message),
+        );
       case ChatDetailMessageKind.image:
         return GestureDetector(
           onTap: () {
@@ -305,6 +532,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       context,
       position: position,
       copyText: _copyTextForMessage(message),
+      onQuote: _canQuoteMessage(message)
+          ? () => controller.quoteMessage(message)
+          : null,
       onRecall: _canRecallMessage(message)
           ? () => controller.recallMessage(message)
           : null,
@@ -333,6 +563,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   bool _canDeleteMessage(ChatDetailMessage message) {
     return message.extra is RCIMIWMessage;
+  }
+
+  bool _canQuoteMessage(ChatDetailMessage message) {
+    if (message.kind == ChatDetailMessageKind.timestamp ||
+        message.kind == ChatDetailMessageKind.withdrawnNotice) {
+      return false;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return false;
+
+    return raw is! RCIMIWRecallNotificationMessage &&
+        raw.messageType != RCIMIWMessageType.recall;
   }
 
   String? _copyTextForMessage(ChatDetailMessage message) {

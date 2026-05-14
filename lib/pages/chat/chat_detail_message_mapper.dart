@@ -20,7 +20,7 @@ class ChatDetailMessageMapper {
       if (_shouldInsertTimestamp(i, previousTimestamp, timestamp)) {
         result.add(
           ChatDetailMessage(
-            messageId: '${_messageKey(message)}:timestamp',
+            messageId: '${messageKeyFor(message)}:timestamp',
             kind: ChatDetailMessageKind.timestamp,
             text: _formatTimestamp(timestamp!),
             sentTime: timestamp,
@@ -38,12 +38,34 @@ class ChatDetailMessageMapper {
   static Future<ChatDetailMessage> mapMessage(RCIMIWMessage message) async {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
     final sentTime = message.sentTime ?? message.receivedTime;
-    final messageKey = _messageKey(message);
+    final messageKey = messageKeyFor(message);
 
     if (_isRecallMessage(message)) {
       return ChatDetailMessage(
         messageId: messageKey,
         kind: ChatDetailMessageKind.withdrawnNotice,
+        sentTime: sentTime,
+        extra: message,
+      );
+    }
+
+    if (message is RCIMIWReferenceMessage) {
+      final referenceMessage = message.referenceMessage;
+      return ChatDetailMessage(
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.text,
+        isMe: isMe,
+        text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
+        quoteText: await quoteSummaryForMessage(referenceMessage),
+        quoteMessageId: referenceMessage == null
+            ? null
+            : messageKeyFor(referenceMessage),
+        quoteSentTime:
+            referenceMessage?.sentTime ?? referenceMessage?.receivedTime,
+        quoteMessageUId: referenceMessage?.messageUId,
+        quoteRawMessageId: referenceMessage?.messageId,
+        quoteSenderUserId: referenceMessage?.senderUserId,
+        quoteMessageType: referenceMessage?.messageType?.index,
         sentTime: sentTime,
         extra: message,
       );
@@ -160,7 +182,52 @@ class ChatDetailMessageMapper {
         message.messageType == RCIMIWMessageType.recall;
   }
 
-  static String _messageKey(RCIMIWMessage message) {
+  static Future<String> quoteSummaryForMessage(RCIMIWMessage? message) async {
+    if (message == null || _isRecallMessage(message)) {
+      return '[消息]';
+    }
+
+    final callSummary = RongCallSummaryParser.tryParse(message);
+    if (callSummary != null) {
+      return callSummary.text;
+    }
+
+    if (message is RCIMIWReferenceMessage) {
+      final text = message.text;
+      return (text?.isNotEmpty ?? false) ? text! : '[消息]';
+    }
+
+    if (message is RCIMIWTextMessage) {
+      final text = message.text;
+      return (text?.isNotEmpty ?? false) ? text! : '[空消息]';
+    }
+
+    if (message is RCIMIWImageMessage) {
+      return '[图片]';
+    }
+
+    if (message is RCIMIWVoiceMessage) {
+      return '[语音]';
+    }
+
+    if (message is RCIMIWSightMessage) {
+      return '[视频]';
+    }
+
+    if (message is RCIMIWFileMessage) {
+      return '[文件]';
+    }
+
+    if (message.messageType == RCIMIWMessageType.custom) {
+      final model = MessageModel(item: message);
+      final content = await model.formatCustomContent();
+      return content.isNotEmpty ? content : '[消息]';
+    }
+
+    return '[消息]';
+  }
+
+  static String messageKeyFor(RCIMIWMessage message) {
     final callSummaryKey = RongCallSummaryParser.stableMessageKey(message);
     if (callSummaryKey != null) return callSummaryKey;
 

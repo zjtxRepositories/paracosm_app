@@ -67,7 +67,7 @@ class ChatController extends ChangeNotifier {
 
     _listenConnection();
     _listenConversation();
-    _fetchContact();
+    _listenFriendList();
     _fetchGroup();
     _fetchFriendApplication();
 
@@ -114,17 +114,8 @@ class ChatController extends ChangeNotifier {
       }
     });
 
-    _dataCenter.groupMemberStream.listen((groupIds) {
-      for (var groupId in groupIds) {
-        final model = _conversationMap[groupId];
-        if (model != null) {
-          ConversationResolver().resolve(model);
-        }
-      }
-    });
-
-
     _dataCenter.groupInfoStream.listen((groupIds) {
+      print('groupInfoStream----$groupIds');
       for (var groupId in groupIds) {
         final model = _conversationMap[groupId];
         if (model != null) {
@@ -300,13 +291,11 @@ class ChatController extends ChangeNotifier {
     _subs.add(sub);
   }
 
-  void _fetchContact() {
-    final sub = _engineManager.friend.stream.listen((list) {
+  void _listenFriendList() {
+    ImDataCenter().friendListStream.listen((list) {
       friends = list;
       _notify();
     });
-
-    _subs.add(sub);
   }
 
   void _fetchGroup() {

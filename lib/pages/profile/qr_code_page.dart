@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -31,7 +32,7 @@ class QrCodePage extends StatefulWidget {
 
 class _QrCodePageState
     extends State<QrCodePage> {
-  UserModel? _user;
+  UserDisplayModel? _user;
 
   final ScreenshotController
   _screenshotController =
@@ -50,34 +51,13 @@ class _QrCodePageState
   /// 加载用户
   /// =========================
   Future<void> _loadUser() async {
-    final manager = ImUserManager();
-
-    final currentUserId =
-        AccountManager().currentUserId;
-
-    RCIMIWUserProfile? profile;
-
-    if (widget.userId == currentUserId) {
-      profile =
-      await manager.getMyUserProfile();
-    } else {
-      final result =
-          await manager.getUserProfiles([
-            widget.userId,
-          ]) ??
-              [];
-
-      if (result.isNotEmpty) {
-        profile = result.first;
-      }
-    }
-
+    final profile = await UserDisplayStateCenter().getUser(widget.userId);
     if (profile == null) return;
 
     if (!mounted) return;
 
     setState(() {
-      _user = UserModel(profile: profile!);
+      _user = profile;
     });
   }
 
@@ -228,14 +208,10 @@ class _QrCodePageState
                               children: [
                                 UserAvatarWidget(
                                   userId:
-                                  _user
-                                      ?.profile
-                                      .userId,
+                                  _user?.userId,
 
                                   avatarUrl:
-                                  _user
-                                      ?.profile
-                                      .portraitUri,
+                                  _user?.avatar,
 
                                   size: 48,
 
@@ -445,18 +421,10 @@ class _QrCodePageState
                                     const PrettyQrSmoothSymbol(),
 
                                     image:
-                                    _user?.profile.portraitUri !=
-                                        null &&
-                                        _user!
-                                            .profile
-                                            .portraitUri!
-                                            .isNotEmpty
-                                        ? PrettyQrDecorationImage(
+                                    _user?.avatar != null ? PrettyQrDecorationImage(
                                       image:
                                       NetworkImage(
-                                        _user!
-                                            .profile
-                                            .portraitUri!,
+                                        _user!.avatar,
                                       ),
                                     )
                                         : null,

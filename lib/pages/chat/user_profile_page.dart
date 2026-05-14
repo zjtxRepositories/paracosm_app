@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/friend_model.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -19,6 +20,7 @@ import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/network/api/upload_file_api.dart';
+import '../../modules/im/manager/im_engine_manager.dart';
 import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
 import '../../widgets/common/image_picker_sheet.dart';
@@ -34,7 +36,7 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-  UserModel? _user;
+  UserDisplayModel? _user;
   bool _isSelf = false;
   bool _isFriend = false;
 
@@ -45,37 +47,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> fetchData() async {
-    final manager = ImUserManager();
-    final currentUserId = AccountManager().currentAccount?.accountId;
-    RCIMIWUserProfile? profile;
-    try {
-      if (widget.userId == currentUserId) {
-        profile = await manager.getMyUserProfile();
-        _isSelf = true;
-      } else {
-        final result = await manager.getUserProfiles([widget.userId]) ?? [];
-        if (result.isNotEmpty) {
-          profile = result.first;
-        }
-        final List<RCIMIWFriendInfo> friends =
-            await ImFriendManager().getFriendsInfo([widget.userId]) ?? [];
-        if (friends.isNotEmpty) {
-          final friend = FriendModel(info: friends.first);
-          profile?.name = friend.name;
-          // print('dddd-----${friend.remark}');
-          _isFriend = true;
-        }
-      }
-      if (profile == null) return;
-      if (!mounted) return;
+    _isSelf = IMEngineManager().currentUserId == widget.userId;
+    UserDisplayModel? user = await UserDisplayStateCenter().getUser(widget.userId,forceRefresh: true);
 
+    if (user == null) return;
+      if (!mounted) return;
       setState(() {
-        _user = UserModel(profile: profile!);
+        _user = user;
+        _isFriend = user.friend != null;
       });
-    } catch (e) {
-      // 可以加日志
-      debugPrint("fetchData error: $e");
-    }
+
   }
 
   @override
@@ -100,7 +81,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> toggleMoment() async {
-    final userId = _user?.profile.userId ?? '';
+    final userId = _user?.userId ?? '';
     context.push('/moment-user-profile', extra: userId);
   }
 
@@ -118,7 +99,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         final result = await ImFriendManager().addFriend(
-          userId: _user!.profile.userId ?? '',
+          userId: _user!.userId ?? '',
           extra: controller.text,
         );
         AppLoading.dismiss();
@@ -140,7 +121,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _showSetNoteNameModal() {
     if (_user == null) return;
     TextEditingController controller = TextEditingController(
-      text: _user!.profile.name ?? '',
+      text: _user!.name,
     );
     AppModal.show(
       context,
@@ -148,9 +129,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
       confirmText: AppLocalizations.of(context)!.chatProfileSave,
       onConfirm: () async {
         AppLoading.show();
-        _user!.profile.name = controller.text;
+        _user!.friend?.remark = controller.text;
         final result = await ImFriendManager().setFriendInfo(
-          userId: _user!.profile.userId ?? '',
+          userId: _user!.userId,
           remark: controller.text,
         );
         AppLoading.dismiss();
@@ -167,9 +148,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 修改名称
   void _showSetNameModal() {
-    if (_user == null) return;
+    final profile = _user?.profile;
+    if (profile == null) return;
     TextEditingController controller = TextEditingController(
-      text: _user!.profile.name ?? '',
+      text: profile.name,
     );
     AppModal.show(
       context,
@@ -177,9 +159,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
       confirmText: AppLocalizations.of(context)!.chatProfileSave,
       onConfirm: () async {
         AppLoading.show();
-        _user!.profile.name = controller.text;
+        profile.name = controller.text;
         final result = await ImUserManager().updateMyUserProfile(
-          userProfile: _user!.profile,
+          userProfile: profile,
         );
         AppLoading.dismiss();
         if (!result) {
@@ -189,8 +171,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         setState(() {});
         context.pop();
         AccountManager().updateAccountUserInfo(
-          _user!.profile.name ?? '',
-          _user!.profile.portraitUri ?? '',
+          profile.name ?? '',
+          profile.portraitUri ?? '',
         );
       },
       child: _SetNoteNameInputWrapper(controller: controller),
@@ -207,6 +189,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _handleImage(String path) async {
+    final profile = _user?.profile;
+    if (profile == null) return;
     try {
       AppLoading.show();
 
@@ -219,10 +203,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
         return;
       }
 
-      _user!.profile.portraitUri = url;
+      profile.portraitUri = url;
 
       final result = await ImUserManager().updateMyUserProfile(
-        userProfile: _user!.profile,
+        userProfile: profile,
       );
 
       if (!result) {
@@ -231,8 +215,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
       }
       setState(() {});
       AccountManager().updateAccountUserInfo(
-        _user!.profile.name ?? '',
-        _user!.profile.portraitUri ?? '',
+        profile.name ?? '',
+        profile.portraitUri ?? '',
       );
     } finally {
       AppLoading.dismiss();
@@ -274,8 +258,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildAvatarSection() {
     return Center(
       child: UserAvatarWidget(
-        userId: _user?.profile.userId,
-        avatarUrl: _user?.profile.portraitUri,
+        userId: _user?.userId,
+        avatarUrl: _user?.avatar,
         size: 80,
         borderRadius: BorderRadius.circular(16),
       ),
@@ -297,7 +281,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       children: [
         GestureDetector(
           onTap: () async {
-            final text = _user?.profile.userId ?? '';
+            final text = _user?.userId ?? '';
             await Clipboard.setData(ClipboardData(text: text));
             AppToast.show(AppLocalizations.of(context)!.commonCopied);
           },
@@ -311,7 +295,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         SizedBox(
           width: 128,
           child: Text(
-            _user?.profile.userId ?? '',
+            _user?.userId ?? '',
             style: AppTextStyles.caption.copyWith(
               color: AppColors.grey400,
               fontSize: 12,

@@ -53,9 +53,9 @@ class GroupModel {
     if (groupId.isEmpty) return [];
 
     final result = await ImGroupMemberManager().getGroupMembers(groupId);
-    if ((result ?? []).isEmpty) return [];
+    if (result.isEmpty) return [];
     final List<GroupMemberModel> list = [];
-    for (final e in result!) {
+    for (final e in result) {
       final member = GroupMemberModel(item: e);
       list.add(member);
     }

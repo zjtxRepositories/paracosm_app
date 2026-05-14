@@ -1,10 +1,8 @@
 
 
 import 'package:paracosm/core/models/group_model.dart';
-import 'package:paracosm/core/models/user_model.dart';
-import 'package:paracosm/modules/im/listener/user_state_center.dart';
-import 'package:paracosm/modules/im/manager/im_group_manager.dart';
-import 'package:paracosm/modules/im/manager/im_user_manager.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/listener/group_state_center.dart';
@@ -66,8 +64,8 @@ class MessageModel {
   }
 
 
-  Future<UserModel?> _getUser(String id) async {
-    return UserStateCenter().getUser(id);
+  Future<UserDisplayModel?> _getUser(String id) async {
+    return UserDisplayStateCenter().getUser(id);
   }
 
   Future<GroupModel?> _getGroup(String id) async {

@@ -1505,7 +1505,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         // 用户信息
         Row(
           children: [
-            UserAvatarWidget(userId: item.user?.profile.userId,avatarUrl: item.user?.profile.portraitUri,size: 36,borderRadius: BorderRadius.all(Radius.circular(8)),),
+            UserAvatarWidget(userId: item.user?.userId,
+              avatarUrl: item.user?.avatar,
+              size: 36,
+              borderRadius: BorderRadius.all(Radius.circular(8)),),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

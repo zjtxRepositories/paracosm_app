@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
@@ -344,7 +344,7 @@ class _ChatSearchPageState extends State<ChatSearchPage> {
 
   /// 构建用户搜索项
   Widget _buildUserItem(RCIMIWUserProfile user) {
-    final userModel = UserModel(profile: user);
+    final userModel = UserDisplayModel(profile: user);
     return GestureDetector(
       onTap: () {
         context.push('/user-profile',extra: user.userId);

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -16,14 +16,14 @@ class MomentPostModel {
     required this.item,
   });
 
-  UserModel? user;
+  UserDisplayModel? user;
 }
 
 class MomentsResolver {
   final ImUserManager _manager = ImUserManager();
 
   /// 内存缓存
-  final Map<String, UserModel> _cache = {};
+  final Map<String, UserDisplayModel> _cache = {};
 
   /// 批量解析
   Future<void> resolve(List<MomentPostModel> models) async {
@@ -94,7 +94,7 @@ class MomentsResolver {
 
         if (profile != null) {
           _cache[socialId] =
-              UserModel(profile: profile);
+              UserDisplayModel(profile: profile);
         }
       });
 

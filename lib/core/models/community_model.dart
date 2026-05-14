@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/manager/im_engine_manager.dart';
@@ -263,7 +263,7 @@ class CommunityPostModel {
   /// 用户 ID
   final int userId;
 
-  UserModel? user;
+  UserDisplayModel? user;
 
   factory CommunityPostModel.fromJson(
       Map<String, dynamic> json,
@@ -322,7 +322,7 @@ class CommunityResolver {
   final ImUserManager _manager = ImUserManager();
 
   /// 内存缓存
-  final Map<String, UserModel> _cache = {};
+  final Map<String, UserDisplayModel> _cache = {};
 
   Future<void> resolve(List<CommunityPostModel> models) async {
     if (models.isEmpty) return;
@@ -359,7 +359,7 @@ class CommunityResolver {
 
         if (profile != null) {
           _cache[item.userId] =
-              UserModel(profile: profile);
+              UserDisplayModel(profile: profile);
         }
       }
 

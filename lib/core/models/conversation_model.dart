@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/group_model.dart';
-import 'package:paracosm/core/models/user_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
-import 'package:paracosm/modules/im/manager/im_group_manager.dart';
-import 'package:paracosm/modules/im/manager/im_user_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
-import '../../modules/im/listener/user_state_center.dart';
 import 'custom_message_model.dart';
 
 class ConversationModel extends ChangeNotifier {
@@ -64,7 +62,7 @@ class ConversationResolver {
     if (info.conversationType == RCIMIWConversationType.private) {
       final user = await _getUser(targetId);
       title = user?.name ?? '';
-      portraitUri = user?.profile.portraitUri ?? '';
+      portraitUri = user?.avatar;
     }
 
     if (info.conversationType == RCIMIWConversationType.group) {
@@ -179,8 +177,8 @@ class ConversationResolver {
     return result;
   }
 
-  Future<UserModel?> _getUser(String id) async {
-    return UserStateCenter().getUser(id);
+  Future<UserDisplayModel?> _getUser(String id) async {
+    return UserDisplayStateCenter().getUser(id);
   }
 
   Future<GroupModel?> _getGroup(String id) async {

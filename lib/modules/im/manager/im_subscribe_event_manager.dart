@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:paracosm/core/models/user_model.dart';
-import 'package:paracosm/modules/im/listener/user_state_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'im_engine_manager.dart';

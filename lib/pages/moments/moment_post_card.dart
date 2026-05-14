@@ -129,8 +129,8 @@ class _Header extends StatelessWidget {
         Row(
           children: [
             UserAvatarWidget(
-              userId: model.user?.profile.userId,
-              avatarUrl: model.user?.profile.portraitUri,
+              userId: model.user?.userId,
+              avatarUrl: model.user?.avatar,
               size: 36,
               borderRadius: BorderRadius.circular(8),
             ),

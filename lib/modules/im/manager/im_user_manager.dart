@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../listener/im_data_center.dart';
 import 'im_engine_manager.dart';
 
 class ImUserManager {
@@ -13,26 +14,13 @@ class ImUserManager {
 
   factory ImUserManager() => _instance;
 
-  final _profileController =
-  StreamController<RCIMIWUserProfile>.broadcast();
-
-  Stream<RCIMIWUserProfile> get profileStream =>
-      _profileController.stream;
-
-  bool _initialized = false;
-
-  /// 用户缓存
-  final Map<String, RCIMIWUserProfile> _profileCache = {};
-
   RCIMIWEngine? get _engine =>
       IMEngineManager().engine;
 
   /// =========================
   /// 获取当前用户信息
   /// =========================
-  Future<RCIMIWUserProfile?> getMyUserProfile({
-    bool refresh = false,
-  }) async {
+  Future<RCIMIWUserProfile?> getMyUserProfile() async {
     try {
       final completer =
       Completer<RCIMIWUserProfile?>();
@@ -43,7 +31,7 @@ class ImUserManager {
               RCIMIWUserProfile? userProfile,
               ) {
             if (userProfile != null) {
-              _cacheProfile(userProfile);
+              ImDataCenter().setProfile(userProfile);
             }
 
             completer.complete(userProfile);
@@ -71,6 +59,7 @@ class ImUserManager {
       debugPrint(
         'getMyUserProfile exception => $e',
       );
+
       return null;
     }
   }
@@ -79,35 +68,21 @@ class ImUserManager {
   /// 批量获取用户信息
   /// =========================
   Future<List<RCIMIWUserProfile>?> getUserProfiles(
-      List<String> userIds, {
-        bool refresh = false,
-      }) async {
+      List<String> userIds) async {
     try {
-      /// 命中缓存
-      if (!refresh) {
-        final cached = userIds
-            .map((e) => _profileCache[e])
-            .whereType<RCIMIWUserProfile>()
-            .toList();
-
-        if (cached.length == userIds.length) {
-          return cached;
-        }
-      }
-
       final completer =
       Completer<List<RCIMIWUserProfile>?>();
-
       final ret = await _engine?.getUserProfiles(
         userIds,
         callback: IRCIMIWGetUserProfilesCallback(
           onSuccess: (
               List<RCIMIWUserProfile>? userProfiles,
               ) {
-            if (userProfiles != null) {
-              for (final item in userProfiles) {
-                _cacheProfile(item);
-              }
+            if (userProfiles != null &&
+                userProfiles.isNotEmpty) {
+              ImDataCenter().setProfiles(
+                userProfiles,
+              );
             }
 
             completer.complete(userProfiles);
@@ -135,6 +110,7 @@ class ImUserManager {
       debugPrint(
         'getUserProfiles exception => $e',
       );
+
       return null;
     }
   }
@@ -159,7 +135,9 @@ class ImUserManager {
               RCIMIWUserProfile? userProfile,
               ) {
             if (userProfile != null) {
-              _cacheProfile(userProfile);
+              ImDataCenter().setProfile(
+                userProfile,
+              );
             }
 
             completer.complete(userProfile);
@@ -187,6 +165,7 @@ class ImUserManager {
       debugPrint(
         'searchUserProfileByUniqueId exception => $e',
       );
+
       return null;
     }
   }
@@ -206,9 +185,9 @@ class ImUserManager {
         callback:
         IRCIMIWUpdateMyUserProfileCallback(
           onSuccess: () {
-            _cacheProfile(userProfile);
-
-            _safeAdd(userProfile);
+            ImDataCenter().setProfile(
+              userProfile,
+            );
 
             completer.complete(true);
           },
@@ -244,42 +223,14 @@ class ImUserManager {
   }
 
   /// =========================
-  /// 获取缓存
-  /// =========================
-  RCIMIWUserProfile? getCachedProfile(
-      String userId,
-      ) {
-    return _profileCache[userId];
-  }
-
-  /// =========================
-  /// 清空缓存
-  /// =========================
-  void clearCache() {
-    _profileCache.clear();
-  }
-
-  /// =========================
-  /// 缓存用户
-  /// =========================
-  void _cacheProfile(
-      RCIMIWUserProfile profile,
-      ) {
-    final userId = profile.userId;
-
-    if (userId == null || userId.isEmpty) {
-      return;
-    }
-
-    _profileCache[userId] = profile;
-  }
-
-  /// =========================
-  /// SDK 错误
+  /// SDK invoke error
   /// =========================
   bool _isSdkError(int? ret) {
     if (ret != null && ret != 0) {
-      debugPrint('SDK invoke failed => $ret');
+      debugPrint(
+        'SDK invoke failed => $ret',
+      );
+
       return true;
     }
 
@@ -287,20 +238,7 @@ class ImUserManager {
   }
 
   /// =========================
-  /// 安全通知
-  /// =========================
-  void _safeAdd(
-      RCIMIWUserProfile profile,
-      ) {
-    if (_profileController.isClosed) {
-      return;
-    }
-
-    _profileController.add(profile);
-  }
-
-  /// =========================
-  /// 日志
+  /// log
   /// =========================
   void _log(
       String message,
@@ -310,13 +248,7 @@ class ImUserManager {
   }
 
   /// =========================
-  /// 销毁
+  /// dispose
   /// =========================
-  void dispose() {
-    _profileCache.clear();
-
-    _profileController.close();
-
-    _initialized = false;
-  }
+  void dispose() {}
 }

@@ -1,7 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/models/friend_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
@@ -20,10 +21,12 @@ import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/network/api/upload_file_api.dart';
+import '../../modules/im/listener/im_data_center.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
 import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
 import '../../widgets/common/image_picker_sheet.dart';
+import 'chat_session_args.dart';
 
 /// 用户资料页面
 class UserProfilePage extends StatefulWidget {
@@ -37,47 +40,78 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   UserDisplayModel? _user;
+
   bool _isSelf = false;
   bool _isFriend = false;
+
+  StreamSubscription? _profileSub;
+
+  /// 防止并发请求乱序
+  int _fetchVersion = 0;
 
   @override
   void initState() {
     super.initState();
-    fetchData();
+
+    _init();
+
+    _profileSub = ImDataCenter().profileStream.listen((userIds) {
+      if (userIds.contains(widget.userId)) {
+        fetchData();
+      }
+    });
   }
 
-  Future<void> fetchData() async {
-    _isSelf = IMEngineManager().currentUserId == widget.userId;
-    UserDisplayModel? user = await UserDisplayStateCenter().getUser(widget.userId,forceRefresh: true);
-
-    if (user == null) return;
-      if (!mounted) return;
-      setState(() {
-        _user = user;
-        _isFriend = user.friend != null;
-      });
-
+  Future<void> _init() async {
+    await fetchData(forceRefresh: true);
   }
 
   @override
   void dispose() {
+    _profileSub?.cancel();
     super.dispose();
   }
 
+  Future<void> fetchData({
+    bool forceRefresh = false,
+  }) async {
+    final version = ++_fetchVersion;
+
+    _isSelf = IMEngineManager().currentUserId == widget.userId;
+
+    final user = await UserDisplayStateCenter().getUser(
+      widget.userId,
+      forceRefresh: forceRefresh,
+    );
+
+    if (!mounted) return;
+
+    /// 已有更新请求
+    if (version != _fetchVersion) return;
+
+    if (user == null) return;
+
+    setState(() {
+      _user = user;
+      _isFriend = user.isFriend;
+    });
+  }
   Future<void> toggleChat() async {
+    if (_user == null) return;
     if (!_isFriend) {
       AppToast.show('请添加好友！');
       return;
     }
-    // final targetId = _user?.profile.userId ?? '';
-    // final content = "我们已成功添加为好友，现在可以开始聊天啦～";
-    // final message = await CustomMessage.createFm(targetId: targetId, content: content);
-    // if (message != null) {
-    //  final result = await ImSendManager.instance.sendCustomMessage(message: message);
-    //  if (result){
-    //    print('发送-----发送消息成功');
-    //  }
-    // }
+    context.push(
+      '/chat-detail/${Uri.encodeComponent( _user!.name)}',
+      extra: ChatSessionArgs(
+        targetId: _user!.userId,
+        conversationType: RCIMIWConversationType.private,
+        name: _user!.name,
+        isGroup: false,
+        avatar: _user!.avatar,
+      ),
+    );
   }
 
   Future<void> toggleMoment() async {
@@ -146,6 +180,69 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
+
+  /// 删除好友确认弹窗
+  void _showDeleteFriend() {
+    AppModal.show(
+        context,
+        title: AppLocalizations.of(context)!.chatRequestHint,
+        description: '你确定要删除该好友吗？',
+        confirmText: AppLocalizations.of(context)!.chatRequestSure,
+        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
+        confirmWidth: 161,
+        cancelWidth: 161,
+        cancelBorder: const BorderSide(color: AppColors.grey300),
+        icon: Image.asset(
+          'assets/images/wallet/bell-icon.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+        ),
+        onConfirm: () async {
+          context.pop();
+          AppLoading.show();
+          final result = await ImFriendManager().deleteFriends([widget.userId]);
+          AppLoading.dismiss();
+          if (!result.success){
+            AppToast.show(result.message);
+            return;
+          }
+          context.pop();
+        });
+  }
+
+  /// 加入黑名单确认弹窗
+  void _showAddBlack() {
+    AppModal.show(
+        context,
+        title: AppLocalizations.of(context)!.chatRequestHint,
+        description: '加入黑名单，你讲不再收到对方的消息',
+        confirmText: AppLocalizations.of(context)!.chatRequestSure,
+        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
+        confirmWidth: 161,
+        cancelWidth: 161,
+        cancelBorder: const BorderSide(color: AppColors.grey300),
+        icon: Image.asset(
+          'assets/images/wallet/bell-icon.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+        ),
+        onConfirm: () async {
+          context.pop();
+          AppLoading.show();
+          final result = await ImFriendManager().addToBlacklist(widget.userId);
+          print('result-----');
+          AppLoading.dismiss();
+          if (!result.success){
+            AppToast.show(result.message);
+            return;
+          }
+          context.pop();
+
+        });
+  }
+
   /// 修改名称
   void _showSetNameModal() {
     final profile = _user?.profile;
@@ -182,7 +279,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 设置头像
   Future<void> _showPickAvatarAction() async {
     final path = await ImagePickerSheet.show(context);
-    print('path-----$path');
     if (path == null) return;
 
     await _handleImage(path);
@@ -383,7 +479,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           title: AppLocalizations.of(context)!.chatProfileAddBlacklist,
           iconPath: 'assets/images/common/slash.png',
           isFullBorder: true,
-          onTap: () {},
+          onTap: _showAddBlack,
         ),
       ],
     );
@@ -399,7 +495,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               textColor: AppColors.error,
               border: BorderSide(color: AppColors.error),
               backgroundColor: Colors.white,
-              onPressed: _showAddFriendModal,
+              onPressed: _showDeleteFriend,
             )
           : AppButton(
               text: _isSelf
@@ -409,20 +505,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
               backgroundColor: AppColors.grey900,
               onPressed: _isSelf ? _showSetNameModal : _showAddFriendModal,
             ),
-    );
-  }
-
-  /// 构建底部删除按钮
-  Widget _buildDeleteButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: AppButton(
-        text: AppLocalizations.of(context)!.chatProfileDelete,
-        textColor: const Color(0xFFF04438),
-        backgroundColor: Colors.white,
-        border: const BorderSide(color: Color(0xFFFDA29B)),
-        onPressed: () {},
-      ),
     );
   }
 

@@ -87,6 +87,8 @@ class ChatDetailController {
 
   StreamSubscription<Map<String, PresenceState>>? _eventSub;
 
+  StreamSubscription? _conversationChangeSub;
+
   /// =========================
   /// UI notify
   /// =========================
@@ -119,6 +121,8 @@ class ChatDetailController {
     _subscribeMessages();
 
     _subscribeVoice();
+
+    _listenConversation();
   }
 
   void dispose() {
@@ -131,6 +135,8 @@ class ChatDetailController {
     _messageSub?.cancel();
 
     _eventSub?.cancel();
+
+    _conversationChangeSub?.cancel();
   }
 
   /// =========================
@@ -325,6 +331,18 @@ class ChatDetailController {
     }
   }
 
+  void _listenConversation() {
+    _conversationChangeSub = ImConversationManager().changeStream
+        .listen((ConversationChangeEvent event){
+              final conversation = event.conversation;
+              if (conversation == null) return;
+              if (conversation.targetId != args?.targetId) return;
+              if (event.type == ConversationChangeType.delete){
+                context?.go('/chat');
+              }
+            });
+
+  }
   /// =========================
   /// 消息监听
   /// =========================

@@ -75,5 +75,24 @@ class ImCallbackWrapper {
     return completer.future;
   }
 
+  static Future<ImResult<int>> wrapAddBlock(
+      Future<int?> Function(IRCIMIWAddToBlacklistCallback callback) func,
+      ) async {
 
+    final completer = Completer<ImResult<int>>();
+
+    final callback = IRCIMIWAddToBlacklistCallback(onBlacklistAdded: (int? code, String? userId) {
+      completer.complete(
+        ImResult.success(data: code ?? 0),
+      );
+    },);
+
+    final ret = await func(callback);
+
+    if (ret != null && ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
 }

@@ -57,8 +57,6 @@ class ImFriendManager {
         portrait: portrait,
       );
 
-      ImDataCenter().updateFriend(friend);
-
       // 可选：延迟刷新完整信息
       await Future.delayed(const Duration(milliseconds: 300));
 
@@ -276,6 +274,21 @@ class ImFriendManager {
         ImDataCenter().removeFriend(id);
       }
     }
+
+    return result;
+  }
+
+  Future<ImResult<void>> addToBlacklist(String userId) async {
+    final result = await ImCallbackWrapper.wrapAddBlock((callback) {
+      return IMEngineManager().engine!.addToBlacklist(
+        userId,
+        callback: IRCIMIWAddToBlacklistCallback(onBlacklistAdded: (int? code, String? uid){
+          if (uid != null && code == 0) {
+            ImDataCenter().removeFriend(userId,deletedMessage: false);
+          }
+        }),
+      );
+    });
 
     return result;
   }

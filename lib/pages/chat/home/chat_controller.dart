@@ -190,8 +190,6 @@ class ChatController extends ChangeNotifier {
   /// =========================
   void _onConversationChange(ConversationChangeEvent event) {
     final conv = event.conversation;
-    final key = event.key;
-
     final targetId = conv?.targetId ?? '';
     if (targetId.isEmpty && event.type != ConversationChangeType.delete) {
       return;
@@ -207,6 +205,7 @@ class ChatController extends ChangeNotifier {
         break;
 
       case ConversationChangeType.delete:
+        print('delete-----$targetId');
         _handleDelete(targetId);
         break;
     }

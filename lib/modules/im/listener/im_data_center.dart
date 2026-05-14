@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -118,10 +120,12 @@ class ImDataCenter {
         case GroupEventType.quit:
         case GroupEventType.dismissed:
           removeGroup(event.groupId);
+          _removeConversation(event.groupId,RCIMIWConversationType.group);
           break;
         default:
           break;
       }
+
     });
   }
 
@@ -143,17 +147,21 @@ class ImDataCenter {
   void updateFriend(RCIMIWFriendInfo friend) {
     final userId = friend.userId;
     if (userId == null) return;
-
+    UserDisplayStateCenter().updateFriend(
+      friend,
+    );
     _friendCache[userId] = friend;
 
     _emitFriendList();
     _emitFriend(userId);
   }
 
-  void removeFriend(String userId) {
+  void removeFriend(String userId,{bool deletedMessage = true}) {
     _friendCache.remove(userId);
     _emitFriendList();
+    UserDisplayStateCenter().removeFriend(userId);
     _emitFriend(userId);
+    _removeConversation(userId,RCIMIWConversationType.private,deletedMessage: deletedMessage);
   }
 
   // ======================================================
@@ -208,6 +216,13 @@ class ImDataCenter {
   void removeGroup(String groupId) {
     _groupCache.remove(groupId);
     _emitGroup([groupId]);
+  }
+
+
+  void _removeConversation(String targetId, RCIMIWConversationType type,{bool deletedMessage = true}) {
+      ImConversationManager().removeConversationByTargetId(targetId,type);
+      if (!deletedMessage) return;
+      ImMessageManager().clearMessages(type: type, targetId: targetId, timestamp: 0);
   }
 
   // ======================================================

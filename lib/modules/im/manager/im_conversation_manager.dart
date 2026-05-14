@@ -130,8 +130,6 @@ class ImConversationManager {
     _messageSubscription ??=
         ImMessageManager().messageStream.listen(_onMessageEvent);
 
-    _groupEventSubscription ??=
-        GroupEventBus.instance.stream.listen(_onGroupEvent);
 
     engine?.onConversationReadStatusSyncMessageReceived =
         (type, targetId, timestamp) {
@@ -286,26 +284,12 @@ class ImConversationManager {
     _notify();
   }
 
-  /// =========================
-  /// group delete
-  /// =========================
-  void _onGroupEvent(GroupEvent event) {
-    switch (event.type) {
-      case GroupEventType.quit:
-      case GroupEventType.dismissed:
-        _removeConversationByGroup(event.groupId);
-        break;
-      default:
-        break;
-    }
-  }
-
-  Future<void> _removeConversationByGroup(String targetId) async {
-    final key = _buildKey(RCIMIWConversationType.group, targetId);
+  Future<void> removeConversationByTargetId(String targetId,RCIMIWConversationType type) async {
+    final key = _buildKey(type, targetId);
 
     try {
       await IMEngineManager().engine?.removeConversation(
-        RCIMIWConversationType.group,
+        type,
         targetId,
         null,
       );

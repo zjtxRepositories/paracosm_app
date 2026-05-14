@@ -68,8 +68,8 @@ class ChatController extends ChangeNotifier {
     _listenConnection();
     _listenConversation();
     _listenFriendList();
-    _fetchGroup();
-    _fetchFriendApplication();
+    _listenGroupList();
+    _listenFriendApplication();
 
     _fetchConversation();
   }
@@ -280,9 +280,8 @@ class ChatController extends ChangeNotifier {
   /// =========================
   /// friend / group
   /// =========================
-  void _fetchFriendApplication() {
-    final sub =
-    _engineManager.friendApplication.stream.listen((list) {
+  void _listenFriendApplication() {
+    final sub = _engineManager.friendApplication.stream.listen((list) {
       friendApplicationUnhandledCount =
           _engineManager.friendApplication.unhandledCount;
       _notify();
@@ -292,18 +291,18 @@ class ChatController extends ChangeNotifier {
   }
 
   void _listenFriendList() {
-    ImDataCenter().friendListStream.listen((list) {
+    final sub = _dataCenter.friendListStream.listen((list) {
       friends = list;
       _notify();
     });
+    _subs.add(sub);
   }
 
-  void _fetchGroup() {
-    final sub = _engineManager.group.stream.listen((list) {
+  void _listenGroupList() {
+    final sub = _dataCenter.groupListStream.listen((list) {
       groups = list;
       _notify();
     });
-
     _subs.add(sub);
   }
 

@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:paracosm/core/models/group_member_model.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import '../../modules/im/manager/im_group_member_manager.dart';
+import '../../modules/im/listener/group_state_center.dart';
 
 enum GroupType {
   normal,
@@ -51,8 +51,7 @@ class GroupModel {
   Future<List<GroupMemberModel>> get members async {
     final groupId = info.groupId ?? '';
     if (groupId.isEmpty) return [];
-
-    final result = await ImGroupMemberManager().getGroupMembers(groupId);
+    final result = await GroupStateCenter().getGroupMembers(groupId);
     if (result.isEmpty) return [];
     final List<GroupMemberModel> list = [];
     for (final e in result) {

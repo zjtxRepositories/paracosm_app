@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../modules/im/listener/im_data_center.dart';
 import '../../modules/im/manager/im_group_member_manager.dart';
 
 class GroupAvatarWidget extends StatefulWidget {
@@ -22,131 +26,85 @@ class GroupAvatarWidget extends StatefulWidget {
       _GroupAvatarWidgetState();
 }
 
-class _GroupAvatarWidgetState
-    extends State<GroupAvatarWidget> {
-  List<RCIMIWGroupMemberInfo> _memberAvatars =
-  [];
+class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
+  List<RCIMIWGroupMemberInfo> _memberAvatars = [];
 
   bool _loading = true;
+  StreamSubscription? _sub;
 
-  ValueNotifier<
-      List<RCIMIWGroupMemberInfo>>? _notifier;
 
   String get _groupId => widget.groupId;
 
   @override
   void initState() {
     super.initState();
-    final groupAvatar =
-        widget.portraitUri;
+    final groupAvatar = widget.portraitUri;
 
     /// =========================
     /// 有群头像直接显示
     /// =========================
-    if (groupAvatar != null &&
-        groupAvatar.isNotEmpty) {
+    if (groupAvatar != null && groupAvatar.isNotEmpty) {
       _loading = false;
       return;
     }
 
-    /// =========================
-    /// 监听成员变化
-    /// =========================
-    _notifier =
-        ImGroupMemberManager().watch(
+    /// 监听群成员变化
+    _sub = ImDataCenter().groupInfoStream.listen((groupIds) {
+      if (!mounted) return;
+
+      if (groupIds.contains(_groupId)) {
+        final list = ImDataCenter().getGroupMembers(
           _groupId,
         );
 
-    _notifier?.addListener(_onChanged);
+        setState(() {
+          _memberAvatars = list;
+          _loading = false;
+        });
+      }
+    });
 
-    /// =========================
     /// 拉取成员
     /// =========================
     _loadMembers();
   }
-
-  /// =========================
-  /// 成员变化
-  /// =========================
-  void _onChanged() {
-    if (!mounted) return;
-
-    setState(() {
-      _memberAvatars = List.from(
-        _notifier?.value ?? [],
-      );
-
-      _loading = false;
-    });
-  }
-
-  /// =========================
-  /// 首次加载
-  /// =========================
+  /// 拉取成员
   Future<void> _loadMembers() async {
     try {
-      final hasGroupAvatar =
-          (widget.portraitUri ?? '')
-              .isNotEmpty;
-
-      if (hasGroupAvatar) {
-        if (mounted) {
-          setState(() {
-            _loading = false;
-          });
-        }
-
-        return;
-      }
-
-      final members =
-      await ImGroupMemberManager()
-          .getGroupMembers(
+      final members = await GroupStateCenter().getGroupMembers(
         _groupId,
       );
+      if (!mounted) return;
 
-      /// 可能 notifier 不触发
-      if (members.isNotEmpty &&
-          mounted) {
-        setState(() {
-          _memberAvatars =
-              List.from(members);
-
-          _loading = false;
-        });
-      }
+      setState(() {
+        _memberAvatars = members;
+        _loading = false;
+      });
     } catch (e) {
       debugPrint(
         'GroupAvatarWidget error: $e',
       );
-
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
   @override
   void dispose() {
-    _notifier?.removeListener(
-      _onChanged,
-    );
-
+    _sub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final groupAvatar =
-        widget.portraitUri;
+    final groupAvatar = widget.portraitUri;
 
     /// =========================
     /// 群头像优先
     /// =========================
-    if (groupAvatar != null &&
-        groupAvatar.isNotEmpty) {
+    if (groupAvatar != null && groupAvatar.isNotEmpty) {
       return _buildSingle(groupAvatar);
     }
 

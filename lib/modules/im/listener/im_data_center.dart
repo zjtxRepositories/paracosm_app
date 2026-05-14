@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
-import 'package:paracosm/modules/im/manager/im_group_member_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -44,7 +43,6 @@ class ImDataCenter {
   // ======================================================
   // Profile
   // ======================================================
-  final Map<String, RCIMIWUserProfile> _profileCache = {};
 
   final _profileController =
   StreamController<List<String>>.broadcast();
@@ -55,7 +53,7 @@ class ImDataCenter {
   // ======================================================
   // Group member
   // ======================================================
-  final Map<String, List<RCIMIWGroupMemberInfo>> _groupMemberCache = {};
+  // final Map<String, List<RCIMIWGroupMemberInfo>> _groupMemberCache = {};
 
   final _groupMemberController =
   StreamController<List<String>>.broadcast();
@@ -63,8 +61,18 @@ class ImDataCenter {
   Stream<List<String>> get groupMemberStream =>
       _groupMemberController.stream;
 
-  final _groupInfoController =
-  StreamController<List<String>>.broadcast();
+
+  // ======================================================
+  // Group
+  // ======================================================
+  final Map<String, RCIMIWGroupInfo> _groupCache= {};
+
+  final _groupListController = StreamController<List<RCIMIWGroupInfo>>.broadcast();
+
+  Stream<List<RCIMIWGroupInfo>> get groupListStream =>
+      _groupListController.stream;
+
+  final _groupInfoController = StreamController<List<String>>.broadcast();
 
   Stream<List<String>> get groupInfoStream =>
       _groupInfoController.stream;
@@ -90,30 +98,29 @@ class ImDataCenter {
     // profile
     // =========================
     _subscribe.profileStream.listen((map) {
-      _profileCache.addAll(map);
-
       _emitProfile(map);
       _patchGroupMemberByProfile(map);
-    });
-
-    // =========================
-    // group member
-    // =========================
-    ImGroupMemberManager().stream.listen((map) {
-      map.forEach((groupId, list) {
-        _groupMemberCache[groupId] = list;
-      });
     });
 
     // =========================
     // group info
     // =========================
     GroupEventBus.instance.stream.listen((event) {
-      if (event.type == GroupEventType.infoChanged &&
-          event.groupInfo != null) {
-        GroupStateCenter().updateGroupInfo(event.groupInfo!);
-
-        _emitGroup([event.groupInfo!.groupId ?? '']);
+      switch (event.type) {
+        case GroupEventType.created:
+        case GroupEventType.joined:
+        case GroupEventType.infoChanged:
+          final info = event.groupInfo;
+          if (info != null) {
+            setGroup(info);
+          }
+          break;
+        case GroupEventType.quit:
+        case GroupEventType.dismissed:
+          removeGroup(event.groupId);
+          break;
+        default:
+          break;
       }
     });
   }
@@ -140,18 +147,14 @@ class ImDataCenter {
     _friendCache[userId] = friend;
 
     _emitFriendList();
-    print('好友信息-------${friend.toJson()}');
     _emitFriend(userId);
   }
 
   void removeFriend(String userId) {
     _friendCache.remove(userId);
-    _profileCache.remove(userId);
-
     _emitFriendList();
     _emitFriend(userId);
   }
-
 
   // ======================================================
   // Profile API
@@ -177,6 +180,74 @@ class ImDataCenter {
       UserDisplayStateCenter().updateUserProfile(profile);
     }
   }
+
+  // ======================================================
+  // group API
+  // ======================================================
+  void setGroupList(List<RCIMIWGroupInfo> list) {
+    _groupCache.clear();
+
+    for (final item in list) {
+      if (item.groupId == null) continue;
+      _groupCache[item.groupId!] = item;
+    }
+    _emitGroupList();
+  }
+
+  void setGroup(RCIMIWGroupInfo group) {
+    final groupId = group.groupId;
+
+    if (groupId == null || groupId.isEmpty) {
+      return;
+    }
+    _groupCache[groupId] = group;
+    GroupStateCenter().updateGroupInfo(group);
+    _emitGroup([groupId]);
+  }
+
+  void removeGroup(String groupId) {
+    _groupCache.remove(groupId);
+    _emitGroup([groupId]);
+  }
+
+  // ======================================================
+  // group member API
+  // ======================================================
+  void _patchGroupMemberByProfile(Map<String, RCIMIWUserProfile> map) {
+    final Set<String> affected = {};
+
+    GroupStateCenter().snapshotMember().forEach((groupId, list) {
+      list.map((m) {
+        final profile = map[m.userId];
+        if (profile == null) return m;
+        affected.add(groupId);
+        return m;
+      }).toList();
+    });
+    map.forEach((userId, profile) {
+      GroupStateCenter().patchMemberProfile(userId: userId,name: profile.name,portrait: profile.portraitUri);
+    });
+
+    if (affected.isNotEmpty) {
+      _emitGroup(affected.toList());
+    }
+  }
+
+  void setGroupMembers(String groupId, List<RCIMIWGroupMemberInfo> list) {
+    GroupStateCenter().updateMembers(groupId, list);
+    _emitGroup([groupId]);
+
+  }
+
+  void removeGroupMembers(String groupId) {
+    GroupStateCenter().removeGroup(groupId);
+    _emitGroup([groupId]);
+  }
+
+  List<RCIMIWGroupMemberInfo> getGroupMembers(String groupId) {
+    return GroupStateCenter().getMembers(groupId);
+  }
+
   // ======================================================
   // Presence API
   // ======================================================
@@ -235,42 +306,19 @@ class ImDataCenter {
       _profileController.add(userIds);
     }
   }
+  void _emitGroupList() {
+    if (_groupListController.isClosed) return;
+
+    _groupListController.add(
+      _groupCache.values.toList(),
+    );
+  }
 
   void _emitGroup(List<String> groupIds) {
     if (!_profileController.isClosed) {
       _groupInfoController.add(groupIds);
     }
 
-  }
-
-
-  void _patchGroupMemberByProfile(Map<String, RCIMIWUserProfile> map) {
-    final Set<String> affected = {};
-
-    _groupMemberCache.forEach((groupId, list) {
-      bool changed = false;
-
-      final newList = list.map((m) {
-        final profile = map[m.userId];
-        if (profile == null) return m;
-
-        changed = true;
-        affected.add(groupId);
-
-        // ✔ 正确：只处理当前 m
-        m.name = profile.name;
-        m.portraitUri = profile.portraitUri;
-
-        return m;
-      }).toList();
-
-      if (changed) {
-        _groupMemberCache[groupId] = List.unmodifiable(newList);
-      }
-    });
-    if (affected.isNotEmpty) {
-      _emitGroup(affected.toList());
-    }
   }
 
   // ======================================================

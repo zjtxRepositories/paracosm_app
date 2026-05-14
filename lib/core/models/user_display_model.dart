@@ -44,14 +44,14 @@ class UserDisplayModel {
   /// avatar
   /// =========================
   String get avatar {
-    final friendAvatar = friend?.portrait;
-    if (friendAvatar != null && friendAvatar.isNotEmpty) {
-      return friendAvatar;
-    }
-
     final profileAvatar = profile?.portraitUri;
     if (profileAvatar != null && profileAvatar.isNotEmpty) {
       return profileAvatar;
+    }
+
+    final friendAvatar = friend?.portrait;
+    if (friendAvatar != null && friendAvatar.isNotEmpty) {
+      return friendAvatar;
     }
 
     return '';

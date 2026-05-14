@@ -5,7 +5,6 @@ import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class UserDisplayStateCenter {
   UserDisplayStateCenter._();

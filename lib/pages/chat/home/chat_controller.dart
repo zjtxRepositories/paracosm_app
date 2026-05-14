@@ -205,7 +205,6 @@ class ChatController extends ChangeNotifier {
         break;
 
       case ConversationChangeType.delete:
-        print('delete-----$targetId');
         _handleDelete(targetId);
         break;
     }
@@ -228,6 +227,7 @@ class ChatController extends ChangeNotifier {
       final newModel = ConversationModel(info: conv);
       _conversationMap[targetId] = newModel;
       conversations.insert(0, newModel);
+      ConversationResolver().resolve(newModel);
     }
   }
 
@@ -242,6 +242,8 @@ class ChatController extends ChangeNotifier {
     if (model == null) return;
 
     model.updateConversation(conv);
+    ConversationResolver().resolve(model);
+
   }
 
   /// =========================

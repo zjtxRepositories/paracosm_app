@@ -28,11 +28,15 @@ class GroupEvent {
 
   final RCIMIWGroupInfo? groupInfo;
 
+  final String? operatorUserId;
+
   final dynamic data;
+
 
   GroupEvent({
     required this.type,
     required this.groupId,
+    this.operatorUserId,
     this.groupInfo,
     this.data,
   });
@@ -107,7 +111,7 @@ class ImGroupManager {
         int? operationTime,
         ) async {
       debugPrint(
-        '群操作: operation=$operation groupId=$groupId',
+        '群操作: operation=$operation groupId=$groupId operatorInfo=${operatorInfo?.userId}',
       );
 
       if (groupId == null || groupId.isEmpty) {
@@ -124,6 +128,7 @@ class ImGroupManager {
               type: GroupEventType.created,
               groupId: groupId,
               groupInfo: groupInfo,
+              operatorUserId: operatorInfo?.userId
             ),
           );
 
@@ -138,9 +143,10 @@ class ImGroupManager {
           }
           GroupEventBus.instance.fire(
             GroupEvent(
-              type: GroupEventType.joined,
-              groupId: groupId,
-              groupInfo: groupInfo,
+                type: GroupEventType.joined,
+                groupId: groupId,
+                groupInfo: groupInfo,
+                operatorUserId: operatorInfo?.userId
             ),
           );
 
@@ -152,8 +158,9 @@ class ImGroupManager {
         case RCIMIWGroupOperation.quit:
           GroupEventBus.instance.fire(
             GroupEvent(
-              type: GroupEventType.quit,
-              groupId: groupId,
+                type: GroupEventType.quit,
+                groupId: groupId,
+                operatorUserId: operatorInfo?.userId
             ),
           );
 
@@ -395,6 +402,7 @@ class ImGroupManager {
         GroupEvent(
           type: GroupEventType.joined,
           groupId: groupId,
+            operatorUserId: IMEngineManager().currentUserId
         ),
       );
     }
@@ -423,12 +431,11 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      ImDataCenter().removeGroup(groupId);
-
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.quit,
           groupId: groupId,
+          operatorUserId: IMEngineManager().currentUserId
         ),
       );
     }
@@ -448,8 +455,6 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      ImDataCenter().removeGroup(groupId);
-
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.dismissed,
@@ -475,8 +480,6 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      ImDataCenter().setGroup(groupInfo);
-
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.infoChanged,

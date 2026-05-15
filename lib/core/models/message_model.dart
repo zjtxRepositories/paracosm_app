@@ -36,6 +36,9 @@ class MessageModel {
       case CustomMessageType.createClub:
         final group = await _getGroup(message.toUserId);
         return '${group?.name} Club has been created';
+      case CustomMessageType.quitGroup:
+        final user = await _getUser(message.fromUserId);
+        return '${user?.name} 退出了群聊';
       default:
         return _formatContent(message.content ?? '');
     }

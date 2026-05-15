@@ -25,6 +25,7 @@ import '../../modules/im/listener/im_data_center.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
 import '../../util/media_handle_util.dart';
 import '../../modules/im/manager/im_user_manager.dart';
+import '../../widgets/common/app_confirm_dialog.dart';
 import '../../widgets/common/image_picker_sheet.dart';
 import 'chat_session_args.dart';
 
@@ -133,7 +134,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         final result = await ImFriendManager().addFriend(
-          userId: _user!.userId ?? '',
+          userId: _user!.userId ,
           extra: controller.text,
         );
         AppLoading.dismiss();
@@ -183,21 +184,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 删除好友确认弹窗
   void _showDeleteFriend() {
-    AppModal.show(
+    AppConfirmDialog.show(
         context,
-        title: AppLocalizations.of(context)!.chatRequestHint,
         description: '你确定要删除该好友吗？',
-        confirmText: AppLocalizations.of(context)!.chatRequestSure,
-        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
-        confirmWidth: 161,
-        cancelWidth: 161,
-        cancelBorder: const BorderSide(color: AppColors.grey300),
-        icon: Image.asset(
-          'assets/images/wallet/bell-icon.png',
-          width: 120,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
         onConfirm: () async {
           context.pop();
           AppLoading.show();
@@ -208,39 +197,28 @@ class _UserProfilePageState extends State<UserProfilePage> {
             return;
           }
           context.pop();
-        });
+        }
+    );
   }
 
   /// 加入黑名单确认弹窗
   void _showAddBlack() {
-    AppModal.show(
+    AppConfirmDialog.show(
         context,
-        title: AppLocalizations.of(context)!.chatRequestHint,
         description: '加入黑名单，你讲不再收到对方的消息',
-        confirmText: AppLocalizations.of(context)!.chatRequestSure,
-        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
-        confirmWidth: 161,
-        cancelWidth: 161,
-        cancelBorder: const BorderSide(color: AppColors.grey300),
-        icon: Image.asset(
-          'assets/images/wallet/bell-icon.png',
-          width: 120,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
         onConfirm: () async {
           context.pop();
           AppLoading.show();
           final result = await ImFriendManager().addToBlacklist(widget.userId);
-          print('result-----');
           AppLoading.dismiss();
           if (!result.success){
             AppToast.show(result.message);
             return;
           }
           context.pop();
+        }
+    );
 
-        });
   }
 
   /// 修改名称

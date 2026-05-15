@@ -185,25 +185,25 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
                   ),
                 ),
-                // controller.isGroup ? _buildOptionItem(
-                //   AppLocalizations.of(context)!.chatSettingMuteAll,
-                //   isFullBorder: true,
-                //   trailing: GestureDetector(
-                //     onTap: () => controller.toggleMute,
-                //     child: Image.asset(
-                //       controller.isMuted
-                //           ? 'assets/images/common/switch-active.png'
-                //           : 'assets/images/common/switch-default.png',
-                //       width: 52,
-                //       height: 28,
-                //     ),
-                //   ),
-                // ) : SizedBox(),
+                controller.isManager ? _buildOptionItem(
+                  AppLocalizations.of(context)!.chatSettingMuteAll,
+                  isFullBorder: true,
+                  trailing: GestureDetector(
+                    onTap: () => controller.toggleMute(),
+                    child: Image.asset(
+                      controller.isMuted
+                          ? 'assets/images/common/switch-active.png'
+                          : 'assets/images/common/switch-default.png',
+                      width: 52,
+                      height: 28,
+                    ),
+                  ),
+                ) : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                controller.isGroup ? _buildOptionItem(
+                controller.isManager ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingDisband,
                   isFullBorder: true,
                   onTap: () => controller.toggleDisband(context),
@@ -273,8 +273,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           final item = items[index];
 
           if (item == 'add') {
-            return _buildActionMemberItem(
-              'assets/images/common/add-member.png',
+            return GestureDetector(
+              child: _buildActionMemberItem(
+                'assets/images/common/add-member.png',
+              ),
+              onTap: (){
+
+              },
             );
           }
 

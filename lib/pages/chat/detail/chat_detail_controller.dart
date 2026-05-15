@@ -5,6 +5,9 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
+import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
@@ -32,10 +35,10 @@ import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
 
-class ChatDetailController {
+class ChatDetailController extends ChangeNotifier {
   ChatDetailController(this.args);
 
-  final ChatSessionArgs? args;
+   ChatSessionArgs? args;
 
   BuildContext? context;
 
@@ -53,7 +56,7 @@ class ChatDetailController {
   /// =========================
   late final ScrollEngine engine = ScrollEngine(
     getId: (msg) => msg.messageId,
-    onUpdate: () => notify?.call(),
+    onUpdate: () => notifyListeners(),
   );
 
   /// =========================
@@ -96,17 +99,14 @@ class ChatDetailController {
 
   StreamSubscription? _conversationChangeSub;
 
-  /// =========================
-  /// UI notify
-  /// =========================
-  VoidCallback? notify;
+  StreamSubscription? _groupChangeSub;
+
+  StreamSubscription? _profileChangeSub;
 
   /// =========================
   /// init
   /// =========================
-  void init(VoidCallback refresh) {
-    notify = refresh;
-
+  void init() {
     engine.init();
 
     _initInputListener();
@@ -130,9 +130,18 @@ class ChatDetailController {
     _subscribeVoice();
 
     _listenConversation();
+
+    _listenConversation();
+
+    _listenProfile();
+
+    _listenGroup();
+
   }
 
+  @override
   void dispose() {
+    super.dispose();
     _subscribeEventManager.unsubscribe([args!.targetId]);
 
     inputController.dispose();
@@ -144,6 +153,11 @@ class ChatDetailController {
     _eventSub?.cancel();
 
     _conversationChangeSub?.cancel();
+
+    _groupChangeSub?.cancel();
+
+    _profileChangeSub?.cancel();
+
   }
 
   /// =========================
@@ -156,7 +170,7 @@ class ChatDetailController {
       if (empty != isInputEmpty) {
         isInputEmpty = empty;
 
-        notify?.call();
+        notifyListeners();
       }
     });
   }
@@ -188,7 +202,7 @@ class ChatDetailController {
 
     isLoading = true;
 
-    notify?.call();
+    notifyListeners();
 
     try {
       final result = await _messageManager.getMessages(
@@ -215,7 +229,7 @@ class ChatDetailController {
     } finally {
       isLoading = false;
 
-      notify?.call();
+      notifyListeners();
     }
   }
 
@@ -226,7 +240,7 @@ class ChatDetailController {
 
     isLoading = true;
 
-    notify?.call();
+    notifyListeners();
 
     try {
       final result = await _messageManager.getMessagesAroundTime(
@@ -260,7 +274,7 @@ class ChatDetailController {
     } finally {
       isLoading = false;
 
-      notify?.call();
+      notifyListeners();
     }
   }
 
@@ -278,7 +292,7 @@ class ChatDetailController {
 
     isLoadingMore = true;
 
-    notify?.call();
+    notifyListeners();
 
     try {
       final result = await _messageManager.getMessages(
@@ -307,7 +321,7 @@ class ChatDetailController {
 
     isLoadingMore = false;
 
-    notify?.call();
+    notifyListeners();
   }
 
   Future<bool> loadMessagesAroundTime(int sentTime) async {
@@ -316,7 +330,7 @@ class ChatDetailController {
     }
 
     isLoadingMore = true;
-    notify?.call();
+    notifyListeners();
 
     try {
       final result = await _messageManager.getMessagesAroundTime(
@@ -357,7 +371,7 @@ class ChatDetailController {
       return false;
     } finally {
       isLoadingMore = false;
-      notify?.call();
+      notifyListeners();
     }
   }
 
@@ -745,6 +759,41 @@ class ChatDetailController {
     });
   }
 
+
+  void _listenGroup() {
+    _groupChangeSub = ImDataCenter().groupInfoStream.listen((
+        groupIds
+        ) async {
+      if (!groupIds.contains(args?.targetId)) return;
+      final info = await GroupStateCenter().getGroup(args?.targetId ?? '');
+      if (info == null) return;
+      final group = GroupModel(info: info);
+      final name = await group.name;
+      args = args?.copyWith(
+        isGroup: true,
+        name: name,
+        avatar: info.portraitUri
+      );
+      notifyListeners();
+    });
+  }
+
+  void _listenProfile() {
+    _profileChangeSub = ImDataCenter().profileStream.listen((
+        userIds
+        ) async {
+      if (!userIds.contains(args?.targetId)) return;
+      final user = await UserDisplayStateCenter().getUser(args?.targetId ?? '');
+      if (user == null) return;
+      final name = user.name;
+      args = args?.copyWith(
+          isGroup: false,
+          name: name,
+          avatar: user.avatar
+      );
+      notifyListeners();
+    });
+  }
   Future<void> quoteMessage(ChatDetailMessage message) async {
     final raw = message.extra;
     if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {
@@ -755,13 +804,13 @@ class ChatDetailController {
     quotedText = await ChatDetailMessageMapper.quoteSummaryForMessage(raw);
     isMenuExpanded = false;
     isVoiceMode = false;
-    notify?.call();
+    notifyListeners();
   }
 
   void clearQuote() {
     quotedMessage = null;
     quotedText = null;
-    notify?.call();
+    notifyListeners();
   }
 
   /// =========================
@@ -917,7 +966,7 @@ class ChatDetailController {
       _eventSub = _subscribeEventManager.stream.listen((map) {
         final status = map[args!.targetId] ?? PresenceState.unknown;
         isOnline = status == PresenceState.online;
-        notify?.call();
+        notifyListeners();
       });
 
       _subscribeEventManager.subscribeOnlineStatus([args!.targetId]);
@@ -1031,13 +1080,13 @@ class ChatDetailController {
     voiceManager.onStart = () {
       isRecording = true;
 
-      notify?.call();
+      notifyListeners();
     };
 
     voiceManager.onCancel = () {
       isRecording = false;
 
-      notify?.call();
+      notifyListeners();
 
       VoiceRecordOverlay.hide();
     };
@@ -1085,7 +1134,7 @@ class ChatDetailController {
     inputController.clear();
     quotedMessage = null;
     quotedText = null;
-    notify?.call();
+    notifyListeners();
   }
 
   Future<void> sendImage(String path) async {
@@ -1180,7 +1229,7 @@ class ChatDetailController {
 
     isCancelling = false;
 
-    notify?.call();
+    notifyListeners();
   }
 
   Future<void> voiceUpdate(LongPressMoveUpdateDetails d) async {
@@ -1217,7 +1266,7 @@ class ChatDetailController {
 
     isVoiceMode = false;
 
-    notify?.call();
+    notifyListeners();
   }
 
   void toggleVoice() {
@@ -1227,7 +1276,7 @@ class ChatDetailController {
 
     isMenuExpanded = false;
 
-    notify?.call();
+    notifyListeners();
   }
 
   void toggleAction() {
@@ -1354,7 +1403,7 @@ class ChatDetailController {
     if (args?.isGroup ?? false) {
       AppToast.showInfo('群通话暂未开放');
       isMenuExpanded = false;
-      notify;
+      notifyListeners();
       return;
     }
 
@@ -1362,7 +1411,7 @@ class ChatDetailController {
     final media = isVideo ? 'video' : 'voice';
 
     isMenuExpanded = false;
-    notify;
+    notifyListeners();
     final started = await RongCallManager().startPrivateCall(
       targetId: targetId,
       displayName: sessionName,

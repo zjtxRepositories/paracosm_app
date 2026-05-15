@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -108,7 +109,7 @@ class ImDataCenter {
     // =========================
     // group info
     // =========================
-    GroupEventBus.instance.stream.listen((event) {
+    GroupEventBus.instance.stream.listen((event) async {
       switch (event.type) {
         case GroupEventType.created:
         case GroupEventType.joined:
@@ -118,10 +119,16 @@ class ImDataCenter {
             setGroup(info);
           }
           break;
-        case GroupEventType.quit:
         case GroupEventType.dismissed:
           removeGroup(event.groupId);
           _removeConversation(event.groupId, RCIMIWConversationType.group);
+          break;
+        case GroupEventType.quit:
+          if (event.operatorUserId != IMEngineManager().currentUserId){
+            GroupStateCenter().getGroupMembers(event.groupId,forceRefresh: true);
+            return;
+          }
+          _removeGroup(event.groupId);
           break;
         default:
           break;
@@ -211,11 +218,13 @@ class ImDataCenter {
     _groupCache[groupId] = group;
     GroupStateCenter().updateGroupInfo(group);
     _emitGroup([groupId]);
+
   }
 
   void removeGroup(String groupId) {
     _groupCache.remove(groupId);
     _emitGroup([groupId]);
+
   }
 
   void _removeConversation(
@@ -256,6 +265,7 @@ class ImDataCenter {
 
     if (affected.isNotEmpty) {
       _emitGroup(affected.toList());
+
     }
   }
 
@@ -267,6 +277,7 @@ class ImDataCenter {
   void removeGroupMembers(String groupId) {
     GroupStateCenter().removeGroup(groupId);
     _emitGroup([groupId]);
+
   }
 
   List<RCIMIWGroupMemberInfo> getGroupMembers(String groupId) {
@@ -335,9 +346,16 @@ class ImDataCenter {
   }
 
   void _emitGroup(List<String> groupIds) {
+    // print('_emitGroup------');
     if (!_profileController.isClosed) {
       _groupInfoController.add(groupIds);
     }
+  }
+
+
+  Future<void> _removeGroup(String groupId) async {
+    removeGroup(groupId);
+    _removeConversation(groupId,RCIMIWConversationType.group);
   }
 
   // ======================================================

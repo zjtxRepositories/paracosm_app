@@ -115,7 +115,7 @@ class ChatController extends ChangeNotifier {
     });
 
     _dataCenter.groupInfoStream.listen((groupIds) {
-      print('groupInfoStream----$groupIds');
+      // print('groupInfoStream----$groupIds');
       for (var groupId in groupIds) {
         final model = _conversationMap[groupId];
         if (model != null) {
@@ -223,6 +223,7 @@ class ChatController extends ChangeNotifier {
 
     if (model != null) {
       model.updateConversation(conv);
+      ConversationResolver().resolve(model);
     } else {
       final newModel = ConversationModel(info: conv);
       _conversationMap[targetId] = newModel;

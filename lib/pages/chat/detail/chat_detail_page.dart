@@ -53,7 +53,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   void initState() {
     super.initState();
     controller = ChatDetailController(widget.sessionArgs);
-    controller.init(() => setState(() {}));
+    controller.init();
   }
 
   @override
@@ -66,18 +66,21 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget build(BuildContext context) {
     controller.context = context;
 
-    return AppPage(
-      isCustomHeader: true,
-      isAddBottomMargin: false,
-      onBeforeBack: _isSelectingMessages
-          ? () async {
+    return ListenableBuilder(
+        listenable: controller,
+        builder: (_, __) {
+         return AppPage(
+            isCustomHeader: true,
+            isAddBottomMargin: false,
+            onBeforeBack: _isSelectingMessages
+                ? () async {
               _exitSelectionMode();
               return false;
             }
-          : null,
-      renderCustomHeader: _isSelectingMessages
-          ? _buildSelectionHeader()
-          : ChatDetailHeader(
+                : null,
+            renderCustomHeader: _isSelectingMessages
+                ? _buildSelectionHeader()
+                : ChatDetailHeader(
               name: controller.sessionName,
               isGroup: controller.isGroupSession,
               avatar: controller.headerAvatar,
@@ -86,66 +89,69 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               onMoreTap: controller.navigateToSettings,
               onAvatarTap: controller.navigateToProfile,
             ),
-      child: KeyboardDetector(
-        builder: (keyboardHeight) {
-          if (!_isSelectingMessages &&
-              keyboardHeight > 0 &&
-              controller.engine.isAtBottom) {
-            controller.engine.scrollToBottom();
-          }
-          return Column(
-            children: [
-              Expanded(child: _buildMessageList()),
-              if (_isSelectingMessages)
-                _buildSelectionActionBar()
-              else ...[
-                ChatInputBar(
-                  controller: controller.inputController,
-                  isVoiceMode: controller.isVoiceMode,
-                  isRecording: controller.isRecording,
-                  isCancelling: controller.isCancelling,
-                  isMenuExpanded: controller.isMenuExpanded,
-                  isInputEmpty: controller.isInputEmpty,
-                  quoteText: controller.quotedText,
-                  onClearQuote: controller.clearQuote,
-                  onToggleVoiceMode: controller.toggleVoice,
-                  onTextFieldTap: () {
-                    if (controller.isMenuExpanded) {
-                      controller.isMenuExpanded = false;
-                      setState(() {});
-                    }
-                  },
-                  onActionTap: controller.toggleAction,
-                  onVoiceLongPressStart: (d) => controller.voiceStart(),
-                  onVoiceLongPressMoveUpdate: (d) => controller.voiceUpdate(d),
-                  onVoiceLongPressEnd: (d) => controller.voiceEnd(),
-                ),
-                if (controller.isMenuExpanded)
-                  ChatMorePanel(
-                    onItemTap: (item) async {
-                      switch (item.type) {
-                        case ChatMoreAction.album:
-                          controller.toggleAlbum();
-                        case ChatMoreAction.camera:
-                          controller.toggleCamera();
-                        case ChatMoreAction.videoCall:
-                          await controller.openCallPage(isVideo: true);
-                        case ChatMoreAction.audioCall:
-                          await controller.openCallPage(isVideo: false);
-                        case ChatMoreAction.redbag:
-                          // TODO: Handle this case.
-                          throw UnimplementedError();
-                        case ChatMoreAction.file:
-                          controller.toggleFile();
-                      }
-                    },
-                  ),
-              ],
-            ],
+            child: KeyboardDetector(
+              builder: (keyboardHeight) {
+                if (!_isSelectingMessages &&
+                    keyboardHeight > 0 &&
+                    controller.engine.isAtBottom) {
+                  controller.engine.scrollToBottom();
+                }
+                return Column(
+                  children: [
+                    Expanded(child: _buildMessageList()),
+                    if (_isSelectingMessages)
+                      _buildSelectionActionBar()
+                    else
+                      ...[
+                        ChatInputBar(
+                          controller: controller.inputController,
+                          isVoiceMode: controller.isVoiceMode,
+                          isRecording: controller.isRecording,
+                          isCancelling: controller.isCancelling,
+                          isMenuExpanded: controller.isMenuExpanded,
+                          isInputEmpty: controller.isInputEmpty,
+                          quoteText: controller.quotedText,
+                          onClearQuote: controller.clearQuote,
+                          onToggleVoiceMode: controller.toggleVoice,
+                          onTextFieldTap: () {
+                            if (controller.isMenuExpanded) {
+                              controller.isMenuExpanded = false;
+                              setState(() {});
+                            }
+                          },
+                          onActionTap: controller.toggleAction,
+                          onVoiceLongPressStart: (d) => controller.voiceStart(),
+                          onVoiceLongPressMoveUpdate: (d) =>
+                              controller.voiceUpdate(d),
+                          onVoiceLongPressEnd: (d) => controller.voiceEnd(),
+                        ),
+                        if (controller.isMenuExpanded)
+                          ChatMorePanel(
+                            onItemTap: (item) async {
+                              switch (item.type) {
+                                case ChatMoreAction.album:
+                                  controller.toggleAlbum();
+                                case ChatMoreAction.camera:
+                                  controller.toggleCamera();
+                                case ChatMoreAction.videoCall:
+                                  await controller.openCallPage(isVideo: true);
+                                case ChatMoreAction.audioCall:
+                                  await controller.openCallPage(isVideo: false);
+                                case ChatMoreAction.redbag:
+                                // TODO: Handle this case.
+                                  throw UnimplementedError();
+                                case ChatMoreAction.file:
+                                  controller.toggleFile();
+                              }
+                            },
+                          ),
+                      ],
+                  ],
+                );
+              },
+            ),
           );
-        },
-      ),
-    );
+        });
   }
 
   Widget _buildSelectionHeader() {

@@ -42,44 +42,18 @@ class GroupDetailsController extends ChangeNotifier {
   Future<void> init(BuildContext context) async {
 
     if (!isGroup) return;
+    _fetchPinned();
 
     await _fetchGroupInfo();
 
     await _fetchGroupMembers();
-    print('groupInfoStream---ss');
+
 
     _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
-      print('groupInfoStream----$groupIds');
       if (!groupIds.contains(group?.info.groupId)) return;
       await _fetchGroupInfo();
       await _fetchGroupMembers();
     });
-    // sub = GroupEventBus.instance.stream.listen(
-    //       (event) {
-    //     if (event.groupId != group?.info.groupId) {
-    //       return;
-    //     }
-    //
-    //     switch (event.type) {
-    //       case GroupEventType.quit:
-    //       case GroupEventType.dismissed:
-    //       context.go('/chat');
-    //       break;
-    //
-    //       case GroupEventType.joined:
-    //       case GroupEventType.memberChanged:
-    //         _fetchGroupMembers();
-    //         break;
-    //
-    //       case GroupEventType.infoChanged:
-    //         _fetchGroupInfo();
-    //         break;
-    //
-    //       default:
-    //         break;
-    //     }
-    //   },
-    // );
   }
 
   @override
@@ -101,7 +75,7 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
     group = GroupModel(info: groupInfo);
-
+    isMuted = group?.info.groupStatus == RCIMIWGroupStatus.muted;
     notifyListeners();
   }
 
@@ -120,6 +94,16 @@ class GroupDetailsController extends ChangeNotifier {
         .toList();
   }
 
+  Future<void> _fetchPinned() async {
+    final targetId = args?.targetId;
+    if (targetId == null || targetId.isEmpty) {
+      return;
+    }
+    final isTop = await ImConversationManager().getConversationTopStatus(
+        type: args?.conversationType ?? RCIMIWConversationType.private, targetId: targetId);
+    isPinned = isTop ?? false;
+    notifyListeners();
+  }
 
   Future<void> togglePin() async {
     if (args == null) return;
@@ -133,7 +117,15 @@ class GroupDetailsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleMute() {
+  Future<void> toggleMute() async {
+    if (args == null) return;
+    final groupInfo = group?.info;
+    if (groupInfo == null) return;
+    groupInfo.groupStatus = !isMuted ? RCIMIWGroupStatus.muted : RCIMIWGroupStatus.using;
+    final isOk = await ImGroupManager().updateGroupInfo(
+        groupInfo
+    );
+    if (!isOk) return;
     isMuted = !isMuted;
     notifyListeners();
   }

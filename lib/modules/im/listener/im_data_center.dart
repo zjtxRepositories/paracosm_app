@@ -346,7 +346,7 @@ class ImDataCenter {
   }
 
   void _emitGroup(List<String> groupIds) {
-    print('_emitGroup------');
+    // print('_emitGroup------');
     if (!_profileController.isClosed) {
       _groupInfoController.add(groupIds);
     }

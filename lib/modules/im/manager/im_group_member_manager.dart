@@ -43,6 +43,8 @@ class ImGroupMemberManager {
     if (!IMEngineManager().connection.isConnected) {
       throw '';
     }
+    _cache.remove(groupId);
+
     return _request(
       groupId,
       count: count,

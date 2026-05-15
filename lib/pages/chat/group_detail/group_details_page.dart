@@ -203,7 +203,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                controller.isGroup ? _buildOptionItem(
+                controller.isManager ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingDisband,
                   isFullBorder: true,
                   onTap: () => controller.toggleDisband(context),

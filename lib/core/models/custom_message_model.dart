@@ -6,6 +6,7 @@ enum CustomMessageType {
   createClub,
   recall,
   transfer,
+  quitGroup,
   unknown,
 }
 CustomMessageType _typeFromString(String? type) {
@@ -24,6 +25,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.recall;
     case 'transfer':
       return CustomMessageType.transfer;
+    case 'group_quit':
+      return CustomMessageType.quitGroup;
     default:
       return CustomMessageType.unknown;
   }
@@ -83,6 +86,8 @@ class CustomMessageModel {
         return 'recall';
       case CustomMessageType.transfer:
         return 'transfer';
+      case CustomMessageType.quitGroup:
+        return 'group_quit';
       case CustomMessageType.unknown:
         return 'unknown';
     }

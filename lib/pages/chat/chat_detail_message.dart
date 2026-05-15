@@ -10,6 +10,7 @@ enum ChatDetailMessageKind {
   redBag,
   redBagNotice,
   withdrawnNotice,
+  combineForward,
   fm,
 }
 
@@ -42,6 +43,7 @@ class ChatDetailMessage {
     this.quoteRawMessageId,
     this.quoteSenderUserId,
     this.quoteMessageType,
+    this.combineSummaries,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -70,4 +72,5 @@ class ChatDetailMessage {
   final int? quoteRawMessageId;
   final String? quoteSenderUserId;
   final int? quoteMessageType;
+  final List<String>? combineSummaries;
 }

@@ -27,10 +27,13 @@ class ImDataCenter {
   final Map<String, RCIMIWFriendInfo> _friendCache = {};
 
   final _friendListController =
-  StreamController<List<RCIMIWFriendInfo>>.broadcast();
+      StreamController<List<RCIMIWFriendInfo>>.broadcast();
 
   Stream<List<RCIMIWFriendInfo>> get friendListStream =>
       _friendListController.stream;
+
+  List<RCIMIWFriendInfo> get friendListSnapshot =>
+      List.unmodifiable(_friendCache.values);
 
   // ======================================================
   // Presence
@@ -38,7 +41,7 @@ class ImDataCenter {
   final Map<String, PresenceState> _presenceCache = {};
 
   final _presenceController =
-  StreamController<Map<String, PresenceState>>.broadcast();
+      StreamController<Map<String, PresenceState>>.broadcast();
 
   Stream<Map<String, PresenceState>> get presenceStream =>
       _presenceController.stream;
@@ -47,38 +50,36 @@ class ImDataCenter {
   // Profile
   // ======================================================
 
-  final _profileController =
-  StreamController<List<String>>.broadcast();
+  final _profileController = StreamController<List<String>>.broadcast();
 
-  Stream<List<String>> get profileStream =>
-      _profileController.stream;
+  Stream<List<String>> get profileStream => _profileController.stream;
 
   // ======================================================
   // Group member
   // ======================================================
   // final Map<String, List<RCIMIWGroupMemberInfo>> _groupMemberCache = {};
 
-  final _groupMemberController =
-  StreamController<List<String>>.broadcast();
+  final _groupMemberController = StreamController<List<String>>.broadcast();
 
-  Stream<List<String>> get groupMemberStream =>
-      _groupMemberController.stream;
-
+  Stream<List<String>> get groupMemberStream => _groupMemberController.stream;
 
   // ======================================================
   // Group
   // ======================================================
-  final Map<String, RCIMIWGroupInfo> _groupCache= {};
+  final Map<String, RCIMIWGroupInfo> _groupCache = {};
 
-  final _groupListController = StreamController<List<RCIMIWGroupInfo>>.broadcast();
+  final _groupListController =
+      StreamController<List<RCIMIWGroupInfo>>.broadcast();
 
   Stream<List<RCIMIWGroupInfo>> get groupListStream =>
       _groupListController.stream;
 
+  List<RCIMIWGroupInfo> get groupListSnapshot =>
+      List.unmodifiable(_groupCache.values);
+
   final _groupInfoController = StreamController<List<String>>.broadcast();
 
-  Stream<List<String>> get groupInfoStream =>
-      _groupInfoController.stream;
+  Stream<List<String>> get groupInfoStream => _groupInfoController.stream;
 
   // ======================================================
   // init
@@ -120,7 +121,7 @@ class ImDataCenter {
           break;
         case GroupEventType.dismissed:
           removeGroup(event.groupId);
-          _removeConversation(event.groupId,RCIMIWConversationType.group);
+          _removeConversation(event.groupId, RCIMIWConversationType.group);
           break;
         case GroupEventType.quit:
           if (event.operatorUserId != IMEngineManager().currentUserId){
@@ -132,7 +133,6 @@ class ImDataCenter {
         default:
           break;
       }
-
     });
   }
 
@@ -154,21 +154,23 @@ class ImDataCenter {
   void updateFriend(RCIMIWFriendInfo friend) {
     final userId = friend.userId;
     if (userId == null) return;
-    UserDisplayStateCenter().updateFriend(
-      friend,
-    );
+    UserDisplayStateCenter().updateFriend(friend);
     _friendCache[userId] = friend;
 
     _emitFriendList();
     _emitFriend(userId);
   }
 
-  void removeFriend(String userId,{bool deletedMessage = true}) {
+  void removeFriend(String userId, {bool deletedMessage = true}) {
     _friendCache.remove(userId);
     _emitFriendList();
     UserDisplayStateCenter().removeFriend(userId);
     _emitFriend(userId);
-    _removeConversation(userId,RCIMIWConversationType.private,deletedMessage: deletedMessage);
+    _removeConversation(
+      userId,
+      RCIMIWConversationType.private,
+      deletedMessage: deletedMessage,
+    );
   }
 
   // ======================================================
@@ -180,9 +182,7 @@ class ImDataCenter {
     if (userId == null || userId.isEmpty) {
       return;
     }
-    UserDisplayStateCenter().updateUserProfile(
-      profile,
-    );
+    UserDisplayStateCenter().updateUserProfile(profile);
   }
 
   void setProfiles(List<RCIMIWUserProfile> profiles) {
@@ -227,11 +227,18 @@ class ImDataCenter {
 
   }
 
-
-  void _removeConversation(String targetId, RCIMIWConversationType type,{bool deletedMessage = true}) {
-      ImConversationManager().removeConversationByTargetId(targetId,type);
-      if (!deletedMessage) return;
-      ImMessageManager().clearMessages(type: type, targetId: targetId, timestamp: 0);
+  void _removeConversation(
+    String targetId,
+    RCIMIWConversationType type, {
+    bool deletedMessage = true,
+  }) {
+    ImConversationManager().removeConversationByTargetId(targetId, type);
+    if (!deletedMessage) return;
+    ImMessageManager().clearMessages(
+      type: type,
+      targetId: targetId,
+      timestamp: 0,
+    );
   }
 
   // ======================================================
@@ -249,7 +256,11 @@ class ImDataCenter {
       }).toList();
     });
     map.forEach((userId, profile) {
-      GroupStateCenter().patchMemberProfile(userId: userId,name: profile.name,portrait: profile.portraitUri);
+      GroupStateCenter().patchMemberProfile(
+        userId: userId,
+        name: profile.name,
+        portrait: profile.portraitUri,
+      );
     });
 
     if (affected.isNotEmpty) {
@@ -300,17 +311,13 @@ class ImDataCenter {
   void _emitFriendList() {
     if (_friendListController.isClosed) return;
 
-    _friendListController.add(
-      _friendCache.values.toList(),
-    );
+    _friendListController.add(_friendCache.values.toList());
   }
 
   void _emitPresence() {
     if (_presenceController.isClosed) return;
 
-    _presenceController.add(
-      Map.unmodifiable(_presenceCache),
-    );
+    _presenceController.add(Map.unmodifiable(_presenceCache));
   }
 
   void _emitFriend(String userId) {
@@ -331,12 +338,11 @@ class ImDataCenter {
       _profileController.add(userIds);
     }
   }
+
   void _emitGroupList() {
     if (_groupListController.isClosed) return;
 
-    _groupListController.add(
-      _groupCache.values.toList(),
-    );
+    _groupListController.add(_groupCache.values.toList());
   }
 
   void _emitGroup(List<String> groupIds) {
@@ -344,7 +350,6 @@ class ImDataCenter {
     if (!_profileController.isClosed) {
       _groupInfoController.add(groupIds);
     }
-
   }
 
 

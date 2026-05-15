@@ -14,6 +14,7 @@ import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/home/chat_page.dart';
 import 'package:paracosm/pages/chat/chat_group_video_page.dart';
 import 'package:paracosm/pages/chat/chat_group_voice_page.dart';
+import 'package:paracosm/pages/chat/chat_combine_forward_detail_page.dart';
 import 'package:paracosm/pages/chat/chat_private_video_page.dart';
 import 'package:paracosm/pages/chat/chat_private_voice_page.dart';
 import 'package:paracosm/pages/chat/chat_scan_page.dart';
@@ -377,6 +378,15 @@ class AppRouter {
             return ChatDetailPage.missingArgs(fallbackName: name);
           }
           return ChatDetailPage(sessionArgs: args);
+        },
+      ),
+      GoRoute(
+        path: '/chat-combine-forward-detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra;
+          final message = extra is RCIMIWCombineV2Message ? extra : null;
+          return ChatCombineForwardDetailPage(message: message);
         },
       ),
       GoRoute(

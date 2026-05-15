@@ -14,11 +14,13 @@ class CustomMessage extends ImMessage {
   final String targetId;
   final CustomMessageType customMessageType;
   RCIMIWConversationType conversationType;
+  String? channelId;
   String? content;
   CustomMessage({
     required this.targetId,
     required this.customMessageType,
     this.conversationType = RCIMIWConversationType.private,
+    this.channelId,
     this.content,
   });
 
@@ -38,7 +40,7 @@ class CustomMessage extends ImMessage {
     final msg = await IMEngineManager().engine?.createCustomMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       RCIMIWCustomMessagePolicy.normal,
       messageID,
       model.toJson(),
@@ -49,14 +51,52 @@ class CustomMessage extends ImMessage {
   }
 }
 
+class ForwardCustomMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String? channelId;
+  final RCIMIWCustomMessagePolicy policy;
+  final String messageIdentifier;
+  final Map fields;
+
+  ForwardCustomMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.messageIdentifier,
+    required this.fields,
+    this.channelId,
+    this.policy = RCIMIWCustomMessagePolicy.normal,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.custom;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final msg = await IMEngineManager().engine?.createCustomMessage(
+      conversationType,
+      targetId,
+      channelId,
+      policy,
+      messageIdentifier,
+      fields,
+    );
+    msg?.senderUserId = IMEngineManager().currentUserId;
+    msg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return msg;
+  }
+}
+
 class TextMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
+  final String? channelId;
   final String content;
   TextMessage({
     required this.conversationType,
     required this.targetId,
     required this.content,
+    this.channelId,
   });
 
   @override
@@ -67,7 +107,7 @@ class TextMessage extends ImMessage {
     final textMsg = await IMEngineManager().engine?.createTextMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       content,
     );
     textMsg?.senderUserId = IMEngineManager().currentUserId;
@@ -109,14 +149,55 @@ class ReferenceMessage extends ImMessage {
   }
 }
 
+class CombineForwardMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String? channelId;
+  final RCIMIWConversationType originalConversationType;
+  final List<String> summaryList;
+  final List<String> nameList;
+  final List<RCIMIWCombineMsgInfo> msgList;
+
+  CombineForwardMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.originalConversationType,
+    required this.summaryList,
+    required this.nameList,
+    required this.msgList,
+    this.channelId,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.combineV2;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final combineMsg = await IMEngineManager().engine?.createCombineV2Message(
+      conversationType,
+      targetId,
+      channelId,
+      originalConversationType,
+      summaryList,
+      nameList,
+      msgList,
+    );
+    combineMsg?.senderUserId = IMEngineManager().currentUserId;
+    combineMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return combineMsg;
+  }
+}
+
 class ImageMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
+  final String? channelId;
   final String path;
   ImageMessage({
     required this.conversationType,
     required this.targetId,
     required this.path,
+    this.channelId,
   });
 
   @override
@@ -127,7 +208,7 @@ class ImageMessage extends ImMessage {
     final imageMsg = await IMEngineManager().engine?.createImageMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       path,
     );
     imageMsg?.senderUserId = IMEngineManager().currentUserId;
@@ -139,6 +220,7 @@ class ImageMessage extends ImMessage {
 class VideoMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
+  final String? channelId;
   final String path;
   final int duration;
   String thumbnailBase64String;
@@ -148,6 +230,7 @@ class VideoMessage extends ImMessage {
     required this.path,
     required this.duration,
     required this.thumbnailBase64String,
+    this.channelId,
   });
 
   @override
@@ -158,7 +241,7 @@ class VideoMessage extends ImMessage {
     final videoMsg = await IMEngineManager().engine?.createSightMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       path,
       duration,
     );
@@ -172,6 +255,7 @@ class VideoMessage extends ImMessage {
 class FileMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
+  final String? channelId;
   final String path;
   final int size;
   final String name;
@@ -181,6 +265,7 @@ class FileMessage extends ImMessage {
     required this.path,
     required this.size,
     required this.name,
+    this.channelId,
   });
 
   @override
@@ -191,7 +276,7 @@ class FileMessage extends ImMessage {
     final videoMsg = await IMEngineManager().engine?.createFileMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       path,
     );
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
@@ -203,6 +288,7 @@ class FileMessage extends ImMessage {
 class VoiceMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;
+  final String? channelId;
   final String path;
   final int duration;
 
@@ -211,6 +297,7 @@ class VoiceMessage extends ImMessage {
     required this.targetId,
     required this.path,
     required this.duration,
+    this.channelId,
   });
 
   @override
@@ -221,7 +308,7 @@ class VoiceMessage extends ImMessage {
     final videoMsg = await IMEngineManager().engine?.createVoiceMessage(
       conversationType,
       targetId,
-      null,
+      channelId,
       path,
       duration,
     );

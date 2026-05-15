@@ -385,6 +385,88 @@ class ChatFileMessageContent extends StatelessWidget {
   }
 }
 
+class ChatCombineMessageContent extends StatelessWidget {
+  const ChatCombineMessageContent({
+    super.key,
+    required this.title,
+    required this.summaries,
+    this.onTap,
+  });
+
+  final String title;
+  final List<String> summaries;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleSummaries = summaries.take(4).toList();
+
+    final child = SizedBox(
+      width: 230,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.grey900,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (visibleSummaries.isEmpty)
+            Text(
+              '[聊天记录]',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.grey500,
+                fontSize: 12,
+              ),
+            )
+          else
+            ...visibleSummaries.map(
+              (summary) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.grey500,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 6),
+          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const SizedBox(height: 6),
+          Text(
+            '聊天记录',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey400,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) {
+      return child;
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: child,
+    );
+  }
+}
+
 class ChatContactCardMessageContent extends StatelessWidget {
   const ChatContactCardMessageContent({
     super.key,

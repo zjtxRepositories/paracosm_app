@@ -11,9 +11,11 @@ class ChatMessageContextMenu {
     BuildContext context, {
     required Offset position,
     String? copyText,
+    VoidCallback? onForward,
     VoidCallback? onQuote,
     VoidCallback? onDelete,
     VoidCallback? onRecall,
+    VoidCallback? onSelect,
   }) {
     final screenHeight = MediaQuery.of(context).size.height;
     final trimmedCopyText = copyText?.trim();
@@ -70,9 +72,16 @@ class ChatMessageContextMenu {
                                 }
                               : null,
                         ),
-                        const _ChatMessageContextMenuItem(
+                        _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/share.png',
                           label: 'transpond',
+                          enabled: onForward != null,
+                          onTap: onForward == null
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  onForward();
+                                },
                         ),
                         const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/translate.png',
@@ -109,9 +118,16 @@ class ChatMessageContextMenu {
                                   onDelete();
                                 },
                         ),
-                        const _ChatMessageContextMenuItem(
+                        _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/select.png',
                           label: 'select',
+                          enabled: onSelect != null,
+                          onTap: onSelect == null
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  onSelect();
+                                },
                         ),
                       ],
                     ),

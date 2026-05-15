@@ -415,6 +415,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
+  Future<void> _forwardMessage(ChatDetailMessage message) async {
+    final targets = await ChatForwardTargetModal.show(
+      context,
+      friends: ImDataCenter().friendListSnapshot,
+      groups: ImDataCenter().groupListSnapshot,
+    );
+
+    if (!mounted || targets == null || targets.isEmpty) {
+      return;
+    }
+
+    await controller.forwardMessage(message: message, targets: targets);
+  }
+
   void _scheduleAnchorScroll() {
     final anchorMessageId = controller.anchorMessageId;
     if (_didScrollToAnchor || anchorMessageId == null) return;
@@ -802,6 +816,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       context,
       position: position,
       copyText: _copyTextForMessage(message),
+      onForward: _canForwardMessage(message)
+          ? () => _forwardMessage(message)
+          : null,
       onQuote: _canQuoteMessage(message)
           ? () => controller.quoteMessage(message)
           : null,
@@ -849,6 +866,55 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     return raw is! RCIMIWRecallNotificationMessage &&
         raw.messageType != RCIMIWMessageType.recall;
+  }
+
+  bool _canForwardMessage(ChatDetailMessage message) {
+    if (message.kind == ChatDetailMessageKind.timestamp ||
+        message.kind == ChatDetailMessageKind.withdrawnNotice) {
+      return false;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return false;
+    if (raw is RCIMIWRecallNotificationMessage ||
+        raw.messageType == RCIMIWMessageType.recall) {
+      return false;
+    }
+
+    if (raw is RCIMIWImageMessage ||
+        raw is RCIMIWVoiceMessage ||
+        raw is RCIMIWSightMessage ||
+        raw is RCIMIWFileMessage) {
+      final local = (raw as RCIMIWMediaMessage).local;
+      return _hasUsableLocalPath(local);
+    }
+
+    if (raw is RCIMIWTextMessage) {
+      return raw.text?.trim().isNotEmpty ?? false;
+    }
+
+    if (raw is RCIMIWReferenceMessage) {
+      return raw.referenceMessage != null;
+    }
+
+    if (raw is RCIMIWCombineV2Message) {
+      return raw.msgList?.isNotEmpty ?? false;
+    }
+
+    if (raw is RCIMIWCustomMessage) {
+      return (raw.identifier?.isNotEmpty ?? false) && raw.fields != null;
+    }
+
+    return false;
+  }
+
+  bool _hasUsableLocalPath(String? path) {
+    final value = path?.trim();
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+
+    return File(value).existsSync();
   }
 
   bool _canQuoteMessage(ChatDetailMessage message) {

@@ -461,6 +461,209 @@ class ChatDetailController {
     return allSuccess;
   }
 
+  Future<bool> forwardMessage({
+    required ChatDetailMessage message,
+    required List<ChatForwardTarget> targets,
+  }) async {
+    if (targets.isEmpty) {
+      return false;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {
+      AppToast.show('暂无可转发消息');
+      return false;
+    }
+
+    var hasForwardableMessage = false;
+    var allSuccess = true;
+
+    for (final target in targets) {
+      final forwardMessage = _singleForwardMessageForTarget(raw, target);
+      if (forwardMessage == null) {
+        allSuccess = false;
+        continue;
+      }
+
+      hasForwardableMessage = true;
+      final sent = await ImSender.instance.send(message: forwardMessage);
+      if (!sent) {
+        allSuccess = false;
+      }
+    }
+
+    if (!hasForwardableMessage) {
+      AppToast.show('暂无可转发消息');
+      return false;
+    }
+
+    AppToast.show(allSuccess ? '转发成功' : '转发失败');
+    return allSuccess;
+  }
+
+  ImMessage? _singleForwardMessageForTarget(
+    RCIMIWMessage raw,
+    ChatForwardTarget target,
+  ) {
+    if (raw is RCIMIWTextMessage) {
+      final text = raw.text?.trim();
+      if (text == null || text.isEmpty) {
+        return null;
+      }
+
+      return TextMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        content: raw.text ?? '',
+      );
+    }
+
+    if (raw is RCIMIWImageMessage) {
+      final path = _forwardLocalPath(raw);
+      if (path == null) {
+        return null;
+      }
+
+      return ImageMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        path: path,
+      );
+    }
+
+    if (raw is RCIMIWVoiceMessage) {
+      final path = _forwardLocalPath(raw);
+      if (path == null) {
+        return null;
+      }
+
+      return VoiceMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        path: path,
+        duration: raw.duration ?? 0,
+      );
+    }
+
+    if (raw is RCIMIWSightMessage) {
+      final path = _forwardLocalPath(raw);
+      if (path == null) {
+        return null;
+      }
+
+      return VideoMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        path: path,
+        duration: raw.duration ?? 0,
+        thumbnailBase64String: raw.thumbnailBase64String ?? '',
+      );
+    }
+
+    if (raw is RCIMIWFileMessage) {
+      final path = _forwardLocalPath(raw);
+      if (path == null) {
+        return null;
+      }
+
+      return FileMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        path: path,
+        size: raw.size ?? 0,
+        name: raw.name ?? _fileNameFromPath(path),
+      );
+    }
+
+    if (raw is RCIMIWReferenceMessage) {
+      final referenceMessage = raw.referenceMessage;
+      if (referenceMessage == null) {
+        return null;
+      }
+
+      return ReferenceMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        referenceMessage: referenceMessage,
+        content: raw.text ?? '',
+      );
+    }
+
+    if (raw is RCIMIWCombineV2Message) {
+      final msgList = raw.msgList;
+      if (msgList == null || msgList.isEmpty) {
+        return null;
+      }
+
+      return CombineForwardMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        originalConversationType: _combineConversationType(raw, target),
+        summaryList: raw.summaryList ?? const <String>[],
+        nameList: raw.nameList ?? const <String>[''],
+        msgList: msgList,
+      );
+    }
+
+    if (raw is RCIMIWCustomMessage) {
+      final identifier = raw.identifier;
+      final fields = raw.fields;
+      if (identifier == null || identifier.isEmpty || fields == null) {
+        return null;
+      }
+
+      return ForwardCustomMessage(
+        conversationType: target.conversationType,
+        targetId: target.targetId,
+        channelId: target.channelId,
+        messageIdentifier: identifier,
+        policy: raw.policy ?? RCIMIWCustomMessagePolicy.normal,
+        fields: fields,
+      );
+    }
+
+    return null;
+  }
+
+  String? _forwardLocalPath(RCIMIWMediaMessage message) {
+    final path = message.local?.trim();
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+
+    if (!File(path).existsSync()) {
+      return null;
+    }
+
+    return path;
+  }
+
+  String _fileNameFromPath(String path) {
+    final parts = path.split(RegExp(r'[\\/]'));
+    return parts.isEmpty ? path : parts.last;
+  }
+
+  RCIMIWConversationType _combineConversationType(
+    RCIMIWCombineV2Message message,
+    ChatForwardTarget target,
+  ) {
+    final index = message.combineConversationType;
+    if (index != null &&
+        index >= 0 &&
+        index < RCIMIWConversationType.values.length) {
+      return RCIMIWConversationType.values[index];
+    }
+
+    return args?.conversationType ?? target.conversationType;
+  }
+
   Future<String> _senderName(String? senderUserId) async {
     final userId = senderUserId ?? '';
     if (userId.isEmpty) {

@@ -11,6 +11,7 @@ class ChatMessageContextMenu {
     BuildContext context, {
     required Offset position,
     String? copyText,
+    VoidCallback? onForward,
     VoidCallback? onQuote,
     VoidCallback? onDelete,
     VoidCallback? onRecall,
@@ -71,9 +72,16 @@ class ChatMessageContextMenu {
                                 }
                               : null,
                         ),
-                        const _ChatMessageContextMenuItem(
+                        _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/share.png',
                           label: 'transpond',
+                          enabled: onForward != null,
+                          onTap: onForward == null
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  onForward();
+                                },
                         ),
                         const _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/translate.png',

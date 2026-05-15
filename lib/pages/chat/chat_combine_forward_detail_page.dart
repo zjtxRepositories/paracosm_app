@@ -633,7 +633,11 @@ class _ChatCombineForwardDetailPageState
       case ChatDetailMessageKind.voice:
         return ChatVoiceMessageContent(duration: message.duration ?? '');
       case ChatDetailMessageKind.image:
-        return ChatImageMessageContent(imagePath: message.imagePath ?? '');
+        return ChatImageMessageContent(
+          imagePath: message.imagePath ?? '',
+          remoteUrl: message.remote,
+          thumbnailBase64String: message.thumbnailBase64String,
+        );
       case ChatDetailMessageKind.video:
         return ChatVideoMessageContent(
           thumbnailBase64String: message.thumbnailBase64String ?? '',

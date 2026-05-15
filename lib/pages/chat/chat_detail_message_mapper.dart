@@ -126,6 +126,8 @@ class ChatDetailMessageMapper {
         isMe: isMe,
         sentTime: sentTime,
         imagePath: message.local,
+        remote: message.remote,
+        thumbnailBase64String: message.thumbnailBase64String,
         extra: message,
       );
     }

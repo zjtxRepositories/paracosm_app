@@ -1089,13 +1089,26 @@ class ChatDetailController {
   }
 
   Future<void> sendImage(String path) async {
-    await ImSender.instance.send(
+    final session = args;
+    final imagePath = path.trim();
+
+    if (session == null || imagePath.isEmpty || !File(imagePath).existsSync()) {
+      AppToast.show('图片发送失败');
+      return;
+    }
+
+    final sent = await ImSender.instance.send(
       message: ImageMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
-        path: path,
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
+        path: imagePath,
       ),
     );
+
+    if (!sent) {
+      AppToast.show('图片发送失败');
+    }
   }
 
   Future<void> sendVideo(MediaInfo media, String thumbnailBase64String) async {
@@ -1301,7 +1314,7 @@ class ChatDetailController {
   Future<void> _handleImage(File file) async {
     final path = await MediaHandleUtil.compressedImageQuality(file.path);
 
-    sendImage(path);
+    await sendImage(path);
   }
 
   Future<void> _handleFile(File file, String name, int size) async {

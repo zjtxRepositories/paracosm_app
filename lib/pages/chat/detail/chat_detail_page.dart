@@ -728,12 +728,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.image:
         return GestureDetector(
           onTap: () {
+            final list = _buildMediaList(message);
+            if (list.isEmpty) {
+              return;
+            }
             controller.openMediaViewer(
-              list: _buildMediaList(message),
+              list: list,
               index: _getIndex(message),
             );
           },
-          child: ChatImageMessageContent(imagePath: message.imagePath ?? ''),
+          child: ChatImageMessageContent(
+            imagePath: message.imagePath ?? '',
+            remoteUrl: message.remote,
+            thumbnailBase64String: message.thumbnailBase64String,
+          ),
         );
       case ChatDetailMessageKind.video:
         return GestureDetector(
@@ -946,14 +954,22 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.image) {
-        list.add(MediaItem(type: MediaType.image, file: File(msg.imagePath!)));
+        final mediaItem = _imageMediaItem(msg);
+        if (mediaItem != null) {
+          list.add(mediaItem);
+        }
       }
 
       if (msg.kind == ChatDetailMessageKind.video) {
+        final path = msg.path?.trim();
+        if (path == null || path.isEmpty || !File(path).existsSync()) {
+          continue;
+        }
+
         list.add(
           MediaItem(
             type: MediaType.video,
-            file: File(msg.path!),
+            file: File(path),
             thumbnailBase64String: msg.thumbnailBase64String,
           ),
         );
@@ -967,8 +983,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     int index = 0;
 
     for (final msg in controller.messages) {
-      if (msg.kind == ChatDetailMessageKind.image ||
-          msg.kind == ChatDetailMessageKind.video) {
+      if (_canPreviewMedia(msg)) {
         if (msg.messageId == message.messageId) {
           return index;
         }
@@ -977,5 +992,37 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
 
     return 0;
+  }
+
+  MediaItem? _imageMediaItem(ChatDetailMessage message) {
+    final localPath = message.imagePath?.trim();
+    if (localPath != null && localPath.isNotEmpty) {
+      final file = File(localPath);
+      if (file.existsSync()) {
+        return MediaItem(type: MediaType.image, file: file);
+      }
+    }
+
+    final remote = message.remote?.trim();
+    if (remote != null &&
+        remote.isNotEmpty &&
+        (remote.startsWith('http://') || remote.startsWith('https://'))) {
+      return MediaItem(type: MediaType.image, url: remote);
+    }
+
+    return null;
+  }
+
+  bool _canPreviewMedia(ChatDetailMessage message) {
+    if (message.kind == ChatDetailMessageKind.image) {
+      return _imageMediaItem(message) != null;
+    }
+
+    if (message.kind == ChatDetailMessageKind.video) {
+      final path = message.path?.trim();
+      return path != null && path.isNotEmpty && File(path).existsSync();
+    }
+
+    return false;
   }
 }

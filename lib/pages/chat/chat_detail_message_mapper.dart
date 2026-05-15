@@ -49,6 +49,30 @@ class ChatDetailMessageMapper {
       );
     }
 
+    if (message is RCIMIWCombineV2Message) {
+      final summaries = message.summaryList ?? const <String>[];
+      return ChatDetailMessage(
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.combineForward,
+        isMe: isMe,
+        text: '聊天记录',
+        combineSummaries: summaries,
+        sentTime: sentTime,
+        extra: message,
+      );
+    }
+
+    if (message.messageType == RCIMIWMessageType.combineV2) {
+      return ChatDetailMessage(
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.combineForward,
+        isMe: isMe,
+        text: '聊天记录',
+        sentTime: sentTime,
+        extra: message,
+      );
+    }
+
     if (message is RCIMIWReferenceMessage) {
       final referenceMessage = message.referenceMessage;
       return ChatDetailMessage(
@@ -195,6 +219,11 @@ class ChatDetailMessageMapper {
     if (message is RCIMIWReferenceMessage) {
       final text = message.text;
       return (text?.isNotEmpty ?? false) ? text! : '[消息]';
+    }
+
+    if (message is RCIMIWCombineV2Message ||
+        message.messageType == RCIMIWMessageType.combineV2) {
+      return '[聊天记录]';
     }
 
     if (message is RCIMIWTextMessage) {

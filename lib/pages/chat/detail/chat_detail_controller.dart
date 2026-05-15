@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/modules/im/manager/im_subscribe_event_manager.dart';
@@ -20,11 +21,13 @@ import 'package:wechat_camera_picker/wechat_camera_picker.dart';
 
 import '../../../core/models/media_item.dart';
 import '../../../modules/call/rong_call_manager.dart';
+import '../../../modules/call/rong_call_summary_parser.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
+import '../../../widgets/chat/chat_forward_target_modal.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -359,16 +362,156 @@ class ChatDetailController {
   }
 
   Future<void> deleteMessage(ChatDetailMessage message) async {
-    final raw = message.extra;
-    if (raw is! RCIMIWMessage) {
+    await deleteMessages([message]);
+  }
+
+  Future<bool> deleteMessages(List<ChatDetailMessage> messages) async {
+    final rawMessages = messages
+        .map((message) => message.extra)
+        .whereType<RCIMIWMessage>()
+        .toList();
+
+    if (rawMessages.isEmpty) {
       AppToast.show('删除失败');
-      return;
+      return false;
     }
 
-    final success = await _messageManager.deleteLocalMessages(messages: [raw]);
+    final success = await _messageManager.deleteLocalMessages(
+      messages: rawMessages,
+    );
 
     if (!success) {
       AppToast.show('删除失败');
+    }
+
+    return success;
+  }
+
+  Future<bool> forwardMessages({
+    required List<ChatDetailMessage> messages,
+    required List<ChatForwardTarget> targets,
+  }) async {
+    if (args == null || targets.isEmpty) {
+      return false;
+    }
+
+    final selectedIds = messages.map((message) => message.messageId).toSet();
+    final rawMessages = this.messages
+        .where((message) => selectedIds.contains(message.messageId))
+        .map((message) => message.extra)
+        .whereType<RCIMIWMessage>()
+        .where((message) => !_isRecallMessage(message))
+        .toList();
+
+    final msgList = <RCIMIWCombineMsgInfo>[];
+    final summaryList = <String>[];
+    final nameList = <String>[];
+    final nameSet = <String>{};
+
+    for (final raw in rawMessages) {
+      final objectName = _messageObjectName(raw);
+      if (objectName == null || objectName.isEmpty) {
+        continue;
+      }
+
+      final senderName = await _senderName(raw.senderUserId);
+      if (nameSet.add(senderName)) {
+        nameList.add(senderName);
+      }
+
+      final summary = await ChatDetailMessageMapper.quoteSummaryForMessage(raw);
+      summaryList.add('$senderName: $summary');
+      msgList.add(
+        RCIMIWCombineMsgInfo.create(
+          fromUserId: raw.senderUserId,
+          targetId: raw.targetId,
+          timestamp: raw.sentTime ?? raw.receivedTime,
+          objectName: objectName,
+          content: raw.toJson(),
+        ),
+      );
+    }
+
+    if (msgList.isEmpty) {
+      AppToast.show('暂无可转发消息');
+      return false;
+    }
+
+    var allSuccess = true;
+
+    for (final target in targets) {
+      final sent = await ImSender.instance.send(
+        message: CombineForwardMessage(
+          conversationType: target.conversationType,
+          targetId: target.targetId,
+          channelId: target.channelId,
+          originalConversationType: args!.conversationType,
+          summaryList: summaryList.take(4).toList(),
+          nameList: nameList.isEmpty ? [''] : nameList,
+          msgList: msgList,
+        ),
+      );
+
+      if (!sent) {
+        allSuccess = false;
+      }
+    }
+
+    AppToast.show(allSuccess ? '转发成功' : '转发失败');
+    return allSuccess;
+  }
+
+  Future<String> _senderName(String? senderUserId) async {
+    final userId = senderUserId ?? '';
+    if (userId.isEmpty) {
+      return '未知用户';
+    }
+
+    try {
+      final user = await UserDisplayStateCenter().getUser(userId);
+      final name = user?.name.trim();
+      if (name != null && name.isNotEmpty) {
+        return name;
+      }
+    } catch (_) {}
+
+    return userId.length > 8 ? userId.substring(userId.length - 8) : userId;
+  }
+
+  String? _messageObjectName(RCIMIWMessage message) {
+    if (RongCallSummaryParser.tryParse(message) != null) {
+      return RongCallSummaryParser.objectName;
+    }
+
+    if (message is RCIMIWUnknownMessage) {
+      return message.objectName;
+    }
+
+    if (message is RCIMIWNativeCustomMessage) {
+      return message.messageIdentifier;
+    }
+
+    if (message is RCIMIWCustomMessage) {
+      return message.identifier;
+    }
+
+    switch (message.messageType) {
+      case RCIMIWMessageType.text:
+        return 'RC:TxtMsg';
+      case RCIMIWMessageType.image:
+        return 'RC:ImgMsg';
+      case RCIMIWMessageType.voice:
+        return 'RC:VcMsg';
+      case RCIMIWMessageType.file:
+        return 'RC:FileMsg';
+      case RCIMIWMessageType.sight:
+        return 'RC:SightMsg';
+      case RCIMIWMessageType.reference:
+        return 'RC:ReferenceMsg';
+      case RCIMIWMessageType.combineV2:
+        return 'RC:CombineV2Msg';
+      default:
+        return null;
     }
   }
 
@@ -387,17 +530,18 @@ class ChatDetailController {
   }
 
   void _listenConversation() {
-    _conversationChangeSub = ImConversationManager().changeStream
-        .listen((ConversationChangeEvent event){
-              final conversation = event.conversation;
-              if (conversation == null) return;
-              if (conversation.targetId != args?.targetId) return;
-              if (event.type == ConversationChangeType.delete){
-                context?.go('/chat');
-              }
-            });
-
+    _conversationChangeSub = ImConversationManager().changeStream.listen((
+      ConversationChangeEvent event,
+    ) {
+      final conversation = event.conversation;
+      if (conversation == null) return;
+      if (conversation.targetId != args?.targetId) return;
+      if (event.type == ConversationChangeType.delete) {
+        context?.go('/chat');
+      }
+    });
   }
+
   Future<void> quoteMessage(ChatDetailMessage message) async {
     final raw = message.extra;
     if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {

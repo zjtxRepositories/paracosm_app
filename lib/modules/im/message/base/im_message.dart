@@ -109,6 +109,45 @@ class ReferenceMessage extends ImMessage {
   }
 }
 
+class CombineForwardMessage extends ImMessage {
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String? channelId;
+  final RCIMIWConversationType originalConversationType;
+  final List<String> summaryList;
+  final List<String> nameList;
+  final List<RCIMIWCombineMsgInfo> msgList;
+
+  CombineForwardMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.originalConversationType,
+    required this.summaryList,
+    required this.nameList,
+    required this.msgList,
+    this.channelId,
+  });
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.combineV2;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final combineMsg = await IMEngineManager().engine?.createCombineV2Message(
+      conversationType,
+      targetId,
+      channelId,
+      originalConversationType,
+      summaryList,
+      nameList,
+      msgList,
+    );
+    combineMsg?.senderUserId = IMEngineManager().currentUserId;
+    combineMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    return combineMsg;
+  }
+}
+
 class ImageMessage extends ImMessage {
   final RCIMIWConversationType conversationType;
   final String targetId;

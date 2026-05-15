@@ -123,6 +123,8 @@ class ConversationResolver {
         return message is RCIMIWReferenceMessage
             ? (message.text?.isNotEmpty ?? false ? message.text! : '[消息]')
             : '[消息]';
+      case RCIMIWMessageType.combineV2:
+        return '[聊天记录]';
       case RCIMIWMessageType.custom:
         RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(
           message.toJson(),

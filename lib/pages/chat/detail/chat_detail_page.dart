@@ -2,19 +2,24 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/models/media_item.dart';
+import '../../../modules/im/listener/im_data_center.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
 import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
+import '../../../widgets/chat/chat_forward_target_modal.dart';
 import '../../../widgets/chat/chat_input_bar.dart';
 import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/chat/chat_message_context_menu.dart';
 import '../../../widgets/chat/chat_message_item.dart';
 import '../../../widgets/chat/chat_more_panel.dart';
+import '../../../widgets/common/app_checkbox.dart';
+import '../../../widgets/common/app_modal.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
@@ -41,6 +46,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   bool _didScrollToAnchor = false;
   String? _flashMessageId;
   int _flashToken = 0;
+  bool _isSelectingMessages = false;
+  final Set<String> _selectedMessageIds = {};
 
   @override
   void initState() {
@@ -62,67 +69,119 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return AppPage(
       isCustomHeader: true,
       isAddBottomMargin: false,
-      renderCustomHeader: ChatDetailHeader(
-        name: controller.sessionName,
-        isGroup: controller.isGroupSession,
-        avatar: controller.headerAvatar,
-        targetId: controller.targetId,
-        isOnline: controller.isOnline,
-        onMoreTap: controller.navigateToSettings,
-        onAvatarTap: controller.navigateToProfile,
-      ),
+      onBeforeBack: _isSelectingMessages
+          ? () async {
+              _exitSelectionMode();
+              return false;
+            }
+          : null,
+      renderCustomHeader: _isSelectingMessages
+          ? _buildSelectionHeader()
+          : ChatDetailHeader(
+              name: controller.sessionName,
+              isGroup: controller.isGroupSession,
+              avatar: controller.headerAvatar,
+              targetId: controller.targetId,
+              isOnline: controller.isOnline,
+              onMoreTap: controller.navigateToSettings,
+              onAvatarTap: controller.navigateToProfile,
+            ),
       child: KeyboardDetector(
         builder: (keyboardHeight) {
-          if (keyboardHeight > 0 && controller.engine.isAtBottom) {
+          if (!_isSelectingMessages &&
+              keyboardHeight > 0 &&
+              controller.engine.isAtBottom) {
             controller.engine.scrollToBottom();
           }
           return Column(
             children: [
               Expanded(child: _buildMessageList()),
-              ChatInputBar(
-                controller: controller.inputController,
-                isVoiceMode: controller.isVoiceMode,
-                isRecording: controller.isRecording,
-                isCancelling: controller.isCancelling,
-                isMenuExpanded: controller.isMenuExpanded,
-                isInputEmpty: controller.isInputEmpty,
-                quoteText: controller.quotedText,
-                onClearQuote: controller.clearQuote,
-                onToggleVoiceMode: controller.toggleVoice,
-                onTextFieldTap: () {
-                  if (controller.isMenuExpanded) {
-                    controller.isMenuExpanded = false;
-                    setState(() {});
-                  }
-                },
-                onActionTap: controller.toggleAction,
-                onVoiceLongPressStart: (d) => controller.voiceStart(),
-                onVoiceLongPressMoveUpdate: (d) => controller.voiceUpdate(d),
-                onVoiceLongPressEnd: (d) => controller.voiceEnd(),
-              ),
-              if (controller.isMenuExpanded)
-                ChatMorePanel(
-                  onItemTap: (item) async {
-                    switch (item.type) {
-                      case ChatMoreAction.album:
-                        controller.toggleAlbum();
-                      case ChatMoreAction.camera:
-                        controller.toggleCamera();
-                      case ChatMoreAction.videoCall:
-                        await controller.openCallPage(isVideo: true);
-                      case ChatMoreAction.audioCall:
-                        await controller.openCallPage(isVideo: false);
-                      case ChatMoreAction.redbag:
-                        // TODO: Handle this case.
-                        throw UnimplementedError();
-                      case ChatMoreAction.file:
-                        controller.toggleFile();
+              if (_isSelectingMessages)
+                _buildSelectionActionBar()
+              else ...[
+                ChatInputBar(
+                  controller: controller.inputController,
+                  isVoiceMode: controller.isVoiceMode,
+                  isRecording: controller.isRecording,
+                  isCancelling: controller.isCancelling,
+                  isMenuExpanded: controller.isMenuExpanded,
+                  isInputEmpty: controller.isInputEmpty,
+                  quoteText: controller.quotedText,
+                  onClearQuote: controller.clearQuote,
+                  onToggleVoiceMode: controller.toggleVoice,
+                  onTextFieldTap: () {
+                    if (controller.isMenuExpanded) {
+                      controller.isMenuExpanded = false;
+                      setState(() {});
                     }
                   },
+                  onActionTap: controller.toggleAction,
+                  onVoiceLongPressStart: (d) => controller.voiceStart(),
+                  onVoiceLongPressMoveUpdate: (d) => controller.voiceUpdate(d),
+                  onVoiceLongPressEnd: (d) => controller.voiceEnd(),
                 ),
+                if (controller.isMenuExpanded)
+                  ChatMorePanel(
+                    onItemTap: (item) async {
+                      switch (item.type) {
+                        case ChatMoreAction.album:
+                          controller.toggleAlbum();
+                        case ChatMoreAction.camera:
+                          controller.toggleCamera();
+                        case ChatMoreAction.videoCall:
+                          await controller.openCallPage(isVideo: true);
+                        case ChatMoreAction.audioCall:
+                          await controller.openCallPage(isVideo: false);
+                        case ChatMoreAction.redbag:
+                          // TODO: Handle this case.
+                          throw UnimplementedError();
+                        case ChatMoreAction.file:
+                          controller.toggleFile();
+                      }
+                    },
+                  ),
+              ],
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSelectionHeader() {
+    final count = _selectedMessages.length;
+
+    return Container(
+      height: kToolbarHeight + MediaQuery.of(context).padding.top,
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.grey200)),
+      ),
+      child: Row(
+        children: [
+          TextButton(
+            onPressed: _exitSelectionMode,
+            child: Text(
+              '取消',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.grey900,
+                fontSize: 15,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '已选择 $count 条',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h2.copyWith(
+                color: AppColors.grey900,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 64),
+        ],
       ),
     );
   }
@@ -149,17 +208,211 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         itemCount: controller.messages.length,
         itemBuilder: (context, index) {
           final message = controller.messages[index];
+          final node = _buildMessageNode(message);
           return KeyedSubtree(
             key: _keyForMessage(message.messageId),
-            child: _buildMessageNode(message),
+            child: _isSelectingMessages
+                ? _buildSelectableMessageNode(message, node)
+                : node,
           );
         },
       ),
     );
   }
 
+  Widget _buildSelectableMessageNode(ChatDetailMessage message, Widget child) {
+    if (!_canSelectMessage(message)) {
+      return child;
+    }
+
+    final selected = _selectedMessageIds.contains(message.messageId);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _toggleSelectedMessage(message),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(width: 32, child: AppCheckbox(value: selected)),
+          Expanded(child: IgnorePointer(child: child)),
+        ],
+      ),
+    );
+  }
+
   GlobalKey _keyForMessage(String messageId) {
     return _messageKeys.putIfAbsent(messageId, GlobalKey.new);
+  }
+
+  List<ChatDetailMessage> get _selectedMessages {
+    return controller.messages
+        .where(
+          (message) =>
+              _selectedMessageIds.contains(message.messageId) &&
+              _canSelectMessage(message),
+        )
+        .toList();
+  }
+
+  Widget _buildSelectionActionBar() {
+    final hasSelected = _selectedMessages.isNotEmpty;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 72,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: AppColors.grey200)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildSelectionAction(
+                icon: 'assets/images/chat/delete-msg.png',
+                label: '删除',
+                enabled: hasSelected,
+                onTap: _confirmDeleteSelectedMessages,
+              ),
+            ),
+            Expanded(
+              child: _buildSelectionAction(
+                icon: 'assets/images/chat/share.png',
+                label: '转发',
+                enabled: hasSelected,
+                onTap: _forwardSelectedMessages,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionAction({
+    required String icon,
+    required String label,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final color = enabled ? AppColors.grey900 : AppColors.grey400;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: enabled ? onTap : null,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(icon, width: 24, height: 24, color: color),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(color: color, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startSelectionMode(ChatDetailMessage message) {
+    if (!_canSelectMessage(message)) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      controller.isMenuExpanded = false;
+      controller.isVoiceMode = false;
+      _isSelectingMessages = true;
+      _selectedMessageIds
+        ..clear()
+        ..add(message.messageId);
+    });
+  }
+
+  void _exitSelectionMode() {
+    if (!_isSelectingMessages) {
+      return;
+    }
+
+    setState(() {
+      _isSelectingMessages = false;
+      _selectedMessageIds.clear();
+    });
+  }
+
+  void _toggleSelectedMessage(ChatDetailMessage message) {
+    if (!_canSelectMessage(message)) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedMessageIds.contains(message.messageId)) {
+        _selectedMessageIds.remove(message.messageId);
+      } else {
+        _selectedMessageIds.add(message.messageId);
+      }
+    });
+  }
+
+  Future<void> _confirmDeleteSelectedMessages() async {
+    final selectedMessages = _selectedMessages;
+    if (selectedMessages.isEmpty) {
+      return;
+    }
+
+    await AppModal.show(
+      context,
+      title: '删除消息',
+      description: '确定删除选中的 ${selectedMessages.length} 条消息吗？',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmColor: AppColors.error,
+      confirmWidth: 161,
+      cancelWidth: 161,
+      cancelBorder: const BorderSide(color: AppColors.grey300),
+      onConfirm: () async {
+        Navigator.of(context, rootNavigator: true).pop();
+        final success = await controller.deleteMessages(selectedMessages);
+        if (!mounted) {
+          return;
+        }
+
+        if (success) {
+          _exitSelectionMode();
+        }
+      },
+    );
+  }
+
+  Future<void> _forwardSelectedMessages() async {
+    final selectedMessages = _selectedMessages;
+    if (selectedMessages.isEmpty) {
+      return;
+    }
+
+    final targets = await ChatForwardTargetModal.show(
+      context,
+      friends: ImDataCenter().friendListSnapshot,
+      groups: ImDataCenter().groupListSnapshot,
+    );
+
+    if (!mounted || targets == null || targets.isEmpty) {
+      return;
+    }
+
+    final success = await controller.forwardMessages(
+      messages: selectedMessages,
+      targets: targets,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (success) {
+      _exitSelectionMode();
+    }
   }
 
   void _scheduleAnchorScroll() {
@@ -486,6 +739,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           fileName: message.fileName ?? '',
           fileSize: message.fileSize ?? '',
         );
+      case ChatDetailMessageKind.combineForward:
+        final raw = message.extra;
+        return ChatCombineMessageContent(
+          title: message.text ?? '聊天记录',
+          summaries: message.combineSummaries ?? const <String>[],
+          onTap: raw is RCIMIWCombineV2Message
+              ? () => _openCombineForwardDetail(raw)
+              : null,
+        );
       case ChatDetailMessageKind.call:
         return ChatCallMessageContent(
           text: message.text ?? '',
@@ -495,6 +757,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       default:
         return const SizedBox();
     }
+  }
+
+  void _openCombineForwardDetail(RCIMIWCombineV2Message message) {
+    context.push('/chat-combine-forward-detail', extra: message);
   }
 
   Widget buildVoiceItem(ChatDetailMessage message, {Key? key}) {
@@ -528,6 +794,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     Offset position,
     ChatDetailMessage message,
   ) {
+    if (_isSelectingMessages) {
+      return;
+    }
+
     ChatMessageContextMenu.show(
       context,
       position: position,
@@ -540,6 +810,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           : null,
       onDelete: _canDeleteMessage(message)
           ? () => controller.deleteMessage(message)
+          : null,
+      onSelect: _canSelectMessage(message)
+          ? () => _startSelectionMode(message)
           : null,
     );
   }
@@ -563,6 +836,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   bool _canDeleteMessage(ChatDetailMessage message) {
     return message.extra is RCIMIWMessage;
+  }
+
+  bool _canSelectMessage(ChatDetailMessage message) {
+    if (message.kind == ChatDetailMessageKind.timestamp ||
+        message.kind == ChatDetailMessageKind.withdrawnNotice) {
+      return false;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return false;
+
+    return raw is! RCIMIWRecallNotificationMessage &&
+        raw.messageType != RCIMIWMessageType.recall;
   }
 
   bool _canQuoteMessage(ChatDetailMessage message) {

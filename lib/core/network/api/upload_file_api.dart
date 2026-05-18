@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../client/base_client.dart';
 import '../config/network_config.dart';
 
@@ -38,10 +39,10 @@ class UploadFileApi {
 
       return null;
     } on DioException catch (e) {
-      print("上传失败(Dio): ${e.message}");
+      debugPrint("上传失败(Dio): ${e.message}");
       return null;
     } catch (e) {
-      print("上传失败: $e");
+      debugPrint("上传失败: $e");
       return null;
     }
   }
@@ -82,7 +83,7 @@ class UploadFileApi {
 
       return [];
     } catch (e) {
-      print("批量上传失败: $e");
+      debugPrint("批量上传失败: $e");
       return [];
     }
   }

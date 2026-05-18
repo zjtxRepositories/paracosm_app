@@ -481,6 +481,22 @@ class ImMessageManager {
     _dispatchMessage(message, source: MessageSource.local);
   }
 
+  void updateLocalMessage(RCIMIWMessage message) {
+    if (_disposed) return;
+
+    final id = _messageCacheKey(message);
+    if (id != null) {
+      if (_messageCache.length >= _maxCacheSize) {
+        _messageCache.remove(_messageCache.keys.first);
+      }
+      _messageCache[id] = DateTime.now().millisecondsSinceEpoch;
+    }
+
+    _messageController.add(
+      MessageEvent(type: MessageEventType.update, message: message),
+    );
+  }
+
   /// =========================
   /// 核心 dispatch
   /// =========================
@@ -532,6 +548,11 @@ class ImMessageManager {
       return callSummaryKey;
     }
 
+    final mediaKey = _mediaMessageCacheKey(message);
+    if (mediaKey != null) {
+      return mediaKey;
+    }
+
     /// messageUId 优先
     final messageUId = message.messageUId;
 
@@ -564,6 +585,29 @@ class ImMessageManager {
       timestamp,
       message.messageType?.index ?? -1,
       _messageObjectName(message) ?? '',
+    ].join(':');
+  }
+
+  String? _mediaMessageCacheKey(RCIMIWMessage message) {
+    if (message is! RCIMIWMediaMessage) {
+      return null;
+    }
+
+    final local = message.local?.trim();
+    final remote = message.remote?.trim();
+    final mediaPath = (local != null && local.isNotEmpty) ? local : remote;
+    if (mediaPath == null || mediaPath.isEmpty) {
+      return null;
+    }
+
+    return [
+      'media',
+      message.conversationType?.index ?? -1,
+      message.targetId ?? '',
+      message.channelId ?? '',
+      message.senderUserId ?? '',
+      message.messageType?.index ?? -1,
+      mediaPath,
     ].join(':');
   }
 

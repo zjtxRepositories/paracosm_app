@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -26,17 +25,25 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
   @override
   void initState() {
     super.initState();
-    _index = widget.initialIndex;
+    final maxIndex = widget.list.isEmpty ? 0 : widget.list.length - 1;
+    _index = widget.initialIndex.clamp(0, maxIndex).toInt();
     _controller = PageController(initialPage: _index);
 
-    MediaCacheManager.preload(widget.list, _index);
+    _preloadAround(_index);
   }
 
   void _onPageChanged(int index) {
     setState(() => _index = index);
 
-    MediaCacheManager.preload(widget.list, index);
+    _preloadAround(index);
     MediaCacheManager.pauseAllExcept(index);
+  }
+
+  Future<void> _preloadAround(int index) async {
+    await MediaCacheManager.preload(widget.list, index);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _toggleVideo(int index) {
@@ -59,6 +66,7 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
     }
 
     final controller = MediaCacheManager.get(index);
+    final hasError = MediaCacheManager.hasError(index);
 
     return GestureDetector(
       onTap: () => _toggleVideo(index),
@@ -82,6 +90,37 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
               child: VideoPlayer(controller),
             ),
 
+          if (controller == null && !hasError)
+            const Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+          if (hasError)
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.videocam_off_outlined,
+                    size: 42,
+                    color: Colors.white,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '视频暂不可预览',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+
           /// 播放按钮
           if (controller != null)
             AnimatedOpacity(
@@ -92,7 +131,7 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: Colors.white,
@@ -135,6 +174,14 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
             onPageChanged: _onPageChanged,
             itemBuilder: (_, i) => _build(widget.list[i], i),
           ),
+
+          if (widget.list.isEmpty)
+            const Center(
+              child: Text(
+                '暂无可预览内容',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
 
           /// 顶部 UI
           Positioned(

@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
@@ -843,6 +844,14 @@ class ChatDetailController extends ChangeNotifier {
 
           final msg = await ChatDetailMessageMapper.mapMessage(message);
 
+          if (_replaceExistingMediaMessage(msg)) {
+            _markConversationRead(timestamp: message.sentTime);
+            if (engine.isAtBottom) {
+              engine.scrollToBottom();
+            }
+            break;
+          }
+
           /// ⭐ append
           engine.append(msg);
 
@@ -955,6 +964,24 @@ class ChatDetailController extends ChangeNotifier {
         /// 更新消息
         /// =========================
         case MessageEventType.update:
+          final message = event.message;
+
+          if (message == null) {
+            return;
+          }
+
+          if (message.targetId != args!.targetId) {
+            return;
+          }
+
+          if (message.conversationType != args!.conversationType) {
+            return;
+          }
+
+          final msg = await ChatDetailMessageMapper.mapMessage(message);
+          if (!_replaceExistingMessage(msg)) {
+            engine.append(msg);
+          }
           break;
       }
     });
@@ -1138,25 +1165,65 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> sendImage(String path) async {
-    await ImSender.instance.send(
+    final session = args;
+    final imagePath = path.trim();
+
+    if (session == null || imagePath.isEmpty || !File(imagePath).existsSync()) {
+      AppToast.show('图片发送失败');
+      return;
+    }
+
+    final sent = await ImSender.instance.send(
       message: ImageMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
-        path: path,
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
+        path: imagePath,
       ),
     );
+
+    if (!sent) {
+      AppToast.show('图片发送失败');
+    }
   }
 
-  Future<void> sendVideo(MediaInfo media, String thumbnailBase64String) async {
-    await ImSender.instance.send(
+  Future<void> sendVideo(
+    MediaInfo media,
+    String thumbnailBase64String, {
+    required String remoteUrl,
+    required String coverUrl,
+  }) async {
+    final session = args;
+    final videoPath = media.path?.trim();
+    final trimmedRemoteUrl = remoteUrl.trim();
+    final trimmedCoverUrl = coverUrl.trim();
+
+    if (session == null ||
+        videoPath == null ||
+        videoPath.isEmpty ||
+        !File(videoPath).existsSync() ||
+        trimmedRemoteUrl.isEmpty ||
+        trimmedCoverUrl.isEmpty) {
+      AppToast.show('视频发送失败');
+      return;
+    }
+
+    final sent = await ImSender.instance.send(
       message: VideoMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
-        path: media.path ?? '',
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
+        path: videoPath,
         duration: (media.duration ?? 0).toInt(),
         thumbnailBase64String: thumbnailBase64String,
+        remoteUrl: trimmedRemoteUrl,
+        coverUrl: trimmedCoverUrl,
       ),
     );
+
+    if (!sent) {
+      AppToast.show('视频发送失败');
+    }
   }
 
   Future<void> sendFile(String path, int size, String name) async {
@@ -1328,29 +1395,64 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> _handleVideo(File file, AssetEntity entity) async {
-    final thumb = await entity.thumbnailDataWithSize(
-      const ThumbnailSize(200, 200),
-    );
-
-    String thumbnailBase64String = '';
-
-    if (thumb != null && thumb.isNotEmpty) {
-      thumbnailBase64String = base64Encode(thumb);
-    }
-
     final compressed = await MediaHandleUtil.compressedVideoQuality(file);
 
-    if (compressed?.video == null) {
+    final videoPath = compressed?.video?.path;
+    final coverPath = compressed?.thumbnail?.path;
+
+    if (compressed?.video == null ||
+        videoPath == null ||
+        videoPath.trim().isEmpty ||
+        coverPath == null ||
+        coverPath.trim().isEmpty ||
+        !File(videoPath).existsSync() ||
+        !File(coverPath).existsSync()) {
+      AppToast.show('视频发送失败');
       return;
     }
 
-    sendVideo(compressed!.video!, thumbnailBase64String);
+    String thumbnailBase64String = '';
+
+    final coverBytes = await File(coverPath).readAsBytes();
+    if (coverBytes.isNotEmpty) {
+      thumbnailBase64String = base64Encode(coverBytes);
+    } else {
+      final thumb = await entity.thumbnailDataWithSize(
+        const ThumbnailSize(200, 200),
+      );
+      if (thumb != null && thumb.isNotEmpty) {
+        thumbnailBase64String = base64Encode(thumb);
+      }
+    }
+
+    final uploadResults = await Future.wait<String?>([
+      UploadFileApi.uploadFileByPath(videoPath),
+      UploadFileApi.uploadFileByPath(coverPath),
+    ]);
+
+    final remoteUrl = uploadResults[0];
+    final coverUrl = uploadResults[1];
+
+    if (remoteUrl == null ||
+        remoteUrl.trim().isEmpty ||
+        coverUrl == null ||
+        coverUrl.trim().isEmpty) {
+      AppToast.show('视频上传失败');
+      return;
+    }
+
+    await sendVideo(
+      compressed!.video!,
+      thumbnailBase64String,
+      remoteUrl: remoteUrl,
+      coverUrl: coverUrl,
+    );
   }
 
   Future<void> _handleImage(File file) async {
     final path = await MediaHandleUtil.compressedImageQuality(file.path);
 
-    sendImage(path);
+    await sendImage(path);
   }
 
   Future<void> _handleFile(File file, String name, int size) async {
@@ -1366,6 +1468,148 @@ class ChatDetailController extends ChangeNotifier {
         transitionDuration: const Duration(milliseconds: 200),
       ),
     );
+  }
+
+  bool _replaceExistingMediaMessage(ChatDetailMessage incoming) {
+    if (incoming.kind != ChatDetailMessageKind.image &&
+        incoming.kind != ChatDetailMessageKind.video) {
+      return false;
+    }
+
+    if (engine.containsId(incoming.messageId)) {
+      return false;
+    }
+
+    final hasMatch = messages.any(
+      (existing) => _isSameMediaMessage(existing, incoming),
+    );
+    if (!hasMatch) {
+      return false;
+    }
+
+    engine.replaceWhere(
+      (existing) => _isSameMediaMessage(existing, incoming),
+      incoming,
+    );
+    return true;
+  }
+
+  bool _replaceExistingMessage(ChatDetailMessage incoming) {
+    if (engine.containsId(incoming.messageId)) {
+      engine.replace(incoming);
+      return true;
+    }
+
+    final hasRawMatch = messages.any(
+      (existing) => _isSameRawMessage(existing, incoming),
+    );
+    if (hasRawMatch) {
+      engine.replaceWhere(
+        (existing) => _isSameRawMessage(existing, incoming),
+        incoming,
+      );
+      return true;
+    }
+
+    if (incoming.kind == ChatDetailMessageKind.image ||
+        incoming.kind == ChatDetailMessageKind.video) {
+      return _replaceExistingMediaMessage(incoming);
+    }
+
+    return false;
+  }
+
+  bool _isSameRawMessage(
+    ChatDetailMessage existing,
+    ChatDetailMessage incoming,
+  ) {
+    final oldRaw = existing.extra;
+    final newRaw = incoming.extra;
+    if (oldRaw is! RCIMIWMessage || newRaw is! RCIMIWMessage) {
+      return false;
+    }
+
+    if (oldRaw.conversationType != newRaw.conversationType ||
+        oldRaw.targetId != newRaw.targetId ||
+        oldRaw.channelId != newRaw.channelId ||
+        oldRaw.senderUserId != newRaw.senderUserId ||
+        oldRaw.messageType != newRaw.messageType) {
+      return false;
+    }
+
+    final oldUid = oldRaw.messageUId;
+    final newUid = newRaw.messageUId;
+    if (oldUid != null &&
+        oldUid.isNotEmpty &&
+        newUid != null &&
+        newUid.isNotEmpty &&
+        oldUid == newUid) {
+      return true;
+    }
+
+    final oldId = oldRaw.messageId;
+    final newId = newRaw.messageId;
+    return oldId != null &&
+        oldId > 0 &&
+        newId != null &&
+        newId > 0 &&
+        oldId == newId;
+  }
+
+  bool _isSameMediaMessage(
+    ChatDetailMessage existing,
+    ChatDetailMessage incoming,
+  ) {
+    if (existing.kind != incoming.kind) {
+      return false;
+    }
+
+    final oldRaw = existing.extra;
+    final newRaw = incoming.extra;
+    if (oldRaw is! RCIMIWMediaMessage || newRaw is! RCIMIWMediaMessage) {
+      return false;
+    }
+
+    if (oldRaw.conversationType != newRaw.conversationType ||
+        oldRaw.targetId != newRaw.targetId ||
+        oldRaw.channelId != newRaw.channelId ||
+        oldRaw.senderUserId != newRaw.senderUserId ||
+        oldRaw.messageType != newRaw.messageType) {
+      return false;
+    }
+
+    final oldPath = _mediaPathForMatch(oldRaw);
+    final newPath = _mediaPathForMatch(newRaw);
+    if (oldPath != null && newPath != null && oldPath == newPath) {
+      return true;
+    }
+
+    if (existing.thumbnailBase64String != null &&
+        existing.thumbnailBase64String!.isNotEmpty &&
+        existing.thumbnailBase64String == incoming.thumbnailBase64String) {
+      return true;
+    }
+
+    final oldTime = oldRaw.sentTime ?? oldRaw.receivedTime;
+    final newTime = newRaw.sentTime ?? newRaw.receivedTime;
+    return (oldPath == null || newPath == null) &&
+        oldTime != null &&
+        newTime != null &&
+        (oldTime - newTime).abs() <= const Duration(seconds: 10).inMilliseconds;
+  }
+
+  String? _mediaPathForMatch(RCIMIWMediaMessage message) {
+    final local = message.local?.trim();
+    if (local != null && local.isNotEmpty) {
+      return local;
+    }
+
+    final remote = message.remote?.trim();
+    if (remote != null && remote.isNotEmpty) {
+      return remote;
+    }
+
+    return null;
   }
 
   void navigateToSettings() {

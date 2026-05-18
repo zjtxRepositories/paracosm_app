@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -77,18 +79,251 @@ class _ChatQuotePreview extends StatelessWidget {
   }
 }
 
-class ChatImageMessageContent extends StatelessWidget {
-  const ChatImageMessageContent({super.key, required this.imagePath});
+class ChatImageMessageContent extends StatefulWidget {
+  const ChatImageMessageContent({
+    super.key,
+    required this.imagePath,
+    this.remoteUrl,
+    this.thumbnailBase64String,
+  });
 
   final String imagePath;
+  final String? remoteUrl;
+  final String? thumbnailBase64String;
+
+  @override
+  State<ChatImageMessageContent> createState() =>
+      _ChatImageMessageContentState();
+}
+
+class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
+  static const double _maxSize = 180;
+  static const Size _placeholderSize = Size(_maxSize, _maxSize);
+
+  ImageProvider? _provider;
+  List<ImageProvider> _providers = const [];
+  int _providerIndex = 0;
+  ImageStream? _imageStream;
+  ImageStreamListener? _imageStreamListener;
+  Size? _imageSize;
+  bool _loadFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatImageMessageContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.imagePath != widget.imagePath ||
+        oldWidget.remoteUrl != widget.remoteUrl ||
+        oldWidget.thumbnailBase64String != widget.thumbnailBase64String) {
+      _resolveImage();
+    }
+  }
+
+  @override
+  void dispose() {
+    _removeImageListener();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 140, maxHeight: 140),
+    final provider = _provider;
+    final size = _imageSize == null
+        ? _placeholderSize
+        : _fitImageSize(_imageSize!);
+
+    return SizedBox(
+      width: size.width,
+      height: size.height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.asset(imagePath, fit: BoxFit.cover),
+        child: provider == null || _loadFailed
+            ? _buildError()
+            : _imageSize == null
+            ? _buildPlaceholder()
+            : Image(
+                image: provider,
+                width: size.width,
+                height: size.height,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) =>
+                    _useNextImageProviderInline(),
+              ),
+      ),
+    );
+  }
+
+  void _resolveImage() {
+    _removeImageListener();
+
+    final providers = _createImageProviders();
+    final provider = providers.isEmpty ? null : providers.first;
+    setState(() {
+      _providers = providers;
+      _providerIndex = 0;
+      _provider = provider;
+      _imageSize = null;
+      _loadFailed = provider == null;
+    });
+
+    if (provider == null) {
+      return;
+    }
+
+    _listenToProvider(provider);
+  }
+
+  List<ImageProvider> _createImageProviders() {
+    final providers = <ImageProvider>[];
+
+    final localPath = widget.imagePath.trim();
+    if (localPath.isNotEmpty) {
+      final file = File(_localMediaPath(localPath));
+      if (file.existsSync()) {
+        providers.add(FileImage(file));
+      }
+    }
+
+    final url = widget.remoteUrl?.trim();
+    if (url != null &&
+        url.isNotEmpty &&
+        (url.startsWith('http://') || url.startsWith('https://'))) {
+      providers.add(CachedNetworkImageProvider(url));
+    }
+
+    final thumbnail = widget.thumbnailBase64String?.trim();
+    if (thumbnail != null && thumbnail.isNotEmpty) {
+      try {
+        providers.add(MemoryImage(base64Decode(thumbnail)));
+      } catch (_) {}
+    }
+
+    return providers;
+  }
+
+  String _localMediaPath(String path) {
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.scheme == 'file') {
+      return uri.toFilePath();
+    }
+
+    return path;
+  }
+
+  void _useNextImageProvider() {
+    if (!mounted) {
+      return;
+    }
+
+    _removeImageListener();
+
+    final nextIndex = _providerIndex + 1;
+    if (nextIndex >= _providers.length) {
+      setState(() {
+        _provider = null;
+        _imageSize = null;
+        _loadFailed = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _providerIndex = nextIndex;
+      _provider = _providers[nextIndex];
+      _imageSize = null;
+      _loadFailed = false;
+    });
+
+    _listenToProvider(_providers[nextIndex]);
+  }
+
+  Widget _useNextImageProviderInline() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _useNextImageProvider();
+    });
+
+    return _buildPlaceholder();
+  }
+
+  Size _fitImageSize(Size imageSize) {
+    if (imageSize.width <= 0 || imageSize.height <= 0) {
+      return _placeholderSize;
+    }
+
+    final ratio = imageSize.width / imageSize.height;
+    if (ratio >= 1) {
+      return Size(_maxSize, _maxSize / ratio);
+    }
+
+    return Size(_maxSize * ratio, _maxSize);
+  }
+
+  void _removeImageListener() {
+    final stream = _imageStream;
+    final listener = _imageStreamListener;
+    if (stream != null && listener != null) {
+      stream.removeListener(listener);
+    }
+    _imageStream = null;
+    _imageStreamListener = null;
+  }
+
+  void _listenToProvider(ImageProvider provider) {
+    final stream = provider.resolve(ImageConfiguration.empty);
+    final listener = ImageStreamListener(
+      (imageInfo, synchronousCall) {
+        final nextSize = Size(
+          imageInfo.image.width.toDouble(),
+          imageInfo.image.height.toDouble(),
+        );
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _imageSize = nextSize;
+          _loadFailed = false;
+        });
+      },
+      onError: (error, stackTrace) {
+        _useNextImageProvider();
+      },
+    );
+
+    _imageStream = stream;
+    _imageStreamListener = listener;
+    stream.addListener(listener);
+  }
+
+  Widget _buildPlaceholder() {
+    return const ColoredBox(
+      color: Color(0xFFF3F4F6),
+      child: Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 1.6),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return const ColoredBox(
+      color: Color(0xFFF3F4F6),
+      child: Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: AppColors.grey400,
+          size: 28,
+        ),
       ),
     );
   }

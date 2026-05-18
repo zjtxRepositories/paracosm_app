@@ -223,6 +223,8 @@ class VideoMessage extends ImMessage {
   final String? channelId;
   final String path;
   final int duration;
+  final String? remoteUrl;
+  final String? coverUrl;
   String thumbnailBase64String;
   VideoMessage({
     required this.conversationType,
@@ -230,6 +232,8 @@ class VideoMessage extends ImMessage {
     required this.path,
     required this.duration,
     required this.thumbnailBase64String,
+    this.remoteUrl,
+    this.coverUrl,
     this.channelId,
   });
 
@@ -246,6 +250,7 @@ class VideoMessage extends ImMessage {
       duration,
     );
     videoMsg?.thumbnailBase64String = thumbnailBase64String;
+    videoMsg?.remote = remoteUrl;
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
     return videoMsg;

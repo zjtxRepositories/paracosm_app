@@ -141,6 +141,7 @@ class ChatDetailMessageMapper {
         sentTime: sentTime,
         thumbnailBase64String: message.thumbnailBase64String,
         path: message.local,
+        remote: message.remote,
         duration: formatDurationFromMs(message.duration ?? 0),
         extra: message,
       );
@@ -262,6 +263,9 @@ class ChatDetailMessageMapper {
     final callSummaryKey = RongCallSummaryParser.stableMessageKey(message);
     if (callSummaryKey != null) return callSummaryKey;
 
+    final mediaKey = _stableMediaMessageKey(message);
+    if (mediaKey != null) return mediaKey;
+
     final messageId = message.messageId;
     if (messageId != null && messageId > 0) return messageId.toString();
     final messageUId = message.messageUId;
@@ -273,6 +277,29 @@ class ChatDetailMessageMapper {
       message.senderUserId,
       message.sentTime ?? message.receivedTime,
       message.messageType?.index,
+    ].join(':');
+  }
+
+  static String? _stableMediaMessageKey(RCIMIWMessage message) {
+    if (message is! RCIMIWMediaMessage) {
+      return null;
+    }
+
+    final local = message.local?.trim();
+    final remote = message.remote?.trim();
+    final mediaPath = (local != null && local.isNotEmpty) ? local : remote;
+    if (mediaPath == null || mediaPath.isEmpty) {
+      return null;
+    }
+
+    return [
+      'media',
+      message.conversationType?.index ?? -1,
+      message.targetId ?? '',
+      message.channelId ?? '',
+      message.senderUserId ?? '',
+      message.messageType?.index ?? -1,
+      mediaPath,
     ].join(':');
   }
 }

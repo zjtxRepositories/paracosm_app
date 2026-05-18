@@ -58,6 +58,7 @@ dependencies:
   rongcloud_im_wrapper_plugin: 5.32.0
   rongcloud_call_wrapper_plugin: ^5.32.0
   cached_network_image: ^3.4.1
+  video_player: ^2.11.1
   wechat_assets_picker: ^10.1.1
   photo_manager: ^3.9.0
   flutter_image_compress: ^2.4.0

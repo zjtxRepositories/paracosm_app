@@ -42,7 +42,7 @@ class ImSendManager {
         ImMessageManager().pushLocalMessage(msg ?? message);
       },
       onMessageSent: (code, msg) {
-        ImMessageManager().pushLocalMessage(msg ?? message);
+        ImMessageManager().updateLocalMessage(msg ?? message);
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }
@@ -66,11 +66,15 @@ class ImSendManager {
 
     final listener = RCIMIWSendMediaMessageListener(
       onMediaMessageSaved: (msg) {
-        ImMessageManager().pushLocalMessage(msg ?? message);
+        ImMessageManager().pushLocalMessage(
+          _keepOriginalRemote(msg ?? message, message),
+        );
       },
       onMediaMessageSending: (message, progress) {},
       onMediaMessageSent: (code, msg) {
-        ImMessageManager().pushLocalMessage(msg ?? message);
+        ImMessageManager().updateLocalMessage(
+          _keepOriginalRemote(msg ?? message, message),
+        );
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }
@@ -89,5 +93,16 @@ class ImSendManager {
     }
 
     return completer.future;
+  }
+
+  RCIMIWMediaMessage _keepOriginalRemote(
+    RCIMIWMediaMessage callbackMessage,
+    RCIMIWMediaMessage originalMessage,
+  ) {
+    final originalRemote = originalMessage.remote?.trim();
+    if (originalRemote != null && originalRemote.isNotEmpty) {
+      callbackMessage.remote = originalRemote;
+    }
+    return callbackMessage;
   }
 }

@@ -146,16 +146,16 @@ class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
         child: provider == null || _loadFailed
             ? _buildError()
             : _imageSize == null
-                ? _buildPlaceholder()
-                : Image(
-                    image: provider,
-                    width: size.width,
-                    height: size.height,
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _useNextImageProviderInline(),
-                  ),
+            ? _buildPlaceholder()
+            : Image(
+                image: provider,
+                width: size.width,
+                height: size.height,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) =>
+                    _useNextImageProviderInline(),
+              ),
       ),
     );
   }
@@ -185,7 +185,7 @@ class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
 
     final localPath = widget.imagePath.trim();
     if (localPath.isNotEmpty) {
-      final file = File(localPath);
+      final file = File(_localMediaPath(localPath));
       if (file.existsSync()) {
         providers.add(FileImage(file));
       }
@@ -206,6 +206,15 @@ class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
     }
 
     return providers;
+  }
+
+  String _localMediaPath(String path) {
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.scheme == 'file') {
+      return uri.toFilePath();
+    }
+
+    return path;
   }
 
   void _useNextImageProvider() {

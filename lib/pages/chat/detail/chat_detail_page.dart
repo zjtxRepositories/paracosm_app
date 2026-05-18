@@ -67,91 +67,91 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     controller.context = context;
 
     return ListenableBuilder(
-        listenable: controller,
-        builder: (_, __) {
-         return AppPage(
-            isCustomHeader: true,
-            isAddBottomMargin: false,
-            onBeforeBack: _isSelectingMessages
-                ? () async {
-              _exitSelectionMode();
-              return false;
-            }
-                : null,
-            renderCustomHeader: _isSelectingMessages
-                ? _buildSelectionHeader()
-                : ChatDetailHeader(
-              name: controller.sessionName,
-              isGroup: controller.isGroupSession,
-              avatar: controller.headerAvatar,
-              targetId: controller.targetId,
-              isOnline: controller.isOnline,
-              onMoreTap: controller.navigateToSettings,
-              onAvatarTap: controller.navigateToProfile,
-            ),
-            child: KeyboardDetector(
-              builder: (keyboardHeight) {
-                if (!_isSelectingMessages &&
-                    keyboardHeight > 0 &&
-                    controller.engine.isAtBottom) {
-                  controller.engine.scrollToBottom();
+      listenable: controller,
+      builder: (context, child) {
+        return AppPage(
+          isCustomHeader: true,
+          isAddBottomMargin: false,
+          onBeforeBack: _isSelectingMessages
+              ? () async {
+                  _exitSelectionMode();
+                  return false;
                 }
-                return Column(
-                  children: [
-                    Expanded(child: _buildMessageList()),
-                    if (_isSelectingMessages)
-                      _buildSelectionActionBar()
-                    else
-                      ...[
-                        ChatInputBar(
-                          controller: controller.inputController,
-                          isVoiceMode: controller.isVoiceMode,
-                          isRecording: controller.isRecording,
-                          isCancelling: controller.isCancelling,
-                          isMenuExpanded: controller.isMenuExpanded,
-                          isInputEmpty: controller.isInputEmpty,
-                          quoteText: controller.quotedText,
-                          onClearQuote: controller.clearQuote,
-                          onToggleVoiceMode: controller.toggleVoice,
-                          onTextFieldTap: () {
-                            if (controller.isMenuExpanded) {
-                              controller.isMenuExpanded = false;
-                              setState(() {});
-                            }
-                          },
-                          onActionTap: controller.toggleAction,
-                          onVoiceLongPressStart: (d) => controller.voiceStart(),
-                          onVoiceLongPressMoveUpdate: (d) =>
-                              controller.voiceUpdate(d),
-                          onVoiceLongPressEnd: (d) => controller.voiceEnd(),
-                        ),
-                        if (controller.isMenuExpanded)
-                          ChatMorePanel(
-                            onItemTap: (item) async {
-                              switch (item.type) {
-                                case ChatMoreAction.album:
-                                  controller.toggleAlbum();
-                                case ChatMoreAction.camera:
-                                  controller.toggleCamera();
-                                case ChatMoreAction.videoCall:
-                                  await controller.openCallPage(isVideo: true);
-                                case ChatMoreAction.audioCall:
-                                  await controller.openCallPage(isVideo: false);
-                                case ChatMoreAction.redbag:
-                                // TODO: Handle this case.
-                                  throw UnimplementedError();
-                                case ChatMoreAction.file:
-                                  controller.toggleFile();
-                              }
-                            },
-                          ),
-                      ],
+              : null,
+          renderCustomHeader: _isSelectingMessages
+              ? _buildSelectionHeader()
+              : ChatDetailHeader(
+                  name: controller.sessionName,
+                  isGroup: controller.isGroupSession,
+                  avatar: controller.headerAvatar,
+                  targetId: controller.targetId,
+                  isOnline: controller.isOnline,
+                  onMoreTap: controller.navigateToSettings,
+                  onAvatarTap: controller.navigateToProfile,
+                ),
+          child: KeyboardDetector(
+            builder: (keyboardHeight) {
+              if (!_isSelectingMessages &&
+                  keyboardHeight > 0 &&
+                  controller.engine.isAtBottom) {
+                controller.engine.scrollToBottom();
+              }
+              return Column(
+                children: [
+                  Expanded(child: _buildMessageList()),
+                  if (_isSelectingMessages)
+                    _buildSelectionActionBar()
+                  else ...[
+                    ChatInputBar(
+                      controller: controller.inputController,
+                      isVoiceMode: controller.isVoiceMode,
+                      isRecording: controller.isRecording,
+                      isCancelling: controller.isCancelling,
+                      isMenuExpanded: controller.isMenuExpanded,
+                      isInputEmpty: controller.isInputEmpty,
+                      quoteText: controller.quotedText,
+                      onClearQuote: controller.clearQuote,
+                      onToggleVoiceMode: controller.toggleVoice,
+                      onTextFieldTap: () {
+                        if (controller.isMenuExpanded) {
+                          controller.isMenuExpanded = false;
+                          setState(() {});
+                        }
+                      },
+                      onActionTap: controller.toggleAction,
+                      onVoiceLongPressStart: (d) => controller.voiceStart(),
+                      onVoiceLongPressMoveUpdate: (d) =>
+                          controller.voiceUpdate(d),
+                      onVoiceLongPressEnd: (d) => controller.voiceEnd(),
+                    ),
+                    if (controller.isMenuExpanded)
+                      ChatMorePanel(
+                        onItemTap: (item) async {
+                          switch (item.type) {
+                            case ChatMoreAction.album:
+                              controller.toggleAlbum();
+                            case ChatMoreAction.camera:
+                              controller.toggleCamera();
+                            case ChatMoreAction.videoCall:
+                              await controller.openCallPage(isVideo: true);
+                            case ChatMoreAction.audioCall:
+                              await controller.openCallPage(isVideo: false);
+                            case ChatMoreAction.redbag:
+                              // TODO: Handle this case.
+                              throw UnimplementedError();
+                            case ChatMoreAction.file:
+                              controller.toggleFile();
+                          }
+                        },
+                      ),
                   ],
-                );
-              },
-            ),
-          );
-        });
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildSelectionHeader() {
@@ -734,13 +734,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.image:
         return GestureDetector(
           onTap: () {
-            final list = _buildMediaList(message);
+            final list = _buildImageMediaList();
             if (list.isEmpty) {
               return;
             }
             controller.openMediaViewer(
               list: list,
-              index: _getIndex(message),
+              index: _getImageIndex(message),
             );
           },
           child: ChatImageMessageContent(
@@ -752,10 +752,22 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.video:
         return GestureDetector(
           onTap: () {
-            controller.openMediaViewer(
-              list: _buildMediaList(message),
-              index: _getIndex(message),
-            );
+            var list = _buildVideoMediaList();
+            if (list.isEmpty) {
+              AppToast.show('视频暂不可预览');
+              return;
+            }
+            var index = _getVideoIndex(message);
+            if (index < 0) {
+              final current = _videoMediaItem(message);
+              if (current == null) {
+                AppToast.show('视频暂不可预览');
+                return;
+              }
+              list = [current];
+              index = 0;
+            }
+            controller.openMediaViewer(list: list, index: index);
           },
           child: ChatVideoMessageContent(
             thumbnailBase64String: message.thumbnailBase64String ?? '',
@@ -923,12 +935,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   bool _hasUsableLocalPath(String? path) {
-    final value = path?.trim();
-    if (value == null || value.isEmpty) {
-      return false;
-    }
-
-    return File(value).existsSync();
+    return _existingLocalMediaFile(path) != null;
   }
 
   bool _canQuoteMessage(ChatDetailMessage message) {
@@ -955,7 +962,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  List<MediaItem> _buildMediaList(ChatDetailMessage current) {
+  List<MediaItem> _buildImageMediaList() {
     final list = <MediaItem>[];
 
     for (final msg in controller.messages) {
@@ -965,31 +972,32 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           list.add(mediaItem);
         }
       }
+    }
 
+    return list;
+  }
+
+  List<MediaItem> _buildVideoMediaList() {
+    final list = <MediaItem>[];
+
+    for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.video) {
-        final path = msg.path?.trim();
-        if (path == null || path.isEmpty || !File(path).existsSync()) {
-          continue;
+        final mediaItem = _videoMediaItem(msg);
+        if (mediaItem != null) {
+          list.add(mediaItem);
         }
-
-        list.add(
-          MediaItem(
-            type: MediaType.video,
-            file: File(path),
-            thumbnailBase64String: msg.thumbnailBase64String,
-          ),
-        );
       }
     }
 
     return list;
   }
 
-  int _getIndex(ChatDetailMessage message) {
+  int _getImageIndex(ChatDetailMessage message) {
     int index = 0;
 
     for (final msg in controller.messages) {
-      if (_canPreviewMedia(msg)) {
+      if (msg.kind == ChatDetailMessageKind.image &&
+          _imageMediaItem(msg) != null) {
         if (msg.messageId == message.messageId) {
           return index;
         }
@@ -1000,13 +1008,26 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return 0;
   }
 
-  MediaItem? _imageMediaItem(ChatDetailMessage message) {
-    final localPath = message.imagePath?.trim();
-    if (localPath != null && localPath.isNotEmpty) {
-      final file = File(localPath);
-      if (file.existsSync()) {
-        return MediaItem(type: MediaType.image, file: file);
+  int _getVideoIndex(ChatDetailMessage message) {
+    int index = 0;
+
+    for (final msg in controller.messages) {
+      if (msg.kind == ChatDetailMessageKind.video &&
+          _videoMediaItem(msg) != null) {
+        if (msg.messageId == message.messageId) {
+          return index;
+        }
+        index++;
       }
+    }
+
+    return -1;
+  }
+
+  MediaItem? _imageMediaItem(ChatDetailMessage message) {
+    final file = _existingLocalMediaFile(message.imagePath);
+    if (file != null) {
+      return MediaItem(type: MediaType.image, file: file);
     }
 
     final remote = message.remote?.trim();
@@ -1019,16 +1040,51 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return null;
   }
 
-  bool _canPreviewMedia(ChatDetailMessage message) {
-    if (message.kind == ChatDetailMessageKind.image) {
-      return _imageMediaItem(message) != null;
+  MediaItem? _videoMediaItem(ChatDetailMessage message) {
+    final file = _existingLocalMediaFile(message.path);
+    if (file != null) {
+      return MediaItem(
+        type: MediaType.video,
+        file: file,
+        thumbnailBase64String: message.thumbnailBase64String,
+      );
     }
 
-    if (message.kind == ChatDetailMessageKind.video) {
-      final path = message.path?.trim();
-      return path != null && path.isNotEmpty && File(path).existsSync();
+    final remote = message.remote?.trim();
+    if (remote != null &&
+        remote.isNotEmpty &&
+        (remote.startsWith('http://') || remote.startsWith('https://'))) {
+      return MediaItem(
+        type: MediaType.video,
+        url: remote,
+        thumbnailBase64String: message.thumbnailBase64String,
+      );
     }
 
-    return false;
+    return null;
+  }
+
+  File? _existingLocalMediaFile(String? path) {
+    final normalized = _localMediaPath(path);
+    if (normalized == null) {
+      return null;
+    }
+
+    final file = File(normalized);
+    return file.existsSync() ? file : null;
+  }
+
+  String? _localMediaPath(String? path) {
+    final value = path?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.scheme == 'file') {
+      return uri.toFilePath();
+    }
+
+    return value;
   }
 }

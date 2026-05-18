@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -11,6 +14,7 @@ import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../../core/models/group_member_model.dart';
 import '../../../widgets/chat/select_members_modal.dart';
@@ -62,16 +66,45 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       friends: friends,
       confirmText: AppLocalizations.of(context)!.commonDone,
       defaultSelectedUserIds: defaultSelectedUserIds,
+      minSelectedCount: 3
     );
     if (result == null || result.isEmpty) return;
-    controller.inviteUsersToGroup(result);
-    controller.kickGroupMembers(result);
+    if (controller.args?.isGroup ?? false){
+      controller.inviteUsersToGroup(result);
+      return;
+    }
+    final userIds = [
+      ...result,
+      controller.args!.targetId,
+    ];
+    final groupId = await controller.createGroup(userIds);
+    if (groupId == null) return;
+    final groupInfo = await GroupStateCenter().getGroup(groupId);
+    if (groupInfo == null) return;
+    final group = GroupModel(info: groupInfo);
+    final title = await group.name;
+    context.pushReplacement(
+      '/chat-detail/${Uri.encodeComponent(title)}',
+      extra: ChatSessionArgs(
+        targetId: groupId,
+        conversationType:RCIMIWConversationType.group,
+        name: title,
+        isGroup: true,
+      ),
+    );
+
   }
 
   Future<void> showRemoveMembers() async {
+    List<GroupMemberModel> members = controller.members
+        .where(
+          (item) =>
+      (item.item.userId ?? '') != IMEngineManager().currentUserId,
+    ).toList();
+
     final result = await RemoveMemberModal.show(
       context,
-      members: controller.members,
+      members: members,
     );
     if (result == null || result.isEmpty) return;
     controller.kickGroupMembers(result);
@@ -126,7 +159,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               children: [
                 _buildMemberGrid(),
                 controller.isMemberMore ? _buildViewMore() : SizedBox(),
-                const SizedBox(height: 12),
+                controller.isMemberMore ? const SizedBox(height: 12) : SizedBox(),
                 controller.isGroup ? _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingGroupInfo,
                   trailing: Row(

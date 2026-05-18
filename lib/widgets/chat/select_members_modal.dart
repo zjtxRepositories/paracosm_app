@@ -16,6 +16,7 @@ class SelectMembersModal extends StatefulWidget {
   final bool showSelectedCount;
   final List<RCIMIWFriendInfo>? friends;
   final List<String>? defaultSelectedUserIds;
+  final int? minSelectedCount;
 
   const SelectMembersModal({
     super.key,
@@ -24,6 +25,7 @@ class SelectMembersModal extends StatefulWidget {
     this.showSelectedCount = false,
     this.friends,
     this.defaultSelectedUserIds,
+    this.minSelectedCount,
   });
 
   /// 显示弹窗
@@ -34,6 +36,7 @@ class SelectMembersModal extends StatefulWidget {
         bool showSelectedCount = false,
         List<RCIMIWFriendInfo>? friends,
         List<String>? defaultSelectedUserIds,
+        int? minSelectedCount
       }) {
     return showModalBottomSheet<List<String>>(
       context: context,
@@ -46,6 +49,7 @@ class SelectMembersModal extends StatefulWidget {
         showSelectedCount: showSelectedCount,
         friends: friends,
         defaultSelectedUserIds: defaultSelectedUserIds,
+        minSelectedCount: minSelectedCount,
       ),
     );
   }
@@ -70,16 +74,18 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     const double itemHeight = 72.0;
     final double listHeight =
         _members.length < 5 ? _members.length * itemHeight : 5 * itemHeight;
+    final confirm = widget.minSelectedCount == null ? _selectedMembers.isNotEmpty : (widget.minSelectedCount ?? 0) <= _selectedMembers.length + _defaultSelectedUserIds.length;
 
     return AppModal(
       title: 'Select Members',
       confirmText: widget.showSelectedCount
           ? '${widget.confirmText} (${_selectedMembers.length})'
           : widget.confirmText,
-      confirmColor: _selectedMembers.isNotEmpty ? AppColors.grey900 : AppColors.grey300,
-      onConfirm: () {
+      confirmColor: confirm ? AppColors.grey900 : AppColors.grey300,
+      onConfirm:() {
+        if (!confirm) return;
         Navigator.pop(context, _selectedMembers.toList());
-        },
+        } ,
       contentPadding: true,
       child: Column(
         mainAxisSize: MainAxisSize.min,

@@ -226,9 +226,9 @@ class ChatController extends ChangeNotifier {
       ConversationResolver().resolve(model);
     } else {
       final newModel = ConversationModel(info: conv);
+      ConversationResolver().resolve(newModel);
       _conversationMap[targetId] = newModel;
       conversations.insert(0, newModel);
-      ConversationResolver().resolve(newModel);
     }
   }
 
@@ -253,7 +253,6 @@ class ChatController extends ChangeNotifier {
   void _handleDelete(String targetId) {
     final model = _conversationMap.remove(targetId);
     if (model == null) return;
-
     conversations.remove(model);
   }
 

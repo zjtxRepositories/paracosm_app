@@ -5,12 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
@@ -18,6 +18,7 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/network/api/upload_file_api.dart';
@@ -73,9 +74,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     super.dispose();
   }
 
-  Future<void> fetchData({
-    bool forceRefresh = false,
-  }) async {
+  Future<void> fetchData({bool forceRefresh = false}) async {
     final version = ++_fetchVersion;
 
     _isSelf = IMEngineManager().currentUserId == widget.userId;
@@ -97,6 +96,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       _isFriend = user.isFriend;
     });
   }
+
   Future<void> toggleChat() async {
     if (_user == null) return;
     if (!_isFriend) {
@@ -104,7 +104,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return;
     }
     context.push(
-      '/chat-detail/${Uri.encodeComponent( _user!.name)}',
+      '/chat-detail/${Uri.encodeComponent(_user!.name)}',
       extra: ChatSessionArgs(
         targetId: _user!.userId,
         conversationType: RCIMIWConversationType.private,
@@ -116,8 +116,47 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> toggleMoment() async {
-    final userId = _user?.userId ?? '';
-    context.push('/moment-user-profile', extra: userId);
+    final userId = _user?.userId.trim() ?? '';
+    if (_isSelf) {
+      context.push('/moment-user-profile?mode=self');
+      return;
+    }
+
+    if (userId.isEmpty) {
+      AppToast.show('用户信息加载中');
+      return;
+    }
+
+    context.push('/moment-user-profile?mode=friend', extra: userId);
+  }
+
+  Future<void> toggleCall({required bool isVideo}) async {
+    final user = _user;
+    if (user == null) {
+      AppToast.show('用户信息加载中');
+      return;
+    }
+    if (!_isFriend) {
+      AppToast.show('请添加好友！');
+      return;
+    }
+    if (_isSelf) {
+      AppToast.show('不能呼叫自己');
+      return;
+    }
+
+    final media = isVideo ? 'video' : 'voice';
+    final encodedName = Uri.encodeComponent(user.name);
+    final started = await RongCallManager().startPrivateCall(
+      targetId: user.userId,
+      displayName: user.name,
+      mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
+    );
+    if (!started || !mounted) {
+      return;
+    }
+
+    context.push('/chat-private-$media/$encodedName');
   }
 
   /// 显示添加好友弹窗
@@ -134,7 +173,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       onConfirm: () async {
         AppLoading.show();
         final result = await ImFriendManager().addFriend(
-          userId: _user!.userId ,
+          userId: _user!.userId,
           extra: controller.text,
         );
         AppLoading.dismiss();
@@ -143,6 +182,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           return;
         }
         AppToast.show('发送好友申请成功！');
+        if (!mounted) return;
         context.pop();
       },
       child: _AddFriendInputWrapper(
@@ -155,9 +195,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 显示设置备注弹窗
   void _showSetNoteNameModal() {
     if (_user == null) return;
-    TextEditingController controller = TextEditingController(
-      text: _user!.name,
-    );
+    TextEditingController controller = TextEditingController(text: _user!.name);
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatProfileSetNote,
@@ -174,6 +212,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           AppToast.show('设置备注失败！');
           return;
         }
+        if (!mounted) return;
         context.pop();
         setState(() {});
       },
@@ -181,44 +220,44 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-
   /// 删除好友确认弹窗
   void _showDeleteFriend() {
     AppConfirmDialog.show(
-        context,
-        description: '你确定要删除该好友吗？',
-        onConfirm: () async {
-          context.pop();
-          AppLoading.show();
-          final result = await ImFriendManager().deleteFriends([widget.userId]);
-          AppLoading.dismiss();
-          if (!result.success){
-            AppToast.show(result.message);
-            return;
-          }
-          context.pop();
+      context,
+      description: '你确定要删除该好友吗？',
+      onConfirm: () async {
+        context.pop();
+        AppLoading.show();
+        final result = await ImFriendManager().deleteFriends([widget.userId]);
+        AppLoading.dismiss();
+        if (!result.success) {
+          AppToast.show(result.message);
+          return;
         }
+        if (!mounted) return;
+        context.pop();
+      },
     );
   }
 
   /// 加入黑名单确认弹窗
   void _showAddBlack() {
     AppConfirmDialog.show(
-        context,
-        description: '加入黑名单，你讲不再收到对方的消息',
-        onConfirm: () async {
-          context.pop();
-          AppLoading.show();
-          final result = await ImFriendManager().addToBlacklist(widget.userId);
-          AppLoading.dismiss();
-          if (!result.success){
-            AppToast.show(result.message);
-            return;
-          }
-          context.pop();
+      context,
+      description: '加入黑名单，你讲不再收到对方的消息',
+      onConfirm: () async {
+        context.pop();
+        AppLoading.show();
+        final result = await ImFriendManager().addToBlacklist(widget.userId);
+        AppLoading.dismiss();
+        if (!result.success) {
+          AppToast.show(result.message);
+          return;
         }
+        if (!mounted) return;
+        context.pop();
+      },
     );
-
   }
 
   /// 修改名称
@@ -243,6 +282,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           AppToast.show('修改名称失败！');
           return;
         }
+        if (!mounted) return;
         setState(() {});
         context.pop();
         AccountManager().updateAccountUserInfo(
@@ -357,6 +397,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           onTap: () async {
             final text = _user?.userId ?? '';
             await Clipboard.setData(ClipboardData(text: text));
+            if (!mounted) return;
             AppToast.show(AppLocalizations.of(context)!.commonCopied);
           },
           child: Image.asset(
@@ -394,12 +435,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
             _buildActionItem(
               AppLocalizations.of(context)!.chatProfileCall,
               'assets/images/common/call.png',
-              () {},
+              () => toggleCall(isVideo: false),
             ),
             _buildActionItem(
               AppLocalizations.of(context)!.chatProfileVideo,
               'assets/images/common/video-dark.png',
-              () {},
+              () => toggleCall(isVideo: true),
             ),
             _buildActionItem(
               AppLocalizations.of(context)!.chatProfileMoment,

@@ -4,6 +4,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../listener/im_data_center.dart';
 import 'im_engine_manager.dart';
+import 'im_group_manager.dart';
 
 class _GroupMemberPageState {
   String pageToken = "";
@@ -101,7 +102,16 @@ class ImGroupMemberManager {
             );
             completer.complete(data);
           },
-          onError: (_) {
+          onError: (int? code) {
+            if (code == 25418){
+              GroupEventBus.instance.fire(
+                GroupEvent(
+                    type: GroupEventType.quit,
+                    groupId: groupId,
+                    operatorUserId: IMEngineManager().currentUserId
+                ),
+              );
+            }
             completer.complete(oldList);
           },
         ),

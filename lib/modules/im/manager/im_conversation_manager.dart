@@ -527,6 +527,7 @@ class ImConversationManager {
       callback: IRCIMIWClearUnreadCountCallback(
         onUnreadCountCleared: (code) {
           completer.complete(code == 0);
+          _onReadSync(type, targetId);
         },
       ),
     );

@@ -40,9 +40,12 @@ class GroupDetailsController extends ChangeNotifier {
   StreamSubscription? _groupSub;
 
   Future<void> init(BuildContext context) async {
-
-    if (!isGroup) return;
     _fetchPinned();
+
+    if (!isGroup) {
+      _fetchProfileInfo();
+      return;
+    }
 
     await _fetchGroupInfo();
 
@@ -61,6 +64,17 @@ class GroupDetailsController extends ChangeNotifier {
   void dispose() {
     _groupSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _fetchProfileInfo() async {
+    final item = RCIMIWGroupMemberInfo.fromJson({
+      'userId': args?.targetId,
+      'portraitUri':args?.avatar,
+      'name': args?.name,
+    });
+    final member = GroupMemberModel(item: item);
+    members.add(member);
+    notifyListeners();
   }
 
   Future<void> _fetchGroupInfo() async {
@@ -254,5 +268,29 @@ class GroupDetailsController extends ChangeNotifier {
     );
     await ImSender.instance.send(message: message);
     AppLoading.dismiss();
+  }
+
+  Future<String?> createGroup(List<String> userIds) async {
+    AppLoading.show();
+    final groupId = await ImGroupManager().create(
+      inviteeUserIds: userIds,
+      groupId: generateGroupId(GroupType.normal),
+    );
+
+    if (groupId == null) {
+      AppLoading.dismiss();
+      AppToast.show('创建群组失败');
+      return null;
+    }
+
+    final message = CustomMessage(
+      targetId: groupId,
+      customMessageType: CustomMessageType.groupInvited,
+      conversationType: RCIMIWConversationType.group,
+    );
+
+    await ImSender.instance.send(message: message);
+    AppLoading.dismiss();
+    return groupId;
   }
 }

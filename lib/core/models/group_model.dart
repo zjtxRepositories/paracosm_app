@@ -50,14 +50,37 @@ class GroupModel {
 
   Future<List<GroupMemberModel>> get members async {
     final groupId = info.groupId ?? '';
-    if (groupId.isEmpty) return [];
-    final result = await GroupStateCenter().getGroupMembers(groupId);
-    if (result.isEmpty) return [];
-    final List<GroupMemberModel> list = [];
-    for (final e in result) {
-      final member = GroupMemberModel(item: e);
-      list.add(member);
+
+    if (groupId.isEmpty) {
+      return [];
     }
+
+    final result = await GroupStateCenter().getGroupMembers(groupId);
+
+    if (result.isEmpty) {
+      return [];
+    }
+
+    final List<GroupMemberModel> list = result
+        .map((e) => GroupMemberModel(item: e))
+        .toList();
+
+    /// 群主排第一
+    list.sort((a, b) {
+      final aIsOwner = a.item.role == RCIMIWGroupMemberRole.owner;
+      final bIsOwner = b.item.role == RCIMIWGroupMemberRole.owner;
+
+      if (aIsOwner && !bIsOwner) {
+        return -1;
+      }
+
+      if (!aIsOwner && bIsOwner) {
+        return 1;
+      }
+
+      return 0;
+    });
+
     return list;
   }
 

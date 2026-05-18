@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -44,7 +45,13 @@ class ChatDetailHeader extends StatelessWidget {
               width: 32,
               height: 32,
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: (){
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/chat');
+              }
+            }
           ),
           GestureDetector(onTap: onAvatarTap, child: _buildAvatar()),
           const SizedBox(width: 8),

@@ -125,7 +125,13 @@ class ImDataCenter {
           break;
         case GroupEventType.quit:
           if (event.operatorUserId != IMEngineManager().currentUserId){
-            GroupStateCenter().getGroupMembers(event.groupId,forceRefresh: true);
+            return;
+          }
+          _removeGroup(event.groupId);
+          break;
+        case GroupEventType.removed:
+          if (event.userIds == null) return;
+          if (!event.userIds!.contains(IMEngineManager().currentUserId)){
             return;
           }
           _removeGroup(event.groupId);
@@ -346,7 +352,7 @@ class ImDataCenter {
   }
 
   void _emitGroup(List<String> groupIds) {
-    // print('_emitGroup------');
+    print('_emitGroup------');
     if (!_profileController.isClosed) {
       _groupInfoController.add(groupIds);
     }
@@ -358,6 +364,9 @@ class ImDataCenter {
     _removeConversation(groupId,RCIMIWConversationType.group);
   }
 
+  List<RCIMIWFriendInfo> get friends {
+    return _friendCache.values.toList();
+  }
   // ======================================================
   // dispose
   // ======================================================

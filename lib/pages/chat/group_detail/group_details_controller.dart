@@ -50,6 +50,7 @@ class GroupDetailsController extends ChangeNotifier {
 
 
     _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
+      // print('groupInfoStream-------');
       if (!groupIds.contains(group?.info.groupId)) return;
       await _fetchGroupInfo();
       await _fetchGroupMembers();
@@ -84,7 +85,6 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
     members = await group!.members;
-
     notifyListeners();
   }
 
@@ -209,4 +209,50 @@ class GroupDetailsController extends ChangeNotifier {
     }
   }
 
+  Future<void> inviteUsersToGroup(List<String> userIds) async {
+    final groupId = args?.targetId;
+    if (groupId == null) return;
+    AppLoading.show();
+    final isOk = await ImGroupManager().inviteUsersToGroup(
+        groupId,
+        userIds
+    );
+    if (!isOk) {
+      AppLoading.dismiss();
+      AppToast.show('邀请失败');
+      return;
+    }
+    final message = CustomMessage(
+        targetId: groupId,
+        customMessageType: CustomMessageType.groupInvited,
+        conversationType: RCIMIWConversationType.group,
+        userIds: userIds
+    );
+    await ImSender.instance.send(message: message);
+    AppLoading.dismiss();
+  }
+
+  Future<void> kickGroupMembers(List<String> userIds) async {
+    final groupId = args?.targetId;
+    if (groupId == null) return;
+
+    AppLoading.show();
+    final isOk = await ImGroupManager().kickGroupMembers(
+        groupId,
+        userIds
+    );
+    if (!isOk) {
+      AppLoading.dismiss();
+      AppToast.show('移除失败');
+      return;
+    }
+    final message = CustomMessage(
+        targetId: groupId,
+        customMessageType: CustomMessageType.groupRemoved,
+        conversationType: RCIMIWConversationType.group,
+        userIds: userIds
+    );
+    await ImSender.instance.send(message: message);
+    AppLoading.dismiss();
+  }
 }

@@ -12,13 +12,22 @@ abstract class ImMessage {
 
 class CustomMessage extends ImMessage {
   final String targetId;
+
   final CustomMessageType customMessageType;
+
+  /// 邀请进群时传递的用户 IDs
+  final List<String>? userIds;
+
   RCIMIWConversationType conversationType;
+
   String? channelId;
+
   String? content;
+
   CustomMessage({
     required this.targetId,
     required this.customMessageType,
+    this.userIds,
     this.conversationType = RCIMIWConversationType.private,
     this.channelId,
     this.content,
@@ -30,13 +39,19 @@ class CustomMessage extends ImMessage {
   @override
   Future<RCIMIWMessage?> toRCMessage() async {
     final myId = IMEngineManager().currentUserId ?? '';
-    String messageID = const Uuid().v4().replaceAll("-", "");
+
+    final messageID = const Uuid().v4().replaceAll("-", "");
+
     final model = CustomMessageModel(
       type: customMessageType,
       fromUserId: myId,
       toUserId: targetId,
       content: content,
+
+      /// 新增
+      userIds: userIds,
     );
+
     final msg = await IMEngineManager().engine?.createCustomMessage(
       conversationType,
       targetId,
@@ -45,8 +60,11 @@ class CustomMessage extends ImMessage {
       messageID,
       model.toJson(),
     );
+
     msg?.senderUserId = IMEngineManager().currentUserId;
+
     msg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+
     return msg;
   }
 }

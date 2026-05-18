@@ -6,6 +6,7 @@ import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../modules/im/manager/im_engine_manager.dart';
 import 'custom_message_model.dart';
 
 class ConversationModel extends ChangeNotifier {
@@ -146,7 +147,7 @@ class ConversationResolver {
         return '我们已成功添加为好友，现在可以开始聊天啦～';
       case CustomMessageType.groupInvited:
         final group = await _getGroup(message.toUserId);
-        final members = await group?.memberName;
+        final members = await _getMemberNames(message.userIds) ?? await group?.memberName;
         final user = await _getUser(message.fromUserId);
         return '"${user?.name ?? ''}"邀请$members加入了群聊';
       case CustomMessageType.createDao:
@@ -158,6 +159,9 @@ class ConversationResolver {
       case CustomMessageType.quitGroup:
         final user = await _getUser(message.fromUserId);
         return '${user?.name} 退出了群聊';
+      case CustomMessageType.groupRemoved:
+        final members = await _getMemberNames(message.userIds);
+        return '$members 被移出了群聊';
       default:
         return _formatContent(message.content ?? '');
     }
@@ -184,6 +188,31 @@ class ConversationResolver {
     }
 
     return result;
+  }
+
+  Future<String?> _getMemberNames(List<String>? userIds) async {
+    if (userIds == null || userIds.isEmpty) {
+      return null;
+    }
+    final currentUserId = IMEngineManager().currentUserId;
+    final names = await Future.wait(
+      userIds.map((userId) async {
+        if (userId == currentUserId) {
+          return '我';
+        }
+        final user = await UserDisplayStateCenter().getUser(userId);
+        final name = user?.name.trim();
+        if (name == null || name.isEmpty) {
+          return null;
+        }
+        return name;
+      }),
+    );
+    final result = names.whereType<String>().toList();
+    if (result.isEmpty) {
+      return null;
+    }
+    return result.join('、');
   }
 
   Future<UserDisplayModel?> _getUser(String id) async {

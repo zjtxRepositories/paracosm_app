@@ -94,17 +94,12 @@ class ImGroupMemberManager {
 
             state.hasMore = data.length >= count;
 
-            final latest = _merge(
-              oldList,
-              data,
-            );
 
             ImDataCenter().setGroupMembers(
               groupId,
-              latest,
+              data,
             );
-
-            completer.complete(latest);
+            completer.complete(data);
           },
           onError: (_) {
             completer.complete(oldList);

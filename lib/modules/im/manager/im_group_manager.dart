@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../listener/group_state_center.dart';
 import 'im_engine_manager.dart';
 
 /// =======================================================
@@ -16,6 +17,7 @@ enum GroupEventType {
   dismissed,
   infoChanged,
   memberChanged,
+  removed,
 }
 
 /// =======================================================
@@ -32,13 +34,14 @@ class GroupEvent {
 
   final dynamic data;
 
+  final List<String>? userIds;
 
   GroupEvent({
     required this.type,
     required this.groupId,
     this.operatorUserId,
     this.groupInfo,
-    this.data,
+    this.data, this.userIds,
   });
 }
 
@@ -346,8 +349,6 @@ class ImGroupManager {
         inviteeUserIds,
         callback: IRCIMIWCreateGroupCallback(
           onSuccess: (result) {
-            ImDataCenter().setGroup(groupInfo);
-
             GroupEventBus.instance.fire(
               GroupEvent(
                 type: GroupEventType.created,
@@ -396,8 +397,6 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      await refreshGroup(groupId);
-
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.joined,
@@ -408,6 +407,98 @@ class ImGroupManager {
     }
 
     return success;
+  }
+
+  /// =======================================================
+  /// 邀请加入群
+  /// =======================================================
+  Future<bool> inviteUsersToGroup(
+      String groupId,
+      List<String> userIds,
+      ) async {
+    final completer = Completer<bool>();
+
+    final code = await _engine?.inviteUsersToGroup(
+      groupId,
+      userIds,
+      callback: IRCIMIWInviteUsersToGroupCallback(
+        onSuccess: (_) async {
+          await GroupStateCenter().getGroupMembers(
+            groupId,
+            forceRefresh: true,
+          );
+
+          GroupEventBus.instance.fire(
+            GroupEvent(
+              type: GroupEventType.joined,
+              groupId: groupId,
+              operatorUserId: IMEngineManager().currentUserId,
+            ),
+          );
+
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+        onError: (e) {
+          debugPrint('inviteUsersToGroup error: $e');
+
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    /// SDK 调用失败
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future;
+  }
+
+  /// =======================================================
+  /// 移出群聊
+  /// =======================================================
+  Future<bool> kickGroupMembers(
+      String groupId,
+      List<String> userIds,
+      ) async {
+    final completer = Completer<bool>();
+    final config = RCIMIWQuitGroupConfig.create();
+    final code = await _engine?.kickGroupMembers(
+        groupId,
+        userIds,
+        config,
+      callback: IRCIMIWKickGroupMembersCallback(
+        onCompleted: (int? code) async {
+          if (code != 0) completer.complete(false);
+          await GroupStateCenter().getGroupMembers(
+            groupId,
+            forceRefresh: true,
+          );
+
+          GroupEventBus.instance.fire(
+            GroupEvent(
+              type: GroupEventType.removed,
+              groupId: groupId,
+              userIds: userIds
+            ),
+          );
+
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+      ),
+    );
+    /// SDK 调用失败
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future;
   }
 
   /// =======================================================
@@ -431,6 +522,11 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
+      await GroupStateCenter().getGroupMembers(
+        groupId,
+        forceRefresh: true,
+      );
+
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.quit,

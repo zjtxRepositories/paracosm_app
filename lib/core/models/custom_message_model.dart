@@ -7,6 +7,7 @@ enum CustomMessageType {
   recall,
   transfer,
   quitGroup,
+  groupRemoved,
   unknown,
 }
 CustomMessageType _typeFromString(String? type) {
@@ -27,6 +28,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.transfer;
     case 'group_quit':
       return CustomMessageType.quitGroup;
+    case 'group_removed':
+      return CustomMessageType.groupRemoved;
     default:
       return CustomMessageType.unknown;
   }
@@ -37,12 +40,14 @@ class CustomMessageModel {
   final String fromUserId;
   final String toUserId;
   String? content;
+  final List<String>? userIds;
 
   CustomMessageModel({
     required this.type,
     required this.fromUserId,
     required this.toUserId,
     this.content,
+    this.userIds,
   });
 
   /// =========================
@@ -54,6 +59,9 @@ class CustomMessageModel {
       fromUserId: json['fromUserId'] ?? '',
       toUserId: json['toUserId'] ?? '',
       content: json['content'] ?? '',
+      userIds: (json['userIds'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
     );
   }
 
@@ -66,6 +74,7 @@ class CustomMessageModel {
       'fromUserId': fromUserId,
       'toUserId': toUserId,
       'content': content,
+      'userIds': userIds,
     };
   }
 
@@ -88,6 +97,8 @@ class CustomMessageModel {
         return 'transfer';
       case CustomMessageType.quitGroup:
         return 'group_quit';
+      case CustomMessageType.groupRemoved:
+        return 'group_removed';
       case CustomMessageType.unknown:
         return 'unknown';
     }

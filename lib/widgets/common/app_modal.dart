@@ -21,6 +21,7 @@ class AppModal extends StatelessWidget {
   final Widget? child;
   final VoidCallback onConfirm;
   final VoidCallback? onCancel;
+  final bool? contentPadding;
 
   const AppModal({
     super.key,
@@ -40,6 +41,7 @@ class AppModal extends StatelessWidget {
     this.child,
     required this.onConfirm,
     this.onCancel,
+    this.contentPadding,
   });
 
   /// 显示弹窗的静态方法
@@ -59,6 +61,7 @@ class AppModal extends StatelessWidget {
         Color? cancelTextColor,
         Widget? icon,
         Widget? child,
+        bool? contentPadding,
         required VoidCallback onConfirm,
         VoidCallback? onCancel,
       }) {
@@ -83,6 +86,7 @@ class AppModal extends StatelessWidget {
         icon: icon,
         onConfirm: onConfirm,
         onCancel: onCancel,
+        contentPadding: contentPadding,
         child: child,
       ),
     );
@@ -107,8 +111,8 @@ class AppModal extends StatelessWidget {
           ),
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).padding.bottom + 24,
-            left: 20,
-            right: 20,
+            left: contentPadding == null ? 20 : 0,
+            right: contentPadding == null ? 20 : 0,
             top: 8,
           ),
           child: Column(
@@ -129,37 +133,43 @@ class AppModal extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               // 标题栏
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child:
-                    titleWidget ??
-                        Text(
-                          title,
-                          style: AppTextStyles.h2.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey900,
+              Padding(padding: contentPadding == null ? EdgeInsets.all(0) :
+              EdgeInsets.fromLTRB(20, 0, 20, 0),
+                child:  Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child:
+                      titleWidget ??
+                          Text(
+                            title,
+                            style: AppTextStyles.h2.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.grey900,
+                            ),
                           ),
-                        ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Image.asset(
-                      'assets/images/wallet/x.png',
-                      width: 24,
-                      height: 24,
-                      errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.close, color: AppColors.grey900),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Image.asset(
+                        'assets/images/wallet/x.png',
+                        width: 24,
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.close, color: AppColors.grey900),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
               Container(
                 height: 1,
                 color: AppColors.grey100,
-                margin: const EdgeInsets.only(top: 16, bottom: 16),
+                margin: EdgeInsets.only(top: 16, bottom: 16,
+                    left: contentPadding == null ? 0 : 20,
+                    right: contentPadding == null ? 0 : 20),
               ),
               // 内容区域
               Flexible(
@@ -206,13 +216,16 @@ class AppModal extends StatelessWidget {
                   ],
                 )
               else if (confirmText != null)
-                AppButton(
-                  text: confirmText!,
-                  backgroundColor: confirmColor,
-                  onPressed: () {
-                    onConfirm();
-                  },
-                ),
+                Padding(padding: contentPadding == null ?  EdgeInsetsGeometry.all(0):
+                EdgeInsetsGeometry.symmetric(horizontal: 20) ,
+                  child: AppButton(
+                    text: confirmText!,
+                    backgroundColor: confirmColor,
+                    onPressed: () {
+                      onConfirm();
+                    },
+                  ),
+                )
             ],
           ),
         ),

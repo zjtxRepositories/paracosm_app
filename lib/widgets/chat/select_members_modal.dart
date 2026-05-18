@@ -9,31 +9,13 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
-/// 成员模型
-class Member {
-  final String id;
-  final String name;
-  final String address;
-  final String avatar;
-  final String tag;
-  bool isSelected;
-
-  Member({
-    required this.id,
-    required this.name,
-    required this.address,
-    required this.avatar,
-    required this.tag,
-    this.isSelected = false,
-  });
-}
-
 /// 选择成员弹窗
 class SelectMembersModal extends StatefulWidget {
   final bool showTag;
   final String confirmText;
   final bool showSelectedCount;
   final List<RCIMIWFriendInfo>? friends;
+  final List<String>? defaultSelectedUserIds;
 
   const SelectMembersModal({
     super.key,
@@ -41,6 +23,7 @@ class SelectMembersModal extends StatefulWidget {
     this.confirmText = 'Create',
     this.showSelectedCount = false,
     this.friends,
+    this.defaultSelectedUserIds,
   });
 
   /// 显示弹窗
@@ -50,7 +33,8 @@ class SelectMembersModal extends StatefulWidget {
         String confirmText = 'Create',
         bool showSelectedCount = false,
         List<RCIMIWFriendInfo>? friends,
-  }) {
+        List<String>? defaultSelectedUserIds,
+      }) {
     return showModalBottomSheet<List<String>>(
       context: context,
       useRootNavigator: true,
@@ -61,6 +45,7 @@ class SelectMembersModal extends StatefulWidget {
         confirmText: confirmText,
         showSelectedCount: showSelectedCount,
         friends: friends,
+        defaultSelectedUserIds: defaultSelectedUserIds,
       ),
     );
   }
@@ -72,6 +57,7 @@ class SelectMembersModal extends StatefulWidget {
 class _SelectMembersModalState extends State<SelectMembersModal> {
 
   List<RCIMIWFriendInfo> get _members => widget.friends ?? [];
+  List<String> get _defaultSelectedUserIds => widget.defaultSelectedUserIds ?? [];
   final Set<String> _selectedMembers = {};
   late List<RCIMIWFriendInfo> _filterMembers;
   @override
@@ -90,31 +76,35 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
       confirmText: widget.showSelectedCount
           ? '${widget.confirmText} (${_selectedMembers.length})'
           : widget.confirmText,
+      confirmColor: _selectedMembers.isNotEmpty ? AppColors.grey900 : AppColors.grey300,
       onConfirm: () {
         Navigator.pop(context, _selectedMembers.toList());
         },
+      contentPadding: true,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppSearchInput(
-            onChanged: (t) {
-              setState(() {
-                if (t.isEmpty) {
-                  _filterMembers = _members;
-                } else {
-                  _filterMembers = _members.where((e) {
-                    final name = e.name ?? '';
-                    final address = e.userId ?? '';
+          Padding(padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
+            child: AppSearchInput(
+              onChanged: (t) {
+                setState(() {
+                  if (t.isEmpty) {
+                    _filterMembers = _members;
+                  } else {
+                    _filterMembers = _members.where((e) {
+                      final name = e.name ?? '';
+                      final address = e.userId ?? '';
 
-                    final keyword = t.toLowerCase();
+                      final keyword = t.toLowerCase();
 
-                    return name.toLowerCase().contains(keyword) ||
-                        address.toLowerCase().contains(keyword);
-                  }).toList();
-                }
-              });
-            },
+                      return name.toLowerCase().contains(keyword) ||
+                          address.toLowerCase().contains(keyword);
+                    }).toList();
+                  }
+                });
+              },
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -183,79 +173,98 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     required bool showDivider,
   }) {
     final member = FriendModel(info: friend);
-    return SizedBox(
-      height: 76,
-      child: Row(
-        children: [
-          UserAvatarWidget(
-            userId: member.info.userId,
-            avatarUrl: member.info.portrait,
-            size: 44,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: showDivider
-                    ? const Border(
+    final selected = _selectedMembers.contains(member.info.userId)
+        || _defaultSelectedUserIds.contains(member.info.userId);
+    return IgnorePointer(
+      ignoring: _defaultSelectedUserIds.contains(member.info.userId),
+      child: Opacity(
+        opacity: _defaultSelectedUserIds.contains(member.info.userId) ? 0.45 : 1,
+        child: GestureDetector(
+          onTap: (){
+            setState(() {
+              if (_selectedMembers.contains(member.info.userId)){
+                _selectedMembers.remove(member.info.userId);
+              }else{
+                _selectedMembers.add(member.info.userId ?? '');
+              }
+            });
+          },
+          child: Container(margin: EdgeInsets.symmetric(horizontal: 20),
+            height: 76,
+            child: Row(
+              children: [
+                UserAvatarWidget(
+                  userId: member.info.userId,
+                  avatarUrl: member.info.portrait,
+                  size: 44,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: showDivider
+                          ? const Border(
                         bottom: BorderSide(color: AppColors.grey100, width: 1),
                       )
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                          : null,
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          member.name,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.grey900,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                member.name,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.grey900,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                ellipsisMiddle( member.info.userId ?? ''),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.grey700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                         ellipsisMiddle( member.info.userId ?? ''),
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.grey700,
-                            fontSize: 12,
-                          ),
+                        // if (widget.showTag) ...[
+                        //   Text(
+                        //     member.name,
+                        //     style: AppTextStyles.caption.copyWith(
+                        //       color: AppColors.grey700,
+                        //       fontSize: 12,
+                        //     ),
+                        //   ),
+                        //   const SizedBox(width: 8),
+                        // ],
+                        AppCheckbox(
+                          value: selected,
+                          onChanged: (val) {
+                            setState(() {
+                              if (_selectedMembers.contains(member.info.userId)){
+                                _selectedMembers.remove(member.info.userId);
+                              }else{
+                                _selectedMembers.add(member.info.userId ?? '');
+                              }
+                            });
+                          },
                         ),
                       ],
                     ),
                   ),
-                  // if (widget.showTag) ...[
-                  //   Text(
-                  //     member.name,
-                  //     style: AppTextStyles.caption.copyWith(
-                  //       color: AppColors.grey700,
-                  //       fontSize: 12,
-                  //     ),
-                  //   ),
-                  //   const SizedBox(width: 8),
-                  // ],
-                  AppCheckbox(
-                    value: _selectedMembers.contains(member.info.userId),
-                    onChanged: (val) {
-                      setState(() {
-                        if (_selectedMembers.contains(member.info.userId)){
-                          _selectedMembers.remove(member.info.userId);
-                        }else{
-                          _selectedMembers.add(member.info.userId ?? '');
-                        }
-                      });
-                    },
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
+        )
       ),
     );
   }

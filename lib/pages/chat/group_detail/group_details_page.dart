@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
+import 'package:paracosm/widgets/chat/remove_member_modal.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../../core/models/group_member_model.dart';
+import '../../../widgets/chat/select_members_modal.dart';
 import '../chat_session_args.dart';
 import 'group_details_controller.dart';
 
@@ -49,6 +52,29 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     controller.removeListener(_refresh);
     controller.dispose();
     super.dispose();
+  }
+
+  Future<void> showChooseMembers() async {
+    final friends = ImDataCenter().friends;
+    final defaultSelectedUserIds = controller.members.map((item) => item.item.userId ?? '').toList();
+    final result = await SelectMembersModal.show(
+      context,
+      friends: friends,
+      confirmText: AppLocalizations.of(context)!.commonDone,
+      defaultSelectedUserIds: defaultSelectedUserIds,
+    );
+    if (result == null || result.isEmpty) return;
+    controller.inviteUsersToGroup(result);
+    controller.kickGroupMembers(result);
+  }
+
+  Future<void> showRemoveMembers() async {
+    final result = await RemoveMemberModal.show(
+      context,
+      members: controller.members,
+    );
+    if (result == null || result.isEmpty) return;
+    controller.kickGroupMembers(result);
   }
 
 
@@ -254,8 +280,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     final items = [
       ...visibleMembers,
       'add',
-      'remove',
     ];
+
+    if (controller.isManager){
+      items.add('remove');
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -274,18 +303,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
           if (item == 'add') {
             return GestureDetector(
+              onTap: showChooseMembers,
               child: _buildActionMemberItem(
                 'assets/images/common/add-member.png',
               ),
-              onTap: (){
-
-              },
             );
           }
 
           if (item == 'remove') {
-            return _buildActionMemberItem(
-              'assets/images/common/remove-member.png',
+            return GestureDetector(
+              onTap:()=> showRemoveMembers(),
+              child: _buildActionMemberItem(
+                'assets/images/common/remove-member.png',
+              ),
             );
           }
           if (item is GroupMemberModel){

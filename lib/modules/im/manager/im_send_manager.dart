@@ -23,9 +23,17 @@ class ImSendManager {
   /// =========================
   /// 唯一职责：发送消息（给队列调用）
   /// =========================
-  Future<bool> sendMessage(RCIMIWMessage message) async {
+  Future<bool> sendMessage(
+    RCIMIWMessage message, {
+    void Function(int progress)? onProgress,
+    bool pushSavedMessage = true,
+  }) async {
     if (message is RCIMIWMediaMessage) {
-      return _sendMediaMessage(message);
+      return _sendMediaMessage(
+        message,
+        onProgress: onProgress,
+        pushSavedMessage: pushSavedMessage,
+      );
     } else {
       return _sendNormalMessage(message);
     }
@@ -61,16 +69,25 @@ class ImSendManager {
   /// =========================
   /// 媒体消息
   /// =========================
-  Future<bool> _sendMediaMessage(RCIMIWMediaMessage message) async {
+  Future<bool> _sendMediaMessage(
+    RCIMIWMediaMessage message, {
+    void Function(int progress)? onProgress,
+    bool pushSavedMessage = true,
+  }) async {
     final completer = Completer<bool>();
 
     final listener = RCIMIWSendMediaMessageListener(
       onMediaMessageSaved: (msg) {
-        ImMessageManager().pushLocalMessage(
-          _keepOriginalRemote(msg ?? message, message),
-        );
+        if (pushSavedMessage) {
+          ImMessageManager().pushLocalMessage(
+            _keepOriginalRemote(msg ?? message, message),
+          );
+        }
       },
-      onMediaMessageSending: (message, progress) {},
+      onMediaMessageSending: (message, progress) {
+        final value = progress ?? 0;
+        onProgress?.call(value.toInt());
+      },
       onMediaMessageSent: (code, msg) {
         ImMessageManager().updateLocalMessage(
           _keepOriginalRemote(msg ?? message, message),

@@ -750,30 +750,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
         );
       case ChatDetailMessageKind.video:
-        return GestureDetector(
-          onTap: () {
-            var list = _buildVideoMediaList();
-            if (list.isEmpty) {
-              AppToast.show('视频暂不可预览');
-              return;
-            }
-            var index = _getVideoIndex(message);
-            if (index < 0) {
-              final current = _videoMediaItem(message);
-              if (current == null) {
-                AppToast.show('视频暂不可预览');
-                return;
-              }
-              list = [current];
-              index = 0;
-            }
-            controller.openMediaViewer(list: list, index: index);
-          },
-          child: ChatVideoMessageContent(
-            thumbnailBase64String: message.thumbnailBase64String ?? '',
-            duration: message.duration,
-          ),
-        );
+        return _buildVideoMessageContent(message);
       case ChatDetailMessageKind.file:
         return ChatFileMessageContent(
           fileName: message.fileName ?? '',
@@ -795,8 +772,55 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           isMe: message.isMe,
         );
       default:
-        return const SizedBox();
+        return ChatTextMessageContent(message: message.text ?? '');
     }
+  }
+
+  Widget _buildVideoMessageContent(ChatDetailMessage message) {
+    final listenable = controller.pendingVideoMessageListenable(
+      message.messageId,
+    );
+    if (listenable == null) {
+      return _buildVideoGesture(message);
+    }
+
+    return ValueListenableBuilder<ChatDetailMessage>(
+      valueListenable: listenable,
+      builder: (context, pendingMessage, child) {
+        return _buildVideoGesture(pendingMessage);
+      },
+    );
+  }
+
+  Widget _buildVideoGesture(ChatDetailMessage message) {
+    return GestureDetector(
+      onTap: message.mediaSendStatus == MediaSendStatus.sent
+          ? () {
+              var list = _buildVideoMediaList();
+              if (list.isEmpty) {
+                AppToast.show('视频暂不可预览');
+                return;
+              }
+              var index = _getVideoIndex(message);
+              if (index < 0) {
+                final current = _videoMediaItem(message);
+                if (current == null) {
+                  AppToast.show('视频暂不可预览');
+                  return;
+                }
+                list = [current];
+                index = 0;
+              }
+              controller.openMediaViewer(list: list, index: index);
+            }
+          : null,
+      child: ChatVideoMessageContent(
+        thumbnailBase64String: message.thumbnailBase64String ?? '',
+        duration: message.duration,
+        sendStatus: message.mediaSendStatus,
+        sendProgress: message.mediaSendProgress,
+      ),
+    );
   }
 
   void _openCombineForwardDetail(RCIMIWCombineV2Message message) {
@@ -1041,6 +1065,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   MediaItem? _videoMediaItem(ChatDetailMessage message) {
+    if (message.mediaSendStatus != MediaSendStatus.sent) {
+      return null;
+    }
+
     final file = _existingLocalMediaFile(message.path);
     if (file != null) {
       return MediaItem(

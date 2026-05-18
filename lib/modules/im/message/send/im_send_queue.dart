@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
-import 'package:paracosm/modules/im/manager/im_message_manager.dart';
+
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
 import '../../manager/im_send_manager.dart';
 
 /// =========================
@@ -10,6 +11,9 @@ import '../../manager/im_send_manager.dart';
 /// =========================
 class SendTask {
   final RCIMIWMessage message;
+  final String taskId;
+  final void Function(int progress)? onProgress;
+  final bool pushSavedMessage;
 
   /// 重试次数
   int retryCount = 0;
@@ -18,19 +22,25 @@ class SendTask {
   final int maxRetry;
 
   SendTask(
-      this.message, {
-        this.maxRetry = 3,
-      });
+    this.message, {
+    String? taskId,
+    this.onProgress,
+    this.pushSavedMessage = true,
+    this.maxRetry = 3,
+  }) : taskId =
+           taskId ??
+           'send-${DateTime.now().microsecondsSinceEpoch}-${identityHashCode(message)}';
 }
 
 /// =========================
 /// 队列事件（给 UI / Manager 用）
 /// =========================
 class SendQueueEvent {
+  final String taskId;
   final RCIMIWMessage message;
   final bool success;
 
-  SendQueueEvent(this.message, this.success);
+  SendQueueEvent(this.taskId, this.message, this.success);
 }
 
 /// =========================
@@ -48,7 +58,7 @@ class ImSendQueue {
 
   /// 事件流（UI监听）
   final StreamController<SendQueueEvent> _controller =
-  StreamController.broadcast();
+      StreamController.broadcast();
 
   Stream<SendQueueEvent> get stream => _controller.stream;
 
@@ -80,15 +90,20 @@ class ImSendQueue {
 
     final task = _queue.removeFirst();
     final success = await ImSendManager.instance.sendMessage(
-       task.message,
+      task.message,
+      onProgress: task.onProgress,
+      pushSavedMessage: task.pushSavedMessage,
     );
 
-    /// 通知外部
-    _controller.add(SendQueueEvent(task.message, success));
-
-    if (!success) {
+    if (!success && task.retryCount < task.maxRetry) {
       await _handleRetry(task);
+      _isSending = false;
+      _trySend();
+      return;
     }
+
+    /// 通知外部
+    _controller.add(SendQueueEvent(task.taskId, task.message, success));
 
     _isSending = false;
 

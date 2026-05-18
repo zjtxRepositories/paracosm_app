@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 
@@ -329,35 +330,61 @@ class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
   }
 }
 
-class ChatVideoMessageContent extends StatelessWidget {
+class ChatVideoMessageContent extends StatefulWidget {
   const ChatVideoMessageContent({
     super.key,
     required this.thumbnailBase64String,
     this.duration,
     this.onTap,
+    this.sendStatus = MediaSendStatus.sent,
+    this.sendProgress = 100,
   });
 
   final String thumbnailBase64String;
   final String? duration;
   final VoidCallback? onTap;
+  final MediaSendStatus sendStatus;
+  final int sendProgress;
+
+  @override
+  State<ChatVideoMessageContent> createState() =>
+      _ChatVideoMessageContentState();
+}
+
+class _ChatVideoMessageContentState extends State<ChatVideoMessageContent> {
+  ImageProvider? _thumbnailProvider;
+  String? _thumbnailValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveThumbnail();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatVideoMessageContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.thumbnailBase64String != widget.thumbnailBase64String) {
+      _resolveThumbnail();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isSending = widget.sendStatus == MediaSendStatus.sending;
+    final isFailed = widget.sendStatus == MediaSendStatus.failed;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 140, maxHeight: 140),
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Stack(
             children: [
               /// 🎬 缩略图
-              Positioned.fill(
-                child: Image.memory(
-                  base64Decode(thumbnailBase64String),
-                  fit: BoxFit.cover,
-                ),
-              ),
+              Positioned.fill(child: RepaintBoundary(child: _buildThumbnail())),
 
               /// 🌫️ 遮罩层（增强对比）
               Positioned.fill(
@@ -365,16 +392,38 @@ class ChatVideoMessageContent extends StatelessWidget {
               ),
 
               /// ▶️ 播放按钮
-              const Center(
-                child: Icon(
-                  Icons.play_circle_fill,
-                  size: 42,
-                  color: Colors.white,
+              if (!isSending && !isFailed)
+                const Center(
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    size: 42,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+
+              if (isSending) _buildSendingOverlay(),
+
+              if (isFailed)
+                const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 34, color: Colors.white),
+                      SizedBox(height: 6),
+                      Text(
+                        '发送失败',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               /// ⏱️ 时长（微信风格：右下角）
-              if (duration != null)
+              if (widget.duration != null)
                 Positioned(
                   right: 6,
                   bottom: 4,
@@ -388,7 +437,7 @@ class ChatVideoMessageContent extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      duration ?? '0.00',
+                      widget.duration ?? '0.00',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -399,6 +448,80 @@ class ChatVideoMessageContent extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _resolveThumbnail() {
+    final value = widget.thumbnailBase64String.trim();
+    _thumbnailValue = value;
+
+    if (value.isEmpty) {
+      _thumbnailProvider = null;
+      return;
+    }
+
+    try {
+      _thumbnailProvider = MemoryImage(base64Decode(value));
+    } catch (_) {
+      _thumbnailProvider = null;
+    }
+  }
+
+  Widget _buildThumbnail() {
+    final provider = _thumbnailProvider;
+    if (_thumbnailValue == null ||
+        _thumbnailValue!.isEmpty ||
+        provider == null) {
+      return _buildVideoPlaceholder();
+    }
+
+    return Image(
+      image: provider,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) => _buildVideoPlaceholder(),
+    );
+  }
+
+  Widget _buildVideoPlaceholder() {
+    return const ColoredBox(
+      color: Color(0xFF1F2937),
+      child: Center(
+        child: Icon(Icons.videocam_outlined, color: Colors.white70, size: 30),
+      ),
+    );
+  }
+
+  Widget _buildSendingOverlay() {
+    final progress = widget.sendProgress.clamp(0, 100);
+
+    return RepaintBoundary(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 42,
+              height: 42,
+              child: CircularProgressIndicator(
+                value: progress <= 0 ? null : progress / 100,
+                strokeWidth: 3,
+                color: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.28),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              progress <= 0 ? '处理中' : '$progress%',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

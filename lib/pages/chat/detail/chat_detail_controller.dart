@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_model.dart';
@@ -31,15 +32,17 @@ import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
+import '../../../util/string_util.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
+import 'video_send_progress.dart';
 
 class ChatDetailController extends ChangeNotifier {
   ChatDetailController(this.args);
 
-   ChatSessionArgs? args;
+  ChatSessionArgs? args;
 
   BuildContext? context;
 
@@ -49,6 +52,11 @@ class ChatDetailController extends ChangeNotifier {
 
   final ImSubscribeEventManager _subscribeEventManager =
       ImSubscribeEventManager();
+
+  final Map<String, ValueNotifier<ChatDetailMessage>>
+  _pendingVideoMessageNotifiers = {};
+
+  final Map<String, String> _pendingVideoMessageIdsByRemote = {};
 
   final inputController = TextEditingController();
 
@@ -137,13 +145,20 @@ class ChatDetailController extends ChangeNotifier {
     _listenProfile();
 
     _listenGroup();
-
   }
 
   @override
   void dispose() {
-    super.dispose();
-    _subscribeEventManager.unsubscribe([args!.targetId]);
+    for (final notifier in _pendingVideoMessageNotifiers.values) {
+      notifier.dispose();
+    }
+    _pendingVideoMessageNotifiers.clear();
+    _pendingVideoMessageIdsByRemote.clear();
+
+    final targetId = args?.targetId;
+    if (targetId != null) {
+      _subscribeEventManager.unsubscribe([targetId]);
+    }
 
     inputController.dispose();
 
@@ -159,6 +174,7 @@ class ChatDetailController extends ChangeNotifier {
 
     _profileChangeSub?.cancel();
 
+    super.dispose();
   }
 
   /// =========================
@@ -180,6 +196,12 @@ class ChatDetailController extends ChangeNotifier {
   /// UI 直接用 engine 数据
   /// =========================
   List<ChatDetailMessage> get messages => engine.list.cast<ChatDetailMessage>();
+
+  ValueListenable<ChatDetailMessage>? pendingVideoMessageListenable(
+    String messageId,
+  ) {
+    return _pendingVideoMessageNotifiers[messageId];
+  }
 
   bool get hasAnchor => args?.anchorSentTime != null;
 
@@ -760,11 +782,8 @@ class ChatDetailController extends ChangeNotifier {
     });
   }
 
-
   void _listenGroup() {
-    _groupChangeSub = ImDataCenter().groupInfoStream.listen((
-        groupIds
-        ) async {
+    _groupChangeSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
       if (!groupIds.contains(args?.targetId)) return;
       final info = await GroupStateCenter().getGroup(args?.targetId ?? '');
       if (info == null) return;
@@ -773,28 +792,23 @@ class ChatDetailController extends ChangeNotifier {
       args = args?.copyWith(
         isGroup: true,
         name: name,
-        avatar: info.portraitUri
+        avatar: info.portraitUri,
       );
       notifyListeners();
     });
   }
 
   void _listenProfile() {
-    _profileChangeSub = ImDataCenter().profileStream.listen((
-        userIds
-        ) async {
+    _profileChangeSub = ImDataCenter().profileStream.listen((userIds) async {
       if (!userIds.contains(args?.targetId)) return;
       final user = await UserDisplayStateCenter().getUser(args?.targetId ?? '');
       if (user == null) return;
       final name = user.name;
-      args = args?.copyWith(
-          isGroup: false,
-          name: name,
-          avatar: user.avatar
-      );
+      args = args?.copyWith(isGroup: false, name: name, avatar: user.avatar);
       notifyListeners();
     });
   }
+
   Future<void> quoteMessage(ChatDetailMessage message) async {
     final raw = message.extra;
     if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {
@@ -1187,11 +1201,12 @@ class ChatDetailController extends ChangeNotifier {
     }
   }
 
-  Future<void> sendVideo(
+  Future<bool> sendVideo(
     MediaInfo media,
     String thumbnailBase64String, {
     required String remoteUrl,
     required String coverUrl,
+    void Function(int progress)? onProgress,
   }) async {
     final session = args;
     final videoPath = media.path?.trim();
@@ -1205,10 +1220,10 @@ class ChatDetailController extends ChangeNotifier {
         trimmedRemoteUrl.isEmpty ||
         trimmedCoverUrl.isEmpty) {
       AppToast.show('视频发送失败');
-      return;
+      return false;
     }
 
-    final sent = await ImSender.instance.send(
+    final sent = await ImSender.instance.sendAndWait(
       message: VideoMessage(
         conversationType: session.conversationType,
         targetId: session.targetId,
@@ -1219,11 +1234,15 @@ class ChatDetailController extends ChangeNotifier {
         remoteUrl: trimmedRemoteUrl,
         coverUrl: trimmedCoverUrl,
       ),
+      onProgress: onProgress,
+      pushSavedMessage: false,
     );
 
     if (!sent) {
       AppToast.show('视频发送失败');
     }
+
+    return sent;
   }
 
   Future<void> sendFile(String path, int size, String name) async {
@@ -1395,57 +1414,295 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> _handleVideo(File file, AssetEntity entity) async {
-    final compressed = await MediaHandleUtil.compressedVideoQuality(file);
+    final pendingId = 'pending-video-${DateTime.now().microsecondsSinceEpoch}';
+    var thumbnailBase64String = await _thumbnailBase64FromEntity(entity);
+    var pendingPath = file.path;
+    var pendingDuration = formatDurationFromSeconds(entity.duration);
 
-    final videoPath = compressed?.video?.path;
-    final coverPath = compressed?.thumbnail?.path;
+    final initialMessage = _pendingVideoMessage(
+      messageId: pendingId,
+      thumbnailBase64String: thumbnailBase64String,
+      path: pendingPath,
+      duration: pendingDuration,
+      status: MediaSendStatus.sending,
+      progress: 0,
+    );
+    _pendingVideoMessageNotifiers[pendingId] = ValueNotifier(initialMessage);
 
-    if (compressed?.video == null ||
-        videoPath == null ||
-        videoPath.trim().isEmpty ||
-        coverPath == null ||
-        coverPath.trim().isEmpty ||
-        !File(videoPath).existsSync() ||
-        !File(coverPath).existsSync()) {
+    engine.append(initialMessage);
+    unawaited(engine.scrollToBottom());
+
+    Subscription? compressSub;
+
+    try {
+      compressSub = VideoCompress.compressProgress$.subscribe((progress) {
+        _updatePendingVideoMessage(
+          messageId: pendingId,
+          thumbnailBase64String: thumbnailBase64String,
+          path: pendingPath,
+          duration: pendingDuration,
+          status: MediaSendStatus.sending,
+          progress: mapVideoCompressionProgress(progress),
+        );
+      });
+
+      final compressed = await MediaHandleUtil.compressedVideoQuality(file);
+
+      compressSub.unsubscribe();
+      compressSub = null;
+
+      final videoPath = compressed?.video?.path;
+      final coverPath = compressed?.thumbnail?.path;
+
+      if (compressed == null ||
+          compressed.video == null ||
+          videoPath == null ||
+          videoPath.trim().isEmpty ||
+          coverPath == null ||
+          coverPath.trim().isEmpty ||
+          !File(videoPath).existsSync() ||
+          !File(coverPath).existsSync()) {
+        _markPendingVideoFailed(
+          messageId: pendingId,
+          thumbnailBase64String: thumbnailBase64String,
+          path: pendingPath,
+          duration: pendingDuration,
+        );
+        AppToast.show('视频发送失败');
+        return;
+      }
+
+      pendingPath = videoPath;
+      pendingDuration = formatDurationFromMs(
+        (compressed.video!.duration ?? 0).toInt(),
+      );
+      final coverBytes = await File(coverPath).readAsBytes();
+      if (coverBytes.isNotEmpty) {
+        thumbnailBase64String = base64Encode(coverBytes);
+      }
+
+      _updatePendingVideoMessage(
+        messageId: pendingId,
+        thumbnailBase64String: thumbnailBase64String,
+        path: pendingPath,
+        duration: pendingDuration,
+        status: MediaSendStatus.sending,
+        progress: 40,
+        replaceInEngine: true,
+      );
+
+      var videoSent = 0;
+      var videoTotal = 0;
+      var coverSent = 0;
+      var coverTotal = 0;
+
+      void updateUploadProgress() {
+        _updatePendingVideoMessage(
+          messageId: pendingId,
+          thumbnailBase64String: thumbnailBase64String,
+          path: pendingPath,
+          duration: pendingDuration,
+          status: MediaSendStatus.sending,
+          progress: mapVideoUploadProgress(
+            videoSent: videoSent,
+            videoTotal: videoTotal,
+            coverSent: coverSent,
+            coverTotal: coverTotal,
+          ),
+        );
+      }
+
+      final uploadResults = await Future.wait<String?>([
+        UploadFileApi.uploadFileByPath(
+          videoPath,
+          onSendProgress: (sent, total) {
+            videoSent = sent;
+            videoTotal = total;
+            updateUploadProgress();
+          },
+        ),
+        UploadFileApi.uploadFileByPath(
+          coverPath,
+          onSendProgress: (sent, total) {
+            coverSent = sent;
+            coverTotal = total;
+            updateUploadProgress();
+          },
+        ),
+      ]);
+
+      final remoteUrl = uploadResults[0];
+      final coverUrl = uploadResults[1];
+
+      if (remoteUrl == null ||
+          remoteUrl.trim().isEmpty ||
+          coverUrl == null ||
+          coverUrl.trim().isEmpty) {
+        _markPendingVideoFailed(
+          messageId: pendingId,
+          thumbnailBase64String: thumbnailBase64String,
+          path: pendingPath,
+          duration: pendingDuration,
+        );
+        AppToast.show('视频上传失败');
+        return;
+      }
+
+      _registerPendingVideoRemote(messageId: pendingId, remote: remoteUrl);
+
+      _updatePendingVideoMessage(
+        messageId: pendingId,
+        thumbnailBase64String: thumbnailBase64String,
+        path: pendingPath,
+        remote: remoteUrl,
+        duration: pendingDuration,
+        status: MediaSendStatus.sending,
+        progress: 90,
+        replaceInEngine: true,
+      );
+
+      final sent = await sendVideo(
+        compressed.video!,
+        thumbnailBase64String,
+        remoteUrl: remoteUrl,
+        coverUrl: coverUrl,
+        onProgress: (progress) {
+          _updatePendingVideoMessage(
+            messageId: pendingId,
+            thumbnailBase64String: thumbnailBase64String,
+            path: pendingPath,
+            remote: remoteUrl,
+            duration: pendingDuration,
+            status: MediaSendStatus.sending,
+            progress: mapVideoImSendProgress(progress),
+          );
+        },
+      );
+
+      if (!sent) {
+        _markPendingVideoFailed(
+          messageId: pendingId,
+          thumbnailBase64String: thumbnailBase64String,
+          path: pendingPath,
+          duration: pendingDuration,
+        );
+      }
+    } catch (_) {
+      _markPendingVideoFailed(
+        messageId: pendingId,
+        thumbnailBase64String: thumbnailBase64String,
+        path: pendingPath,
+        duration: pendingDuration,
+      );
       AppToast.show('视频发送失败');
-      return;
+    } finally {
+      compressSub?.unsubscribe();
     }
+  }
 
-    String thumbnailBase64String = '';
-
-    final coverBytes = await File(coverPath).readAsBytes();
-    if (coverBytes.isNotEmpty) {
-      thumbnailBase64String = base64Encode(coverBytes);
-    } else {
+  Future<String> _thumbnailBase64FromEntity(AssetEntity entity) async {
+    try {
       final thumb = await entity.thumbnailDataWithSize(
         const ThumbnailSize(200, 200),
       );
-      if (thumb != null && thumb.isNotEmpty) {
-        thumbnailBase64String = base64Encode(thumb);
+      if (thumb == null || thumb.isEmpty) {
+        return '';
       }
+      return base64Encode(thumb);
+    } catch (_) {
+      return '';
     }
+  }
 
-    final uploadResults = await Future.wait<String?>([
-      UploadFileApi.uploadFileByPath(videoPath),
-      UploadFileApi.uploadFileByPath(coverPath),
-    ]);
+  ChatDetailMessage _pendingVideoMessage({
+    required String messageId,
+    required String thumbnailBase64String,
+    required String path,
+    required String duration,
+    required MediaSendStatus status,
+    required int progress,
+    String? remote,
+  }) {
+    return ChatDetailMessage(
+      messageId: messageId,
+      kind: ChatDetailMessageKind.video,
+      isMe: true,
+      sentTime: DateTime.now().millisecondsSinceEpoch,
+      thumbnailBase64String: thumbnailBase64String,
+      path: path,
+      remote: remote,
+      duration: duration,
+      mediaSendStatus: status,
+      mediaSendProgress: progress.clamp(0, 100).toInt(),
+    );
+  }
 
-    final remoteUrl = uploadResults[0];
-    final coverUrl = uploadResults[1];
-
-    if (remoteUrl == null ||
-        remoteUrl.trim().isEmpty ||
-        coverUrl == null ||
-        coverUrl.trim().isEmpty) {
-      AppToast.show('视频上传失败');
+  void _updatePendingVideoMessage({
+    required String messageId,
+    required String thumbnailBase64String,
+    required String path,
+    required String duration,
+    required MediaSendStatus status,
+    required int progress,
+    String? remote,
+    bool replaceInEngine = false,
+  }) {
+    if (!engine.containsId(messageId)) {
       return;
     }
 
-    await sendVideo(
-      compressed!.video!,
-      thumbnailBase64String,
-      remoteUrl: remoteUrl,
-      coverUrl: coverUrl,
+    final next = _pendingVideoMessage(
+      messageId: messageId,
+      thumbnailBase64String: thumbnailBase64String,
+      path: path,
+      remote: remote,
+      duration: duration,
+      status: status,
+      progress: progress,
+    );
+
+    final notifier = _pendingVideoMessageNotifiers[messageId];
+    if (notifier == null) {
+      _pendingVideoMessageNotifiers[messageId] = ValueNotifier(next);
+    } else if (_shouldPublishPendingVideoMessage(notifier.value, next)) {
+      notifier.value = next;
+    }
+
+    if (replaceInEngine) {
+      engine.replace(next);
+    }
+  }
+
+  bool _shouldPublishPendingVideoMessage(
+    ChatDetailMessage previous,
+    ChatDetailMessage next,
+  ) {
+    return shouldNotifyVideoSendProgress(
+          previousProgress: previous.mediaSendProgress,
+          nextProgress: next.mediaSendProgress,
+          statusChanged: previous.mediaSendStatus != next.mediaSendStatus,
+        ) ||
+        previous.thumbnailBase64String != next.thumbnailBase64String ||
+        previous.path != next.path ||
+        previous.remote != next.remote ||
+        previous.duration != next.duration;
+  }
+
+  void _markPendingVideoFailed({
+    required String messageId,
+    required String thumbnailBase64String,
+    required String path,
+    required String duration,
+  }) {
+    _removePendingVideoRemoteMappings(messageId);
+    _updatePendingVideoMessage(
+      messageId: messageId,
+      thumbnailBase64String: thumbnailBase64String,
+      path: path,
+      duration: duration,
+      status: MediaSendStatus.failed,
+      progress: 0,
+      replaceInEngine: true,
     );
   }
 
@@ -1480,18 +1737,77 @@ class ChatDetailController extends ChangeNotifier {
       return false;
     }
 
-    final hasMatch = messages.any(
+    if (incoming.kind == ChatDetailMessageKind.video) {
+      final pendingId = _pendingVideoMessageIdForRemote(incoming.remote);
+      if (pendingId != null && engine.containsId(pendingId)) {
+        _clearPendingVideoMessageState(pendingId);
+        engine.replaceWhere(
+          (existing) => existing.messageId == pendingId,
+          incoming,
+        );
+        return true;
+      }
+    }
+
+    final match = _firstMessageWhere(
       (existing) => _isSameMediaMessage(existing, incoming),
     );
-    if (!hasMatch) {
+    if (match == null) {
       return false;
     }
+
+    _clearPendingVideoMessageState(match.messageId);
 
     engine.replaceWhere(
       (existing) => _isSameMediaMessage(existing, incoming),
       incoming,
     );
     return true;
+  }
+
+  ChatDetailMessage? _firstMessageWhere(
+    bool Function(ChatDetailMessage message) test,
+  ) {
+    for (final message in messages) {
+      if (test(message)) {
+        return message;
+      }
+    }
+
+    return null;
+  }
+
+  void _registerPendingVideoRemote({
+    required String messageId,
+    required String? remote,
+  }) {
+    final key = normalizeVideoRemoteUrl(remote);
+    if (key == null) {
+      return;
+    }
+
+    _pendingVideoMessageIdsByRemote[key] = messageId;
+  }
+
+  String? _pendingVideoMessageIdForRemote(String? remote) {
+    final key = normalizeVideoRemoteUrl(remote);
+    if (key == null) {
+      return null;
+    }
+
+    return _pendingVideoMessageIdsByRemote[key];
+  }
+
+  void _clearPendingVideoMessageState(String messageId) {
+    final notifier = _pendingVideoMessageNotifiers.remove(messageId);
+    notifier?.dispose();
+    _removePendingVideoRemoteMappings(messageId);
+  }
+
+  void _removePendingVideoRemoteMappings(String messageId) {
+    _pendingVideoMessageIdsByRemote.removeWhere((key, value) {
+      return value == messageId;
+    });
   }
 
   bool _replaceExistingMessage(ChatDetailMessage incoming) {
@@ -1562,6 +1878,33 @@ class ChatDetailController extends ChangeNotifier {
   ) {
     if (existing.kind != incoming.kind) {
       return false;
+    }
+
+    if (existing.mediaSendStatus != MediaSendStatus.sent) {
+      if (isSamePendingVideoRemote(
+        pendingRemote: existing.remote,
+        incomingRemote: incoming.remote,
+      )) {
+        return true;
+      }
+
+      final oldPath = existing.path?.trim();
+      final newPath = incoming.path?.trim();
+      if (oldPath != null &&
+          oldPath.isNotEmpty &&
+          newPath != null &&
+          newPath.isNotEmpty &&
+          oldPath == newPath) {
+        return true;
+      }
+
+      final oldThumbnail = existing.thumbnailBase64String;
+      final newThumbnail = incoming.thumbnailBase64String;
+      return oldThumbnail != null &&
+          oldThumbnail.isNotEmpty &&
+          newThumbnail != null &&
+          newThumbnail.isNotEmpty &&
+          oldThumbnail == newThumbnail;
     }
 
     final oldRaw = existing.extra;

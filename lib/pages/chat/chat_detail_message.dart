@@ -14,6 +14,8 @@ enum ChatDetailMessageKind {
   fm,
 }
 
+enum MediaSendStatus { sent, sending, failed }
+
 class ChatDetailMessage {
   const ChatDetailMessage({
     required this.kind,
@@ -44,6 +46,8 @@ class ChatDetailMessage {
     this.quoteSenderUserId,
     this.quoteMessageType,
     this.combineSummaries,
+    this.mediaSendStatus = MediaSendStatus.sent,
+    this.mediaSendProgress = 100,
   });
   final String messageId;
   final ChatDetailMessageKind kind;
@@ -73,4 +77,6 @@ class ChatDetailMessage {
   final String? quoteSenderUserId;
   final int? quoteMessageType;
   final List<String>? combineSummaries;
+  final MediaSendStatus mediaSendStatus;
+  final int mediaSendProgress;
 }

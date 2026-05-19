@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
+import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/chat/chat_bubble_painters.dart';
 
 class ChatMessageItem extends StatelessWidget {
@@ -11,6 +12,7 @@ class ChatMessageItem extends StatelessWidget {
     this.isUnread = false,
     this.showBubble = true,
     this.isFlashing = false,
+    this.readReceiptText,
   });
 
   final bool isMe;
@@ -18,6 +20,7 @@ class ChatMessageItem extends StatelessWidget {
   final bool isUnread;
   final bool showBubble;
   final bool isFlashing;
+  final String? readReceiptText;
   final GestureLongPressStartCallback onLongPressStart;
 
   @override
@@ -35,30 +38,48 @@ class ChatMessageItem extends StatelessWidget {
           if (!isMe) const _ChatMessageAvatar(),
           if (!isMe) const SizedBox(width: 12),
           Flexible(
-            child: Row(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: isMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: GestureDetector(
-                    onLongPressStart: onLongPressStart,
-                    child: showBubble
-                        ? _FlashingChatBubble(
-                            isMe: isMe,
-                            isFlashing: isFlashing,
-                            child: child,
-                          )
-                        : child,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: GestureDetector(
+                        onLongPressStart: onLongPressStart,
+                        child: showBubble
+                            ? _FlashingChatBubble(
+                                isMe: isMe,
+                                isFlashing: isFlashing,
+                                child: child,
+                              )
+                            : child,
+                      ),
+                    ),
+                    if (isUnread) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (isUnread) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
+                if (isMe && readReceiptText != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    readReceiptText!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.grey400,
+                      fontSize: 12,
                     ),
                   ),
                 ],

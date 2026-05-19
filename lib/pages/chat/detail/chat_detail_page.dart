@@ -689,11 +689,30 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           isUnread: message.isUnread,
           showBubble: message.showBubble,
           isFlashing: _flashMessageId == message.messageId,
+          readReceiptText: _readReceiptText(message),
           onLongPressStart: (d) =>
               _showContextMenu(context, d.globalPosition, message),
           child: _buildMessageContent(message),
         );
     }
+  }
+
+  String? _readReceiptText(ChatDetailMessage message) {
+    if (!message.showReadReceipt || !message.isMe) {
+      return null;
+    }
+
+    final localizations = AppLocalizations.of(context)!;
+    if (controller.args?.conversationType == RCIMIWConversationType.group) {
+      final count = message.groupReadCount;
+      return count > 0
+          ? localizations.chatDetailGroupReadCount(count)
+          : localizations.chatDetailUnread;
+    }
+
+    return message.isRead
+        ? localizations.chatDetailRead
+        : localizations.chatDetailUnread;
   }
 
   Widget _buildCenterTextMessage(ChatDetailMessage message) {

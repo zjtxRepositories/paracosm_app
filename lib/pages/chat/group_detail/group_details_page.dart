@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/models/group_model.dart';
-import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -14,7 +12,6 @@ import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../../core/models/group_member_model.dart';
 import '../../../widgets/chat/select_members_modal.dart';
@@ -26,10 +23,7 @@ import 'group_details_controller.dart';
 class GroupDetailsPage extends StatefulWidget {
   final ChatSessionArgs? args;
 
-  const GroupDetailsPage({
-    super.key,
-    this.args,
-  });
+  const GroupDetailsPage({super.key, this.args});
 
   @override
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
@@ -60,56 +54,31 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> showChooseMembers() async {
     final friends = ImDataCenter().friends;
-    final defaultSelectedUserIds = controller.members.map((item) => item.item.userId ?? '').toList();
+    final defaultSelectedUserIds = controller.members
+        .map((item) => item.item.userId ?? '')
+        .toList();
     final result = await SelectMembersModal.show(
       context,
       friends: friends,
       confirmText: AppLocalizations.of(context)!.commonDone,
       defaultSelectedUserIds: defaultSelectedUserIds,
-      minSelectedCount: 3
+      minSelectedCount: 3,
     );
     if (result == null || result.isEmpty) return;
-    if (controller.args?.isGroup ?? false){
-      controller.inviteUsersToGroup(result);
-      return;
-    }
-    final userIds = [
-      ...result,
-      controller.args!.targetId,
-    ];
-    final groupId = await controller.createGroup(userIds);
-    if (groupId == null) return;
-    final groupInfo = await GroupStateCenter().getGroup(groupId);
-    if (groupInfo == null) return;
-    final group = GroupModel(info: groupInfo);
-    final title = await group.name;
-    context.pushReplacement(
-      '/chat-detail/${Uri.encodeComponent(title)}',
-      extra: ChatSessionArgs(
-        targetId: groupId,
-        conversationType:RCIMIWConversationType.group,
-        name: title,
-        isGroup: true,
-      ),
-    );
-
+    controller.inviteUsersToGroup(result);
   }
 
   Future<void> showRemoveMembers() async {
     List<GroupMemberModel> members = controller.members
         .where(
-          (item) =>
-      (item.item.userId ?? '') != IMEngineManager().currentUserId,
-    ).toList();
+          (item) => (item.item.userId ?? '') != IMEngineManager().currentUserId,
+        )
+        .toList();
 
-    final result = await RemoveMemberModal.show(
-      context,
-      members: members,
-    );
+    final result = await RemoveMemberModal.show(context, members: members);
     if (result == null || result.isEmpty) return;
     controller.kickGroupMembers(result);
   }
-
 
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
@@ -159,8 +128,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               children: [
                 _buildMemberGrid(),
                 controller.isMemberMore ? _buildViewMore() : SizedBox(),
-                controller.isMemberMore ? const SizedBox(height: 12) : SizedBox(),
-                controller.isGroup ? _buildOptionItem(
+                controller.isMemberMore
+                    ? const SizedBox(height: 12)
+                    : SizedBox(),
+                _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingGroupInfo,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -175,46 +146,57 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ],
                   ),
                   onTap: () {
-                    context.push('/group-information',extra: controller.group);
+                    context.push('/group-information', extra: controller.group);
                   },
-                ) : SizedBox(),
-                controller.isGroup ?  _buildOptionItem(
+                ),
+                _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingIntroduction,
-                  subtitle: (controller.group?.info.introduction ?? '').isEmpty ?
-                  AppLocalizations.of(context)!.chatSettingIntroEmpty : controller.group?.info.introduction ?? '',
+                  subtitle: (controller.group?.info.introduction ?? '').isEmpty
+                      ? AppLocalizations.of(context)!.chatSettingIntroEmpty
+                      : controller.group?.info.introduction ?? '',
                   isArrow: controller.isManager,
-                  onTap: controller.isManager ? () async {
-                    final text = await context.push<String>(
-                      '/group-introduction',
-                        extra: {
-                          'title': AppLocalizations.of(context)!.chatSettingIntroduction,
-                          'initial':controller.group?.info.introduction ?? ''
+                  onTap: controller.isManager
+                      ? () async {
+                          final text = await context.push<String>(
+                            '/group-introduction',
+                            extra: {
+                              'title': AppLocalizations.of(
+                                context,
+                              )!.chatSettingIntroduction,
+                              'initial':
+                                  controller.group?.info.introduction ?? '',
+                            },
+                          );
+                          if (text != null && text.isNotEmpty) {
+                            controller.updateGroupInfo(introduction: text);
+                          }
                         }
-                    );
-                    if (text != null && text.isNotEmpty) {
-                      controller.updateGroupInfo(introduction: text);
-                    }
-                  } : null,
-                ) : SizedBox(),
-                controller.isGroup ? _buildOptionItem(
+                      : null,
+                ),
+                _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingNotice,
-                  subtitle: (controller.group?.info.notice ?? '').isEmpty ?
-                  AppLocalizations.of(context)!.chatSettingIntroEmpty : controller.group?.info.notice ?? '',
+                  subtitle: (controller.group?.info.notice ?? '').isEmpty
+                      ? AppLocalizations.of(context)!.chatSettingIntroEmpty
+                      : controller.group?.info.notice ?? '',
                   isFullBorder: true,
                   isArrow: controller.isManager,
-                  onTap: controller.isManager ?  () async {
-                    final text = await context.push<String>(
-                      '/group-introduction',
-                        extra: {
-                          'title': AppLocalizations.of(context)!.chatSettingNotice,
-                          'initial':controller.group?.info.notice ?? ''
+                  onTap: controller.isManager
+                      ? () async {
+                          final text = await context.push<String>(
+                            '/group-introduction',
+                            extra: {
+                              'title': AppLocalizations.of(
+                                context,
+                              )!.chatSettingNotice,
+                              'initial': controller.group?.info.notice ?? '',
+                            },
+                          );
+                          if (text != null && text.isNotEmpty) {
+                            controller.updateGroupInfo(notice: text);
+                          }
                         }
-                    );
-                    if (text != null && text.isNotEmpty) {
-                      controller.updateGroupInfo(notice: text);
-                    }
-                  } : null,
-                ) : SizedBox(),
+                      : null,
+                ),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
@@ -244,29 +226,33 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
                   ),
                 ),
-                controller.isManager ? _buildOptionItem(
-                  AppLocalizations.of(context)!.chatSettingMuteAll,
-                  isFullBorder: true,
-                  trailing: GestureDetector(
-                    onTap: () => controller.toggleMute(),
-                    child: Image.asset(
-                      controller.isMuted
-                          ? 'assets/images/common/switch-active.png'
-                          : 'assets/images/common/switch-default.png',
-                      width: 52,
-                      height: 28,
-                    ),
-                  ),
-                ) : SizedBox(),
+                controller.isManager
+                    ? _buildOptionItem(
+                        AppLocalizations.of(context)!.chatSettingMuteAll,
+                        isFullBorder: true,
+                        trailing: GestureDetector(
+                          onTap: () => controller.toggleMute(),
+                          child: Image.asset(
+                            controller.isMuted
+                                ? 'assets/images/common/switch-active.png'
+                                : 'assets/images/common/switch-default.png',
+                            width: 52,
+                            height: 28,
+                          ),
+                        ),
+                      )
+                    : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                controller.isManager ? _buildOptionItem(
-                  AppLocalizations.of(context)!.chatSettingDisband,
-                  isFullBorder: true,
-                  onTap: () => controller.toggleDisband(context),
-                ) : SizedBox(),
+                controller.isManager
+                    ? _buildOptionItem(
+                        AppLocalizations.of(context)!.chatSettingDisband,
+                        isFullBorder: true,
+                        onTap: () => controller.toggleDisband(context),
+                      )
+                    : SizedBox(),
                 Container(
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
@@ -285,16 +271,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   isFullBorder: true,
                   onTap: () async {
                     final text = await context.push<String>(
-                        '/group-introduction',
-                        extra: {
-                          'title': AppLocalizations.of(context)!.sessionDetailsReport,
-                          'initial':''
-                        }
+                      '/group-introduction',
+                      extra: {
+                        'title': AppLocalizations.of(
+                          context,
+                        )!.sessionDetailsReport,
+                        'initial': '',
+                      },
                     );
                     if (text != null && text.isNotEmpty) {
                       AppToast.show('投诉已提交！');
                     }
-                  }
+                  },
                 ),
                 const SizedBox(height: 40),
               ],
@@ -310,12 +298,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Widget _buildMemberGrid() {
     final visibleMembers = controller.visibleMembers();
 
-    final items = [
-      ...visibleMembers,
-      'add',
-    ];
+    final items = [...visibleMembers, 'add'];
 
-    if (controller.isManager){
+    if (controller.isManager) {
       items.add('remove');
     }
 
@@ -345,13 +330,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
           if (item == 'remove') {
             return GestureDetector(
-              onTap:()=> showRemoveMembers(),
+              onTap: () => showRemoveMembers(),
               child: _buildActionMemberItem(
                 'assets/images/common/remove-member.png',
               ),
             );
           }
-          if (item is GroupMemberModel){
+          if (item is GroupMemberModel) {
             return _buildMemberItem(item);
           }
           return SizedBox();
@@ -452,8 +437,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     Widget? trailing,
     VoidCallback? onTap,
     bool isFullBorder = false,
-        bool isArrow = true,
-      }) {
+    bool isArrow = true,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -499,10 +484,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   trailing ??
                       (isArrow
                           ? Image.asset(
-                        'assets/images/common/next.png',
-                        width: 20,
-                        height: 20,
-                      )
+                              'assets/images/common/next.png',
+                              width: 20,
+                              height: 20,
+                            )
                           : const SizedBox()),
                 ],
               ),
@@ -521,7 +506,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         text: AppLocalizations.of(context)!.commonLeave,
         textColor: Colors.white,
         backgroundColor: const Color(0xFFF04438),
-        onPressed: ()=> controller.toggleLeave(context),
+        onPressed: () => controller.toggleLeave(context),
       ),
     );
   }

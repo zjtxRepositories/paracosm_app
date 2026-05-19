@@ -10,6 +10,7 @@ import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
+import 'package:paracosm/modules/im/manager/im_burn_after_reading_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
@@ -60,6 +61,9 @@ class ChatDetailController extends ChangeNotifier {
 
   final inputController = TextEditingController();
   int _readTimestamp = 0;
+  final Set<String> _requestedGroupReadReceiptMessageUIds = {};
+  final Set<String> _respondedGroupReadReceiptMessageUIds = {};
+
   /// =========================
   /// Scroll Engine（唯一数据源）
   /// =========================
@@ -123,9 +127,7 @@ class ChatDetailController extends ChangeNotifier {
     _loadInitialMessages().then((list) {
       engine.merge(list);
       if (list.isNotEmpty) {
-        _markConversationRead(
-          timestamp: list.last.sentTime,
-        );
+        _markConversationRead(timestamp: list.last.sentTime);
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (hasAnchor) {
@@ -282,7 +284,6 @@ class ChatDetailController extends ChangeNotifier {
       }
 
       final rawMessages = result.data ?? [];
-
 
       final list = await ChatDetailMessageMapper.mapMessages(
         rawMessages.reversed.toList(),
@@ -862,7 +863,8 @@ class ChatDetailController extends ChangeNotifier {
           final msg = await ChatDetailMessageMapper.mapMessage(message);
 
           if (_replaceExistingMediaMessage(msg)) {
-            if (!msg.isMe){
+            unawaited(_requestGroupReadReceiptIfNeeded(message, msg));
+            if (!msg.isMe) {
               _markConversationRead(timestamp: message.sentTime);
             }
             if (engine.isAtBottom) {
@@ -873,8 +875,9 @@ class ChatDetailController extends ChangeNotifier {
 
           /// ⭐ append
           engine.append(msg);
+          unawaited(_requestGroupReadReceiptIfNeeded(message, msg));
 
-          if (!msg.isMe){
+          if (!msg.isMe) {
             _markConversationRead(timestamp: message.sentTime);
           }
 
@@ -888,6 +891,10 @@ class ChatDetailController extends ChangeNotifier {
         /// 删除消息
         /// =========================
         case MessageEventType.delete:
+          if (!_deleteEventCanApplyToCurrentConversation(event)) {
+            return;
+          }
+
           final deleteList = event.messages ?? [];
 
           if (deleteList.isEmpty) {
@@ -912,11 +919,7 @@ class ChatDetailController extends ChangeNotifier {
               return false;
             }
 
-            if (raw.targetId != args!.targetId) {
-              return false;
-            }
-
-            if (raw.conversationType != args!.conversationType) {
+            if (!_messageCanApplyToCurrentConversation(raw, event)) {
               return false;
             }
 
@@ -1002,6 +1005,55 @@ class ChatDetailController extends ChangeNotifier {
           if (!_replaceExistingMessage(msg)) {
             engine.append(msg);
           }
+          unawaited(_requestGroupReadReceiptIfNeeded(message, msg));
+          break;
+
+        case MessageEventType.privateReadReceipt:
+          if (event.targetId != args!.targetId) {
+            return;
+          }
+
+          if (args!.conversationType != RCIMIWConversationType.private) {
+            return;
+          }
+
+          final timestamp = event.timestamp;
+          if (timestamp == null) {
+            return;
+          }
+
+          _handlePrivateReadReceipt(timestamp);
+          break;
+
+        case MessageEventType.groupReadReceiptRequest:
+          if (event.targetId != args!.targetId) {
+            return;
+          }
+
+          if (args!.conversationType != RCIMIWConversationType.group) {
+            return;
+          }
+
+          unawaited(
+            _sendVisibleGroupReadReceiptResponses(messageUId: event.messageUId),
+          );
+          break;
+
+        case MessageEventType.groupReadReceiptResponse:
+          if (event.targetId != args!.targetId) {
+            return;
+          }
+
+          if (args!.conversationType != RCIMIWConversationType.group) {
+            return;
+          }
+
+          final messageUId = event.messageUId;
+          if (messageUId == null || messageUId.isEmpty) {
+            return;
+          }
+
+          _handleGroupReadReceiptResponse(messageUId, event.respondUserIds);
           break;
       }
     });
@@ -1101,6 +1153,211 @@ class ChatDetailController extends ChangeNotifier {
         message.messageType == RCIMIWMessageType.recall;
   }
 
+  bool _deleteEventCanApplyToCurrentConversation(MessageEvent event) {
+    final session = args;
+    if (session == null) {
+      return false;
+    }
+
+    final eventType = event.conversationType;
+    if (eventType != null && eventType != session.conversationType) {
+      return false;
+    }
+
+    final eventTargetId = event.targetId;
+    if (eventTargetId != null &&
+        eventTargetId.isNotEmpty &&
+        eventTargetId != session.targetId) {
+      return false;
+    }
+
+    final eventChannelId = event.channelId;
+    final sessionChannelId = session.channelId;
+    if (eventChannelId != null &&
+        eventChannelId.isNotEmpty &&
+        sessionChannelId != null &&
+        sessionChannelId.isNotEmpty &&
+        eventChannelId != sessionChannelId) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _messageCanApplyToCurrentConversation(
+    RCIMIWMessage message,
+    MessageEvent event,
+  ) {
+    final session = args;
+    if (session == null) {
+      return false;
+    }
+
+    final messageType = message.conversationType;
+    if (messageType != null && messageType != session.conversationType) {
+      return false;
+    }
+
+    final messageTargetId = message.targetId;
+    if (messageTargetId != null &&
+        messageTargetId.isNotEmpty &&
+        messageTargetId != session.targetId) {
+      return false;
+    }
+
+    final messageChannelId = message.channelId;
+    final sessionChannelId = session.channelId;
+    if (messageChannelId != null &&
+        messageChannelId.isNotEmpty &&
+        sessionChannelId != null &&
+        sessionChannelId.isNotEmpty &&
+        messageChannelId != sessionChannelId) {
+      return false;
+    }
+
+    return _deleteEventCanApplyToCurrentConversation(event);
+  }
+
+  Future<void> _requestGroupReadReceiptIfNeeded(
+    RCIMIWMessage raw,
+    ChatDetailMessage message,
+  ) async {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.group ||
+        !message.isMe ||
+        !message.showReadReceipt ||
+        !ChatDetailMessageMapper.supportsReadReceiptKind(message.kind)) {
+      return;
+    }
+
+    if (!_isMessageInCurrentConversation(raw)) {
+      return;
+    }
+
+    final messageUId = raw.messageUId;
+    if (messageUId == null || messageUId.isEmpty) {
+      return;
+    }
+
+    if (_requestedGroupReadReceiptMessageUIds.contains(messageUId)) {
+      return;
+    }
+
+    _requestedGroupReadReceiptMessageUIds.add(messageUId);
+    final success = await _messageManager.sendGroupReadReceiptRequest(
+      message: raw,
+    );
+    if (!success) {
+      _requestedGroupReadReceiptMessageUIds.remove(messageUId);
+    }
+  }
+
+  void _handlePrivateReadReceipt(int timestamp) {
+    engine.updateWhere(
+      (message) {
+        final raw = message.extra;
+        final sentTime = message.sentTime;
+        return message.isMe &&
+            message.showReadReceipt &&
+            ChatDetailMessageMapper.supportsReadReceiptKind(message.kind) &&
+            raw is RCIMIWMessage &&
+            raw.conversationType == RCIMIWConversationType.private &&
+            sentTime != null &&
+            sentTime <= timestamp;
+      },
+      (message) {
+        final raw = message.extra;
+        if (raw is RCIMIWMessage) {
+          raw.sentStatus = RCIMIWSentStatus.read;
+        }
+        return message.copyWith(isRead: true, extra: raw);
+      },
+    );
+  }
+
+  void _handleGroupReadReceiptResponse(String messageUId, Map? respondUserIds) {
+    final readCount = respondUserIds?.length ?? 0;
+
+    engine.updateWhere(
+      (message) {
+        final raw = message.extra;
+        return message.isMe &&
+            message.showReadReceipt &&
+            raw is RCIMIWMessage &&
+            raw.messageUId == messageUId;
+      },
+      (message) =>
+          message.copyWith(isRead: readCount > 0, groupReadCount: readCount),
+    );
+  }
+
+  Future<void> _sendVisibleGroupReadReceiptResponses({
+    String? messageUId,
+  }) async {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.group) {
+      return;
+    }
+
+    final messages = <RCIMIWMessage>[];
+    final respondingUIds = <String>[];
+
+    for (final item in engine.list) {
+      if (item.isMe ||
+          !ChatDetailMessageMapper.supportsReadReceiptKind(item.kind)) {
+        continue;
+      }
+
+      final raw = item.extra;
+      if (raw is! RCIMIWMessage || !_isMessageInCurrentConversation(raw)) {
+        continue;
+      }
+
+      final rawMessageUId = raw.messageUId;
+      if (rawMessageUId == null || rawMessageUId.isEmpty) {
+        continue;
+      }
+
+      if (messageUId != null && rawMessageUId != messageUId) {
+        continue;
+      }
+
+      if (_respondedGroupReadReceiptMessageUIds.contains(rawMessageUId)) {
+        continue;
+      }
+
+      final receiptInfo = raw.groupReadReceiptInfo;
+      if (receiptInfo?.hasRespond == true) {
+        _respondedGroupReadReceiptMessageUIds.add(rawMessageUId);
+        continue;
+      }
+
+      if (messageUId == null && receiptInfo?.readReceiptMessage != true) {
+        continue;
+      }
+
+      messages.add(raw);
+      respondingUIds.add(rawMessageUId);
+    }
+
+    if (messages.isEmpty) {
+      return;
+    }
+
+    _respondedGroupReadReceiptMessageUIds.addAll(respondingUIds);
+    final success = await _messageManager.sendGroupReadReceiptResponse(
+      targetId: session.targetId,
+      channelId: session.channelId,
+      messages: messages,
+    );
+
+    if (!success) {
+      _respondedGroupReadReceiptMessageUIds.removeAll(respondingUIds);
+    }
+  }
+
   Future<void> _markConversationRead({int? timestamp}) async {
     if (args == null) {
       return;
@@ -1111,21 +1368,34 @@ class ChatDetailController extends ChangeNotifier {
     if (_readTimestamp >= timestamp) return;
     _readTimestamp = timestamp;
 
-    print('_markConversationRead---$timestamp');
-    await _conversationManager.markConversationRead(
+    if (kDebugMode) {
+      debugPrint('_markConversationRead---$timestamp');
+    }
+    final success = await _conversationManager.markConversationRead(
       type: args!.conversationType,
       targetId: args!.targetId,
       channelId: args!.channelId,
       timestamp: timestamp,
     );
-    // _messageManager.sendReadReceiptMessage(
-    //     type: args!.conversationType,
-    //     targetId: targetId,
-    //     timestamp: timestamp,
-    // );
+    if (!success) {
+      return;
+    }
 
+    if (args!.conversationType == RCIMIWConversationType.private) {
+      unawaited(
+        _messageManager.sendPrivateReadReceiptMessage(
+          targetId: args!.targetId,
+          channelId: args!.channelId,
+          timestamp: timestamp,
+        ),
+      );
+      return;
+    }
+
+    if (args!.conversationType == RCIMIWConversationType.group) {
+      unawaited(_sendVisibleGroupReadReceiptResponses());
+    }
   }
-
 
   /// =========================
   /// 语音监听
@@ -1167,6 +1437,20 @@ class ChatDetailController extends ChangeNotifier {
   /// =========================
   /// 发送消息
   /// =========================
+  Future<int> _burnAfterReadingSecondsForCurrentSession() async {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.private) {
+      return 0;
+    }
+
+    return ImBurnAfterReadingManager().getDurationSeconds(
+      type: session.conversationType,
+      targetId: session.targetId,
+      channelId: session.channelId,
+    );
+  }
+
   Future<void> sendText() async {
     final text = inputController.text.trim();
 
@@ -1175,11 +1459,14 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     final quote = quotedMessage;
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
     final message = quote == null
         ? TextMessage(
             conversationType: args!.conversationType,
             targetId: args!.targetId,
+            channelId: args!.channelId,
             content: text,
+            destructDuration: burnSeconds,
           )
         : ReferenceMessage(
             conversationType: args!.conversationType,
@@ -1187,6 +1474,7 @@ class ChatDetailController extends ChangeNotifier {
             channelId: args!.channelId,
             referenceMessage: quote,
             content: text,
+            destructDuration: burnSeconds,
           );
 
     await ImSender.instance.send(message: message);
@@ -1206,12 +1494,14 @@ class ChatDetailController extends ChangeNotifier {
       return;
     }
 
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
     final sent = await ImSender.instance.send(
       message: ImageMessage(
         conversationType: session.conversationType,
         targetId: session.targetId,
         channelId: session.channelId,
         path: imagePath,
+        destructDuration: burnSeconds,
       ),
     );
 
@@ -1242,6 +1532,7 @@ class ChatDetailController extends ChangeNotifier {
       return false;
     }
 
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
     final sent = await ImSender.instance.sendAndWait(
       message: VideoMessage(
         conversationType: session.conversationType,
@@ -1252,6 +1543,7 @@ class ChatDetailController extends ChangeNotifier {
         thumbnailBase64String: thumbnailBase64String,
         remoteUrl: trimmedRemoteUrl,
         coverUrl: trimmedCoverUrl,
+        destructDuration: burnSeconds,
       ),
       onProgress: onProgress,
       pushSavedMessage: false,
@@ -1265,24 +1557,36 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> sendFile(String path, int size, String name) async {
+    final session = args;
+    if (session == null) return;
+
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
     await ImSender.instance.send(
       message: FileMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
         path: path,
         size: size,
         name: name,
+        destructDuration: burnSeconds,
       ),
     );
   }
 
   Future<void> sendVoice(String path, int duration) async {
+    final session = args;
+    if (session == null) return;
+
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
     await ImSender.instance.send(
       message: VoiceMessage(
-        conversationType: args!.conversationType,
-        targetId: args!.targetId,
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
         path: path,
         duration: duration,
+        destructDuration: burnSeconds,
       ),
     );
   }

@@ -41,4 +41,29 @@ class GetUerInfoApi {
     )
         .toList();
   }
+
+  static Future<UserInfo?> search(String account) async {
+    String? token = AccountManager().currentAccount?.token;
+
+    final res = await HttpClient().get<UserInfo?>(
+      ApiPaths.searchUser,
+      params: {
+        'access_token': token,
+        'nickname': account,
+      },
+      fromJson: (json) {
+        final list = (json as List)
+            .map<UserInfo>(
+              (e) => UserInfo.fromJson(e),
+        )
+            .toList();
+
+        return list.isNotEmpty ? list.first : null;
+      },
+    );
+
+    print('res----${res?.userId}');
+
+    return res;
+  }
 }

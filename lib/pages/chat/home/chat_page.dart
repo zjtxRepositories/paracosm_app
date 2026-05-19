@@ -93,6 +93,7 @@ class _ChatPageState extends State<ChatPage> {
                         // onTap: () => _navigateToDetail(item['title']),
                       );
                     } else {
+                      print('item.info---${item.info.operationTime}-${item.info.targetId}');
                       return ListenableBuilder(
                         listenable: item,
                         builder: (context, child) {
@@ -447,7 +448,7 @@ class _ChatPageState extends State<ChatPage> {
         context,
       )!.chatFilterClubCount(controller.tabCache?[3]?.length ?? 0),
 
-      AppLocalizations.of(context)!.chatFilterDaoCount(0),
+      AppLocalizations.of(context)!.chatFilterDaoCount(controller.tabCache?[4]?.length ?? 0),
     ];
     return Container(
       height: 42,

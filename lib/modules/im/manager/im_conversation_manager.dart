@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
+import 'package:k_chart_plus/k_chart_plus.dart';
+import 'package:paracosm/core/models/group_model.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'im_engine_manager.dart';
@@ -33,7 +36,7 @@ class ConversationChangeEvent {
 
 class ImConversationManager {
   /// =========================
-  /// 单例
+  /// singleton
   /// =========================
   static final ImConversationManager _instance =
   ImConversationManager._internal();
@@ -43,7 +46,7 @@ class ImConversationManager {
   ImConversationManager._internal();
 
   /// =========================
-  /// 全量 tab stream
+  /// stream
   /// =========================
   final _controller =
   StreamController<Map<int, List<RCIMIWConversation>>>.broadcast();
@@ -51,29 +54,30 @@ class ImConversationManager {
   Stream<Map<int, List<RCIMIWConversation>>> get stream =>
       _controller.stream;
 
-  /// =========================
-  /// 变化 stream
-  /// =========================
   final _changeController =
   StreamController<ConversationChangeEvent>.broadcast();
 
   Stream<ConversationChangeEvent> get changeStream =>
       _changeController.stream;
 
+  /// =========================
+  /// debounce
+  /// =========================
   Timer? _debounce;
 
   /// =========================
   /// cache
   /// =========================
   final Map<String, RCIMIWConversation> _allMap = {};
+
+  /// tab -> conversation keys
   final Map<int, List<String>> _tabIds = {};
+
+  /// tab -> conversation list
   final Map<int, List<RCIMIWConversation>> _tabCache = {};
 
-  final Map<String, ValueNotifier<RCIMIWConversation>>
-  _conversationNotifiers = {};
-
   /// =========================
-  /// tab types
+  /// tabs
   /// =========================
   final List<List<RCIMIWConversationType>> tabTypes = [
     [
@@ -81,13 +85,31 @@ class ImConversationManager {
       RCIMIWConversationType.group,
       RCIMIWConversationType.system,
     ],
-    [RCIMIWConversationType.private],
-    [RCIMIWConversationType.group],
-    [RCIMIWConversationType.system],
+
+    /// private
+    [
+      RCIMIWConversationType.private,
+    ],
+
+    /// all group
+    [
+      RCIMIWConversationType.group,
+    ],
+
+    /// club
+    [
+      RCIMIWConversationType.group,
+    ],
+
+    /// dao
+    [
+      RCIMIWConversationType.group,
+    ],
   ];
 
   bool _inited = false;
   bool _loading = false;
+  bool _disposed = false;
 
   StreamSubscription<MessageEvent>? _messageSubscription;
   StreamSubscription<GroupEvent>? _groupEventSubscription;
@@ -95,8 +117,100 @@ class ImConversationManager {
   /// =========================
   /// key
   /// =========================
-  String _buildKey(RCIMIWConversationType type, String targetId) {
-    return '${type.index}_$targetId';
+  String _buildKey(
+      RCIMIWConversationType type,
+      String targetId,
+      ) {
+    switch (type) {
+      case RCIMIWConversationType.group:
+        return 'group:${_groupBizType(targetId)}:$targetId';
+
+      case RCIMIWConversationType.private:
+        return 'private:$targetId';
+
+      case RCIMIWConversationType.system:
+        return 'system:$targetId';
+
+      default:
+        return '${type.index}:$targetId';
+    }
+  }
+
+  String _groupBizType(String targetId) {
+    final club = 'group_${GroupType.club.name}';
+    final dao = 'group_${GroupType.dao.name}';
+    if (targetId.startsWith(club)) {
+      return 'club';
+    }
+
+    if (targetId.startsWith(dao)) {
+      return 'dao';
+    }
+
+    return 'normal';
+  }
+  /// =========================
+  /// group tab match
+  /// =========================
+  bool _matchTab(
+      int tabIndex,
+      RCIMIWConversationType type,
+      String targetId,
+      ) {
+    /// 不属于当前 tab 的 sdk type
+    if (!tabTypes[tabIndex].contains(type)) {
+      return false;
+    }
+    /// 非 group
+    if (type != RCIMIWConversationType.group) {
+      return true;
+    }
+
+    final clubPrefix = 'group_${GroupType.club.name}';
+    final daoPrefix = 'group_${GroupType.dao.name}';
+
+    final isClub = targetId.startsWith(clubPrefix);
+    final isDao = targetId.startsWith(daoPrefix);
+
+    switch (tabIndex) {
+    /// 全部
+      case 0:
+        return true;
+
+    /// 普通群
+      case 2:
+        return !isClub && !isDao;
+
+    /// club
+      case 3:
+        return isClub;
+
+    /// dao
+      case 4:
+        return isDao;
+
+      default:
+        return true;
+    }
+  }
+
+  /// =========================
+  /// clone
+  /// =========================
+  RCIMIWConversation _cloneConversation(
+      RCIMIWConversation source,
+      ) {
+    final c = RCIMIWConversation.create();
+    c.conversationType = source.conversationType;
+    c.targetId = source.targetId;
+    c.channelId = source.channelId;
+    c.firstUnreadMsgSendTime = source.firstUnreadMsgSendTime;
+    c.unreadCount = source.unreadCount;
+    c.lastMessage = source.lastMessage;
+    c.top = source.top;
+    c.operationTime = source.operationTime;
+    c.notificationLevel = source.notificationLevel;
+    return c;
   }
 
   /// =========================
@@ -107,7 +221,7 @@ class ImConversationManager {
       String key, {
         RCIMIWConversation? conversation,
       }) {
-    if (_changeController.isClosed) return;
+    if (_disposed || _changeController.isClosed) return;
 
     _changeController.add(
       ConversationChangeEvent(
@@ -123,13 +237,13 @@ class ImConversationManager {
   /// =========================
   void initListener() {
     if (_inited) return;
+
     _inited = true;
 
     final engine = IMEngineManager().engine;
 
     _messageSubscription ??=
         ImMessageManager().messageStream.listen(_onMessageEvent);
-
 
     engine?.onConversationReadStatusSyncMessageReceived =
         (type, targetId, timestamp) {
@@ -140,8 +254,6 @@ class ImConversationManager {
         (type, targetId, channelId, top) {
       _onTopSync(type, targetId, top);
     };
-
-    getRemoteConversationList();
   }
 
   Future<void> getRemoteConversationList() async {
@@ -149,10 +261,11 @@ class ImConversationManager {
   }
 
   /// =========================
-  /// 初始化 tab
+  /// init tabs
   /// =========================
   Future<void> _initAllTabs() async {
     if (_loading) return;
+
     _loading = true;
 
     try {
@@ -168,7 +281,10 @@ class ImConversationManager {
 
       await Future.wait(futures);
 
+      _sortAllTabs();
+
       _rebuildAllTabCache();
+
       _notify();
     } finally {
       _loading = false;
@@ -180,21 +296,32 @@ class ImConversationManager {
 
     final callback = IRCIMIWGetConversationsCallback(
       onSuccess: (list) {
+        print('_loadTab----${list?.length}');
         final ids = <String>[];
 
         for (final conv in list ?? []) {
           final type = conv.conversationType;
           final targetId = conv.targetId;
 
-          if (type == null || targetId == null) continue;
+          if (type == null || targetId == null) {
+            continue;
+          }
+
+          if (!_matchTab(tabIndex, type, targetId)) {
+            continue;
+          }
 
           final key = _buildKey(type, targetId);
 
-          _allMap[key] = conv;
-          ids.add(key);
+          _allMap[key] = _cloneConversation(conv);
+
+          if (!ids.contains(key)) {
+            ids.add(key);
+          }
         }
 
         _tabIds[tabIndex] = ids;
+
         completer.complete();
       },
       onError: (code) {
@@ -218,10 +345,15 @@ class ImConversationManager {
   /// =========================
   void _onMessageEvent(MessageEvent event) async {
     final targetId = event.targetId ?? event.message?.targetId;
-    final type = event.conversationType ?? event.message?.conversationType;
+
+    final type =
+        event.conversationType ?? event.message?.conversationType;
+
     final msg = event.message;
 
-    if (targetId == null || type == null || msg == null) return;
+    if (targetId == null || type == null || msg == null) {
+      return;
+    }
 
     final key = _buildKey(type, targetId);
 
@@ -233,16 +365,25 @@ class ImConversationManager {
     if (old != null) {
       final oldMsgId = old.lastMessage?.messageId;
 
-      if (oldMsgId == msg.messageId) return;
+      if (oldMsgId == msg.messageId) {
+        return;
+      }
 
-      old.lastMessage = msg;
+      final oldTime = old.lastMessage?.sentTime ?? 0;
+      final newTime = msg.sentTime ?? 0;
+
+      if (newTime >= oldTime) {
+        old.lastMessage = msg;
+      }
 
       if (msg.senderUserId != IMEngineManager().currentUserId) {
         old.unreadCount = (old.unreadCount ?? 0) + 1;
       }
-      old.operationTime = msg.sentTime ?? old.operationTime;
+
+      old.operationTime = newTime;
 
       _sortAllTabs();
+
       _rebuildAllTabCache();
 
       _emitChange(
@@ -250,7 +391,9 @@ class ImConversationManager {
         key,
         conversation: old,
       );
+
       _notify();
+
       return;
     }
 
@@ -262,18 +405,31 @@ class ImConversationManager {
       targetId: targetId,
     );
 
-    if (conv == null) return;
+    if (conv == null) {
+      return;
+    }
 
-    _allMap[key] = conv;
+    _allMap[key] = _cloneConversation(conv);
 
     for (int i = 0; i < tabTypes.length; i++) {
-      if (!tabTypes[i].contains(type)) continue;
+      if (!_matchTab(i, type, targetId)) {
+        continue;
+      }
 
       _tabIds.putIfAbsent(i, () => []);
-      _tabIds[i]!.insert(0, key);
+
+      final ids = _tabIds[i]!;
+
+      ids.remove(key);
+
+      ids.insert(0, key);
+
+      print('ids----${key}');
+
     }
 
     _sortAllTabs();
+
     _rebuildAllTabCache();
 
     _emitChange(
@@ -281,11 +437,18 @@ class ImConversationManager {
       key,
       conversation: conv,
     );
+    print('insert----${targetId}---$key');
 
     _notify();
   }
 
-  Future<void> removeConversationByTargetId(String targetId,RCIMIWConversationType type) async {
+  /// =========================
+  /// remove
+  /// =========================
+  Future<void> removeConversationByTargetId(
+      String targetId,
+      RCIMIWConversationType type,
+      ) async {
     final key = _buildKey(type, targetId);
 
     try {
@@ -301,8 +464,6 @@ class ImConversationManager {
 
   void _removeLocalConversation(String key) {
     final conv = _allMap.remove(key);
-
-    _conversationNotifiers.remove(key)?.dispose();
 
     for (final ids in _tabIds.values) {
       ids.remove(key);
@@ -322,13 +483,21 @@ class ImConversationManager {
   /// =========================
   /// read sync
   /// =========================
-  void _onReadSync(RCIMIWConversationType? type, String? targetId) {
-    if (type == null || targetId == null) return;
+  void _onReadSync(
+      RCIMIWConversationType? type,
+      String? targetId,
+      ) {
+    if (type == null || targetId == null) {
+      return;
+    }
 
     final key = _buildKey(type, targetId);
+
     final conv = _allMap[key];
 
-    if (conv == null) return;
+    if (conv == null) {
+      return;
+    }
 
     conv.unreadCount = 0;
 
@@ -337,6 +506,8 @@ class ImConversationManager {
       key,
       conversation: conv,
     );
+
+    _notify();
   }
 
   /// =========================
@@ -345,19 +516,28 @@ class ImConversationManager {
   void _onTopSync(
       RCIMIWConversationType? type,
       String? targetId,
-      bool? top,
-  {int? operationTime}
-      ) {
-    if (type == null || targetId == null) return;
+      bool? top, {
+        int? operationTime,
+      }) {
+    if (type == null || targetId == null) {
+      return;
+    }
 
     final key = _buildKey(type, targetId);
+
     final conv = _allMap[key];
 
-    if (conv == null) return;
+    if (conv == null) {
+      return;
+    }
 
     conv.top = top;
-    conv.operationTime = operationTime ?? conv.operationTime;
+
+    conv.operationTime =
+        operationTime ?? conv.operationTime;
+
     _sortAllTabs();
+
     _rebuildAllTabCache();
 
     _emitChange(
@@ -381,55 +561,99 @@ class ImConversationManager {
         final aTop = A?.top ?? false;
         final bTop = B?.top ?? false;
 
-        if (aTop != bTop) return bTop ? 1 : -1;
+        if (aTop && !bTop) {
+          return -1;
+        }
 
-        final at = A?.operationTime ?? A?.lastMessage?.sentTime ?? 0;
-        final bt = B?.operationTime ?? B?.lastMessage?.sentTime ?? 0;
+        if (!aTop && bTop) {
+          return 1;
+        }
+
+        final at = max(
+          A?.operationTime ?? 0,
+          A?.lastMessage?.sentTime ?? 0,
+        );
+
+        final bt = max(
+          B?.operationTime ?? 0,
+          B?.lastMessage?.sentTime ?? 0,
+        );
 
         return bt.compareTo(at);
       });
     }
   }
 
+  /// =========================
+  /// rebuild cache
+  /// =========================
   void _rebuildAllTabCache() {
     _tabCache.clear();
 
-    _tabIds.forEach((k, v) {
-      _tabCache[k] =
-          v.where((e) => _allMap[e] != null).map((e) => _allMap[e]!).toList();
+    _tabIds.forEach((tab, ids) {
+      _tabCache[tab] = ids
+          .where((e) => _allMap[e] != null)
+          .map((e) => _allMap[e]!)
+          .toList();
     });
   }
 
+  /// =========================
+  /// get list
+  /// =========================
   List<RCIMIWConversation> getTabList(int tabIndex) {
     return _tabCache[tabIndex] ?? [];
   }
 
+  /// =========================
+  /// notify
+  /// =========================
   void _notify() {
     _debounce?.cancel();
 
-    _debounce = Timer(const Duration(milliseconds: 100), () {
-      if (_controller.isClosed) return;
+    _debounce = Timer(
+      const Duration(milliseconds: 100),
+          () {
+        if (_disposed || _controller.isClosed) {
+          return;
+        }
 
-      _controller.add(Map.from(_tabCache));
-    });
+        _controller.add({
+          for (final e in _tabCache.entries)
+            e.key: List.of(e.value),
+        });
+      },
+    );
   }
 
-  void dispose() {
-    _messageSubscription?.cancel();
-    _groupEventSubscription?.cancel();
+  /// =========================
+  /// dispose
+  /// =========================
+  Future<void> dispose() async {
+    _disposed = true;
+
+    await _messageSubscription?.cancel();
+
+    await _groupEventSubscription?.cancel();
+
     _debounce?.cancel();
 
-    for (final n in _conversationNotifiers.values) {
-      n.dispose();
+    _allMap.clear();
+    _tabIds.clear();
+    _tabCache.clear();
+
+    if (!_controller.isClosed) {
+      await _controller.close();
     }
 
-    _conversationNotifiers.clear();
+    if (!_changeController.isClosed) {
+      await _changeController.close();
+    }
   }
 
   /// =========================
-  /// ⭐ 业务 API（完整恢复）
+  /// api
   /// =========================
-
   Future<RCIMIWConversation?> getConversation({
     required RCIMIWConversationType type,
     required String targetId,
@@ -442,8 +666,12 @@ class ImConversationManager {
       targetId,
       channelId,
       callback: IRCIMIWGetConversationCallback(
-        onSuccess: (c) => completer.complete(c),
-        onError: (_) => completer.complete(null),
+        onSuccess: (c) {
+          completer.complete(c);
+        },
+        onError: (_) {
+          completer.complete(null);
+        },
       ),
     );
 
@@ -465,7 +693,9 @@ class ImConversationManager {
         onConversationRemoved: (code) {
           if (code == 0) {
             final key = _buildKey(type, targetId);
+
             _removeLocalConversation(key);
+
             completer.complete();
           } else {
             completer.completeError(code ?? -1);
@@ -484,7 +714,10 @@ class ImConversationManager {
     required bool top,
   }) async {
     final engine = IMEngineManager().engine;
-    if (engine == null) return false;
+
+    if (engine == null) {
+      return false;
+    }
 
     final completer = Completer<bool>();
 
@@ -496,7 +729,12 @@ class ImConversationManager {
       callback: IRCIMIWChangeConversationTopStatusCallback(
         onConversationTopStatusChanged: (code) {
           completer.complete(code == 0);
-          _onTopSync(type, targetId, top, operationTime: DateTime.now().millisecondsSinceEpoch);
+          _onTopSync(
+            type,
+            targetId,
+            top,
+            operationTime: DateTime.now().millisecondsSinceEpoch,
+          );
         },
       ),
     );
@@ -515,7 +753,10 @@ class ImConversationManager {
     required int timestamp,
   }) async {
     final engine = IMEngineManager().engine;
-    if (engine == null) return false;
+
+    if (engine == null) {
+      return false;
+    }
 
     final completer = Completer<bool>();
 
@@ -527,6 +768,7 @@ class ImConversationManager {
       callback: IRCIMIWClearUnreadCountCallback(
         onUnreadCountCleared: (code) {
           completer.complete(code == 0);
+
           _onReadSync(type, targetId);
         },
       ),
@@ -541,16 +783,15 @@ class ImConversationManager {
     String? channelId,
     int? timestamp,
   }) async {
-    final t = timestamp ?? DateTime.now().millisecondsSinceEpoch;
+    final t =
+        timestamp ?? DateTime.now().millisecondsSinceEpoch;
 
-    final ok = await clearUnreadCount(
+    return clearUnreadCount(
       type: type,
       targetId: targetId,
       channelId: channelId,
       timestamp: t,
     );
-
-    return ok;
   }
 
   Future<bool> setConversationDoNotDisturb({
@@ -560,7 +801,10 @@ class ImConversationManager {
     required bool enabled,
   }) async {
     final engine = IMEngineManager().engine;
-    if (engine == null) return false;
+
+    if (engine == null) {
+      return false;
+    }
 
     final level = enabled
         ? RCIMIWPushNotificationLevel.blocked
@@ -573,7 +817,8 @@ class ImConversationManager {
       targetId,
       channelId,
       level,
-      callback: IRCIMIWChangeConversationNotificationLevelCallback(
+      callback:
+      IRCIMIWChangeConversationNotificationLevelCallback(
         onConversationNotificationLevelChanged: (code) {
           completer.complete(code == 0);
         },
@@ -583,25 +828,31 @@ class ImConversationManager {
     return completer.future;
   }
 
-  Future<RCIMIWPushNotificationLevel?> getConversationNotificationLevel({
+  Future<RCIMIWPushNotificationLevel?>
+  getConversationNotificationLevel({
     required RCIMIWConversationType type,
     required String targetId,
     String? channelId,
   }) async {
     final engine = IMEngineManager().engine;
-    if (engine == null) return null;
 
-    final completer = Completer<RCIMIWPushNotificationLevel?>();
+    if (engine == null) {
+      return null;
+    }
+
+    final completer =
+    Completer<RCIMIWPushNotificationLevel?>();
 
     final code = await engine.getConversationNotificationLevel(
       type,
       targetId,
       channelId,
-      callback: IRCIMIWGetConversationNotificationLevelCallback(
+      callback:
+      IRCIMIWGetConversationNotificationLevelCallback(
         onSuccess: (level) {
           completer.complete(level);
         },
-        onError: (code) {
+        onError: (_) {
           completer.complete(null);
         },
       ),
@@ -620,7 +871,10 @@ class ImConversationManager {
     String? channelId,
   }) async {
     final engine = IMEngineManager().engine;
-    if (engine == null) return null;
+
+    if (engine == null) {
+      return null;
+    }
 
     final completer = Completer<bool?>();
 
@@ -632,7 +886,7 @@ class ImConversationManager {
         onSuccess: (top) {
           completer.complete(top);
         },
-        onError: (code) {
+        onError: (_) {
           completer.complete(null);
         },
       ),

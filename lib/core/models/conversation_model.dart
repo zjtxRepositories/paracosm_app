@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
@@ -17,8 +19,11 @@ class ConversationModel extends ChangeNotifier {
   String? portraitUri;
 
   ConversationModel({required this.info});
-
-  int get time => info.operationTime ?? info.lastMessage?.sentTime ?? 0;
+  int get time =>  info.lastMessage?.sentTime ?? 0;
+  // int get time => max(
+  //   info.operationTime ?? 0,
+  //   info.lastMessage?.sentTime ?? 0,
+  // );
 
   void updateConversation(RCIMIWConversation value) {
     info = value;

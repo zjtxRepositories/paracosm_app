@@ -192,7 +192,7 @@ class _ChatListItemState extends State<ChatListItem>
             onHorizontalDragEnd: _onHorizontalDragEnd,
             behavior: HitTestBehavior.opaque,
             child: Container(
-              color: Colors.white,
+              color: widget.isPinned ? AppColors.grey100 : Colors.white,
               padding: const EdgeInsets.only(left: 20, top: 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -59,7 +59,7 @@ class ChatDetailController extends ChangeNotifier {
   final Map<String, String> _pendingVideoMessageIdsByRemote = {};
 
   final inputController = TextEditingController();
-
+  int _readTimestamp = 0;
   /// =========================
   /// Scroll Engine（唯一数据源）
   /// =========================
@@ -122,9 +122,11 @@ class ChatDetailController extends ChangeNotifier {
 
     _loadInitialMessages().then((list) {
       engine.merge(list);
-
-      _markConversationRead();
-
+      if (list.isNotEmpty) {
+        _markConversationRead(
+          timestamp: list.last.sentTime,
+        );
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (hasAnchor) {
           return;
@@ -280,6 +282,7 @@ class ChatDetailController extends ChangeNotifier {
       }
 
       final rawMessages = result.data ?? [];
+
 
       final list = await ChatDetailMessageMapper.mapMessages(
         rawMessages.reversed.toList(),
@@ -859,7 +862,9 @@ class ChatDetailController extends ChangeNotifier {
           final msg = await ChatDetailMessageMapper.mapMessage(message);
 
           if (_replaceExistingMediaMessage(msg)) {
-            _markConversationRead(timestamp: message.sentTime);
+            if (!msg.isMe){
+              _markConversationRead(timestamp: message.sentTime);
+            }
             if (engine.isAtBottom) {
               engine.scrollToBottom();
             }
@@ -869,8 +874,9 @@ class ChatDetailController extends ChangeNotifier {
           /// ⭐ append
           engine.append(msg);
 
-          /// 标记已读
-          _markConversationRead(timestamp: message.sentTime);
+          if (!msg.isMe){
+            _markConversationRead(timestamp: message.sentTime);
+          }
 
           if (engine.isAtBottom) {
             engine.scrollToBottom();
@@ -1099,14 +1105,27 @@ class ChatDetailController extends ChangeNotifier {
     if (args == null) {
       return;
     }
+    if (timestamp == null) {
+      return;
+    }
+    if (_readTimestamp >= timestamp) return;
+    _readTimestamp = timestamp;
 
+    print('_markConversationRead---$timestamp');
     await _conversationManager.markConversationRead(
       type: args!.conversationType,
       targetId: args!.targetId,
       channelId: args!.channelId,
       timestamp: timestamp,
     );
+    _messageManager.sendReadReceiptMessage(
+        type: args!.conversationType,
+        targetId: targetId,
+        timestamp: timestamp,
+    );
+
   }
+
 
   /// =========================
   /// 语音监听

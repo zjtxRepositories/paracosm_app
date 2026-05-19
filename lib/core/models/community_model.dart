@@ -8,6 +8,7 @@ import '../../modules/im/manager/im_engine_manager.dart';
 import '../../modules/im/manager/im_user_manager.dart';
 import '../network/api/get_uer_info_api.dart';
 import 'im_user_profile_resolver.dart';
+import 'moment_post_model.dart';
 
 enum RoomType {
   dao,    // 1 DAO
@@ -237,7 +238,7 @@ class CommunityPostModel {
     required this.id,
     required this.nickname,
     required this.roomId,
-    required this.text,
+    this.content,
     required this.time,
     required this.typeNum,
     required this.userId,
@@ -252,7 +253,7 @@ class CommunityPostModel {
   final String roomId;
 
   /// 动态内容
-  final String text;
+  final MomentDynamicModel? content;
 
   /// 秒级时间戳
   final int time;
@@ -272,7 +273,9 @@ class CommunityPostModel {
       id: json['id']?.toString() ?? '',
       nickname: json['nickname']?.toString() ?? '',
       roomId: json['roomId']?.toString() ?? '',
-      text: json['text']?.toString() ?? '',
+      content: json['text'] != null
+          ? MomentDynamicModel.fromJson(jsonDecode(json['text']))
+          : null,
       time: json['time'] is int
           ? json['time']
           : int.tryParse(
@@ -299,7 +302,7 @@ class CommunityPostModel {
       'id': id,
       'nickname': nickname,
       'roomId': roomId,
-      'text': text,
+      'text': content?.toJson(),
       'time': time,
       'typeNum': typeNum,
       'userId': userId,

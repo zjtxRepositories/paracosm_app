@@ -230,8 +230,10 @@ class AppRouter {
       GoRoute(
         path: '/new-post',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) =>
-            NewPostPage(isRetweet: state.uri.queryParameters['retweet'] == '1'),
+        builder: (context, state) {
+          final communityId = state.extra as String?;
+          return  NewPostPage(isRetweet: state.uri.queryParameters['retweet'] == '1',communityId: communityId);
+        },
       ),
       GoRoute(
         path: '/moment-post-detail',

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:uuid/uuid.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:image/image.dart' as img;
 
@@ -11,7 +13,9 @@ import 'package:paracosm/core/models/social_note_publish_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/util/media_handle_util.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/moment_post_model.dart';
 import '../../../core/models/social_media_model.dart';
+import '../../../core/network/api/add_community_dynamics.dart';
 import '../../../modules/account/manager/account_manager.dart';
 
 
@@ -214,6 +218,31 @@ class SocialPostController extends GetxController {
       debugPrint("publish error: $e");
       AppToast.show('发布帖子失败：${e.toString()}');
       return false;
+    } finally {
+      AppLoading.dismiss();
+      isSubmitting = false;
+    }
+  }
+
+  Future<bool> addCommunityDynamics({
+    required String roomId,
+  }) async {
+    if (isSubmitting) return false;
+    isSubmitting = true;
+    AppLoading.show();
+
+    try {
+      final mediaList = await buildMediaList();
+      final model = MomentDynamicModel(
+        noteId: Uuid().v4(),
+        content: textController.text.trim(),
+        media: mediaList,
+      );
+      return await AddCommunityDynamics.add(roomId,jsonEncode(model.toJson()));
+    } catch (e) {
+      // debugPrint("publish error: $e");
+      // AppToast.show('发布动态失败：${e.toString()}');
+      return true;
     } finally {
       AppLoading.dismiss();
       isSubmitting = false;

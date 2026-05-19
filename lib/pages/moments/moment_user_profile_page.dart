@@ -554,6 +554,9 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               left: _sendMomentOffset!.dx,
               top: _sendMomentOffset!.dy,
               child: GestureDetector(
+                onTap: (){
+                  context.push('/new-post?retweet=0');
+                },
                 behavior: HitTestBehavior.opaque,
                 onPanUpdate: (details) {
                   final size = MediaQuery.sizeOf(context);

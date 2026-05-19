@@ -5,6 +5,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../call/rong_call_summary_parser.dart';
 import '../result/im_result.dart';
+import 'im_burn_after_reading_manager.dart';
 import 'im_engine_manager.dart';
 
 /// =========================
@@ -95,6 +96,15 @@ class ImMessageManager {
   final List<RCIMIWMessage> _buffer = [];
 
   Timer? _flushTimer;
+
+  final ImBurnAfterReadingManager _burnAfterReadingManager =
+      ImBurnAfterReadingManager();
+
+  final Map<String, RCIMIWMessage> _burnAfterReadingMessages = {};
+
+  final Map<String, Timer> _burnAfterReadingTimers = {};
+
+  final Set<String> _burnAfterReadingDeletingKeys = {};
 
   /// =========================
   /// 初始化监听
@@ -212,6 +222,14 @@ class ImMessageManager {
   ) {
     if (_disposed || targetId == null || timestamp == null) return;
 
+    unawaited(
+      _startSentMessagesBurnAfterReading(
+        targetId: targetId,
+        channelId: channelId,
+        readReceiptTime: timestamp,
+      ),
+    );
+
     _messageController.add(
       MessageEvent(
         type: MessageEventType.privateReadReceipt,
@@ -277,6 +295,8 @@ class ImMessageManager {
     String? channelId,
   }) {
     if (_disposed) return;
+
+    _clearBurnAfterReadingStateForMessages(messages);
 
     final fallbackMessage = _firstMessageWithConversationIdentity(messages);
     final eventConversationType =
@@ -387,6 +407,8 @@ class ImMessageManager {
     final success = code == 0;
 
     if (success) {
+      _clearBurnAfterReadingStateForMessages(messages);
+
       /// 删除缓存
       for (final msg in messages) {
         final key = _messageCacheKey(msg);
@@ -403,6 +425,52 @@ class ImMessageManager {
     }
 
     return success;
+  }
+
+  Future<bool> deleteRemoteMessages({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required List<RCIMIWMessage> messages,
+  }) async {
+    if (messages.isEmpty) return true;
+
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+
+    final completer = Completer<bool>();
+    final code = await engine.deleteMessages(
+      type,
+      targetId,
+      channelId,
+      messages,
+      callback: IRCIMIWDeleteMessagesCallback(
+        onMessagesDeleted: (int? code, List<RCIMIWMessage>? deletedMessages) {
+          final success = code == 0;
+          if (success) {
+            onMessagesDeleted(
+              messages: deletedMessages ?? messages,
+              conversationType: type,
+              targetId: targetId,
+              channelId: channelId,
+            );
+          }
+
+          if (!completer.isCompleted) {
+            completer.complete(success);
+          }
+        },
+      ),
+    );
+
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
   }
 
   /// =========================
@@ -427,6 +495,13 @@ class ImMessageManager {
     final success = code == 0;
 
     if (success) {
+      _clearBurnAfterReadingStateForConversation(
+        type: type,
+        targetId: targetId,
+        channelId: channelId,
+        timestamp: timestamp,
+      );
+
       /// 清除缓存
       _messageCache.removeWhere((key, value) {
         return key.contains(targetId);
@@ -589,6 +664,24 @@ class ImMessageManager {
     return false;
   }
 
+  Future<void> markMessagesReadForBurnAfterReading({
+    required List<RCIMIWMessage> messages,
+    int? readTime,
+  }) async {
+    if (_disposed || messages.isEmpty) return;
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final startTime = readTime ?? DateTime.now().millisecondsSinceEpoch;
+
+    for (final message in messages) {
+      if (message.senderUserId == currentUserId) {
+        continue;
+      }
+
+      await _startBurnAfterReadingCountdown(message, startTime: startTime);
+    }
+  }
+
   /// =========================
   /// 单聊已读回执
   /// =========================
@@ -717,6 +810,8 @@ class ImMessageManager {
   void updateLocalMessage(RCIMIWMessage message) {
     if (_disposed) return;
 
+    _registerBurnAfterReadingCandidate(message);
+
     final id = _messageCacheKey(message);
     if (id != null) {
       if (_messageCache.length >= _maxCacheSize) {
@@ -754,6 +849,8 @@ class ImMessageManager {
     }
 
     _messageCache[id] = DateTime.now().millisecondsSinceEpoch;
+
+    _registerBurnAfterReadingCandidate(message);
 
     /// buffer
     _buffer.add(message);
@@ -865,6 +962,238 @@ class ImMessageManager {
     });
   }
 
+  bool _isBurnAfterReadingCandidate(RCIMIWMessage message) {
+    final duration = message.destructDuration ?? 0;
+    final targetId = message.targetId;
+    return duration > 0 &&
+        message.conversationType == RCIMIWConversationType.private &&
+        targetId != null &&
+        targetId.isNotEmpty &&
+        _burnAfterReadingMessageKey(message) != null;
+  }
+
+  void _registerBurnAfterReadingCandidate(RCIMIWMessage message) {
+    if (!_isBurnAfterReadingCandidate(message)) {
+      return;
+    }
+
+    final key = _burnAfterReadingMessageKey(message);
+    if (key == null) {
+      return;
+    }
+
+    _burnAfterReadingMessages[key] = message;
+    unawaited(_scheduleExistingBurnAfterReadingIfNeeded(key, message));
+  }
+
+  Future<void> _scheduleExistingBurnAfterReadingIfNeeded(
+    String key,
+    RCIMIWMessage message,
+  ) async {
+    final expireTime = await _burnAfterReadingManager.getMessageExpireTime(key);
+    if (_disposed || expireTime == null) {
+      return;
+    }
+
+    if (!_burnAfterReadingMessages.containsKey(key)) {
+      return;
+    }
+
+    _scheduleBurnAfterReadingDeletion(key, message, expireTime);
+  }
+
+  Future<void> _startSentMessagesBurnAfterReading({
+    required String targetId,
+    String? channelId,
+    required int readReceiptTime,
+  }) async {
+    if (_disposed) return;
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final readTime = DateTime.now().millisecondsSinceEpoch;
+    final messages = _burnAfterReadingMessages.values.toList();
+
+    for (final message in messages) {
+      if (message.senderUserId != currentUserId) {
+        continue;
+      }
+
+      if (message.targetId != targetId ||
+          message.conversationType != RCIMIWConversationType.private ||
+          !_isSameChannel(message.channelId, channelId)) {
+        continue;
+      }
+
+      final sentTime = message.sentTime;
+      if (sentTime == null || sentTime > readReceiptTime) {
+        continue;
+      }
+
+      await _startBurnAfterReadingCountdown(message, startTime: readTime);
+    }
+  }
+
+  Future<void> _startBurnAfterReadingCountdown(
+    RCIMIWMessage message, {
+    required int startTime,
+  }) async {
+    if (!_isBurnAfterReadingCandidate(message)) {
+      return;
+    }
+
+    final key = _burnAfterReadingMessageKey(message);
+    final duration = message.destructDuration ?? 0;
+    if (key == null || duration <= 0) {
+      return;
+    }
+
+    _burnAfterReadingMessages[key] = message;
+
+    final expireTime = await _burnAfterReadingManager.ensureMessageExpireTime(
+      messageKey: key,
+      startTime: startTime,
+      durationSeconds: duration,
+    );
+
+    if (_disposed || expireTime == null) {
+      return;
+    }
+
+    _scheduleBurnAfterReadingDeletion(key, message, expireTime);
+  }
+
+  void _scheduleBurnAfterReadingDeletion(
+    String key,
+    RCIMIWMessage message,
+    int expireTime,
+  ) {
+    if (_disposed || _burnAfterReadingDeletingKeys.contains(key)) {
+      return;
+    }
+
+    _burnAfterReadingTimers.remove(key)?.cancel();
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final delayMilliseconds = expireTime - now;
+    if (delayMilliseconds <= 0) {
+      unawaited(_deleteBurnAfterReadingMessage(key, message));
+      return;
+    }
+
+    _burnAfterReadingTimers[key] = Timer(
+      Duration(milliseconds: delayMilliseconds),
+      () => unawaited(_deleteBurnAfterReadingMessage(key, message)),
+    );
+  }
+
+  Future<void> _deleteBurnAfterReadingMessage(
+    String key,
+    RCIMIWMessage message,
+  ) async {
+    if (_disposed || _burnAfterReadingDeletingKeys.contains(key)) {
+      return;
+    }
+
+    final latestMessage = _burnAfterReadingMessages[key] ?? message;
+    final type = latestMessage.conversationType;
+    final targetId = latestMessage.targetId;
+    if (type == null || targetId == null || targetId.isEmpty) {
+      _clearBurnAfterReadingState(key);
+      return;
+    }
+
+    _burnAfterReadingDeletingKeys.add(key);
+    final remoteDeleted = await deleteRemoteMessages(
+      type: type,
+      targetId: targetId,
+      channelId: latestMessage.channelId,
+      messages: [latestMessage],
+    );
+
+    if (!remoteDeleted && !_disposed) {
+      await deleteLocalMessages(messages: [latestMessage]);
+    }
+
+    if (!remoteDeleted) {
+      _clearBurnAfterReadingState(key);
+    }
+  }
+
+  void _clearBurnAfterReadingStateForMessages(List<RCIMIWMessage> messages) {
+    for (final message in messages) {
+      final key = _burnAfterReadingMessageKey(message);
+      if (key != null) {
+        _clearBurnAfterReadingState(key);
+      }
+    }
+  }
+
+  void _clearBurnAfterReadingStateForConversation({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    required int timestamp,
+  }) {
+    final keys = <String>[];
+    for (final entry in _burnAfterReadingMessages.entries) {
+      final message = entry.value;
+      if (message.conversationType != type ||
+          message.targetId != targetId ||
+          !_isSameChannel(message.channelId, channelId)) {
+        continue;
+      }
+
+      final messageTime = message.sentTime ?? message.receivedTime ?? 0;
+      if (messageTime <= timestamp) {
+        keys.add(entry.key);
+      }
+    }
+
+    for (final key in keys) {
+      _clearBurnAfterReadingState(key);
+    }
+  }
+
+  void _clearBurnAfterReadingState(String key) {
+    _burnAfterReadingTimers.remove(key)?.cancel();
+    _burnAfterReadingMessages.remove(key);
+    _burnAfterReadingDeletingKeys.remove(key);
+    unawaited(_burnAfterReadingManager.clearMessageExpireTime(key));
+  }
+
+  bool _isSameChannel(String? left, String? right) {
+    return (left ?? '').trim() == (right ?? '').trim();
+  }
+
+  String? _burnAfterReadingMessageKey(RCIMIWMessage message) {
+    final messageId = message.messageId;
+    if (messageId != null && messageId > 0) {
+      return 'id:$messageId';
+    }
+
+    final messageUId = message.messageUId;
+    if (messageUId != null && messageUId.isNotEmpty) {
+      return 'uid:$messageUId';
+    }
+
+    final timestamp = message.sentTime ?? message.receivedTime;
+    final targetId = message.targetId;
+    if (timestamp == null || targetId == null || targetId.isEmpty) {
+      return null;
+    }
+
+    return [
+      'fallback',
+      message.conversationType?.index ?? -1,
+      targetId,
+      message.channelId ?? '',
+      message.senderUserId ?? '',
+      timestamp,
+      message.messageType?.index ?? -1,
+      _messageObjectName(message) ?? '',
+    ].join(':');
+  }
+
   /// =========================
   /// debug
   /// =========================
@@ -925,9 +1254,19 @@ class ImMessageManager {
 
     _flushTimer?.cancel();
 
+    for (final timer in _burnAfterReadingTimers.values) {
+      timer.cancel();
+    }
+
     _messageCache.clear();
 
     _buffer.clear();
+
+    _burnAfterReadingTimers.clear();
+
+    _burnAfterReadingMessages.clear();
+
+    _burnAfterReadingDeletingKeys.clear();
 
     _messageController.close();
   }

@@ -101,6 +101,7 @@ class ImMessageManager {
 
     /// 消息撤回
     engine?.onRemoteMessageRecalled = (RCIMIWMessage? message) {
+      print('消息撤回----------$message');
       if (message == null) return;
 
       onMessageRecalled(message);
@@ -109,6 +110,7 @@ class ImMessageManager {
     /// 单聊已读
     engine?.onPrivateReadReceiptReceived =
         (String? targetId, String? channelId, int? timestamp) {
+      print('单聊已读----------$timestamp--$targetId');
           onPrivateReadReceipt(targetId, channelId, timestamp);
         };
 
@@ -123,6 +125,7 @@ class ImMessageManager {
         (String? targetId, String? messageUId, Map? respondUserIds) {
           onGroupReadResponse(targetId, messageUId, respondUserIds);
         };
+
   }
 
   /// =========================
@@ -422,6 +425,48 @@ class ImMessageManager {
       return ImResult.error(code: ret);
     }
 
+    return completer.future;
+  }
+
+  Future<bool> sendReadReceiptMessage({
+    required RCIMIWConversationType type,
+    required String targetId,
+    String? channelId,
+    int? timestamp,
+  }) async {
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+
+    final completer = Completer<bool>();
+    final t = timestamp ?? DateTime.now().millisecondsSinceEpoch;
+
+    if (type == RCIMIWConversationType.private){
+      await engine.sendPrivateReadReceiptMessage(
+        targetId,
+        null,
+        t,
+        callback: IRCIMIWSendPrivateReadReceiptMessageCallback(
+          onPrivateReadReceiptMessageSent: (int? code) {
+            print('sendPrivateReadReceiptMessage-----$code---$timestamp');
+            completer.complete(code == 0);
+          },
+        ),
+      );
+    }
+
+    if (type == RCIMIWConversationType.group){
+      await engine.sendGroupReadReceiptResponse(
+        targetId,
+        channelId,
+        [],
+        callback: IRCIMIWSendGroupReadReceiptResponseCallback(
+          onGroupReadReceiptResponseSent: (int? code, List<RCIMIWMessage>? message) {
+            print('sendGroupReadReceiptResponse-----$code');
+            completer.complete(code == 0);
+          },
+        ),
+      );
+    }
     return completer.future;
   }
 

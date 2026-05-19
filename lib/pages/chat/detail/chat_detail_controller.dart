@@ -1118,11 +1118,11 @@ class ChatDetailController extends ChangeNotifier {
       channelId: args!.channelId,
       timestamp: timestamp,
     );
-    _messageManager.sendReadReceiptMessage(
-        type: args!.conversationType,
-        targetId: targetId,
-        timestamp: timestamp,
-    );
+    // _messageManager.sendReadReceiptMessage(
+    //     type: args!.conversationType,
+    //     targetId: targetId,
+    //     timestamp: timestamp,
+    // );
 
   }
 

@@ -218,7 +218,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             child: controller.isJoined
                 ? AppButton(
                     text: l10n.communityDetailBtnChat,
-                    onPressed: ()=> navigateToConversationDetail,
+                    onPressed:navigateToConversationDetail,
                     width: 100,
                     height: 32,
                     borderRadius: 32,
@@ -295,7 +295,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             ),
             const SizedBox(width: 8),
             // 地址展示芯片
-            Container(
+            controller.communityModel.tokenAddress.isNotEmpty ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.white,
@@ -311,16 +311,16 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     height: 12,
                   ),
                   const SizedBox(width: 2),
-                  controller.communityModel.tokenAddress.isNotEmpty ?  Text(
+                  Text(
                     ellipsisMiddle(controller.communityModel.tokenAddress,tail: 4),
                     style: AppTextStyles.body.copyWith(
                       fontSize: 10,
                       color: AppColors.grey900,
                     ),
-                  ) : SizedBox(),
+                  ),
                 ],
               ),
-            ),
+            ) : SizedBox(),
           ],
         ),
       ],

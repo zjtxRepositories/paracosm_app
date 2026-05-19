@@ -686,6 +686,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       default:
         return ChatMessageItem(
           isMe: message.isMe,
+          senderUserId: message.senderUserId,
+          avatarUrl: message.senderAvatarUrl,
           isUnread: message.isUnread,
           showBubble: message.showBubble,
           isFlashing: _flashMessageId == message.messageId,

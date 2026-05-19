@@ -1,4 +1,5 @@
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
@@ -40,6 +41,8 @@ class ChatDetailMessageMapper {
     final sentTime = message.sentTime ?? message.receivedTime;
     final messageKey = messageKeyFor(message);
 
+    final senderUserInfo = await UserDisplayStateCenter().getUser(message.senderUserId ?? '');
+
     if (_isRecallMessage(message)) {
       return ChatDetailMessage(
         messageId: messageKey,
@@ -62,6 +65,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -76,6 +81,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -101,6 +108,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -114,6 +123,8 @@ class ChatDetailMessageMapper {
         isVideo: callSummary.isVideo,
         text: callSummary.text,
         extra: message,
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -128,6 +139,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -144,6 +157,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 
@@ -162,6 +177,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
     if (message is RCIMIWVoiceMessage) {
@@ -177,6 +194,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
     if (message is RCIMIWFileMessage) {
@@ -192,6 +211,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar
       );
     }
 

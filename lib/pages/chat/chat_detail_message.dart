@@ -23,6 +23,8 @@ class ChatDetailMessage {
     this.isMe = false,
     this.isUnread = false,
     this.showBubble = true,
+    this.senderUserId,
+    this.senderAvatarUrl,
     this.sentTime,
     this.text,
     this.imagePath,
@@ -57,6 +59,8 @@ class ChatDetailMessage {
   final bool isMe;
   final bool isUnread;
   final bool showBubble;
+  final String? senderUserId;
+  final String? senderAvatarUrl;
   final int? sentTime;
   final String? text;
   final String? imagePath;
@@ -156,6 +160,7 @@ class ChatDetailMessage {
       showReadReceipt: showReadReceipt ?? this.showReadReceipt,
       isRead: isRead ?? this.isRead,
       groupReadCount: groupReadCount ?? this.groupReadCount,
+      senderUserId: this.senderUserId,
     );
   }
 }

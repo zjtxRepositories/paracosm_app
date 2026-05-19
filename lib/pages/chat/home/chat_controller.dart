@@ -71,7 +71,6 @@ class ChatController extends ChangeNotifier {
     _listenGroupList();
     _listenFriendApplication();
 
-    _fetchConversation();
   }
 
   /// =========================
@@ -83,14 +82,18 @@ class ChatController extends ChangeNotifier {
         fetchData();
       }
     });
-
     _subs.add(sub);
+
+    if (_engineManager.connection.isConnected){
+      fetchData();
+    }
   }
 
   /// =========================
   /// 数据入口（只做初始化触发）
   /// =========================
   void fetchData() {
+    _engineManager.conversation.getRemoteConversationList();
     _engineManager.friendApplication.fetch();
     _engineManager.friend.fetchFriends();
     _engineManager.group.getAllJoinedGroups();
@@ -100,8 +103,15 @@ class ChatController extends ChangeNotifier {
   /// conversation stream（关键新增）
   /// =========================
   void _listenConversation() {
-    _conversationChangeSub =
-        ImConversationManager().changeStream.listen(_onConversationChange);
+    final sub = _engineManager.conversation.stream.listen((map) {
+      // print('conversation.stream-${map.length}');
+      tabCache = map;
+      _buildConversationList();
+    });
+
+    _subs.add(sub);
+
+    _conversationChangeSub = _engineManager.conversation.changeStream.listen(_onConversationChange);
 
     _subs.add(_conversationChangeSub!);
 
@@ -126,22 +136,9 @@ class ChatController extends ChangeNotifier {
   }
 
   /// =========================
-  /// 首次加载（只做一次）
-  /// =========================
-  void _fetchConversation() {
-    final sub = _engineManager.conversation.stream.listen((map) {
-      tabCache = map;
-      _buildConversationList();
-    });
-
-    _subs.add(sub);
-  }
-
-  /// =========================
   /// 核心：增量构建列表（替代 refreshConversation）
   /// =========================
   void _buildConversationList() {
-
     final list =
     _engineManager.conversation.getTabList(selectedFilterIndex);
 
@@ -220,7 +217,6 @@ class ChatController extends ChangeNotifier {
     if (targetId.isEmpty) return;
 
     final model = _conversationMap[targetId];
-
     if (model != null) {
       model.updateConversation(conv);
       ConversationResolver().resolve(model);
@@ -438,23 +434,6 @@ class ChatController extends ChangeNotifier {
 
       AppToast.show('删除失败');
     }
-  }
-
-  /// =========================
-  /// sort
-  /// =========================
-  void _sortConversationList() {
-    conversations.sort((a, b) {
-      final at = a.info.lastMessage?.sentTime ?? 0;
-      final bt = b.info.lastMessage?.sentTime ?? 0;
-
-      final aTop = a.info.top ?? false;
-      final bTop = b.info.top ?? false;
-
-      if (aTop != bTop) return bTop ? 1 : -1;
-
-      return bt.compareTo(at);
-    });
   }
 
   /// =========================

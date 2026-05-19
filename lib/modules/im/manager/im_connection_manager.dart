@@ -44,7 +44,6 @@ class ImConnectionManager {
         _isReconnecting = false;
 
         _eventController.add(ImEvent.connected);
-        IMEngineManager().conversation.getRemoteConversationList();
         print("IM 已连接");
         break;
 

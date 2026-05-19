@@ -11,7 +11,10 @@ class ImBurnAfterReadingManager {
 
   static const List<int> durationOptions = [0, 10, 60, 300, 600, 1800];
 
-  static const String _keyPrefix = 'im_burn_after_reading_seconds';
+  static const String _durationKeyPrefix = 'im_burn_after_reading_seconds';
+
+  static const String _messageExpireKeyPrefix =
+      'im_burn_after_reading_message_expire';
 
   int durationForIndex(int index) {
     final safeIndex = index.clamp(0, durationOptions.length - 1);
@@ -52,11 +55,70 @@ class ImBurnAfterReadingManager {
     return prefs.setInt(_cacheKey(type, targetId, channelId), safeSeconds);
   }
 
+  Future<int?> getMessageExpireTime(String messageKey) async {
+    final safeKey = messageKey.trim();
+    if (safeKey.isEmpty) {
+      return null;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final expireTime = prefs.getInt(_messageExpireCacheKey(safeKey));
+    return expireTime != null && expireTime > 0 ? expireTime : null;
+  }
+
+  Future<bool> saveMessageExpireTime(String messageKey, int expireTime) async {
+    final safeKey = messageKey.trim();
+    if (safeKey.isEmpty || expireTime <= 0) {
+      return false;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.setInt(_messageExpireCacheKey(safeKey), expireTime);
+  }
+
+  Future<bool> clearMessageExpireTime(String messageKey) async {
+    final safeKey = messageKey.trim();
+    if (safeKey.isEmpty) {
+      return false;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.remove(_messageExpireCacheKey(safeKey));
+  }
+
+  Future<int?> ensureMessageExpireTime({
+    required String messageKey,
+    required int startTime,
+    required int durationSeconds,
+  }) async {
+    final existingExpireTime = await getMessageExpireTime(messageKey);
+    if (existingExpireTime != null) {
+      return existingExpireTime;
+    }
+
+    if (startTime <= 0 || durationSeconds <= 0) {
+      return null;
+    }
+
+    final expireTime = startTime + durationSeconds * 1000;
+    final saved = await saveMessageExpireTime(messageKey, expireTime);
+    return saved ? expireTime : null;
+  }
+
   String _cacheKey(
     RCIMIWConversationType type,
     String targetId,
     String? channelId,
   ) {
-    return [_keyPrefix, type.index, targetId, channelId ?? ''].join('_');
+    return [
+      _durationKeyPrefix,
+      type.index,
+      targetId,
+      channelId ?? '',
+    ].join('_');
+  }
+
+  String _messageExpireCacheKey(String messageKey) {
+    return [_messageExpireKeyPrefix, messageKey].join('_');
   }
 }

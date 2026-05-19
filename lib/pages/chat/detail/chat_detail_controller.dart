@@ -1383,6 +1383,12 @@ class ChatDetailController extends ChangeNotifier {
 
     if (args!.conversationType == RCIMIWConversationType.private) {
       unawaited(
+        _messageManager.markMessagesReadForBurnAfterReading(
+          messages: _readBurnAfterReadingMessages(timestamp),
+        ),
+      );
+
+      unawaited(
         _messageManager.sendPrivateReadReceiptMessage(
           targetId: args!.targetId,
           channelId: args!.channelId,
@@ -1395,6 +1401,39 @@ class ChatDetailController extends ChangeNotifier {
     if (args!.conversationType == RCIMIWConversationType.group) {
       unawaited(_sendVisibleGroupReadReceiptResponses());
     }
+  }
+
+  List<RCIMIWMessage> _readBurnAfterReadingMessages(int timestamp) {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.private) {
+      return [];
+    }
+
+    final messages = <RCIMIWMessage>[];
+    for (final item in engine.list) {
+      if (item.isMe) {
+        continue;
+      }
+
+      final raw = item.extra;
+      if (raw is! RCIMIWMessage || !_isMessageInCurrentConversation(raw)) {
+        continue;
+      }
+
+      if ((raw.destructDuration ?? 0) <= 0) {
+        continue;
+      }
+
+      final sentTime = raw.sentTime;
+      if (sentTime == null || sentTime > timestamp) {
+        continue;
+      }
+
+      messages.add(raw);
+    }
+
+    return messages;
   }
 
   /// =========================

@@ -15,7 +15,16 @@ enum MessageSource { remote, local, history }
 /// =========================
 /// 消息事件类型
 /// =========================
-enum MessageEventType { add, delete, recall, clear, update }
+enum MessageEventType {
+  add,
+  delete,
+  recall,
+  clear,
+  update,
+  privateReadReceipt,
+  groupReadReceiptRequest,
+  groupReadReceiptResponse,
+}
 
 /// =========================
 /// 消息事件
@@ -35,6 +44,10 @@ class MessageEvent {
 
   final int? timestamp;
 
+  final String? messageUId;
+
+  final Map? respondUserIds;
+
   const MessageEvent({
     required this.type,
     this.message,
@@ -43,6 +56,8 @@ class MessageEvent {
     this.targetId,
     this.channelId,
     this.timestamp,
+    this.messageUId,
+    this.respondUserIds,
   });
 }
 
@@ -101,7 +116,9 @@ class ImMessageManager {
 
     /// 消息撤回
     engine?.onRemoteMessageRecalled = (RCIMIWMessage? message) {
-      print('消息撤回----------$message');
+      if (kDebugMode) {
+        debugPrint('消息撤回----------$message');
+      }
       if (message == null) return;
 
       onMessageRecalled(message);
@@ -110,7 +127,9 @@ class ImMessageManager {
     /// 单聊已读
     engine?.onPrivateReadReceiptReceived =
         (String? targetId, String? channelId, int? timestamp) {
-      print('单聊已读----------$timestamp--$targetId');
+          if (kDebugMode) {
+            debugPrint('单聊已读----------$timestamp--$targetId');
+          }
           onPrivateReadReceipt(targetId, channelId, timestamp);
         };
 
@@ -126,6 +145,34 @@ class ImMessageManager {
           onGroupReadResponse(targetId, messageUId, respondUserIds);
         };
 
+    /// 本地消息删除（包含 SDK 自动焚烧删除回调）
+    // ignore: deprecated_member_use
+    engine?.onLocalMessagesDeleted =
+        (int? code, List<RCIMIWMessage>? messages) {
+          if (code != 0 || messages == null || messages.isEmpty) return;
+
+          onMessagesDeleted(messages: messages);
+        };
+
+    /// 远端消息删除（包含 SDK 自动焚烧删除回调）
+    // ignore: deprecated_member_use
+    engine?.onMessagesDeleted =
+        (
+          int? code,
+          RCIMIWConversationType? type,
+          String? targetId,
+          String? channelId,
+          List<RCIMIWMessage>? messages,
+        ) {
+          if (code != 0 || messages == null || messages.isEmpty) return;
+
+          onMessagesDeleted(
+            messages: messages,
+            conversationType: type,
+            targetId: targetId,
+            channelId: channelId,
+          );
+        };
   }
 
   /// =========================
@@ -162,12 +209,40 @@ class ImMessageManager {
     String? targetId,
     String? channelId,
     int? timestamp,
-  ) {}
+  ) {
+    if (_disposed || targetId == null || timestamp == null) return;
+
+    _messageController.add(
+      MessageEvent(
+        type: MessageEventType.privateReadReceipt,
+        conversationType: RCIMIWConversationType.private,
+        targetId: targetId,
+        channelId: channelId,
+        timestamp: timestamp,
+      ),
+    );
+  }
 
   /// =========================
   /// 群已读请求
   /// =========================
-  void onGroupReadRequest(String? targetId, String? messageUId) {}
+  void onGroupReadRequest(String? targetId, String? messageUId) {
+    if (_disposed ||
+        targetId == null ||
+        messageUId == null ||
+        messageUId.isEmpty) {
+      return;
+    }
+
+    _messageController.add(
+      MessageEvent(
+        type: MessageEventType.groupReadReceiptRequest,
+        conversationType: RCIMIWConversationType.group,
+        targetId: targetId,
+        messageUId: messageUId,
+      ),
+    );
+  }
 
   /// =========================
   /// 群已读响应
@@ -176,7 +251,74 @@ class ImMessageManager {
     String? targetId,
     String? messageUId,
     Map? respondUserIds,
-  ) {}
+  ) {
+    if (_disposed ||
+        targetId == null ||
+        messageUId == null ||
+        messageUId.isEmpty) {
+      return;
+    }
+
+    _messageController.add(
+      MessageEvent(
+        type: MessageEventType.groupReadReceiptResponse,
+        conversationType: RCIMIWConversationType.group,
+        targetId: targetId,
+        messageUId: messageUId,
+        respondUserIds: respondUserIds,
+      ),
+    );
+  }
+
+  void onMessagesDeleted({
+    required List<RCIMIWMessage> messages,
+    RCIMIWConversationType? conversationType,
+    String? targetId,
+    String? channelId,
+  }) {
+    if (_disposed) return;
+
+    final fallbackMessage = _firstMessageWithConversationIdentity(messages);
+    final eventConversationType =
+        conversationType ?? fallbackMessage?.conversationType;
+    final eventTargetId = targetId ?? fallbackMessage?.targetId;
+    final eventChannelId = channelId ?? fallbackMessage?.channelId;
+
+    for (final msg in messages) {
+      final key = _messageCacheKey(msg);
+
+      if (key != null) {
+        _messageCache.remove(key);
+      }
+    }
+
+    _messageController.add(
+      MessageEvent(
+        type: MessageEventType.delete,
+        messages: messages,
+        conversationType: eventConversationType,
+        targetId: eventTargetId,
+        channelId: eventChannelId,
+      ),
+    );
+  }
+
+  bool _hasConversationIdentity(RCIMIWMessage message) {
+    return message.conversationType != null ||
+        (message.targetId?.isNotEmpty ?? false) ||
+        (message.channelId?.isNotEmpty ?? false);
+  }
+
+  RCIMIWMessage? _firstMessageWithConversationIdentity(
+    List<RCIMIWMessage> messages,
+  ) {
+    for (final message in messages) {
+      if (_hasConversationIdentity(message)) {
+        return message;
+      }
+    }
+    return null;
+  }
 
   /// =========================
   /// 获取历史消息
@@ -434,40 +576,17 @@ class ImMessageManager {
     String? channelId,
     int? timestamp,
   }) async {
-    final engine = IMEngineManager().engine;
-    if (engine == null) return false;
-
-    final completer = Completer<bool>();
     final t = timestamp ?? DateTime.now().millisecondsSinceEpoch;
 
-    if (type == RCIMIWConversationType.private){
-      await engine.sendPrivateReadReceiptMessage(
-        targetId,
-        null,
-        t,
-        callback: IRCIMIWSendPrivateReadReceiptMessageCallback(
-          onPrivateReadReceiptMessageSent: (int? code) {
-            print('sendPrivateReadReceiptMessage-----$code---$timestamp');
-            completer.complete(code == 0);
-          },
-        ),
+    if (type == RCIMIWConversationType.private) {
+      return sendPrivateReadReceiptMessage(
+        targetId: targetId,
+        channelId: channelId,
+        timestamp: t,
       );
     }
 
-    if (type == RCIMIWConversationType.group){
-      await engine.sendGroupReadReceiptResponse(
-        targetId,
-        channelId,
-        [],
-        callback: IRCIMIWSendGroupReadReceiptResponseCallback(
-          onGroupReadReceiptResponseSent: (int? code, List<RCIMIWMessage>? message) {
-            print('sendGroupReadReceiptResponse-----$code');
-            completer.complete(code == 0);
-          },
-        ),
-      );
-    }
-    return completer.future;
+    return false;
   }
 
   /// =========================
@@ -478,13 +597,31 @@ class ImMessageManager {
     String? channelId,
     required int timestamp,
   }) async {
-    final code = await IMEngineManager().engine?.sendPrivateReadReceiptMessage(
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+
+    final completer = Completer<bool>();
+    final code = await engine.sendPrivateReadReceiptMessage(
       targetId,
       channelId,
       timestamp,
+      callback: IRCIMIWSendPrivateReadReceiptMessageCallback(
+        onPrivateReadReceiptMessageSent: (int? code) {
+          if (!completer.isCompleted) {
+            completer.complete(code == 0);
+          }
+        },
+      ),
     );
 
-    return code == 0;
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
   }
 
   /// =========================
@@ -493,11 +630,34 @@ class ImMessageManager {
   Future<bool> sendGroupReadReceiptRequest({
     required RCIMIWMessage message,
   }) async {
-    final code = await IMEngineManager().engine?.sendGroupReadReceiptRequest(
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+
+    final completer = Completer<bool>();
+    final code = await engine.sendGroupReadReceiptRequest(
       message,
+      callback: IRCIMIWSendGroupReadReceiptRequestCallback(
+        onGroupReadReceiptRequestSent: (int? code, RCIMIWMessage? message) {
+          final success = code == 0;
+          if (success && message != null) {
+            updateLocalMessage(message);
+          }
+
+          if (!completer.isCompleted) {
+            completer.complete(success);
+          }
+        },
+      ),
     );
 
-    return code == 0;
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
   }
 
   /// =========================
@@ -508,13 +668,41 @@ class ImMessageManager {
     String? channelId,
     required List<RCIMIWMessage> messages,
   }) async {
-    final code = await IMEngineManager().engine?.sendGroupReadReceiptResponse(
+    if (messages.isEmpty) return true;
+
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+
+    final completer = Completer<bool>();
+    final code = await engine.sendGroupReadReceiptResponse(
       targetId,
       channelId,
       messages,
+      callback: IRCIMIWSendGroupReadReceiptResponseCallback(
+        onGroupReadReceiptResponseSent:
+            (int? code, List<RCIMIWMessage>? messages) {
+              final success = code == 0;
+              if (success && messages != null) {
+                for (final message in messages) {
+                  updateLocalMessage(message);
+                }
+              }
+
+              if (!completer.isCompleted) {
+                completer.complete(success);
+              }
+            },
+      ),
     );
 
-    return code == 0;
+    if (code != 0) {
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
   }
 
   /// =========================

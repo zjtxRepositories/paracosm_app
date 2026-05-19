@@ -152,6 +152,9 @@
   "chat_detail_record_canceled": "已取消录音",
   "chat_detail_short_speech": "说话太短",
   "chat_detail_contact_card": "个人名片",
+  "chat_detail_read": "已读",
+  "chat_detail_unread": "未读",
+  "chat_detail_group_read_count": "{count}人已读",
   "chat_group_info_title": "群组信息",
   "chat_group_info_name": "群组名称",
   "chat_group_info_note": "群组简介",
@@ -517,4 +520,3 @@
   "moments_dynamic": "Dynamic",
   "moments_followers": "粉丝"
 }
-

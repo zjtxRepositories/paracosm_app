@@ -5,9 +5,20 @@ import '../../../../core/models/custom_message_model.dart';
 import '../../manager/im_engine_manager.dart';
 
 abstract class ImMessage {
+  ImMessage({this.destructDuration});
+
+  final int? destructDuration;
+
   RCIMIWMessageType get type;
 
   Future<RCIMIWMessage?> toRCMessage();
+
+  void applyMessageOptions(RCIMIWMessage? message) {
+    final duration = destructDuration;
+    if (message != null && duration != null && duration > 0) {
+      message.destructDuration = duration;
+    }
+  }
 }
 
 class CustomMessage extends ImMessage {
@@ -115,6 +126,7 @@ class TextMessage extends ImMessage {
     required this.targetId,
     required this.content,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -130,6 +142,7 @@ class TextMessage extends ImMessage {
     );
     textMsg?.senderUserId = IMEngineManager().currentUserId;
     textMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(textMsg);
     return textMsg;
   }
 }
@@ -147,6 +160,7 @@ class ReferenceMessage extends ImMessage {
     required this.referenceMessage,
     required this.content,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -163,6 +177,7 @@ class ReferenceMessage extends ImMessage {
     );
     referenceMsg?.senderUserId = IMEngineManager().currentUserId;
     referenceMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(referenceMsg);
     return referenceMsg;
   }
 }
@@ -216,6 +231,7 @@ class ImageMessage extends ImMessage {
     required this.targetId,
     required this.path,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -231,6 +247,7 @@ class ImageMessage extends ImMessage {
     );
     imageMsg?.senderUserId = IMEngineManager().currentUserId;
     imageMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(imageMsg);
     return imageMsg;
   }
 }
@@ -253,6 +270,7 @@ class VideoMessage extends ImMessage {
     this.remoteUrl,
     this.coverUrl,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -271,6 +289,7 @@ class VideoMessage extends ImMessage {
     videoMsg?.remote = remoteUrl;
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(videoMsg);
     return videoMsg;
   }
 }
@@ -289,6 +308,7 @@ class FileMessage extends ImMessage {
     required this.size,
     required this.name,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -304,6 +324,7 @@ class FileMessage extends ImMessage {
     );
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(videoMsg);
     return videoMsg;
   }
 }
@@ -321,6 +342,7 @@ class VoiceMessage extends ImMessage {
     required this.path,
     required this.duration,
     this.channelId,
+    super.destructDuration,
   });
 
   @override
@@ -337,6 +359,7 @@ class VoiceMessage extends ImMessage {
     );
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(videoMsg);
     return videoMsg;
   }
 }

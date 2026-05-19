@@ -444,12 +444,11 @@ class AppRouter {
           final extra = state.extra;
           final args = extra is ChatSessionArgs ? extra : null;
           final userId = extra is String ? extra : args?.targetId;
-          return GroupDetailsPage(args: args);
-          // return SessionDetailsPage(
-          //   name: name,
-          //   userId: userId ?? '',
-          //   sessionArgs: args,
-          // );
+          return SessionDetailsPage(
+            name: args?.name ?? name,
+            userId: userId ?? '',
+            sessionArgs: args,
+          );
         },
       ),
       // 社区详情页

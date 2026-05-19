@@ -83,10 +83,10 @@ class ChatMessageContextMenu {
                                   onForward();
                                 },
                         ),
-                        const _ChatMessageContextMenuItem(
-                          icon: 'assets/images/chat/translate.png',
-                          label: 'translate',
-                        ),
+                        // const _ChatMessageContextMenuItem(
+                        //   icon: 'assets/images/chat/translate.png',
+                        //   label: 'translate',
+                        // ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/quote.png',
                           label: 'quote',

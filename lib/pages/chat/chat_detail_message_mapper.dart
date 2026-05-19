@@ -59,6 +59,9 @@ class ChatDetailMessageMapper {
         combineSummaries: summaries,
         sentTime: sentTime,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -70,6 +73,9 @@ class ChatDetailMessageMapper {
         text: '聊天记录',
         sentTime: sentTime,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -92,6 +98,9 @@ class ChatDetailMessageMapper {
         quoteMessageType: referenceMessage?.messageType?.index,
         sentTime: sentTime,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -116,6 +125,9 @@ class ChatDetailMessageMapper {
         text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
         sentTime: sentTime,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -129,6 +141,9 @@ class ChatDetailMessageMapper {
         remote: message.remote,
         thumbnailBase64String: message.thumbnailBase64String,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -144,6 +159,9 @@ class ChatDetailMessageMapper {
         remote: message.remote,
         duration: formatDurationFromMs(message.duration ?? 0),
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
     if (message is RCIMIWVoiceMessage) {
@@ -156,6 +174,9 @@ class ChatDetailMessageMapper {
         remote: message.remote,
         duration: formatDurationFromMs(message.duration ?? 0),
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
     if (message is RCIMIWFileMessage) {
@@ -168,6 +189,9 @@ class ChatDetailMessageMapper {
         fileSize: formatFileSize(message.size ?? 0),
         path: message.local,
         extra: message,
+        showReadReceipt: _shouldShowReadReceipt(message, isMe),
+        isRead: _isReadReceiptRead(message),
+        groupReadCount: _groupReadCount(message),
       );
     }
 
@@ -207,6 +231,54 @@ class ChatDetailMessageMapper {
   static bool _isRecallMessage(RCIMIWMessage message) {
     return message is RCIMIWRecallNotificationMessage ||
         message.messageType == RCIMIWMessageType.recall;
+  }
+
+  static bool supportsReadReceiptMessage(RCIMIWMessage message) {
+    if (RongCallSummaryParser.tryParse(message) != null) {
+      return false;
+    }
+
+    return message is RCIMIWTextMessage ||
+        message is RCIMIWReferenceMessage ||
+        message is RCIMIWImageMessage ||
+        message is RCIMIWSightMessage ||
+        message is RCIMIWVoiceMessage ||
+        message is RCIMIWFileMessage ||
+        message is RCIMIWCombineV2Message ||
+        message.messageType == RCIMIWMessageType.combineV2;
+  }
+
+  static bool supportsReadReceiptKind(ChatDetailMessageKind kind) {
+    return kind == ChatDetailMessageKind.text ||
+        kind == ChatDetailMessageKind.image ||
+        kind == ChatDetailMessageKind.video ||
+        kind == ChatDetailMessageKind.voice ||
+        kind == ChatDetailMessageKind.file ||
+        kind == ChatDetailMessageKind.combineForward;
+  }
+
+  static bool _shouldShowReadReceipt(RCIMIWMessage message, bool isMe) {
+    final type = message.conversationType;
+    return isMe &&
+        (type == RCIMIWConversationType.private ||
+            type == RCIMIWConversationType.group) &&
+        supportsReadReceiptMessage(message);
+  }
+
+  static bool _isReadReceiptRead(RCIMIWMessage message) {
+    if (message.conversationType == RCIMIWConversationType.private) {
+      return message.sentStatus == RCIMIWSentStatus.read;
+    }
+
+    if (message.conversationType == RCIMIWConversationType.group) {
+      return _groupReadCount(message) > 0;
+    }
+
+    return false;
+  }
+
+  static int _groupReadCount(RCIMIWMessage message) {
+    return message.groupReadReceiptInfo?.respondUserIds?.length ?? 0;
   }
 
   static Future<String> quoteSummaryForMessage(RCIMIWMessage? message) async {

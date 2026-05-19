@@ -212,6 +212,11 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_detail_record_canceled');
   String get chatDetailShortSpeech => translate('chat_detail_short_speech');
   String get chatDetailContactCard => translate('chat_detail_contact_card');
+  String get chatDetailRead => translate('chat_detail_read');
+  String get chatDetailUnread => translate('chat_detail_unread');
+  String chatDetailGroupReadCount(int count) => translate(
+    'chat_detail_group_read_count',
+  ).replaceAll('{count}', count.toString());
 
   // --- 聊天搜索 ---
   String get chatSearchCancel => translate('chat_search_cancel');

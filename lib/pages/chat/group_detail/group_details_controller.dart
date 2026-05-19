@@ -31,26 +31,20 @@ class GroupDetailsController extends ChangeNotifier {
   List<GroupMemberModel> members = [];
 
   bool get isMemberMore => members.length > 13;
-  bool get isGroup => args?.isGroup ?? false;
-  bool get isManager => group?.info.role == RCIMIWGroupMemberRole.manager || group?.info.role == RCIMIWGroupMemberRole.owner ;
+  bool get isManager =>
+      group?.info.role == RCIMIWGroupMemberRole.manager ||
+      group?.info.role == RCIMIWGroupMemberRole.owner;
 
   bool isPinned = false;
   bool isMuted = false;
-  StreamSubscription? _sub;
   StreamSubscription? _groupSub;
 
   Future<void> init(BuildContext context) async {
     _fetchPinned();
 
-    if (!isGroup) {
-      _fetchProfileInfo();
-      return;
-    }
-
     await _fetchGroupInfo();
 
     await _fetchGroupMembers();
-
 
     _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
       // print('groupInfoStream-------');
@@ -66,25 +60,13 @@ class GroupDetailsController extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> _fetchProfileInfo() async {
-    final item = RCIMIWGroupMemberInfo.fromJson({
-      'userId': args?.targetId,
-      'portraitUri':args?.avatar,
-      'name': args?.name,
-    });
-    final member = GroupMemberModel(item: item);
-    members.add(member);
-    notifyListeners();
-  }
-
   Future<void> _fetchGroupInfo() async {
     final groupId = args?.targetId;
     if (groupId == null || groupId.isEmpty) {
       return;
     }
 
-    final groupInfo = await GroupStateCenter()
-        .getGroup(groupId);
+    final groupInfo = await GroupStateCenter().getGroup(groupId);
 
     if (groupInfo == null) {
       return;
@@ -104,7 +86,9 @@ class GroupDetailsController extends ChangeNotifier {
 
   List<GroupMemberModel> visibleMembers() {
     return members
-        .take((members.length > 13 ? 13 : members.length).clamp(0, members.length))
+        .take(
+          (members.length > 13 ? 13 : members.length).clamp(0, members.length),
+        )
         .toList();
   }
 
@@ -114,7 +98,9 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
     final isTop = await ImConversationManager().getConversationTopStatus(
-        type: args?.conversationType ?? RCIMIWConversationType.private, targetId: targetId);
+      type: args?.conversationType ?? RCIMIWConversationType.private,
+      targetId: targetId,
+    );
     isPinned = isTop ?? false;
     notifyListeners();
   }
@@ -122,9 +108,9 @@ class GroupDetailsController extends ChangeNotifier {
   Future<void> togglePin() async {
     if (args == null) return;
     final isOk = await ImConversationManager().setConversationTopStatus(
-        type: args!.conversationType,
-        targetId: args!.targetId,
-        top: !isPinned
+      type: args!.conversationType,
+      targetId: args!.targetId,
+      top: !isPinned,
     );
     if (!isOk) return;
     isPinned = !isPinned;
@@ -135,10 +121,10 @@ class GroupDetailsController extends ChangeNotifier {
     if (args == null) return;
     final groupInfo = group?.info;
     if (groupInfo == null) return;
-    groupInfo.groupStatus = !isMuted ? RCIMIWGroupStatus.muted : RCIMIWGroupStatus.using;
-    final isOk = await ImGroupManager().updateGroupInfo(
-        groupInfo
-    );
+    groupInfo.groupStatus = !isMuted
+        ? RCIMIWGroupStatus.muted
+        : RCIMIWGroupStatus.using;
+    final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
     if (!isOk) return;
     isMuted = !isMuted;
     notifyListeners();
@@ -146,65 +132,65 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> toggleDisband(BuildContext context) async {
     AppConfirmDialog.show(
-        context,
-        description: '你确定要解散群聊吗？',
-        onConfirm: () async {
-          context.pop();
-          final groupId = args?.targetId;
-          if (groupId == null) return;
-          AppLoading.show();
-          final isOk = await ImGroupManager().dismissGroup(groupId);
-          AppLoading.dismiss();
-          if (isOk){
-            AppToast.show('群已解散！');
-          }
-          context.pop();
+      context,
+      description: '你确定要解散群聊吗？',
+      onConfirm: () async {
+        context.pop();
+        final groupId = args?.targetId;
+        if (groupId == null) return;
+        AppLoading.show();
+        final isOk = await ImGroupManager().dismissGroup(groupId);
+        AppLoading.dismiss();
+        if (isOk) {
+          AppToast.show('群已解散！');
         }
+        if (!context.mounted) return;
+        context.pop();
+      },
     );
-
   }
 
   Future<void> toggleLeave(BuildContext context) async {
-    if (group?.info.role == RCIMIWGroupMemberRole.owner){
+    if (group?.info.role == RCIMIWGroupMemberRole.owner) {
       toggleDisband(context);
       return;
     }
     AppConfirmDialog.show(
-        context,
-        description: '你确定要退出群聊吗？',
-        onConfirm: () async {
-          context.pop();
-          final groupId = args?.targetId;
-          if (groupId == null) return;
-          AppLoading.show();
-          final message = CustomMessage(targetId: groupId,
-              customMessageType: CustomMessageType.quitGroup,
-              conversationType:RCIMIWConversationType.group);
-          await ImSender.instance.send(message: message);
-          final isOk = await ImGroupManager().quitGroup(groupId);
-          AppLoading.dismiss();
-          if (isOk){
-            AppToast.show('已退出群！');
-          }
-          context.pop();
+      context,
+      description: '你确定要退出群聊吗？',
+      onConfirm: () async {
+        context.pop();
+        final groupId = args?.targetId;
+        if (groupId == null) return;
+        AppLoading.show();
+        final message = CustomMessage(
+          targetId: groupId,
+          customMessageType: CustomMessageType.quitGroup,
+          conversationType: RCIMIWConversationType.group,
+        );
+        await ImSender.instance.send(message: message);
+        final isOk = await ImGroupManager().quitGroup(groupId);
+        AppLoading.dismiss();
+        if (isOk) {
+          AppToast.show('已退出群！');
         }
+        if (!context.mounted) return;
+        context.pop();
+      },
     );
-
   }
 
   Future<void> updateGroupInfo({String? notice, String? introduction}) async {
     final groupInfo = group?.info;
     if (groupInfo == null) return;
-    if (notice != null){
+    if (notice != null) {
       groupInfo.notice = notice;
     }
-    if (introduction != null){
+    if (introduction != null) {
       groupInfo.introduction = introduction;
     }
-    final isOk = await ImGroupManager().updateGroupInfo(
-        groupInfo
-    );
-    if (!isOk){
+    final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
+    if (!isOk) {
       AppToast.show('更新失败！');
       return;
     }
@@ -213,13 +199,18 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> clearHistory(BuildContext context) async {
     if (args == null) return;
+    context.pop();
+
     final isOk = await ImMessageManager().clearMessages(
-        type: args!.conversationType,
-        targetId: args!.targetId,
-        timestamp: 0
+      type: args!.conversationType,
+      targetId: args!.targetId,
+      channelId: args!.channelId,
+      timestamp: 0,
     );
-    if (isOk){
+    if (isOk) {
       AppToast.show('已清空聊天记录');
+    } else {
+      AppToast.show('清空聊天记录失败');
     }
   }
 
@@ -227,20 +218,17 @@ class GroupDetailsController extends ChangeNotifier {
     final groupId = args?.targetId;
     if (groupId == null) return;
     AppLoading.show();
-    final isOk = await ImGroupManager().inviteUsersToGroup(
-        groupId,
-        userIds
-    );
+    final isOk = await ImGroupManager().inviteUsersToGroup(groupId, userIds);
     if (!isOk) {
       AppLoading.dismiss();
       AppToast.show('邀请失败');
       return;
     }
     final message = CustomMessage(
-        targetId: groupId,
-        customMessageType: CustomMessageType.groupInvited,
-        conversationType: RCIMIWConversationType.group,
-        userIds: userIds
+      targetId: groupId,
+      customMessageType: CustomMessageType.groupInvited,
+      conversationType: RCIMIWConversationType.group,
+      userIds: userIds,
     );
     await ImSender.instance.send(message: message);
     AppLoading.dismiss();
@@ -251,46 +239,19 @@ class GroupDetailsController extends ChangeNotifier {
     if (groupId == null) return;
 
     AppLoading.show();
-    final isOk = await ImGroupManager().kickGroupMembers(
-        groupId,
-        userIds
-    );
+    final isOk = await ImGroupManager().kickGroupMembers(groupId, userIds);
     if (!isOk) {
       AppLoading.dismiss();
       AppToast.show('移除失败');
       return;
     }
     final message = CustomMessage(
-        targetId: groupId,
-        customMessageType: CustomMessageType.groupRemoved,
-        conversationType: RCIMIWConversationType.group,
-        userIds: userIds
-    );
-    await ImSender.instance.send(message: message);
-    AppLoading.dismiss();
-  }
-
-  Future<String?> createGroup(List<String> userIds) async {
-    AppLoading.show();
-    final groupId = await ImGroupManager().create(
-      inviteeUserIds: userIds,
-      groupId: generateGroupId(GroupType.normal),
-    );
-
-    if (groupId == null) {
-      AppLoading.dismiss();
-      AppToast.show('创建群组失败');
-      return null;
-    }
-
-    final message = CustomMessage(
       targetId: groupId,
-      customMessageType: CustomMessageType.groupInvited,
+      customMessageType: CustomMessageType.groupRemoved,
       conversationType: RCIMIWConversationType.group,
+      userIds: userIds,
     );
-
     await ImSender.instance.send(message: message);
     AppLoading.dismiss();
-    return groupId;
   }
 }

@@ -561,6 +561,9 @@ class ImConversationManager {
         final aTop = A?.top ?? false;
         final bTop = B?.top ?? false;
 
+        /// =========================
+        /// 置顶优先
+        /// =========================
         if (aTop && !bTop) {
           return -1;
         }
@@ -569,15 +572,23 @@ class ImConversationManager {
           return 1;
         }
 
-        final at = max(
-          A?.operationTime ?? 0,
-          A?.lastMessage?.sentTime ?? 0,
-        );
+        /// =========================
+        /// 两个都是置顶
+        /// 按 operationTime
+        /// =========================
+        if (aTop && bTop) {
+          final at = A?.operationTime ?? 0;
+          final bt = B?.operationTime ?? 0;
+          // print('aTop-----$at--$bt---${bt.compareTo(at)}');
+          return bt.compareTo(at);
+        }
 
-        final bt = max(
-          B?.operationTime ?? 0,
-          B?.lastMessage?.sentTime ?? 0,
-        );
+        /// =========================
+        /// 普通会话
+        /// 按消息时间
+        /// =========================
+        final at = A?.lastMessage?.sentTime ?? 0;
+        final bt = B?.lastMessage?.sentTime ?? 0;
 
         return bt.compareTo(at);
       });

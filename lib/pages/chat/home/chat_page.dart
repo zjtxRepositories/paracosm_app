@@ -93,9 +93,7 @@ class _ChatPageState extends State<ChatPage> {
                         // onTap: () => _navigateToDetail(item['title']),
                       );
                     } else {
-                      print(
-                        'item.info---${item.info.operationTime}-${item.info.targetId}',
-                      );
+                      // print('item.info---${item.info.operationTime}-${item.info.targetId}');
                       return ListenableBuilder(
                         listenable: item,
                         builder: (context, child) {

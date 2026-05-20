@@ -16,6 +16,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/select_members_modal.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
@@ -412,7 +413,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
         spacing: 28,
         runSpacing: 12,
         children: [
-          _buildMemberItem(widget.name, 'assets/images/chat/avatar.png'),
+          _buildMemberItem(widget.name, widget.sessionArgs?.targetId ?? '',widget.sessionArgs?.avatar),
           _buildAddButton(),
         ],
       ),
@@ -420,7 +421,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
   }
 
   /// 构建单个成员项
-  Widget _buildMemberItem(String name, String avatarPath) {
+  Widget _buildMemberItem(String name, String userId, String? avatarUrl) {
     return GestureDetector(
       onTap: () {
         if (widget.userId.isEmpty) return;
@@ -429,16 +430,11 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              image: DecorationImage(
-                image: AssetImage(avatarPath),
-                fit: BoxFit.cover,
-              ),
-            ),
+          UserAvatarWidget(
+            userId: userId,
+            avatarUrl: avatarUrl,
+            size: 44,
+            borderRadius: BorderRadius.circular(10),
           ),
           const SizedBox(height: 4),
           Text(

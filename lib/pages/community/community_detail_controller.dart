@@ -7,6 +7,8 @@ import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../widgets/base/app_localizations.dart';
+import '../../core/models/social_media_model.dart';
+import '../../widgets/common/app_media_gallery.dart';
 import '../../widgets/common/app_toast.dart';
 
 class CommunityDetailController extends ChangeNotifier {
@@ -157,6 +159,22 @@ class CommunityDetailController extends ChangeNotifier {
     group!.info.role = RCIMIWGroupMemberRole.normal;
     notifyListeners();
   }
+
+  void toggleMedia(
+      List<SocialMediaModel> medias,
+      int initialIndex,
+      BuildContext context,
+      ) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => AppMediaGallery(
+          list: medias.map((e) => e.toMediaItem()).toList(),
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
 
   /// 销毁
   void disposeController() {

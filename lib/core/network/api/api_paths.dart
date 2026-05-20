@@ -5,6 +5,7 @@ class ApiPaths {
   static const logout = "/user/logout";
   static const userInfo = "/user/get";
   static const userInfoList = "/user/getBatch";
+  static const searchUser = "/nearby/user";
 
   /// IM
   static const conversationList = "/im/conversation/list";
@@ -31,5 +32,6 @@ class ApiPaths {
   static const recommendCommunity = '/room/community/recommend/list';
   static const communityList = '/room/community/list';
   static const communityDynamics = '/room/community/dynamics/page';
+  static const addCommunityDynamics = '/room/community/dynamics/add';
 
 }

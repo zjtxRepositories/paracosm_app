@@ -601,6 +601,8 @@ class _ChatCombineForwardDetailPageState
       default:
         return ChatMessageItem(
           isMe: message.isMe,
+          senderUserId: message.senderUserId,
+          avatarUrl: message.senderAvatarUrl,
           isUnread: false,
           showBubble: message.showBubble,
           onLongPressStart: (_) {},

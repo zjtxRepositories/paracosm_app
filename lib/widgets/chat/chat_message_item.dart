@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/chat/chat_bubble_painters.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 class ChatMessageItem extends StatelessWidget {
   const ChatMessageItem({
@@ -9,6 +10,8 @@ class ChatMessageItem extends StatelessWidget {
     required this.isMe,
     required this.child,
     required this.onLongPressStart,
+    required this.senderUserId,
+    this.avatarUrl,
     this.isUnread = false,
     this.showBubble = true,
     this.isFlashing = false,
@@ -20,6 +23,8 @@ class ChatMessageItem extends StatelessWidget {
   final bool isUnread;
   final bool showBubble;
   final bool isFlashing;
+  final String? senderUserId;
+  final String? avatarUrl;
   final String? readReceiptText;
   final GestureLongPressStartCallback onLongPressStart;
 
@@ -35,7 +40,7 @@ class ChatMessageItem extends StatelessWidget {
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          if (!isMe) const _ChatMessageAvatar(),
+          if (!isMe) _ChatMessageAvatar(userId: senderUserId ?? '',avatarUrl: avatarUrl),
           if (!isMe) const SizedBox(width: 12),
           Flexible(
             child: Column(
@@ -127,20 +132,22 @@ class _FlashingChatBubble extends StatelessWidget {
 }
 
 class _ChatMessageAvatar extends StatelessWidget {
-  const _ChatMessageAvatar();
+  final String userId;
+  final String? avatarUrl;
+
+  const _ChatMessageAvatar({
+    super.key,
+    required this.userId,
+    this.avatarUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/chat/avatar.png'),
-          fit: BoxFit.cover,
-        ),
-      ),
+    return UserAvatarWidget(
+      userId: userId,
+      avatarUrl: avatarUrl,
+      size: 40,
+      borderRadius: BorderRadius.circular(10),
     );
   }
 }

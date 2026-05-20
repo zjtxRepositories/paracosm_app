@@ -6,6 +6,7 @@ import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -19,6 +20,7 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:paracosm/widgets/modals/share_modals.dart';
 
+import '../../core/models/user_display_model.dart';
 import 'moment_post_card.dart';
 
 /// 个人主页详情页
@@ -207,10 +209,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     try {
-      final user = await GetUerInfoApi.get(userId);
+      final user = await UserDisplayStateCenter().getUser(userId);
+      if (user == null){
+        return null;
+      }
+      final userInfo = await GetUerInfoApi.search(userId);
+
       return _MomentProfileHeaderData.fromUserInfo(
         user,
-        fallbackUserId: userId,
+        fallbackUserId: userInfo?.userId ?? '',
       );
     } catch (e) {
       debugPrint('load moment user profile failed: $e');
@@ -219,15 +226,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   _MomentProfileHeaderData? _headerFromPost(List<SocialInvitationModel> posts) {
-    for (final post in posts) {
-      final userInfo = post.userInfoModel;
-      if (userInfo != null) {
-        return _MomentProfileHeaderData.fromUserInfo(
-          userInfo,
-          fallbackUserId: post.userId,
-        );
-      }
-    }
+    // for (final post in posts) {
+    //   final userInfo = post.userInfoModel;
+    //   if (userInfo != null) {
+    //     return _MomentProfileHeaderData.fromUserInfo(
+    //       userInfo,
+    //       fallbackUserId: post.userId,
+    //     );
+    //   }
+    // }
     return null;
   }
 
@@ -558,6 +565,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               left: _sendMomentOffset!.dx,
               top: _sendMomentOffset!.dy,
               child: GestureDetector(
+                onTap: () async {
+                  await context.push('/new-post?retweet=0');
+                  _loadPosts();
+                },
                 behavior: HitTestBehavior.opaque,
                 onPanUpdate: (details) {
                   final size = MediaQuery.sizeOf(context);
@@ -1011,14 +1022,14 @@ class _MomentProfileHeaderData {
   });
 
   factory _MomentProfileHeaderData.fromUserInfo(
-    UserInfo userInfo, {
+      UserDisplayModel userInfo, {
     required String fallbackUserId,
   }) {
     return _MomentProfileHeaderData(
-      userId: userInfo.userId.isNotEmpty ? userInfo.userId : fallbackUserId,
-      nickname: userInfo.nickname,
+      userId: fallbackUserId,
+      nickname: userInfo.name,
       avatar: userInfo.avatar,
-      account: userInfo.account,
+      account: userInfo.userId,
     );
   }
 

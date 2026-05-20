@@ -14,10 +14,12 @@ import '../../../widgets/common/app_media_gallery.dart';
 
 class NewPostPage extends StatefulWidget {
   final bool isRetweet;
+  final String? communityId;
 
   const NewPostPage({
     super.key,
     this.isRetweet = false,
+    this.communityId,
   });
 
   @override
@@ -157,6 +159,13 @@ class _NewPostPageState extends State<NewPostPage> {
                   onPressed: controller.isSubmitting || controller.textController.text.isEmpty
                       ? null
                       : () async {
+                    if (widget.communityId != null){
+                      final ok = await controller.addCommunityDynamics(roomId: widget.communityId!);
+                      if (ok && mounted) {
+                        Navigator.pop(context);
+                      }
+                      return;
+                    }
                     final ok = await controller.publish();
                     if (ok && mounted) {
                       Navigator.pop(context);

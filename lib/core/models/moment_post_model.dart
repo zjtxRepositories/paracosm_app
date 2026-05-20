@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
+import 'package:paracosm/core/models/social_media_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
@@ -111,5 +112,43 @@ class MomentsResolver {
 
   void clearCache() {
     _cache.clear();
+  }
+}
+
+class MomentDynamicModel {
+  MomentDynamicModel(
+  {
+    required this.noteId,
+    required this.content,
+    required this.media,
+}
+      );
+
+  final String noteId;
+  final String content;
+  final List<SocialMediaModel> media;
+
+  /// =========================
+  /// fromJson
+  /// =========================
+  factory MomentDynamicModel.fromJson(Map<String, dynamic> json) {
+    return MomentDynamicModel(
+      noteId: json['noteId'] ?? '',
+      content: json['content'] ?? '',
+      media: (json['media'] as List? ?? [])
+          .map((e) => SocialMediaModel.fromJson(e))
+          .toList(),
+    );
+  }
+
+  /// =========================
+  /// toJson
+  /// =========================
+  Map<String, dynamic> toJson() {
+    return {
+      'noteId': noteId,
+      'content': content,
+      'media': media.map((e) => e.toJson()).toList(),
+    };
   }
 }

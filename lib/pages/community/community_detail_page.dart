@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/community_model.dart';
 import 'package:paracosm/core/models/group_member_model.dart';
+import 'package:paracosm/core/models/media_item.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -17,7 +18,9 @@ import 'package:paracosm/widgets/common/app_search_input.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../core/models/social_media_model.dart';
 import '../chat/chat_session_args.dart';
+import '../moments/moment_post_card.dart';
 import 'community_detail_controller.dart';
 
 /// 社区详情页
@@ -34,6 +37,9 @@ class CommunityDetailPage extends StatefulWidget {
 class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
   late CommunityDetailController controller;
+  Offset? _sendMomentOffset;
+  bool _sendMomentInitialized = false;
+  static const double _sendMomentSize = 80;
 
   @override
   void initState() {
@@ -55,7 +61,21 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
     super.dispose();
   }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_sendMomentInitialized) {
+      return;
+    }
 
+    final size = MediaQuery.sizeOf(context);
+    final padding = MediaQuery.of(context).padding;
+    _sendMomentOffset = Offset(
+      size.width - 20 - _sendMomentSize,
+      size.height - padding.bottom - 50 - _sendMomentSize,
+    );
+    _sendMomentInitialized = true;
+  }
   Future<void> navigateToConversationDetail() async {
     final group = controller.group;
     final name = await group?.name;
@@ -153,6 +173,37 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               ),
             ),
           ),
+          if (controller.isJoined && _sendMomentOffset != null)
+            Positioned(
+              left: _sendMomentOffset!.dx,
+              top: _sendMomentOffset!.dy,
+              child: GestureDetector(
+                onTap: () async {
+                 await context.push('/new-post?retweet=0',extra: controller.roomId);
+                 controller.refresh();
+                },
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: (details) {
+                  final size = MediaQuery.sizeOf(context);
+                  final padding = MediaQuery.of(context).padding;
+                  final maxX = size.width - _sendMomentSize;
+                  final maxY = size.height - padding.bottom - _sendMomentSize;
+                  final nextOffset = Offset(
+                    (_sendMomentOffset!.dx + details.delta.dx).clamp(0.0, maxX),
+                    (_sendMomentOffset!.dy + details.delta.dy).clamp(0.0, maxY),
+                  );
+
+                  setState(() {
+                    _sendMomentOffset = nextOffset;
+                  });
+                },
+                child: Image.asset(
+                  'assets/images/moments/send-moment.png',
+                  width: _sendMomentSize,
+                  height: _sendMomentSize,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1536,7 +1587,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         const SizedBox(height: 16),
         // 文字内容
         Text(
-         item.text,
+         item.content?.content ?? '',
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             color: const Color(0xFF404040),
@@ -1544,10 +1595,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ),
         ),
 
-        // const SizedBox(height: 12),
-        // // 图片网格
-        // _buildPostImageGrid(),
-        // const SizedBox(height: 12),
+        const SizedBox(height: 12),
+        // 图片网格
+        _buildPostImageGrid(item.content?.media ?? []),
+        const SizedBox(height: 12),
         const SizedBox(height: 12),
 
         const Divider(
@@ -1560,7 +1611,12 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   }
 
   /// 构建动态图片网格
-  Widget _buildPostImageGrid() {
+  Widget _buildPostImageGrid(List<SocialMediaModel> medias) {
+    return ImageGrid(
+      medias: medias,
+      onTap: (index) =>
+          controller.toggleMedia(medias, index, context),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final double spacing = 4;
@@ -1568,7 +1624,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: List.generate(6, (index) {
+          children: List.generate(medias.length, (index) {
             return ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Image.asset(

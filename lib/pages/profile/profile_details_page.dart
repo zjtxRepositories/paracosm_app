@@ -75,35 +75,35 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       }
     }
     _walletMap = map;
-
   }
 
   /// 显示密码输入弹窗
   void _showPasswordModal() {
     WalletModals.showPasswordModal(
-      title: '输入当前密码',
+      title: AppLocalizations.of(context)!.profileCurrentPassword,
       context: context,
       onConfirm: (oldPassword) async {
-
         AppLoading.show();
 
-        final isResult =
-        await WalletSecurity.verifyPassword(oldPassword);
+        final isResult = await WalletSecurity.verifyPassword(oldPassword);
 
         AppLoading.dismiss();
 
         if (!isResult) {
-          return AppToast.show('密码错误！');
+          return AppToast.show(
+            AppLocalizations.of(context)!.commonPasswordError,
+          );
         }
         await Future.delayed(const Duration(milliseconds: 150));
 
         WalletModals.showPasswordModal(
-          title: '输入新密码',
+          title: AppLocalizations.of(context)!.profileNewPassword,
           context: context,
           onConfirm: (newPassword) async {
-
             if (newPassword.length < 6) {
-              return AppToast.show('密码至少6位');
+              return AppToast.show(
+                AppLocalizations.of(context)!.profilePasswordMinLength,
+              );
             }
             AppLoading.show();
 
@@ -113,7 +113,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
             );
             AppLoading.dismiss();
 
-            AppToast.show('修改成功');
+            AppToast.show(AppLocalizations.of(context)!.commonModifySuccess);
           },
         );
       },
@@ -123,71 +123,73 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   /// 显示钱包切换弹窗
   void _showWalletSwitcher() {
     if (_walletModel == null || _walletMap == null) return;
-    WalletModals.showWalletSwitcher(context,
-        accounts: _accounts,
-        walletMap: _walletMap!,
-        currentWalletId: _walletModel!.id,
-        onSwitch: (address) async {
-          await AccountManager().switchAccount(address);
-        },
-        onAddWallet: (){
-          context.push('/wallet-manager'); // 跳转到钱包管理页
-        });
-
+    WalletModals.showWalletSwitcher(
+      context,
+      accounts: _accounts,
+      walletMap: _walletMap!,
+      currentWalletId: _walletModel!.id,
+      onSwitch: (address) async {
+        await AccountManager().switchAccount(address);
+      },
+      onAddWallet: () {
+        context.push('/wallet-manager'); // 跳转到钱包管理页
+      },
+    );
   }
 
   ///备份
-  void _backupMnemonic(String type){
+  void _backupMnemonic(String type) {
     WalletModals.showPasswordModal(
-        context: context,
-        title: AppLocalizations.of(context)!
-            .profileTransferPassword,
-        onConfirm: (password) async {
-          AppLoading.show();
-          final isResult =
-              await WalletSecurity.verifyPassword(password);
-          AppLoading.dismiss();
-          if (!isResult) {
-            return AppToast.show('密码错误！');
-          }
-          final data = await WalletSecurity.getWallet(walletId: _walletModel?.id ?? '', password: password);
-          if (data == null) {
-            return AppToast.show('数据错误！');
-          }
-          if (type == WalletType.privateKey){
-            WalletModals.showChainSelector(
-                context: context,
-                wallet: _walletModel!,
-                onSelected: (chain) async {
-                  if (chain.address.isNotEmpty){
-                    final privateKey = await WalletManager.generatePrivateKey(chain);
-                    context.push('/wallet-backup-private-key',
-                      extra: {
-                        'privateKey': privateKey,
-                      },
-                    );
-                    return;
-                  }
-                  context.push('/wallet-import-private-key',
-                    extra: {
-                      'password': password,
-                      'walletId': _walletModel!.id,
-                      'chainType': chain.chainType,
-                    },
-                  );
-                }
-            );
-            return;
-          }
-          final mnemonic = data['mnemonic'];
-          context.push('/wallet-backup-mnemonic',
-            extra: {
-              'mnemonic': mnemonic,
+      context: context,
+      title: AppLocalizations.of(context)!.profileTransferPassword,
+      onConfirm: (password) async {
+        AppLoading.show();
+        final isResult = await WalletSecurity.verifyPassword(password);
+        AppLoading.dismiss();
+        if (!isResult) {
+          return AppToast.show(
+            AppLocalizations.of(context)!.commonPasswordError,
+          );
+        }
+        final data = await WalletSecurity.getWallet(
+          walletId: _walletModel?.id ?? '',
+          password: password,
+        );
+        if (data == null) {
+          return AppToast.show(AppLocalizations.of(context)!.commonDataError);
+        }
+        if (type == WalletType.privateKey) {
+          WalletModals.showChainSelector(
+            context: context,
+            wallet: _walletModel!,
+            onSelected: (chain) async {
+              if (chain.address.isNotEmpty) {
+                final privateKey = await WalletManager.generatePrivateKey(
+                  chain,
+                );
+                context.push(
+                  '/wallet-backup-private-key',
+                  extra: {'privateKey': privateKey},
+                );
+                return;
+              }
+              context.push(
+                '/wallet-import-private-key',
+                extra: {
+                  'password': password,
+                  'walletId': _walletModel!.id,
+                  'chainType': chain.chainType,
+                },
+              );
             },
           );
-        });
+          return;
+        }
+        final mnemonic = data['mnemonic'];
+        context.push('/wallet-backup-mnemonic', extra: {'mnemonic': mnemonic});
+      },
+    );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -222,8 +224,8 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         children: [
           // 用户头像
           GestureDetector(
-            onTap: (){
-              context.push('/user-profile',extra:_account?.accountId);
+            onTap: () {
+              context.push('/user-profile', extra: _account?.accountId);
             },
             child: UserAvatarWidget(
               userId: _account?.accountId,
@@ -253,7 +255,9 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
                       onTap: () async {
                         final text = _account?.accountId ?? '';
                         await Clipboard.setData(ClipboardData(text: text));
-                        AppToast.show(AppLocalizations.of(context)!.commonCopied);
+                        AppToast.show(
+                          AppLocalizations.of(context)!.commonCopied,
+                        );
                       },
                       child: Image.asset(
                         'assets/images/common/copy-grey.png',
@@ -273,7 +277,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                    )
+                    ),
                   ],
                 ),
               ],
@@ -282,7 +286,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           // 二维码图标
           GestureDetector(
             onTap: () {
-              context.push('/qr-code',extra: _account?.accountId);
+              context.push('/qr-code', extra: _account?.accountId);
             },
             child: Image.asset(
               'assets/images/profile/user/qrcode.png',
@@ -305,8 +309,12 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         children: [
           Expanded(
             child: _buildSingleCard(
-              title: AppLocalizations.of(context)!.profileProfileDetailsBackupWallet,
-              desc: AppLocalizations.of(context)!.profileProfileDetailsBackupDesc,
+              title: AppLocalizations.of(
+                context,
+              )!.profileProfileDetailsBackupWallet,
+              desc: AppLocalizations.of(
+                context,
+              )!.profileProfileDetailsBackupDesc,
               iconPath: 'assets/images/profile/user/wallet.png',
               bgColor: Colors.white,
             ),
@@ -314,8 +322,12 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           const SizedBox(width: 12),
           Expanded(
             child: _buildSingleCard(
-              title: AppLocalizations.of(context)!.profileProfileDetailsInviteFriends,
-              desc: AppLocalizations.of(context)!.profileProfileDetailsInviteDesc,
+              title: AppLocalizations.of(
+                context,
+              )!.profileProfileDetailsInviteFriends,
+              desc: AppLocalizations.of(
+                context,
+              )!.profileProfileDetailsInviteDesc,
               iconPath: 'assets/images/profile/user/invite.png',
               bgColor: Colors.white,
             ),
@@ -382,18 +394,24 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   Widget _buildMenuList(BuildContext context) {
     final menuItems = [
       {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsChangeAddWallet,
+        'title': AppLocalizations.of(
+          context,
+        )!.profileProfileDetailsChangeAddWallet,
         'icon': 'add-wallet.png',
-        'onTap': _showWalletSwitcher
+        'onTap': _showWalletSwitcher,
       },
       {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsBackupPrivateKey,
+        'title': AppLocalizations.of(
+          context,
+        )!.profileProfileDetailsBackupPrivateKey,
         'icon': 'key.png',
         'onTap': () => _backupMnemonic(WalletType.privateKey),
       },
       if (_walletModel?.isPrivateKey == false)
         {
-          'title': AppLocalizations.of(context)!.profileProfileDetailsBackupMnemonic,
+          'title': AppLocalizations.of(
+            context,
+          )!.profileProfileDetailsBackupMnemonic,
           'icon': 'back-up.png',
           'onTap': () => _backupMnemonic(WalletType.mnemonic),
         },
@@ -408,9 +426,11 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       //   'route': '/pcosm-detail'
       // },
       {
-        'title': AppLocalizations.of(context)!.profileProfileDetailsChangePassword,
+        'title': AppLocalizations.of(
+          context,
+        )!.profileProfileDetailsChangePassword,
         'icon': 'change-password.png',
-        'onTap': _showPasswordModal
+        'onTap': _showPasswordModal,
       },
       // {
       //   'title': AppLocalizations.of(context)!.profileNodeSettingsNodeSettings,
@@ -422,14 +442,16 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       //   'icon': 'message.png'
       // },
       {
-        'title': AppLocalizations.of(context)!.profileLanguageSettingsChangeLanguage,
+        'title': AppLocalizations.of(
+          context,
+        )!.profileLanguageSettingsChangeLanguage,
         'icon': 'change-language.png',
-        'route': '/language-settings'
+        'route': '/language-settings',
       },
       {
         'title': AppLocalizations.of(context)!.profileAboutAbout,
         'icon': 'about.png',
-        'route': '/about'
+        'route': '/about',
       },
     ];
 
@@ -472,7 +494,8 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
               'assets/images/profile/user/$iconName',
               width: 24,
               height: 24,
-              errorBuilder: (_, __, ___) => const Icon(Icons.settings, size: 24),
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.settings, size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(

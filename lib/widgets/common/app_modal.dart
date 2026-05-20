@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'app_button.dart';
@@ -29,7 +30,7 @@ class AppModal extends StatelessWidget {
     this.titleWidget,
     this.subtitle,
     this.description,
-    this.confirmText = '确定',
+    this.confirmText = '',
     this.cancelText,
     this.cancelBorder,
     this.confirmWidth,
@@ -46,25 +47,25 @@ class AppModal extends StatelessWidget {
 
   /// 显示弹窗的静态方法
   static Future<void> show(
-      BuildContext context, {
-        required String title,
-        Widget? titleWidget,
-        String? subtitle,
-        String? description,
-        String? confirmText = '确定',
-        String? cancelText,
-        BorderSide? cancelBorder,
-        double? confirmWidth,
-        double? cancelWidth,
-        Color? confirmColor,
-        Color? cancelColor,
-        Color? cancelTextColor,
-        Widget? icon,
-        Widget? child,
-        bool? contentPadding,
-        required VoidCallback onConfirm,
-        VoidCallback? onCancel,
-      }) {
+    BuildContext context, {
+    required String title,
+    Widget? titleWidget,
+    String? subtitle,
+    String? description,
+    String? confirmText = '',
+    String? cancelText,
+    BorderSide? cancelBorder,
+    double? confirmWidth,
+    double? cancelWidth,
+    Color? confirmColor,
+    Color? cancelColor,
+    Color? cancelTextColor,
+    Widget? icon,
+    Widget? child,
+    bool? contentPadding,
+    required VoidCallback onConfirm,
+    VoidCallback? onCancel,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -94,6 +95,10 @@ class AppModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final resolvedConfirmText = confirmText == ''
+        ? l10n.commonConfirm
+        : confirmText;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -133,14 +138,16 @@ class AppModal extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               // 标题栏
-              Padding(padding: contentPadding == null ? EdgeInsets.all(0) :
-              EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child:  Row(
+              Padding(
+                padding: contentPadding == null
+                    ? EdgeInsets.all(0)
+                    : EdgeInsets.fromLTRB(20, 0, 20, 0),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child:
-                      titleWidget ??
+                          titleWidget ??
                           Text(
                             title,
                             style: AppTextStyles.h2.copyWith(
@@ -157,7 +164,7 @@ class AppModal extends StatelessWidget {
                         width: 24,
                         height: 24,
                         errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.close, color: AppColors.grey900),
+                            const Icon(Icons.close, color: AppColors.grey900),
                       ),
                     ),
                   ],
@@ -167,9 +174,12 @@ class AppModal extends StatelessWidget {
               Container(
                 height: 1,
                 color: AppColors.grey100,
-                margin: EdgeInsets.only(top: 16, bottom: 16,
-                    left: contentPadding == null ? 0 : 20,
-                    right: contentPadding == null ? 0 : 20),
+                margin: EdgeInsets.only(
+                  top: 16,
+                  bottom: 16,
+                  left: contentPadding == null ? 0 : 20,
+                  right: contentPadding == null ? 0 : 20,
+                ),
               ),
               // 内容区域
               Flexible(
@@ -200,11 +210,11 @@ class AppModal extends StatelessWidget {
                         },
                       ),
                     ),
-                    if (confirmText != null) ...[
+                    if (resolvedConfirmText != null) ...[
                       const SizedBox(width: 12),
                       Expanded(
                         child: AppButton(
-                          text: confirmText!,
+                          text: resolvedConfirmText,
                           width: confirmWidth,
                           backgroundColor: confirmColor,
                           onPressed: () {
@@ -215,17 +225,19 @@ class AppModal extends StatelessWidget {
                     ],
                   ],
                 )
-              else if (confirmText != null)
-                Padding(padding: contentPadding == null ?  EdgeInsetsGeometry.all(0):
-                EdgeInsetsGeometry.symmetric(horizontal: 20) ,
+              else if (resolvedConfirmText != null)
+                Padding(
+                  padding: contentPadding == null
+                      ? EdgeInsetsGeometry.all(0)
+                      : EdgeInsetsGeometry.symmetric(horizontal: 20),
                   child: AppButton(
-                    text: confirmText!,
+                    text: resolvedConfirmText,
                     backgroundColor: confirmColor,
                     onPressed: () {
                       onConfirm();
                     },
                   ),
-                )
+                ),
             ],
           ),
         ),

@@ -129,7 +129,7 @@ class DAppModalService {
         final isResult = await WalletSecurity.verifyPassword(password);
 
         if (!isResult) {
-          AppToast.show('密码错误！');
+          AppToast.show(AppLocalizations.of(context)!.commonPasswordError);
           return false;
         }
 

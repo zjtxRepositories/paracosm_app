@@ -121,7 +121,9 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
   /// 构建当前钱包卡片 (拷贝自 profile_page.dart)
   Widget _buildCurrentWalletCard() {
     final l10n = AppLocalizations.of(context)!;
-    String showName = _walletModel?.name ?? '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
+    String showName =
+        _walletModel?.name ??
+        '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
     final currentChain = _walletModel?.currentChain;
     print('currentChain----$showName');
     return Container(
@@ -170,7 +172,11 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
+                    const Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 12,
+                      color: AppColors.grey400,
+                    ),
                   ],
                 ),
               ),
@@ -187,21 +193,24 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
 
                   return _isBalanceVisible
                       ? Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '\$'),
-                        TextSpan(text: truncateDouble(total)),
-                      ],
-                    ),
-                  )
+                          TextSpan(
+                            children: [
+                              TextSpan(text: '\$'),
+                              TextSpan(text: truncateDouble(total)),
+                            ],
+                          ),
+                        )
                       : Text('********');
                 },
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
+                onTap: () =>
+                    setState(() => _isBalanceVisible = !_isBalanceVisible),
                 child: Image.asset(
-                  _isBalanceVisible ? 'assets/images/common/eye-line.png' : 'assets/images/common/eye-off-line.png',
+                  _isBalanceVisible
+                      ? 'assets/images/common/eye-line.png'
+                      : 'assets/images/common/eye-off-line.png',
                   width: 20,
                   height: 20,
                   color: AppColors.grey400,
@@ -222,7 +231,9 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
       future: WalletDao().getWalletById(address),
       builder: (context, snapshot) {
         final wallet = snapshot.data;
-        final showName = wallet?.name ?? '${l10n.profileProfileDetailsWallet} ${(wallet?.aIndex ?? 0) + 1}';
+        final showName =
+            wallet?.name ??
+            '${l10n.profileProfileDetailsWallet} ${(wallet?.aIndex ?? 0) + 1}';
 
         return GestureDetector(
           onTap: () {
@@ -292,25 +303,20 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
         // TODO: 密码验证逻辑
         final password = passwordController.text;
         final isResult = await WalletSecurity.verifyPassword(password);
-        if (!isResult){
-          AppToast.show('密码错误！');
+        if (!isResult) {
+          AppToast.show(AppLocalizations.of(context)!.commonPasswordError);
           return;
         }
-        if (tag == 0){
-          final List<String> mnemonics = MnemonicService.generateMnemonic().split(" ");
-          context.push('/wallet-creating',
-            extra: {
-              'password': password,
-              'mnemonics':mnemonics,
-            },
+        if (tag == 0) {
+          final List<String> mnemonics = MnemonicService.generateMnemonic()
+              .split(" ");
+          context.push(
+            '/wallet-creating',
+            extra: {'password': password, 'mnemonics': mnemonics},
           );
           return;
         }
-        context.push('/wallet-import',
-          extra: {
-            'password': password,
-          },
-        );
+        context.push('/wallet-import', extra: {'password': password});
       },
       child: StatefulBuilder(
         builder: (context, setModalState) {
@@ -352,7 +358,9 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
                     GestureDetector(
                       onTap: () => setModalState(() => isObscure = !isObscure),
                       child: Image.asset(
-                        isObscure ? 'assets/images/common/eye-off-line.png' : 'assets/images/common/eye-line.png',
+                        isObscure
+                            ? 'assets/images/common/eye-off-line.png'
+                            : 'assets/images/common/eye-line.png',
                         width: 24,
                         height: 24,
                       ),

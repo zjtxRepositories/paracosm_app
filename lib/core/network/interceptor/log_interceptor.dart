@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/account/service/account_service.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 class LogInterceptor extends Interceptor {
   bool _handlingTokenExpired = false;
@@ -8,7 +9,6 @@ class LogInterceptor extends Interceptor {
 
   @override
   void onRequest(options, handler) {
-
     print("请求地址: ${options.uri}");
     print("请求参数: ${options.data}");
 
@@ -17,17 +17,18 @@ class LogInterceptor extends Interceptor {
 
   @override
   Future<void> onResponse(response, handler) async {
-
     print("响应数据: ${response.data}");
     final resultCode = response.data['resultCode'];
     if (resultCode == 1030102) {
       await _handleTokenExpired();
-      return handler.reject(DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-        error: 'Token已失效',
-      ));
+      return handler.reject(
+        DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: AppLocalizations.currentText('common_token_expired'),
+        ),
+      );
     }
     handler.next(response);
   }
@@ -39,7 +40,9 @@ class LogInterceptor extends Interceptor {
 
     // 取消所有请求
     if (!_cancelToken.isCancelled) {
-      _cancelToken.cancel('Token过期，取消所有请求');
+      _cancelToken.cancel(
+        AppLocalizations.currentText('common_token_expired_cancel_requests'),
+      );
     }
     _cancelToken = CancelToken(); // 重置新 token
 

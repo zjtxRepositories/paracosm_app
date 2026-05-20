@@ -4,6 +4,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
@@ -15,24 +16,19 @@ import '../../core/models/group_member_model.dart';
 class RemoveMemberModal extends StatefulWidget {
   final List<GroupMemberModel>? members;
 
-  const RemoveMemberModal({
-    super.key,
-    this.members,
-  });
+  const RemoveMemberModal({super.key, this.members});
 
   /// 显示弹窗
   static Future<List<String>?> show(
-      BuildContext context, {
-        List<GroupMemberModel>? members,
-      }) {
+    BuildContext context, {
+    List<GroupMemberModel>? members,
+  }) {
     return showModalBottomSheet<List<String>>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RemoveMemberModal(
-        members: members,
-      ),
+      builder: (context) => RemoveMemberModal(members: members),
     );
   }
 
@@ -41,7 +37,6 @@ class RemoveMemberModal extends StatefulWidget {
 }
 
 class _RemoveMemberModalState extends State<RemoveMemberModal> {
-
   List<GroupMemberModel> get _members => widget.members ?? [];
   final Set<String> _selectedMembers = {};
   late List<GroupMemberModel> _filterMembers;
@@ -50,18 +45,24 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
     super.initState();
     _filterMembers = _members;
   }
+
   @override
   Widget build(BuildContext context) {
     const double itemHeight = 72.0;
-    final double listHeight =
-    _members.length < 5 ? _members.length * itemHeight : 5 * itemHeight;
+    final double listHeight = _members.length < 5
+        ? _members.length * itemHeight
+        : 5 * itemHeight;
 
     return AppModal(
-      title: '移出成员',
+      title: AppLocalizations.of(context)!.chatRemoveMembers,
       confirmText: _selectedMembers.isNotEmpty
-          ? '完成 (${_selectedMembers.length})'
-          : '完成',
-      confirmColor: _selectedMembers.isNotEmpty ? AppColors.grey900 : AppColors.grey300,
+          ? AppLocalizations.of(
+              context,
+            )!.commonDoneCount(_selectedMembers.length)
+          : AppLocalizations.of(context)!.commonDone,
+      confirmColor: _selectedMembers.isNotEmpty
+          ? AppColors.grey900
+          : AppColors.grey300,
       onConfirm: () {
         Navigator.pop(context, _selectedMembers.toList());
       },
@@ -70,7 +71,8 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
+          Padding(
+            padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
             child: AppSearchInput(
               onChanged: (t) {
                 setState(() {
@@ -102,11 +104,11 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
                   itemBuilder: (context, index) {
                     final member = _filterMembers[index];
                     return GestureDetector(
-                      onTap: (){
+                      onTap: () {
                         setState(() {
-                          if (_selectedMembers.contains(member.item.userId)){
+                          if (_selectedMembers.contains(member.item.userId)) {
                             _selectedMembers.remove(member.item.userId);
-                          }else{
+                          } else {
                             _selectedMembers.add(member.item.userId ?? '');
                           }
                         });
@@ -135,11 +137,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
                               Color(0xCCFFFFFF),
                               Color(0xFFFFFFFF),
                             ],
-                            stops: [
-                              0.0,
-                              0.78,
-                              1.0,
-                            ],
+                            stops: [0.0, 0.78, 1.0],
                           ),
                         ),
                       ),
@@ -161,93 +159,99 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
     return IgnorePointer(
       ignoring: false,
       child: Opacity(
-          opacity:1,
-          child: GestureDetector(
-            onTap: (){
-              setState(() {
-                if (_selectedMembers.contains(member.item.userId)){
-                  _selectedMembers.remove(member.item.userId);
-                }else{
-                  _selectedMembers.add(member.item.userId ?? '');
-                }
-              });
-            },
-            child: Container(margin: EdgeInsets.symmetric(horizontal: 20),
-              height: 76,
-              child: Row(
-                children: [
-                  UserAvatarWidget(
-                    userId: member.item.userId,
-                    avatarUrl: member.item.portraitUri,
-                    size: 44,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: showDivider
-                            ? const Border(
-                          bottom: BorderSide(color: AppColors.grey100, width: 1),
-                        )
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  member.name,
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppColors.grey900,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+        opacity: 1,
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              if (_selectedMembers.contains(member.item.userId)) {
+                _selectedMembers.remove(member.item.userId);
+              } else {
+                _selectedMembers.add(member.item.userId ?? '');
+              }
+            });
+          },
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 20),
+            height: 76,
+            child: Row(
+              children: [
+                UserAvatarWidget(
+                  userId: member.item.userId,
+                  avatarUrl: member.item.portraitUri,
+                  size: 44,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: showDivider
+                          ? const Border(
+                              bottom: BorderSide(
+                                color: AppColors.grey100,
+                                width: 1,
+                              ),
+                            )
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                member.name,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.grey900,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  ellipsisMiddle( member.item.userId ?? ''),
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.grey700,
-                                    fontSize: 12,
-                                  ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                ellipsisMiddle(member.item.userId ?? ''),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.grey700,
+                                  fontSize: 12,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          // if (widget.showTag) ...[
-                          //   Text(
-                          //     member.name,
-                          //     style: AppTextStyles.caption.copyWith(
-                          //       color: AppColors.grey700,
-                          //       fontSize: 12,
-                          //     ),
-                          //   ),
-                          //   const SizedBox(width: 8),
-                          // ],
-                          AppCheckbox(
-                            value: selected,
-                            onChanged: (val) {
-                              setState(() {
-                                if (_selectedMembers.contains(member.item.userId)){
-                                  _selectedMembers.remove(member.item.userId);
-                                }else{
-                                  _selectedMembers.add(member.item.userId ?? '');
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                        ),
+                        // if (widget.showTag) ...[
+                        //   Text(
+                        //     member.name,
+                        //     style: AppTextStyles.caption.copyWith(
+                        //       color: AppColors.grey700,
+                        //       fontSize: 12,
+                        //     ),
+                        //   ),
+                        //   const SizedBox(width: 8),
+                        // ],
+                        AppCheckbox(
+                          value: selected,
+                          onChanged: (val) {
+                            setState(() {
+                              if (_selectedMembers.contains(
+                                member.item.userId,
+                              )) {
+                                _selectedMembers.remove(member.item.userId);
+                              } else {
+                                _selectedMembers.add(member.item.userId ?? '');
+                              }
+                            });
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
+          ),
+        ),
       ),
     );
   }

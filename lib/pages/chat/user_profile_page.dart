@@ -100,7 +100,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> toggleChat() async {
     if (_user == null) return;
     if (!_isFriend) {
-      AppToast.show('请添加好友！');
+      AppToast.show(AppLocalizations.of(context)!.chatAddFriendRequired);
       return;
     }
     context.push(
@@ -123,7 +123,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
 
     if (userId.isEmpty) {
-      AppToast.show('用户信息加载中');
+      AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
       return;
     }
 
@@ -133,15 +133,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> toggleCall({required bool isVideo}) async {
     final user = _user;
     if (user == null) {
-      AppToast.show('用户信息加载中');
+      AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
       return;
     }
     if (!_isFriend) {
-      AppToast.show('请添加好友！');
+      AppToast.show(AppLocalizations.of(context)!.chatAddFriendRequired);
       return;
     }
     if (_isSelf) {
-      AppToast.show('不能呼叫自己');
+      AppToast.show(AppLocalizations.of(context)!.chatCannotCallSelf);
       return;
     }
 
@@ -178,10 +178,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result.success) {
-          AppToast.show('发送好友申请失败！');
+          AppToast.show(
+            AppLocalizations.of(context)!.chatFriendApplySendFailed,
+          );
           return;
         }
-        AppToast.show('发送好友申请成功！');
+        AppToast.show(AppLocalizations.of(context)!.chatFriendApplySendSuccess);
         if (!mounted) return;
         context.pop();
       },
@@ -209,7 +211,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result) {
-          AppToast.show('设置备注失败！');
+          AppToast.show(AppLocalizations.of(context)!.chatSetNoteFailed);
           return;
         }
         if (!mounted) return;
@@ -224,7 +226,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _showDeleteFriend() {
     AppConfirmDialog.show(
       context,
-      description: '你确定要删除该好友吗？',
+      description: AppLocalizations.of(context)!.chatDeleteFriendConfirm,
       onConfirm: () async {
         context.pop();
         AppLoading.show();
@@ -244,7 +246,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _showAddBlack() {
     AppConfirmDialog.show(
       context,
-      description: '加入黑名单，你讲不再收到对方的消息',
+      description: AppLocalizations.of(context)!.chatBlacklistConfirm,
       onConfirm: () async {
         context.pop();
         AppLoading.show();
@@ -269,7 +271,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
     AppModal.show(
       context,
-      title: '修改名称',
+      title: AppLocalizations.of(context)!.chatModifyName,
       confirmText: AppLocalizations.of(context)!.chatProfileSave,
       onConfirm: () async {
         AppLoading.show();
@@ -279,7 +281,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result) {
-          AppToast.show('修改名称失败！');
+          AppToast.show(AppLocalizations.of(context)!.chatModifyNameFailed);
           return;
         }
         if (!mounted) return;
@@ -313,7 +315,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final url = await UploadFileApi.uploadFileByPath(compressed);
 
       if (url == null || url.isEmpty) {
-        AppToast.show('上传失败');
+        AppToast.show(AppLocalizations.of(context)!.commonUploadFailed);
         return;
       }
 
@@ -324,7 +326,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       );
 
       if (!result) {
-        AppToast.show('修改头像失败');
+        AppToast.show(AppLocalizations.of(context)!.chatAvatarModifyFailed);
         return;
       }
       setState(() {});
@@ -456,7 +458,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     toggleChat,
                   )
                 : _buildActionItem(
-                    '头像',
+                    AppLocalizations.of(context)!.chatAvatar,
                     'assets/images/common/camera.png',
                     _showPickAvatarAction,
                   ),

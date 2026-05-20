@@ -20,6 +20,7 @@ class ChatMessageContextMenu {
     final screenHeight = MediaQuery.of(context).size.height;
     final trimmedCopyText = copyText?.trim();
     final canCopy = trimmedCopyText != null && trimmedCopyText.isNotEmpty;
+    final l10n = AppLocalizations.of(context)!;
 
     return showDialog<void>(
       context: context,
@@ -52,7 +53,7 @@ class ChatMessageContextMenu {
                       children: [
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/copy.png',
-                          label: 'Copy',
+                          label: l10n.commonCopy,
                           enabled: canCopy,
                           onTap: canCopy
                               ? () async {
@@ -74,7 +75,7 @@ class ChatMessageContextMenu {
                         ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/share.png',
-                          label: 'transpond',
+                          label: l10n.commonForward,
                           enabled: onForward != null,
                           onTap: onForward == null
                               ? null
@@ -89,7 +90,7 @@ class ChatMessageContextMenu {
                         // ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/quote.png',
-                          label: 'quote',
+                          label: l10n.commonQuote,
                           enabled: onQuote != null,
                           onTap: onQuote == null
                               ? null
@@ -101,7 +102,7 @@ class ChatMessageContextMenu {
                         if (onRecall != null)
                           _ChatMessageContextMenuItem(
                             icon: 'assets/images/chat/recall.png',
-                            label: 'recall',
+                            label: l10n.commonRecall,
                             onTap: () {
                               Navigator.pop(dialogContext);
                               onRecall();
@@ -109,7 +110,7 @@ class ChatMessageContextMenu {
                           ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/delete-msg.png',
-                          label: 'Delete',
+                          label: l10n.commonDelete,
                           enabled: onDelete != null,
                           onTap: onDelete == null
                               ? null
@@ -120,7 +121,7 @@ class ChatMessageContextMenu {
                         ),
                         _ChatMessageContextMenuItem(
                           icon: 'assets/images/chat/select.png',
-                          label: 'select',
+                          label: l10n.commonSelect,
                           enabled: onSelect != null,
                           onTap: onSelect == null
                               ? null

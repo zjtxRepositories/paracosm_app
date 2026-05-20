@@ -15,6 +15,7 @@ import '../../../modules/im/manager/im_group_manager.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../widgets/chat/select_members_modal.dart';
+import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/common/app_loading.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../chat_session_args.dart';
@@ -70,7 +71,6 @@ class ChatController extends ChangeNotifier {
     _listenFriendList();
     _listenGroupList();
     _listenFriendApplication();
-
   }
 
   /// =========================
@@ -84,7 +84,7 @@ class ChatController extends ChangeNotifier {
     });
     _subs.add(sub);
 
-    if (_engineManager.connection.isConnected){
+    if (_engineManager.connection.isConnected) {
       fetchData();
     }
   }
@@ -111,7 +111,9 @@ class ChatController extends ChangeNotifier {
 
     _subs.add(sub);
 
-    _conversationChangeSub = _engineManager.conversation.changeStream.listen(_onConversationChange);
+    _conversationChangeSub = _engineManager.conversation.changeStream.listen(
+      _onConversationChange,
+    );
 
     _subs.add(_conversationChangeSub!);
 
@@ -139,8 +141,7 @@ class ChatController extends ChangeNotifier {
   /// 核心：增量构建列表（替代 refreshConversation）
   /// =========================
   void _buildConversationList() {
-    final list =
-    _engineManager.conversation.getTabList(selectedFilterIndex);
+    final list = _engineManager.conversation.getTabList(selectedFilterIndex);
 
     final ids = <String>{};
 
@@ -158,7 +159,6 @@ class ChatController extends ChangeNotifier {
         existing.updateConversation(item);
         newList.add(existing);
         _resolveSafe(existing);
-
       } else {
         final model = ConversationModel(info: item);
         _conversationMap[targetId] = model;
@@ -168,8 +168,9 @@ class ChatController extends ChangeNotifier {
     }
 
     /// 删除不存在的会话
-    final removeKeys =
-    _conversationMap.keys.where((e) => !ids.contains(e)).toList();
+    final removeKeys = _conversationMap.keys
+        .where((e) => !ids.contains(e))
+        .toList();
 
     for (final key in removeKeys) {
       _conversationMap.remove(key);
@@ -240,7 +241,6 @@ class ChatController extends ChangeNotifier {
 
     model.updateConversation(conv);
     ConversationResolver().resolve(model);
-
   }
 
   /// =========================
@@ -319,10 +319,7 @@ class ChatController extends ChangeNotifier {
   /// create group
   /// =========================
   Future<void> createNormalGroup(BuildContext context) async {
-    final result = await SelectMembersModal.show(
-      context,
-      friends: friends,
-    );
+    final result = await SelectMembersModal.show(context, friends: friends);
 
     if (result == null || result.isEmpty) return;
 
@@ -336,7 +333,9 @@ class ChatController extends ChangeNotifier {
 
       if (groupId == null) {
         AppLoading.dismiss();
-        AppToast.show('创建群组失败');
+        AppToast.show(
+          AppLocalizations.currentText('common_create_group_failed'),
+        );
         return;
       }
 
@@ -352,8 +351,7 @@ class ChatController extends ChangeNotifier {
 
       if (!isSend) return;
 
-      final conversation =
-      await ImConversationManager().getConversation(
+      final conversation = await ImConversationManager().getConversation(
         type: RCIMIWConversationType.group,
         targetId: groupId,
       );
@@ -374,7 +372,7 @@ class ChatController extends ChangeNotifier {
       );
     } catch (e) {
       AppLoading.dismiss();
-      AppToast.show('创建群组失败');
+      AppToast.show(AppLocalizations.currentText('common_create_group_failed'));
     }
   }
 
@@ -391,8 +389,7 @@ class ChatController extends ChangeNotifier {
 
     final top = !(info.top ?? false);
 
-    await _engineManager.conversation
-        .setConversationTopStatus(
+    await _engineManager.conversation.setConversationTopStatus(
       type: type,
       targetId: targetId,
       channelId: info.channelId,
@@ -426,13 +423,13 @@ class ChatController extends ChangeNotifier {
         targetId,
       );
 
-      AppToast.show('删除成功');
+      AppToast.show(AppLocalizations.currentText('common_delete_success'));
     } catch (_) {
       conversations.insert(index, backup);
       _conversationMap[targetId] = backup;
       _notify();
 
-      AppToast.show('删除失败');
+      AppToast.show(AppLocalizations.currentText('chat_detail_delete_failed'));
     }
   }
 
@@ -442,32 +439,27 @@ class ChatController extends ChangeNotifier {
   void _notify() {
     _notifyDebounce?.cancel();
 
-    _notifyDebounce = Timer(
-      const Duration(milliseconds: 16),
-      notifyListeners,
-    );
+    _notifyDebounce = Timer(const Duration(milliseconds: 16), notifyListeners);
   }
 
   /// =========================
   /// navigate
   /// =========================
   void navigateToConversationDetail(
-      BuildContext context,
-      RCIMIWConversation conversation,
-      String title,
-      String? avatar,
-      ) {
+    BuildContext context,
+    RCIMIWConversation conversation,
+    String title,
+    String? avatar,
+  ) {
     context.push(
       '/chat-detail/${Uri.encodeComponent(title)}',
       extra: ChatSessionArgs(
         targetId: conversation.targetId ?? '',
         conversationType:
-        conversation.conversationType ??
-            RCIMIWConversationType.private,
+            conversation.conversationType ?? RCIMIWConversationType.private,
         name: title,
         channelId: conversation.channelId,
-        isGroup: conversation.conversationType ==
-            RCIMIWConversationType.group,
+        isGroup: conversation.conversationType == RCIMIWConversationType.group,
         avatar: avatar,
       ),
     );

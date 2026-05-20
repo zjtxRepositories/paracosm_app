@@ -14,10 +14,7 @@ import '../../util/string_util.dart';
 class TokenDetailPage extends StatefulWidget {
   final TokenModel token;
 
-  const TokenDetailPage({
-    super.key,
-    required this.token,
-  });
+  const TokenDetailPage({super.key, required this.token});
 
   @override
   State<TokenDetailPage> createState() => _TokenDetailPageState();
@@ -41,6 +38,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
     });
     load();
   }
+
   Future<void> load() async {
     final chain = widget.token.getChain();
     if (chain == null) return;
@@ -49,7 +47,10 @@ class _TokenDetailPageState extends State<TokenDetailPage>
     });
     try {
       final result = await BlockChainService().getTokenTransactions(
-          chain, chain.address, contractAddress: widget.token.address);
+        chain,
+        chain.address,
+        contractAddress: widget.token.address,
+      );
       setState(() {
         _list = result;
       });
@@ -61,9 +62,8 @@ class _TokenDetailPageState extends State<TokenDetailPage>
         _isLoading = false; // 结束加载
       });
     }
-
-
   }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -127,7 +127,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
               Row(
                 children: [
                   Text(
-                    '资产',
+                    AppLocalizations.of(context)!.profileAssets,
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey400,
                       fontSize: 14,
@@ -201,9 +201,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: {
-                        'token':widget.token
-                      });
+                      context.push('/transfer', extra: {'token': widget.token});
                     },
                     child: Container(
                       height: 44,
@@ -333,14 +331,15 @@ class _TokenDetailPageState extends State<TokenDetailPage>
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount:_list.length,
+      itemCount: _list.length,
       itemBuilder: (context, index) {
         final model = _list[index];
         bool isSend = model.direction == TradeDirection.sell;
         final amount =
             '${model.direction == TradeDirection.buy ? '+' : '-'}${formatTrim(model.amount)}';
-        final address =
-        model.direction == TradeDirection.buy ? (model.from ?? '') : (model.to ?? '');
+        final address = model.direction == TradeDirection.buy
+            ? (model.from ?? '')
+            : (model.to ?? '');
         return GestureDetector(
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -367,7 +366,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                       Row(
                         children: [
                           Text(
-                           ellipsisMiddle(address),
+                            ellipsisMiddle(address),
                             style: AppTextStyles.body.copyWith(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -463,11 +462,15 @@ class _TokenDetailPageState extends State<TokenDetailPage>
             value: 'unknown',
           ),
           const SizedBox(height: 24),
-          widget.token.address.isNotEmpty ? _buildOverviewItem(
-            title: AppLocalizations.of(context)!.profileTokenDetailContractAddress,
-            value: widget.token.address,
-            showCopy: true,
-          ) : SizedBox(),
+          widget.token.address.isNotEmpty
+              ? _buildOverviewItem(
+                  title: AppLocalizations.of(
+                    context,
+                  )!.profileTokenDetailContractAddress,
+                  value: widget.token.address,
+                  showCopy: true,
+                )
+              : SizedBox(),
         ],
       ),
     );

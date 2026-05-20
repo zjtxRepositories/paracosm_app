@@ -56,7 +56,7 @@ class WalletModals {
   }) {
     AppModal.show(
       context,
-      title: '选择导出地址',
+      title: AppLocalizations.of(context)!.walletExportAddressTitle,
       confirmText: null,
       onConfirm: () {},
       child: AppChainSelector(
@@ -75,7 +75,7 @@ class WalletModals {
     required BuildContext context,
     TokenModel? currentToken,
     required WalletModel wallet,
-     AssetType type = AssetType.token,
+    AssetType type = AssetType.token,
     required Function(TokenModel) onSelected,
   }) {
     AppModal.show(

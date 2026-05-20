@@ -7,6 +7,7 @@ import '../../modules/account/manager/account_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../util/string_util.dart';
+import '../../widgets/base/app_localizations.dart';
 import '../../widgets/base/app_page.dart';
 import '../../widgets/common/app_network_image.dart';
 import '../../widgets/common/app_search_input.dart';
@@ -42,7 +43,7 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
     final chains = _wallet?.chains;
     if (chains == null) return;
     tokenList = [];
-    for (final chain in chains){
+    for (final chain in chains) {
       tokenList.addAll(chain.tokens);
     }
     if (!mounted) return;
@@ -66,7 +67,7 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   Widget build(BuildContext context) {
     return AppPage(
       showNav: true,
-      title: '币种管理',
+      title: AppLocalizations.of(context)!.profileTokenManagerTitle,
       backgroundColor: AppColors.white,
       child: Column(
         children: [
@@ -74,12 +75,12 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
           if (!_hasFocus) _buildCustomTokenCard(),
           Expanded(
             child: _buildTokenSection(
-              "热门代币",
+              AppLocalizations.of(context)!.profileHotTokens,
               _hasFocus ? _filteredTokens : tokenList,
             ),
           ),
         ],
-      )
+      ),
     );
   }
 
@@ -87,9 +88,9 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   Widget _buildSearchBar() {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
-      child:AppSearchInput(
+      child: AppSearchInput(
         controller: _searchController,
-        hintText: '搜索币种、合约地址',
+        hintText: AppLocalizations.of(context)!.profileSearchTokenOrContract,
         onChanged: _onSearchChanged,
       ),
     );
@@ -99,8 +100,8 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   Widget _buildCustomTokenCard() {
     return GestureDetector(
       onTap: () async {
-       await context.push('/add-token-manager');
-       _init();
+        await context.push('/add-token-manager');
+        _init();
       },
       child: Container(
         margin: EdgeInsets.all(20),
@@ -117,11 +118,13 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
               children: [
                 Image.asset('assets/images/wallet/icon_coin.png', width: 24),
                 SizedBox(width: 10),
-                Text('自定义币种',
+                Text(
+                  AppLocalizations.of(context)!.profileCustomToken,
                   style: AppTextStyles.h2.copyWith(
                     fontSize: 18,
                     color: AppColors.black,
-                  ),),
+                  ),
+                ),
               ],
             ),
             Icon(Icons.arrow_forward_ios, size: 16),
@@ -142,7 +145,7 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _hasFocus ? SizedBox():Text(title),
+          _hasFocus ? SizedBox() : Text(title),
           SizedBox(height: 12),
 
           Expanded(
@@ -170,8 +173,16 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   }
 
   /// 构建代币列表项
-  Widget _buildTokenItem(TokenModel token,String name, String symbol,
-      double price, double change, bool isUp, String iconName, bool isAdd) {
+  Widget _buildTokenItem(
+    TokenModel token,
+    String name,
+    String symbol,
+    double price,
+    double change,
+    bool isUp,
+    String iconName,
+    bool isAdd,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -194,7 +205,8 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
               // 2. 代币名称 (同样点击跳转代币详情)
               Expanded(
                 flex: 2,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       symbol,
@@ -217,15 +229,19 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
                         ),
                         SizedBox(width: 6),
                         Text(
-                          change > 0 ? '+${truncateDouble(change,digits: 2)}%' : '${truncateDouble(change,digits: 2)}%',
+                          change > 0
+                              ? '+${truncateDouble(change, digits: 2)}%'
+                              : '${truncateDouble(change, digits: 2)}%',
                           style: AppTextStyles.caption.copyWith(
-                            color: isUp ? AppColors.primaryDark : AppColors.error,
+                            color: isUp
+                                ? AppColors.primaryDark
+                                : AppColors.error,
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -258,18 +274,18 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
                         ],
                       ),
                     IconButton(
-                        icon: Icon(
-                          isAdd ? Icons.remove_circle : Icons.add_circle,
-                          color: isAdd ? Colors.red : Colors.green,
-                        ),
-                        onPressed: () async {
-                          token.isAdded = !isAdd;
-                          await WalletManager.updateToken(_wallet!.id, token);
-                          if (mounted) setState(() {});
-                        }
-                    )
+                      icon: Icon(
+                        isAdd ? Icons.remove_circle : Icons.add_circle,
+                        color: isAdd ? Colors.red : Colors.green,
+                      ),
+                      onPressed: () async {
+                        token.isAdded = !isAdd;
+                        await WalletManager.updateToken(_wallet!.id, token);
+                        if (mounted) setState(() {});
+                      },
+                    ),
                   ],
-                )
+                ),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// 一个简单的用户状态模型
 class UserState {
@@ -17,14 +18,23 @@ class UserState {
 
 /// 使用 StateNotifierProvider 管理用户状态
 class UserNotifier extends StateNotifier<UserState> {
-  UserNotifier() : super(UserState(name: '游客', isLoggedIn: false));
+  UserNotifier()
+    : super(
+        UserState(
+          name: AppLocalizations.currentText('common_guest'),
+          isLoggedIn: false,
+        ),
+      );
 
   void login(String name) {
     state = state.copyWith(name: name, isLoggedIn: true);
   }
 
   void logout() {
-    state = UserState(name: '游客', isLoggedIn: false);
+    state = UserState(
+      name: AppLocalizations.currentText('common_guest'),
+      isLoggedIn: false,
+    );
   }
 }
 

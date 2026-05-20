@@ -280,7 +280,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       },
                     );
                     if (text != null && text.isNotEmpty) {
-                      AppToast.show('投诉已提交！');
+                      AppToast.show(
+                        AppLocalizations.of(context)!.chatComplaintSubmitted,
+                      );
                     }
                   },
                 ),

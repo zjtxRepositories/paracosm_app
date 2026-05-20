@@ -5,6 +5,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
@@ -129,10 +130,11 @@ class _ChatForwardTargetModalState extends State<ChatForwardTargetModal> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AppModal(
-      title: '选择转发对象',
-      confirmText: '转发 (${_selectedKeys.length})',
-      cancelText: '取消',
+      title: l10n.chatDetailForwardTargetTitle,
+      confirmText: l10n.chatDetailForwardCount(_selectedKeys.length),
+      cancelText: l10n.commonCancel,
       cancelBorder: const BorderSide(color: AppColors.grey300),
       onConfirm: _confirm,
       child: Column(
@@ -140,7 +142,7 @@ class _ChatForwardTargetModalState extends State<ChatForwardTargetModal> {
         children: [
           AppSearchInput(
             controller: _searchController,
-            hintText: '搜索好友或群聊',
+            hintText: l10n.chatDetailForwardSearchHint,
             onChanged: _filter,
           ),
           const SizedBox(height: 12),
@@ -159,7 +161,9 @@ class _ChatForwardTargetModalState extends State<ChatForwardTargetModal> {
     }
 
     if (_filteredTargets.isEmpty) {
-      return const AppEmptyView(text: '暂无可转发对象');
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.chatDetailNoForwardTargets,
+      );
     }
 
     return ListView.builder(
@@ -201,7 +205,9 @@ class _ChatForwardTargetModalState extends State<ChatForwardTargetModal> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        target.isGroup ? '群聊' : '好友',
+                        target.isGroup
+                            ? AppLocalizations.of(context)!.commonGroupChat
+                            : AppLocalizations.of(context)!.commonFriend,
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.grey400,
                           fontSize: 12,
@@ -268,7 +274,9 @@ class _ChatForwardTargetModalState extends State<ChatForwardTargetModal> {
 
   void _confirm() {
     if (_selectedKeys.isEmpty) {
-      AppToast.show('请选择转发对象');
+      AppToast.show(
+        AppLocalizations.of(context)!.chatDetailChooseForwardTarget,
+      );
       return;
     }
 

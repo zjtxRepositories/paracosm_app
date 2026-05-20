@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../base/app_localizations.dart';
 import 'app_network_image.dart';
 import 'app_search_input.dart';
 import 'app_checkbox.dart';
@@ -10,8 +11,10 @@ import 'app_checkbox.dart';
 class AppNetworkSelector extends StatefulWidget {
   /// 初始选中的网络
   final ChainAccount initialNetwork;
+
   /// 选择回调
   final ValueChanged<ChainAccount> onSelected;
+
   /// 网络列表数据（可选，不传则使用默认列表）
   final List<ChainAccount> networks;
 
@@ -67,7 +70,7 @@ class _AppNetworkSelectorState extends State<AppNetworkSelector> {
       children: [
         AppSearchInput(
           controller: _searchController,
-          hintText: 'Search Internet',
+          hintText: AppLocalizations.of(context)!.commonSearchInternet,
           onChanged: (value) {
             setState(() {
               _searchQuery = value;
@@ -90,7 +93,8 @@ class _AppNetworkSelectorState extends State<AppNetworkSelector> {
             ),
             itemBuilder: (context, index) {
               final network = filteredNetworks[index];
-              final isSelected = network.chainId == widget.initialNetwork.chainId;
+              final isSelected =
+                  network.chainId == widget.initialNetwork.chainId;
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),

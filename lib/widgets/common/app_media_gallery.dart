@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../../core/models/media_item.dart';
 import '../../modules/manager/media_cache_manager.dart';
@@ -8,11 +9,7 @@ class AppMediaGallery extends StatefulWidget {
   final List<MediaItem> list;
   final int initialIndex;
 
-  const AppMediaGallery({
-    super.key,
-    required this.list,
-    this.initialIndex = 0,
-  });
+  const AppMediaGallery({super.key, required this.list, this.initialIndex = 0});
 
   @override
   State<AppMediaGallery> createState() => _AppMediaGalleryState();
@@ -58,10 +55,7 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
   Widget _build(MediaItem item, int index) {
     if (item.type == MediaType.image) {
       return InteractiveViewer(
-        child: Image(
-          image: item.imageProvider,
-          fit: BoxFit.contain,
-        ),
+        child: Image(image: item.imageProvider, fit: BoxFit.contain),
       );
     }
 
@@ -76,10 +70,7 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
           /// 封面（防闪）
           Positioned.fill(
             child: item.coverProvider != null
-                ? Image(
-              image: item.coverProvider!,
-              fit: BoxFit.contain,
-            )
+                ? Image(image: item.coverProvider!, fit: BoxFit.contain)
                 : const ColoredBox(color: Colors.black),
           ),
 
@@ -103,19 +94,19 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
             ),
 
           if (hasError)
-            const Center(
+            Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.videocam_off_outlined,
                     size: 42,
                     color: Colors.white,
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    '视频暂不可预览',
-                    style: TextStyle(color: Colors.white),
+                    AppLocalizations.of(context)!.commonVideoPreviewUnavailable,
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ],
               ),
@@ -133,15 +124,10 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Icon(
-                  controller.value.isPlaying
-                      ? Icons.pause
-                      : Icons.play_arrow,
+                  controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
                   size: 50,
                   color: Colors.white,
                 ),
@@ -176,10 +162,10 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
           ),
 
           if (widget.list.isEmpty)
-            const Center(
+            Center(
               child: Text(
-                '暂无可预览内容',
-                style: TextStyle(color: Colors.white),
+                AppLocalizations.of(context)!.commonNoPreviewContent,
+                style: const TextStyle(color: Colors.white),
               ),
             ),
 

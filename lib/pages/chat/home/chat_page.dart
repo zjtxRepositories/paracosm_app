@@ -93,7 +93,9 @@ class _ChatPageState extends State<ChatPage> {
                         // onTap: () => _navigateToDetail(item['title']),
                       );
                     } else {
-                      print('item.info---${item.info.operationTime}-${item.info.targetId}');
+                      print(
+                        'item.info---${item.info.operationTime}-${item.info.targetId}',
+                      );
                       return ListenableBuilder(
                         listenable: item,
                         builder: (context, child) {
@@ -122,8 +124,10 @@ class _ChatPageState extends State<ChatPage> {
                                 item.portraitUri,
                               );
                             },
-                            onPinTap:()=> controller.toggleConversationTop(item),
-                            onDeleteTap:()=> controller.removeConversation(item),
+                            onPinTap: () =>
+                                controller.toggleConversationTop(item),
+                            onDeleteTap: () =>
+                                controller.removeConversation(item),
                           );
                         },
                       );
@@ -440,15 +444,21 @@ class _ChatPageState extends State<ChatPage> {
         context,
       )!.chatFilterAllCount(controller.tabCache?[0]?.length ?? 0),
 
-      '私聊 ${controller.tabCache?[1]?.length ?? 0}',
+      AppLocalizations.of(
+        context,
+      )!.chatPrivateCount(controller.tabCache?[1]?.length ?? 0),
 
-      '群聊 ${controller.tabCache?[2]?.length ?? 0}',
+      AppLocalizations.of(
+        context,
+      )!.chatGroupCount(controller.tabCache?[2]?.length ?? 0),
 
       AppLocalizations.of(
         context,
       )!.chatFilterClubCount(controller.tabCache?[3]?.length ?? 0),
 
-      AppLocalizations.of(context)!.chatFilterDaoCount(controller.tabCache?[4]?.length ?? 0),
+      AppLocalizations.of(
+        context,
+      )!.chatFilterDaoCount(controller.tabCache?[4]?.length ?? 0),
     ];
     return Container(
       height: 42,

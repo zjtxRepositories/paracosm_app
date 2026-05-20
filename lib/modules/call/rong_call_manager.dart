@@ -9,6 +9,7 @@ import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../router/app_router.dart';
+import '../../widgets/base/app_localizations.dart';
 import '../../widgets/common/app_toast.dart';
 import '../im/manager/im_send_manager.dart';
 import '../im/manager/im_engine_manager.dart';
@@ -158,15 +159,17 @@ class RongCallManager {
   }) async {
     await init();
     if (!IMEngineManager().connection.isConnected) {
-      AppToast.showInfo('IM 未连接，请稍后再试');
+      AppToast.showInfo(AppLocalizations.currentText('call_im_not_connected'));
       return false;
     }
     if (_state.isActive) {
-      AppToast.showInfo('当前已有通话');
+      AppToast.showInfo(AppLocalizations.currentText('call_in_progress'));
       return false;
     }
     if (!await _ensurePermissions(mediaType)) {
-      AppToast.showInfo('请开启相机/麦克风权限后再试');
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_permission_required'),
+      );
       return false;
     }
 
@@ -190,7 +193,7 @@ class RongCallManager {
       );
       if (session == null) {
         _setState(_state.copyWith(status: RongCallStatus.error));
-        AppToast.showInfo('发起通话失败');
+        AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
         return false;
       }
       await _disableNativeCallSummary();
@@ -198,7 +201,7 @@ class RongCallManager {
       return true;
     } catch (_) {
       _setState(_state.copyWith(status: RongCallStatus.error));
-      AppToast.showInfo('发起通话失败');
+      AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
       return false;
     }
   }
@@ -207,14 +210,18 @@ class RongCallManager {
     await init();
     await _disableNativeCallSummary();
     if (!await _ensurePermissions(_state.mediaType)) {
-      AppToast.showInfo('请开启相机/麦克风权限后再接听');
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_answer_permission_required'),
+      );
       return false;
     }
     _setState(_state.copyWith(status: RongCallStatus.connecting));
     unawaited(prepareVideoViews());
     final code = await _engine?.accept() ?? -1;
     if (code != 0) {
-      AppToast.showInfo('接听失败：$code');
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_answer_failed_code', {'code': code}),
+      );
       return false;
     }
     return true;
@@ -507,7 +514,9 @@ class RongCallManager {
       _setState(
         _state.copyWith(status: RongCallStatus.error, errorCode: errorCode),
       );
-      AppToast.showInfo('通话异常：$errorCode');
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_error_code', {'code': errorCode}),
+      );
     };
 
     engine.onEnableCamera = (_, enabled) {
@@ -736,15 +745,15 @@ class RongCallManager {
     switch (reason) {
       case RCCallDisconnectReason.hangup:
       case RCCallDisconnectReason.remote_hangup:
-        return '通话已结束';
+        return AppLocalizations.currentText('call_ended');
       case RCCallDisconnectReason.remote_no_response:
       case RCCallDisconnectReason.no_response:
-        return '对方无应答';
+        return AppLocalizations.currentText('call_peer_no_answer');
       case RCCallDisconnectReason.remote_reject:
       case RCCallDisconnectReason.reject:
-        return '通话已拒绝';
+        return AppLocalizations.currentText('call_rejected');
       default:
-        return '通话已断开';
+        return AppLocalizations.currentText('call_disconnected');
     }
   }
 

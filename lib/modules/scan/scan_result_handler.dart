@@ -40,7 +40,8 @@ class ScanResultHandler {
         break;
       case ScanResultType.unknown:
         AppToast.show(
-          AppLocalizations.of(context)?.discoverScanUnsupported ?? '不支持的二维码内容',
+          AppLocalizations.of(context)?.discoverScanUnsupported ??
+              AppLocalizations.currentText('discover_scan_unsupported'),
         );
         break;
     }
@@ -50,7 +51,7 @@ class ScanResultHandler {
   static void _handleWebUrl(BuildContext context, ScanResult result) {
     final url = result.url;
     if (url == null || url.isEmpty) {
-      AppToast.show('网页二维码内容无效');
+      AppToast.show(AppLocalizations.of(context)!.scanWebQrInvalid);
       return;
     }
 
@@ -64,7 +65,7 @@ class ScanResultHandler {
   static void _handleFriend(BuildContext context, ScanResult result) {
     final userId = result.userId;
     if (userId == null || userId.isEmpty) {
-      AppToast.show('好友二维码内容无效');
+      AppToast.show(AppLocalizations.of(context)!.scanFriendQrInvalid);
       return;
     }
 
@@ -76,6 +77,6 @@ class ScanResultHandler {
     // TODO: 钱包收款二维码协议确定后，在这里把 address/amount/token/chain
     // 映射到 TransferPage 的入参或新增预填充参数。
     // 当前 TransferPage 只支持 token/chain 入参，尚不能安全预填扫描地址。
-    AppToast.show('支付二维码已识别，转账预填充待接入');
+    AppToast.show(AppLocalizations.of(context)!.scanPaymentPending);
   }
 }

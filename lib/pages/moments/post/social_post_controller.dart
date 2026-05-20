@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:image/image.dart' as img;
@@ -13,7 +14,6 @@ import 'package:paracosm/util/media_handle_util.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/social_media_model.dart';
 import '../../../modules/account/manager/account_manager.dart';
-
 
 /// ======================
 /// Controller
@@ -98,16 +98,10 @@ class SocialPostController extends GetxController {
         }
 
         assetList.add(
-          MediaItem(
-            file: file,
-            type:MediaType.video,
-            coverFile: coverFile,
-          ),
+          MediaItem(file: file, type: MediaType.video, coverFile: coverFile),
         );
       } else {
-        assetList.add(
-          MediaItem(file: file, type: MediaType.image),
-        );
+        assetList.add(MediaItem(file: file, type: MediaType.image));
       }
     }
   }
@@ -132,24 +126,16 @@ class SocialPostController extends GetxController {
       /// 图片
       /// ======================
       if (item.type == MediaType.image) {
-        final compressed =
-        await MediaHandleUtil.compressedImageQuality(item.file!.path);
+        final compressed = await MediaHandleUtil.compressedImageQuality(
+          item.file!.path,
+        );
 
         final url = await UploadFileApi.uploadFileByPath(compressed);
         if (url == null) continue;
 
         final image = img.decodeImage(File(compressed).readAsBytesSync());
 
-        list.add(
-          SocialMediaModel(
-            url,
-            0,
-            "",
-            i,
-            image?.width,
-            image?.height,
-          ),
-        );
+        list.add(SocialMediaModel(url, 0, "", i, image?.width, image?.height));
       }
 
       /// ======================
@@ -159,14 +145,15 @@ class SocialPostController extends GetxController {
         final result = await MediaHandleUtil.compressedVideoQuality(item.file!);
         if (result == null) continue;
 
-        final videoUrl =
-        await UploadFileApi.uploadFileByPath(result.video?.path ?? "");
+        final videoUrl = await UploadFileApi.uploadFileByPath(
+          result.video?.path ?? "",
+        );
 
-        final coverUrl =
-        await UploadFileApi.uploadFileByPath(result.thumbnail?.path ?? "");
+        final coverUrl = await UploadFileApi.uploadFileByPath(
+          result.thumbnail?.path ?? "",
+        );
 
-        final image =
-        img.decodeImage(result.thumbnail!.readAsBytesSync());
+        final image = img.decodeImage(result.thumbnail!.readAsBytesSync());
 
         list.add(
           SocialMediaModel(
@@ -187,10 +174,7 @@ class SocialPostController extends GetxController {
   /// ======================
   /// 发布（核心）
   /// ======================
-  Future<bool> publish({
-    String noteId = "",
-    String quote = "",
-  }) async {
+  Future<bool> publish({String noteId = "", String quote = ""}) async {
     if (isSubmitting) return false;
     isSubmitting = true;
     AppLoading.show();
@@ -212,7 +196,9 @@ class SocialPostController extends GetxController {
       return await SocialCircleNoteApi.socialCircleNotePublish(model);
     } catch (e) {
       debugPrint("publish error: $e");
-      AppToast.show('发布帖子失败：${e.toString()}');
+      AppToast.show(
+        AppLocalizations.currentText('moments_post_failed_error', {'error': e}),
+      );
       return false;
     } finally {
       AppLoading.dismiss();

@@ -2,6 +2,7 @@ import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/message_model.dart';
@@ -55,7 +56,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.combineForward,
         isMe: isMe,
-        text: '聊天记录',
+        text: AppLocalizations.currentText('chat_detail_history'),
         combineSummaries: summaries,
         sentTime: sentTime,
         extra: message,
@@ -70,7 +71,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.combineForward,
         isMe: isMe,
-        text: '聊天记录',
+        text: AppLocalizations.currentText('chat_detail_history'),
         sentTime: sentTime,
         extra: message,
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
@@ -85,7 +86,9 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
-        text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
+        text: (message.text?.isNotEmpty ?? false)
+            ? message.text
+            : AppLocalizations.currentText('chat_detail_empty_message'),
         quoteText: await quoteSummaryForMessage(referenceMessage),
         quoteMessageId: referenceMessage == null
             ? null
@@ -122,7 +125,9 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
-        text: (message.text?.isNotEmpty ?? false) ? message.text : '[空消息]',
+        text: (message.text?.isNotEmpty ?? false)
+            ? message.text
+            : AppLocalizations.currentText('chat_detail_empty_message'),
         sentTime: sentTime,
         extra: message,
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
@@ -211,7 +216,9 @@ class ChatDetailMessageMapper {
       messageId: messageKey,
       kind: ChatDetailMessageKind.text,
       isMe: isMe,
-      text: '[暂不支持的消息类型]',
+      text: AppLocalizations.currentText(
+        'chat_detail_unsupported_message_type',
+      ),
       sentTime: sentTime,
       extra: message,
     );
@@ -283,7 +290,7 @@ class ChatDetailMessageMapper {
 
   static Future<String> quoteSummaryForMessage(RCIMIWMessage? message) async {
     if (message == null || _isRecallMessage(message)) {
-      return '[消息]';
+      return AppLocalizations.currentText('chat_detail_generic_message');
     }
 
     final callSummary = RongCallSummaryParser.tryParse(message);
@@ -293,42 +300,48 @@ class ChatDetailMessageMapper {
 
     if (message is RCIMIWReferenceMessage) {
       final text = message.text;
-      return (text?.isNotEmpty ?? false) ? text! : '[消息]';
+      return (text?.isNotEmpty ?? false)
+          ? text!
+          : AppLocalizations.currentText('chat_detail_generic_message');
     }
 
     if (message is RCIMIWCombineV2Message ||
         message.messageType == RCIMIWMessageType.combineV2) {
-      return '[聊天记录]';
+      return AppLocalizations.currentText('chat_detail_history');
     }
 
     if (message is RCIMIWTextMessage) {
       final text = message.text;
-      return (text?.isNotEmpty ?? false) ? text! : '[空消息]';
+      return (text?.isNotEmpty ?? false)
+          ? text!
+          : AppLocalizations.currentText('chat_detail_empty_message');
     }
 
     if (message is RCIMIWImageMessage) {
-      return '[图片]';
+      return AppLocalizations.currentText('chat_image');
     }
 
     if (message is RCIMIWVoiceMessage) {
-      return '[语音]';
+      return AppLocalizations.currentText('chat_voice');
     }
 
     if (message is RCIMIWSightMessage) {
-      return '[视频]';
+      return AppLocalizations.currentText('chat_video');
     }
 
     if (message is RCIMIWFileMessage) {
-      return '[文件]';
+      return AppLocalizations.currentText('chat_file');
     }
 
     if (message.messageType == RCIMIWMessageType.custom) {
       final model = MessageModel(item: message);
       final content = await model.formatCustomContent();
-      return content.isNotEmpty ? content : '[消息]';
+      return content.isNotEmpty
+          ? content
+          : AppLocalizations.currentText('chat_detail_generic_message');
     }
 
-    return '[消息]';
+    return AppLocalizations.currentText('chat_detail_generic_message');
   }
 
   static String messageKeyFor(RCIMIWMessage message) {

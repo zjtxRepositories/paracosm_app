@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart' hide LogInterceptor;
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../config/network_config.dart';
 import '../interceptor/auth_interceptor.dart';
@@ -8,8 +9,7 @@ import '../response/base_response.dart';
 import '../response/response_parser.dart';
 
 class HttpClient {
-  static final HttpClient _instance =
-  HttpClient._internal();
+  static final HttpClient _instance = HttpClient._internal();
 
   factory HttpClient() => _instance;
 
@@ -40,13 +40,13 @@ class HttpClient {
 
   /// ================== 核心请求（泛型版） ==================
   Future<T> request<T>(
-      String path, {
-        String method = "GET",
-        Map<String, dynamic>? params,
-        dynamic data,
-        CancelToken? cancelToken,
-        T Function(dynamic json)? fromJson,
-      }) async {
+    String path, {
+    String method = "GET",
+    Map<String, dynamic>? params,
+    dynamic data,
+    CancelToken? cancelToken,
+    T Function(dynamic json)? fromJson,
+  }) async {
     try {
       final response = await dio.request(
         path,
@@ -57,10 +57,7 @@ class HttpClient {
       );
 
       /// 1. 转 BaseResponse
-      final baseResponse = BaseResponse<T>.fromJson(
-        response.data,
-        fromJson,
-      );
+      final baseResponse = BaseResponse<T>.fromJson(response.data, fromJson);
 
       /// 2. 统一解析（处理 code / error）
       return ResponseParser.parse(baseResponse);
@@ -75,23 +72,19 @@ class HttpClient {
   /// ================== 快捷方法 ==================
 
   Future<T> get<T>(
-      String path, {
-        Map<String, dynamic>? params,
-        T Function(dynamic json)? fromJson,
-      }) {
-    return request<T>(
-      path,
-      params: params,
-      fromJson: fromJson,
-    );
+    String path, {
+    Map<String, dynamic>? params,
+    T Function(dynamic json)? fromJson,
+  }) {
+    return request<T>(path, params: params, fromJson: fromJson);
   }
 
   Future<T> post<T>(
-      String path, {
-        dynamic data,
-        Map<String, dynamic>? params,
-        T Function(dynamic json)? fromJson,
-      }) {
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? params,
+    T Function(dynamic json)? fromJson,
+  }) {
     return request<T>(
       path,
       method: "POST",
@@ -102,47 +95,39 @@ class HttpClient {
   }
 
   Future<T> put<T>(
-      String path, {
-        dynamic data,
-        T Function(dynamic json)? fromJson,
-      }) {
-    return request<T>(
-      path,
-      method: "PUT",
-      data: data,
-      fromJson: fromJson,
-    );
+    String path, {
+    dynamic data,
+    T Function(dynamic json)? fromJson,
+  }) {
+    return request<T>(path, method: "PUT", data: data, fromJson: fromJson);
   }
 
   Future<T> delete<T>(
-      String path, {
-        dynamic data,
-        T Function(dynamic json)? fromJson,
-      }) {
-    return request<T>(
-      path,
-      method: "DELETE",
-      data: data,
-      fromJson: fromJson,
-    );
+    String path, {
+    dynamic data,
+    T Function(dynamic json)? fromJson,
+  }) {
+    return request<T>(path, method: "DELETE", data: data, fromJson: fromJson);
   }
 
   /// ================== 错误处理 ==================
   String _handleDioError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return "连接超时";
+        return AppLocalizations.currentText('network_connection_timeout');
       case DioExceptionType.sendTimeout:
-        return "请求超时";
+        return AppLocalizations.currentText('network_request_timeout');
       case DioExceptionType.receiveTimeout:
-        return "响应超时";
+        return AppLocalizations.currentText('network_response_timeout');
       case DioExceptionType.badResponse:
-        return "服务器异常(${e.response?.statusCode})";
+        return AppLocalizations.currentText('network_server_error_code', {
+          'code': e.response?.statusCode,
+        });
       case DioExceptionType.cancel:
-        return "请求取消";
+        return AppLocalizations.currentText('network_request_cancelled');
       case DioExceptionType.unknown:
       default:
-        return "网络异常";
+        return AppLocalizations.currentText('network_error');
     }
   }
 }

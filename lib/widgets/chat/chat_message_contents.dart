@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 class ChatTextMessageContent extends StatelessWidget {
   const ChatTextMessageContent({
@@ -404,15 +405,19 @@ class _ChatVideoMessageContentState extends State<ChatVideoMessageContent> {
               if (isSending) _buildSendingOverlay(),
 
               if (isFailed)
-                const Center(
+                Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.error_outline, size: 34, color: Colors.white),
-                      SizedBox(height: 6),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 34,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 6),
                       Text(
-                        '发送失败',
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.chatDetailSendFailed,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -514,7 +519,9 @@ class _ChatVideoMessageContentState extends State<ChatVideoMessageContent> {
             ),
             const SizedBox(height: 8),
             Text(
-              progress <= 0 ? '处理中' : '$progress%',
+              progress <= 0
+                  ? AppLocalizations.of(context)!.chatDetailProcessing
+                  : '$progress%',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -778,7 +785,7 @@ class ChatCombineMessageContent extends StatelessWidget {
           const SizedBox(height: 8),
           if (visibleSummaries.isEmpty)
             Text(
-              '[聊天记录]',
+              AppLocalizations.of(context)!.chatDetailHistory,
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.grey500,
                 fontSize: 12,
@@ -803,7 +810,7 @@ class ChatCombineMessageContent extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 6),
           Text(
-            '聊天记录',
+            AppLocalizations.of(context)!.chatDetailHistory,
             style: AppTextStyles.caption.copyWith(
               color: AppColors.grey400,
               fontSize: 12,

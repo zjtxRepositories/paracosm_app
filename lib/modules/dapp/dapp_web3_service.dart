@@ -12,6 +12,7 @@ import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/pages/dapp/dapp_modal_service.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/modals/dapp_modals.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
@@ -57,7 +58,12 @@ class DAppWeb3Service implements EthWeb3Handler {
   }
 
   bool _isAuthorizedHost(String host) {
-    return isSessionHostAuthorized(host) || DAppAccountAuthHive.checkAuth(host,wallet.id,wallet.currentChainId.toString());
+    return isSessionHostAuthorized(host) ||
+        DAppAccountAuthHive.checkAuth(
+          host,
+          wallet.id,
+          wallet.currentChainId.toString(),
+        );
   }
 
   void _ensureContextMounted() {
@@ -257,7 +263,7 @@ class DAppWeb3Service implements EthWeb3Handler {
     final amount = _approveAmountValue(data);
     if (amount == null) return null;
     if (amount == (BigInt.one << 256) - BigInt.one) {
-      return '无限授权';
+      return AppLocalizations.currentText('dapp_unlimited_approval');
     }
     return amount.toString();
   }
@@ -285,7 +291,9 @@ class DAppWeb3Service implements EthWeb3Handler {
 
   String _formatTokenAmountWithSymbol(BigInt value, TokenModel token) {
     if (value == (BigInt.one << 256) - BigInt.one) {
-      return '无限授权 ${token.symbol}';
+      return AppLocalizations.currentText('dapp_unlimited_approval_token', {
+        'symbol': token.symbol,
+      });
     }
     return '${_formatTokenAmount(value, token.decimals)} ${token.symbol}';
   }
@@ -505,7 +513,11 @@ class DAppWeb3Service implements EthWeb3Handler {
     }
     authorizeSessionHost(host);
     if (result.remember) {
-      DAppAccountAuthHive.add(host,wallet.id,wallet.currentChainId.toString());
+      DAppAccountAuthHive.add(
+        host,
+        wallet.id,
+        wallet.currentChainId.toString(),
+      );
     }
     _emitConnected(accounts);
     return accounts;
@@ -564,9 +576,7 @@ class DAppWeb3Service implements EthWeb3Handler {
     emit(EthEvents.accountsChanged, accounts);
     emit(EthEvents.chainChanged, chainId);
 
-    emit(EthEvents.connect, {
-      'chainId': chainId,
-    });
+    emit(EthEvents.connect, {'chainId': chainId});
   }
 
   Future<void> _switchToChain(int chainId) async {
@@ -654,12 +664,12 @@ class DAppWeb3Service implements EthWeb3Handler {
           ? _approveAmountValue(callData)
           : contractSpend?.amount;
       final transactionType = isApproval
-          ? '授权额度'
+          ? AppLocalizations.currentText('dapp_approval_amount')
           : isTokenTransfer
-          ? '代币转账'
+          ? AppLocalizations.currentText('dapp_token_transfer')
           : isContractCall
-          ? '合约交互'
-          : '转账';
+          ? AppLocalizations.currentText('dapp_contract_interaction')
+          : AppLocalizations.currentText('dapp_transfer');
 
       /// =========================
       /// 2. 权限校验（必须有）
@@ -846,7 +856,7 @@ class DAppWeb3Service implements EthWeb3Handler {
       await _switchToChain(chainId);
     } catch (e, s) {
       debugPrintStack(label: e.toString(), stackTrace: s);
-      throw '链详情不完整';
+      throw AppLocalizations.currentText('dapp_chain_detail_incomplete');
     }
   }
 

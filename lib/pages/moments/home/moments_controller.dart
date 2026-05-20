@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import '../../../core/models/social_Invitation_model.dart';
 import '../../../core/models/social_media_model.dart';
 import '../../../core/network/api/social_circle_note_api.dart';
@@ -124,7 +125,7 @@ class MomentsController extends ChangeNotifier {
     );
     AppLoading.dismiss();
     if (!result) {
-      AppToast.show('点赞失败！');
+      AppToast.show(AppLocalizations.currentText('moments_like_failed'));
       return;
     }
     item.isLike = nextIsLike;
@@ -144,7 +145,7 @@ class MomentsController extends ChangeNotifier {
     );
     AppLoading.dismiss();
     if (!result) {
-      AppToast.show('收藏失败！');
+      AppToast.show(AppLocalizations.currentText('moments_collect_failed'));
       return;
     }
     item.isCollect = nextIsCollect;
@@ -164,7 +165,7 @@ class MomentsController extends ChangeNotifier {
     );
     AppLoading.dismiss();
     if (!result) {
-      AppToast.show('关注失败！');
+      AppToast.show(AppLocalizations.currentText('moments_follow_failed'));
       return;
     }
     if (isFollow) {
@@ -192,11 +193,11 @@ class MomentsController extends ChangeNotifier {
     );
     AppLoading.dismiss();
     if (!result) {
-      AppToast.show('发布失败！');
-      throw '发布失败！';
+      AppToast.show(AppLocalizations.currentText('moments_post_failed'));
+      throw AppLocalizations.currentText('moments_post_failed');
     }
     final note = await SocialCircleNoteApi.getSocialCircleNoteInfo(item.noteId);
-    if (note == null) throw '没有获取到';
+    if (note == null) throw AppLocalizations.currentText('moments_no_note');
     item.reviewInfo = note.reviewInfo;
     item.reviews = note.reviews;
     notifyListeners();
@@ -218,7 +219,7 @@ class MomentsController extends ChangeNotifier {
     );
     AppLoading.dismiss();
     if (!result) {
-      AppToast.show('拉黑失败！');
+      AppToast.show(AppLocalizations.currentText('moments_block_failed'));
       return;
     }
     if (isBlock) {

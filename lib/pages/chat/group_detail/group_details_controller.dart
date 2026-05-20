@@ -6,6 +6,7 @@ import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -133,7 +134,7 @@ class GroupDetailsController extends ChangeNotifier {
   Future<void> toggleDisband(BuildContext context) async {
     AppConfirmDialog.show(
       context,
-      description: '你确定要解散群聊吗？',
+      description: AppLocalizations.of(context)!.chatDisbandGroupConfirm,
       onConfirm: () async {
         context.pop();
         final groupId = args?.targetId;
@@ -142,7 +143,7 @@ class GroupDetailsController extends ChangeNotifier {
         final isOk = await ImGroupManager().dismissGroup(groupId);
         AppLoading.dismiss();
         if (isOk) {
-          AppToast.show('群已解散！');
+          AppToast.show(AppLocalizations.of(context)!.chatGroupDisbanded);
         }
         if (!context.mounted) return;
         context.pop();
@@ -157,7 +158,7 @@ class GroupDetailsController extends ChangeNotifier {
     }
     AppConfirmDialog.show(
       context,
-      description: '你确定要退出群聊吗？',
+      description: AppLocalizations.of(context)!.chatLeaveGroupConfirm,
       onConfirm: () async {
         context.pop();
         final groupId = args?.targetId;
@@ -172,7 +173,7 @@ class GroupDetailsController extends ChangeNotifier {
         final isOk = await ImGroupManager().quitGroup(groupId);
         AppLoading.dismiss();
         if (isOk) {
-          AppToast.show('已退出群！');
+          AppToast.show(AppLocalizations.of(context)!.chatGroupLeft);
         }
         if (!context.mounted) return;
         context.pop();
@@ -191,7 +192,7 @@ class GroupDetailsController extends ChangeNotifier {
     }
     final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
     if (!isOk) {
-      AppToast.show('更新失败！');
+      AppToast.show(AppLocalizations.currentText('common_update_failed'));
       return;
     }
     notifyListeners();
@@ -208,9 +209,9 @@ class GroupDetailsController extends ChangeNotifier {
       timestamp: 0,
     );
     if (isOk) {
-      AppToast.show('已清空聊天记录');
+      AppToast.show(AppLocalizations.of(context)!.chatClearHistorySuccess);
     } else {
-      AppToast.show('清空聊天记录失败');
+      AppToast.show(AppLocalizations.of(context)!.chatClearHistoryFailed);
     }
   }
 
@@ -221,7 +222,7 @@ class GroupDetailsController extends ChangeNotifier {
     final isOk = await ImGroupManager().inviteUsersToGroup(groupId, userIds);
     if (!isOk) {
       AppLoading.dismiss();
-      AppToast.show('邀请失败');
+      AppToast.show(AppLocalizations.currentText('chat_invite_failed'));
       return;
     }
     final message = CustomMessage(
@@ -242,7 +243,7 @@ class GroupDetailsController extends ChangeNotifier {
     final isOk = await ImGroupManager().kickGroupMembers(groupId, userIds);
     if (!isOk) {
       AppLoading.dismiss();
-      AppToast.show('移除失败');
+      AppToast.show(AppLocalizations.currentText('chat_remove_failed'));
       return;
     }
     final message = CustomMessage(

@@ -17,10 +17,16 @@ class WalletImportPrivateKeyPage extends StatefulWidget {
   final String password;
   final String walletId;
   final ChainType chainType;
-  const WalletImportPrivateKeyPage({super.key, required this.password, required this.walletId, required this.chainType});
+  const WalletImportPrivateKeyPage({
+    super.key,
+    required this.password,
+    required this.walletId,
+    required this.chainType,
+  });
 
   @override
-  State<WalletImportPrivateKeyPage> createState() => _WalletImportPrivateKeyPageState();
+  State<WalletImportPrivateKeyPage> createState() =>
+      _WalletImportPrivateKeyPageState();
 }
 
 class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
@@ -43,16 +49,20 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
     });
 
     _privateKeyController.addListener(_validatePrivateKey);
-
   }
 
   void _validatePrivateKey() {
     if (!mounted) return;
     setState(() {
-      final isPrivateKey = EvmService.isValidPrivateKey(_privateKeyController.text);
+      final isPrivateKey = EvmService.isValidPrivateKey(
+        _privateKeyController.text,
+      );
       setState(() {
-        _privateKeyError = !isPrivateKey ? '无效的私钥' : null;
-        _isPrivateKeyInvalid = _privateKeyController.text.isNotEmpty && isPrivateKey;
+        _privateKeyError = !isPrivateKey
+            ? AppLocalizations.currentText('wallet_invalid_private_key')
+            : null;
+        _isPrivateKeyInvalid =
+            _privateKeyController.text.isNotEmpty && isPrivateKey;
       });
     });
   }
@@ -139,7 +149,7 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '请通过私钥导入您的钱包',
+                              loc.walletImportPrivateKeySubtitle,
                               style: AppTextStyles.body.copyWith(fontSize: 14),
                             ),
                             const SizedBox(height: 84),
@@ -196,8 +206,8 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
                                         ),
                                         unselectedLabelStyle: AppTextStyles.body
                                             .copyWith(
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                         indicatorSize: TabBarIndicatorSize.tab,
                                         padding: const EdgeInsets.all(4),
                                         tabs: [
@@ -212,29 +222,32 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
                                   // 4. 内容区：使用 IndexedStack 替代 TabBarView，解决固定高度问题
                                   IndexedStack(
                                     index: _tabController.index,
-                                    children: [
-                                      _buildPrivateKeyInput(loc),
-                                    ],
+                                    children: [_buildPrivateKeyInput(loc)],
                                   ),
 
                                   const SizedBox(height: 16),
                                   // 5. 底部导入按钮
                                   AppButton(
                                     text: loc.walletImportAction,
-                                    onPressed: ( _isPrivateKeyInvalid) ? () async {
-                                      try {
-                                        await WalletService.importPrivateKeyByChainType(
-                                            privateKey: _privateKeyController.text,
-                                            password: widget.password,
-                                            walletId: widget.walletId,
-                                            chainType: widget.chainType
-                                        );
-                                        context.push('/chat');
-                                      }catch(e){
-                                        AppToast.show('导入钱包错误: $e');
-                                      }
-                                      return;
-                                                                        } : null,
+                                    onPressed: (_isPrivateKeyInvalid)
+                                        ? () async {
+                                            try {
+                                              await WalletService.importPrivateKeyByChainType(
+                                                privateKey:
+                                                    _privateKeyController.text,
+                                                password: widget.password,
+                                                walletId: widget.walletId,
+                                                chainType: widget.chainType,
+                                              );
+                                              context.push('/chat');
+                                            } catch (e) {
+                                              AppToast.show(
+                                                loc.walletImportError(e),
+                                              );
+                                            }
+                                            return;
+                                          }
+                                        : null,
                                   ),
                                 ],
                               ),
@@ -281,11 +294,13 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
         // 动态提示区域
         Column(
           children: [
-            _privateKeyError != null ? ImportTipItem(
-              iconPath: 'assets/images/common/tips-error-icon.png',
-              text: loc.walletImportPrivateKeyInvalidError,
-              textColor: AppColors.error,
-            ) : SizedBox(),
+            _privateKeyError != null
+                ? ImportTipItem(
+                    iconPath: 'assets/images/common/tips-error-icon.png',
+                    text: loc.walletImportPrivateKeyInvalidError,
+                    textColor: AppColors.error,
+                  )
+                : SizedBox(),
           ],
         ),
         const SizedBox(height: 27),

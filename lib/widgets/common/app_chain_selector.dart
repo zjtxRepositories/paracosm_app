@@ -4,16 +4,14 @@ import '../../modules/account/manager/account_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../util/string_util.dart';
+import '../base/app_localizations.dart';
 import 'app_network_image.dart';
 
 class AppChainSelector extends StatefulWidget {
   /// 选择回调
   final ValueChanged<ChainAccount> onSelected;
 
-  const AppChainSelector({
-    super.key,
-    required this.onSelected,
-  });
+  const AppChainSelector({super.key, required this.onSelected});
 
   @override
   State<AppChainSelector> createState() => _AppChainSelectorState();
@@ -86,21 +84,27 @@ class _AppChainSelectorState extends State<AppChainSelector> {
                   ),
                 ),
                 title: Text(
-                  network.address.isEmpty ?  '同步 ${network.name}':network.name,
+                  network.address.isEmpty
+                      ? AppLocalizations.of(
+                          context,
+                        )!.commonSyncName(network.name)
+                      : network.name,
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
                     color: AppColors.grey900,
                   ),
                 ),
-                subtitle:network.address.isEmpty ? SizedBox() : Text(
-                  ellipsisMiddle(network.address),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: AppColors.grey900,
-                  ),
-                ),
+                subtitle: network.address.isEmpty
+                    ? SizedBox()
+                    : Text(
+                        ellipsisMiddle(network.address),
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                          color: AppColors.grey900,
+                        ),
+                      ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

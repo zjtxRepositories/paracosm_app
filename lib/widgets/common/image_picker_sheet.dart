@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import '../../util/image_picker_util.dart';
 
 class ImagePickerSheet {
@@ -17,6 +18,7 @@ class _ImagePickerContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       child: Column(
@@ -30,9 +32,9 @@ class _ImagePickerContent extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _buildItem(context, '拍照', true),
+                _buildItem(context, l10n.commonTakePhoto, true),
                 const Divider(height: 1),
-                _buildItem(context, '从手机相册选择', false),
+                _buildItem(context, l10n.commonChooseFromAlbum, false),
               ],
             ),
           ),
@@ -49,9 +51,9 @@ class _ImagePickerContent extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                '取消',
-                style: TextStyle(
+              child: Text(
+                l10n.commonCancel,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -66,8 +68,7 @@ class _ImagePickerContent extends StatelessWidget {
   Widget _buildItem(BuildContext context, String text, bool isCamera) {
     return GestureDetector(
       onTap: () async {
-        final path =
-        await ImagePickerUtil.pick(fromCamera: isCamera);
+        final path = await ImagePickerUtil.pick(fromCamera: isCamera);
         print('path:---$path');
         if (path != null && context.mounted) {
           Navigator.pop(context, path); // 返回结果
@@ -76,10 +77,7 @@ class _ImagePickerContent extends StatelessWidget {
       child: Container(
         height: 50,
         alignment: Alignment.center,
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 16),
-        ),
+        child: Text(text, style: const TextStyle(fontSize: 16)),
       ),
     );
   }

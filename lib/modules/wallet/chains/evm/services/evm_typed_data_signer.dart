@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:eth_sig_util/eth_sig_util.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:web3dart/crypto.dart';
 
 import '../evm_service.dart';
@@ -14,7 +15,7 @@ class EvmTypedDataSigner {
     final privateKey = EvmService.getPrivateKeyByAddress(address);
 
     if (privateKey == null) {
-      throw Exception("找不到该钱包");
+      throw Exception(AppLocalizations.currentText('wallet_not_found'));
     }
 
     final keyBytes = _normalizePrivateKey(privateKey);

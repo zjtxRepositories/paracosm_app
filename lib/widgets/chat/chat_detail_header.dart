@@ -45,13 +45,13 @@ class ChatDetailHeader extends StatelessWidget {
               width: 32,
               height: 32,
             ),
-            onPressed: (){
+            onPressed: () {
               if (context.canPop()) {
                 context.pop();
               } else {
                 context.go('/chat');
               }
-            }
+            },
           ),
           GestureDetector(onTap: onAvatarTap, child: _buildAvatar()),
           const SizedBox(width: 8),
@@ -81,7 +81,9 @@ class ChatDetailHeader extends StatelessWidget {
                         : Text(
                             isOnline
                                 ? AppLocalizations.of(context)!.chatDetailActive
-                                : '离线',
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.chatHeaderOffline,
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.grey400,
                               fontSize: 12,

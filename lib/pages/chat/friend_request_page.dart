@@ -89,19 +89,22 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     final targetId = model.info.userId ?? '';
     final isOk = await manager.acceptFriendApplication(targetId);
     AppLoading.dismiss();
-    if (!isOk){
-      AppToast.show('请求失败');
+    if (!isOk) {
+      AppToast.show(AppLocalizations.of(context)!.chatRequestFailed);
       return;
     }
-    final message = CustomMessage(targetId: targetId, customMessageType: CustomMessageType.friendAdd);
+    final message = CustomMessage(
+      targetId: targetId,
+      customMessageType: CustomMessageType.friendAdd,
+    );
     final isSend = await ImSender.instance.send(message: message);
-    if (!isSend)return;
+    if (!isSend) return;
     final encodedName = Uri.encodeComponent(model.name);
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
         targetId: targetId,
-        conversationType:RCIMIWConversationType.private,
+        conversationType: RCIMIWConversationType.private,
         name: model.name,
       ),
     );
@@ -110,30 +113,33 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   /// 显示拒绝确认弹窗
   void _showRejectConfirmModal(FriendApplicationModel model) {
     AppModal.show(
-        context,
-        title: AppLocalizations.of(context)!.chatRequestHint,
-        description: AppLocalizations.of(context)!.chatRequestRejectConfirm,
-        confirmText: AppLocalizations.of(context)!.chatRequestSure,
-        cancelText: AppLocalizations.of(context)!.chatRequestCancel,
-        confirmWidth: 161,
-        cancelWidth: 161,
-        cancelBorder: const BorderSide(color: AppColors.grey300),
-        icon: Image.asset(
-          'assets/images/wallet/bell-icon.png',
-          width: 120,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
-        onConfirm: () async {
-          context.pop();
-          AppLoading.show();
-          final isOk = await manager.refuseFriendApplication(model.info.userId ?? '');
-          AppLoading.dismiss();
-          if (!isOk){
-            AppToast.show('请求失败');
-            return;
-          }
-        });
+      context,
+      title: AppLocalizations.of(context)!.chatRequestHint,
+      description: AppLocalizations.of(context)!.chatRequestRejectConfirm,
+      confirmText: AppLocalizations.of(context)!.chatRequestSure,
+      cancelText: AppLocalizations.of(context)!.chatRequestCancel,
+      confirmWidth: 161,
+      cancelWidth: 161,
+      cancelBorder: const BorderSide(color: AppColors.grey300),
+      icon: Image.asset(
+        'assets/images/wallet/bell-icon.png',
+        width: 120,
+        height: 120,
+        fit: BoxFit.contain,
+      ),
+      onConfirm: () async {
+        context.pop();
+        AppLoading.show();
+        final isOk = await manager.refuseFriendApplication(
+          model.info.userId ?? '',
+        );
+        AppLoading.dismiss();
+        if (!isOk) {
+          AppToast.show(AppLocalizations.of(context)!.chatRequestFailed);
+          return;
+        }
+      },
+    );
   }
 
   @override
@@ -144,10 +150,16 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           const SizedBox(height: 16),
-          _newRequests.isNotEmpty ?  _buildSectionTitle(AppLocalizations.of(context)!.chatRequestNew) : SizedBox(),
+          _newRequests.isNotEmpty
+              ? _buildSectionTitle(AppLocalizations.of(context)!.chatRequestNew)
+              : SizedBox(),
           ..._newRequests.map((req) => _buildNewRequestItem(req)),
           _newRequests.isNotEmpty ? const SizedBox(height: 24) : SizedBox(),
-          _processedRequests.isNotEmpty ?  _buildSectionTitle(AppLocalizations.of(context)!.chatRequestProcessed) : SizedBox(),
+          _processedRequests.isNotEmpty
+              ? _buildSectionTitle(
+                  AppLocalizations.of(context)!.chatRequestProcessed,
+                )
+              : SizedBox(),
           ..._processedRequests.map((req) => _buildProcessedItem(req)),
           const SizedBox(height: 20),
         ],
@@ -217,7 +229,7 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -253,14 +265,17 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   /// 构建已处理申请项
   Widget _buildProcessedItem(RCIMIWFriendApplicationInfo req) {
     final statusText = switch (req.applicationStatus) {
-      RCIMIWFriendApplicationStatus.accepted =>
-      AppLocalizations.of(context)!.chatRequestStatusAdded,
+      RCIMIWFriendApplicationStatus.accepted => AppLocalizations.of(
+        context,
+      )!.chatRequestStatusAdded,
 
-      RCIMIWFriendApplicationStatus.expired =>
-      AppLocalizations.of(context)!.chatRequestStatusExpired,
+      RCIMIWFriendApplicationStatus.expired => AppLocalizations.of(
+        context,
+      )!.chatRequestStatusExpired,
 
-      RCIMIWFriendApplicationStatus.refused =>
-      AppLocalizations.of(context)!.chatRequestStatusRejected,
+      RCIMIWFriendApplicationStatus.refused => AppLocalizations.of(
+        context,
+      )!.chatRequestStatusRejected,
       RCIMIWFriendApplicationStatus.unhandled => '',
 
       null => '',
@@ -314,7 +329,8 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                   const SizedBox(width: 8),
                   Row(
                     children: [
-                      if (req.applicationType == RCIMIWFriendApplicationType.sent) ...[
+                      if (req.applicationType ==
+                          RCIMIWFriendApplicationType.sent) ...[
                         Image.asset(
                           'assets/images/chat/go.png',
                           width: 16,
@@ -349,7 +365,8 @@ class _AgreeRequestInputWrapper extends StatefulWidget {
   const _AgreeRequestInputWrapper({required this.initialText});
 
   @override
-  State<_AgreeRequestInputWrapper> createState() => _AgreeRequestInputWrapperState();
+  State<_AgreeRequestInputWrapper> createState() =>
+      _AgreeRequestInputWrapperState();
 }
 
 class _AgreeRequestInputWrapperState extends State<_AgreeRequestInputWrapper> {
@@ -372,10 +389,7 @@ class _AgreeRequestInputWrapperState extends State<_AgreeRequestInputWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return _AgreeRequestInput(
-      controller: controller,
-      focusNode: focusNode,
-    );
+    return _AgreeRequestInput(controller: controller, focusNode: focusNode);
   }
 }
 
@@ -384,10 +398,7 @@ class _AgreeRequestInput extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
 
-  const _AgreeRequestInput({
-    required this.controller,
-    required this.focusNode,
-  });
+  const _AgreeRequestInput({required this.controller, required this.focusNode});
 
   @override
   State<_AgreeRequestInput> createState() => _AgreeRequestInputState();
@@ -441,7 +452,9 @@ class _AgreeRequestInputState extends State<_AgreeRequestInput> {
         style: AppTextStyles.body.copyWith(
           fontSize: 14,
           color: (isFocused || hasText) ? AppColors.grey900 : AppColors.grey400,
-          fontWeight: (isFocused || hasText) ? FontWeight.w500 : FontWeight.normal,
+          fontWeight: (isFocused || hasText)
+              ? FontWeight.w500
+              : FontWeight.normal,
         ),
       ),
     );

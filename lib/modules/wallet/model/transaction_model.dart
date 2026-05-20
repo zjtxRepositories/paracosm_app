@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../../../util/double_util.dart';
 
@@ -29,7 +30,6 @@ class TransactionModel {
     required this.decimals,
     required this.symbol,
     this.err,
-
   });
 
   String get valueDisplay => formatTokenAdvanced(value, decimals);
@@ -40,9 +40,19 @@ class TransactionModel {
     final now = DateTime.now();
     final diff = now.difference(time!);
 
-    if (diff.inMinutes < 1) return "刚刚";
-    if (diff.inMinutes < 60) return "${diff.inMinutes}分钟前";
-    if (diff.inHours < 24) return "${diff.inHours}小时前";
+    if (diff.inMinutes < 1) {
+      return AppLocalizations.currentText('time_just_now');
+    }
+    if (diff.inMinutes < 60) {
+      return AppLocalizations.currentText('time_minutes_ago', {
+        'count': diff.inMinutes,
+      });
+    }
+    if (diff.inHours < 24) {
+      return AppLocalizations.currentText('time_hours_ago', {
+        'count': diff.inHours,
+      });
+    }
 
     return DateFormat("MM-dd HH:mm").format(time!);
   }

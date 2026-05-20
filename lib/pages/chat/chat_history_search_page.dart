@@ -221,7 +221,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage> {
             ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            tooltip: '日期',
+            tooltip: AppLocalizations.of(context)!.chatDate,
           ),
           const SizedBox(width: 12),
           GestureDetector(
@@ -284,7 +284,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                '按日期查看',
+                AppLocalizations.of(context)!.chatViewByDate,
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.grey400,
                   fontSize: 14,

@@ -139,6 +139,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatNotificationTitle => translate('chat_notification_title');
   String get chatImage => translate('chat_image');
   String get chatVoice => translate('chat_voice');
+  String get chatVideo => translate('chat_video');
+  String get chatFile => translate('chat_file');
   String get chatRequestNew => translate('chat_request_new');
   String get chatRequestProcessed => translate('chat_request_processed');
   String get chatRequestAgree => translate('chat_request_agree');
@@ -497,6 +499,242 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('common_view_more', {'count': count});
   String get commonDone => translate('common_done');
   String get commonEdit => translate('common_edit');
+  String get commonForward => translate('common_forward');
+  String get commonQuote => translate('common_quote');
+  String get commonRecall => translate('common_recall');
+  String get commonSelect => translate('common_select');
+  String get commonFriend => translate('common_friend');
+  String get commonGroupChat => translate('common_group_chat');
+  String get commonRequestFailed => translate('common_request_failed');
+  String get commonUpdateFailed => translate('common_update_failed');
+  String get commonUpdateSuccess => translate('common_update_success');
+  String get commonSettingFailed => translate('common_setting_failed');
+  String get commonUploadFailed => translate('common_upload_failed');
+  String get commonPasswordError => translate('common_password_error');
+  String get commonDataError => translate('common_data_error');
+  String get commonModifySuccess => translate('common_modify_success');
+  String get commonModifyFailed => translate('common_modify_failed');
+  String get commonCreatedSuccess => translate('common_created_success');
+  String get commonCreateGroupFailed => translate('common_create_group_failed');
+  String get commonSavedToAlbum => translate('common_saved_to_album');
+  String get commonDownloadFailed => translate('common_download_failed');
+  String get commonTokenExpired => translate('common_token_expired');
+  String get commonNotLoggedIn => translate('common_not_logged_in');
+  String get commonGuest => translate('common_guest');
+  String get commonSearchAliasNameAddress =>
+      translate('common_search_alias_name_address');
+  String get commonSearchInternet => translate('common_search_internet');
+  String get commonTakePhoto => translate('common_take_photo');
+  String get commonChooseFromAlbum => translate('common_choose_from_album');
+  String get commonVideoPreviewUnavailable =>
+      translate('common_video_preview_unavailable');
+  String get commonNoPreviewContent => translate('common_no_preview_content');
+  String commonSyncName(String name) =>
+      translate('common_sync_name', {'name': name});
+  String commonDoneCount(int count) =>
+      translate('common_done_count', {'count': count});
+  String get timeJustNow => translate('time_just_now');
+  String timeMinutesAgo(int count) =>
+      translate('time_minutes_ago', {'count': count});
+  String timeHoursAgo(int count) =>
+      translate('time_hours_ago', {'count': count});
+  String timeYesterdayTime(String time) =>
+      translate('time_yesterday_time', {'time': time});
+  String get timeWeekdayMonday => translate('time_weekday_monday');
+  String get timeWeekdayTuesday => translate('time_weekday_tuesday');
+  String get timeWeekdayWednesday => translate('time_weekday_wednesday');
+  String get timeWeekdayThursday => translate('time_weekday_thursday');
+  String get timeWeekdayFriday => translate('time_weekday_friday');
+  String get timeWeekdaySaturday => translate('time_weekday_saturday');
+  String get timeWeekdaySunday => translate('time_weekday_sunday');
+  String chatDetailSelectedCount(int count) =>
+      translate('chat_detail_selected_count', {'count': count});
+  String get chatDetailMissingSessionArgs =>
+      translate('chat_detail_missing_session_args');
+  String get chatDetailDeleteMessageTitle =>
+      translate('chat_detail_delete_message_title');
+  String chatDetailDeleteMessagesConfirm(int count) =>
+      translate('chat_detail_delete_messages_confirm', {'count': count});
+  String get chatDetailMessageNotFound =>
+      translate('chat_detail_message_not_found');
+  String get chatDetailDeleteFailed => translate('chat_detail_delete_failed');
+  String get chatDetailNoForwardableMessage =>
+      translate('chat_detail_no_forwardable_message');
+  String get chatDetailForwardSuccess =>
+      translate('chat_detail_forward_success');
+  String get chatDetailForwardFailed => translate('chat_detail_forward_failed');
+  String get chatDetailUnknownUser => translate('chat_detail_unknown_user');
+  String get chatDetailRecallFailed => translate('chat_detail_recall_failed');
+  String get chatDetailImageSendFailed =>
+      translate('chat_detail_image_send_failed');
+  String get chatDetailVideoSendFailed =>
+      translate('chat_detail_video_send_failed');
+  String get chatDetailVideoUploadFailed =>
+      translate('chat_detail_video_upload_failed');
+  String get chatDetailGroupCallUnavailable =>
+      translate('chat_detail_group_call_unavailable');
+  String get chatDetailReleaseToSend =>
+      translate('chat_detail_release_to_send');
+  String get chatDetailVoiceTooShort =>
+      translate('chat_detail_voice_too_short');
+  String get chatDetailSendFailed => translate('chat_detail_send_failed');
+  String get chatDetailProcessing => translate('chat_detail_processing');
+  String get chatDetailHistory => translate('chat_detail_history');
+  String get chatDetailNoHistory => translate('chat_detail_no_history');
+  String get chatDetailEmptyMessage => translate('chat_detail_empty_message');
+  String get chatDetailGenericMessage =>
+      translate('chat_detail_generic_message');
+  String get chatDetailUnsupportedMessageType =>
+      translate('chat_detail_unsupported_message_type');
+  String get chatDetailForwardTargetTitle =>
+      translate('chat_detail_forward_target_title');
+  String chatDetailForwardCount(int count) =>
+      translate('chat_detail_forward_count', {'count': count});
+  String get chatDetailForwardSearchHint =>
+      translate('chat_detail_forward_search_hint');
+  String get chatDetailNoForwardTargets =>
+      translate('chat_detail_no_forward_targets');
+  String get chatDetailChooseForwardTarget =>
+      translate('chat_detail_choose_forward_target');
+  String get chatHeaderOffline => translate('chat_header_offline');
+  String get chatRequestFailed => translate('chat_request_failed');
+  String get chatAddFriendRequired => translate('chat_add_friend_required');
+  String get chatUserLoading => translate('chat_user_loading');
+  String get chatCannotCallSelf => translate('chat_cannot_call_self');
+  String get chatFriendApplySendFailed =>
+      translate('chat_friend_apply_send_failed');
+  String get chatFriendApplySendSuccess =>
+      translate('chat_friend_apply_send_success');
+  String get chatSetNoteFailed => translate('chat_set_note_failed');
+  String get chatDeleteFriendConfirm => translate('chat_delete_friend_confirm');
+  String get chatBlacklistConfirm => translate('chat_blacklist_confirm');
+  String get chatModifyName => translate('chat_modify_name');
+  String get chatModifyNameFailed => translate('chat_modify_name_failed');
+  String get chatAvatar => translate('chat_avatar');
+  String get chatAvatarModifyFailed => translate('chat_avatar_modify_failed');
+  String get chatDisbandGroupConfirm => translate('chat_disband_group_confirm');
+  String get chatGroupDisbanded => translate('chat_group_disbanded');
+  String get chatLeaveGroupConfirm => translate('chat_leave_group_confirm');
+  String get chatGroupLeft => translate('chat_group_left');
+  String get chatClearHistorySuccess => translate('chat_clear_history_success');
+  String get chatClearHistoryFailed => translate('chat_clear_history_failed');
+  String get chatInviteFailed => translate('chat_invite_failed');
+  String get chatRemoveFailed => translate('chat_remove_failed');
+  String get chatComplaintSubmitted => translate('chat_complaint_submitted');
+  String chatPrivateCount(int count) =>
+      translate('chat_private_count', {'count': count});
+  String chatGroupCount(int count) =>
+      translate('chat_group_count', {'count': count});
+  String get chatDate => translate('chat_date');
+  String get chatViewByDate => translate('chat_view_by_date');
+  String get chatRemoveMembers => translate('chat_remove_members');
+  String get chatSystemNotification => translate('chat_system_notification');
+  String get chatRecalledMessage => translate('chat_recalled_message');
+  String get chatFriendAddedMessage => translate('chat_friend_added_message');
+  String chatInvitedMembersMessage(String user, String members) => translate(
+    'chat_invited_members_message',
+    {'user': user, 'members': members},
+  );
+  String chatUserQuitGroupMessage(String user) =>
+      translate('chat_user_quit_group_message', {'user': user});
+  String chatMembersRemovedMessage(String members) =>
+      translate('chat_members_removed_message', {'members': members});
+  String get chatMe => translate('chat_me');
+  String get callVideoPrefix => translate('call_video_prefix');
+  String get callAudioPrefix => translate('call_audio_prefix');
+  String callDurationText(String duration) =>
+      translate('call_duration', {'duration': duration});
+  String get callCanceled => translate('call_canceled');
+  String get callRejected => translate('call_rejected');
+  String get callBusy => translate('call_busy');
+  String get callUnanswered => translate('call_unanswered');
+  String get callNetworkError => translate('call_network_error');
+  String get callEnded => translate('call_ended');
+  String get callImNotConnected => translate('call_im_not_connected');
+  String get callInProgress => translate('call_in_progress');
+  String get callPermissionRequired => translate('call_permission_required');
+  String get callStartFailed => translate('call_start_failed');
+  String get callAnswerPermissionRequired =>
+      translate('call_answer_permission_required');
+  String callAnswerFailedCode(int code) =>
+      translate('call_answer_failed_code', {'code': code});
+  String callErrorCode(int code) =>
+      translate('call_error_code', {'code': code});
+  String get callPeerNoAnswer => translate('call_peer_no_answer');
+  String get callDisconnected => translate('call_disconnected');
+  String get communityJoinFailed => translate('community_join_failed');
+  String get communityJoinSuccess => translate('community_join_success');
+  String get communityNoDao => translate('community_no_dao');
+  String get walletReadTermsPrivacy => translate('wallet_read_terms_privacy');
+  String get walletInvalidPrivateKey => translate('wallet_invalid_private_key');
+  String get walletInvalidMnemonic => translate('wallet_invalid_mnemonic');
+  String get walletImportPrivateKeySubtitle =>
+      translate('wallet_import_private_key_subtitle');
+  String walletImportError(Object error) =>
+      translate('wallet_import_error', {'error': error});
+  String get walletExportAddressTitle =>
+      translate('wallet_export_address_title');
+  String get walletProtocolSelectTitle =>
+      translate('wallet_protocol_select_title');
+  String get profileTokenManagerTitle =>
+      translate('profile_token_manager_title');
+  String get profileHotTokens => translate('profile_hot_tokens');
+  String get profileSearchTokenOrContract =>
+      translate('profile_search_token_or_contract');
+  String get profileCustomToken => translate('profile_custom_token');
+  String get profileAssets => translate('profile_assets');
+  String get profileTokenAndNetwork => translate('profile_token_and_network');
+  String get profileInviteLinkCopied => translate('profile_invite_link_copied');
+  String get profileAddSuccess => translate('profile_add_success');
+  String get profileTokenName => translate('profile_token_name');
+  String get profileContractAddressHint =>
+      translate('profile_contract_address_hint');
+  String get profileSymbol => translate('profile_symbol');
+  String get profileDecimals => translate('profile_decimals');
+  String get profileProtocol => translate('profile_protocol');
+  String get profileProtocolSelectHint =>
+      translate('profile_protocol_select_hint');
+  String profileInputHint(String title) =>
+      translate('profile_input_hint', {'title': title});
+  String get profileTokenNotFound => translate('profile_token_not_found');
+  String get profileCurrentPassword => translate('profile_current_password');
+  String get profileNewPassword => translate('profile_new_password');
+  String get profilePasswordMinLength =>
+      translate('profile_password_min_length');
+  String get scanWebQrInvalid => translate('scan_web_qr_invalid');
+  String get scanFriendQrInvalid => translate('scan_friend_qr_invalid');
+  String get scanPaymentPending => translate('scan_payment_pending');
+  String get dappTransactionType => translate('dapp_transaction_type');
+  String get dappTransfer => translate('dapp_transfer');
+  String get dappApprovalAmount => translate('dapp_approval_amount');
+  String get dappApprovalAddress => translate('dapp_approval_address');
+  String get dappSignatureInfo => translate('dapp_signature_info');
+  String get dappUnlimitedApproval => translate('dapp_unlimited_approval');
+  String dappUnlimitedApprovalToken(String symbol) =>
+      translate('dapp_unlimited_approval_token', {'symbol': symbol});
+  String get dappTokenTransfer => translate('dapp_token_transfer');
+  String get dappContractInteraction => translate('dapp_contract_interaction');
+  String get dappChainDetailIncomplete =>
+      translate('dapp_chain_detail_incomplete');
+  String get momentsLikeFailed => translate('moments_like_failed');
+  String get momentsShare => translate('moments_share');
+  String get momentsCollectFailed => translate('moments_collect_failed');
+  String get momentsShareSuccess => translate('moments_share_success');
+  String get momentsShareFailed => translate('moments_share_failed');
+  String get momentsForwardSuccess => translate('moments_forward_success');
+  String get momentsForwardFailed => translate('moments_forward_failed');
+  String get momentsUserNotLoggedIn => translate('moments_user_not_logged_in');
+  String get momentsUserInfoEmpty => translate('moments_user_info_empty');
+  String get momentsFollowFailed => translate('moments_follow_failed');
+  String get momentsUnfollowFailed => translate('moments_unfollow_failed');
+  String get momentsDefaultAvatar => translate('moments_default_avatar');
+  String get momentsPostFailed => translate('moments_post_failed');
+  String momentsPostFailedError(Object error) =>
+      translate('moments_post_failed_error', {'error': error});
+  String get momentsNoNote => translate('moments_no_note');
+  String get momentsBlockFailed => translate('moments_block_failed');
+  String momentsHoursAgoSample(int count) =>
+      translate('moments_hours_ago_sample', {'count': count});
 
   // --- Profile Pages ---
   String get profileAboutAbout => translate('profile_about_about');

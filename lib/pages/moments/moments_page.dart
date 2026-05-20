@@ -32,7 +32,7 @@ class MomentsPage extends StatelessWidget {
                 children: [
                   _MomentPostCard(
                     name: 'Cody',
-                    time: '45秒前',
+                    time: l10n.translate('moments_seconds_ago_sample'),
                     subtitle: 'Let\'s learn English together',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: ['assets/images/moments/moment1.png'],
@@ -47,7 +47,7 @@ class MomentsPage extends StatelessWidget {
                   const SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Devon Lane',
-                    time: '45分钟前',
+                    time: l10n.translate('moments_minutes_ago_sample'),
                     subtitle: 'Two photos should switch to a 2-column layout',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -63,7 +63,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Kristen',
-                    time: '1小时前',
+                    time: l10n.translate('moments_hour_ago_sample'),
                     subtitle: 'Three photos should keep a 3-column layout',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -76,7 +76,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Robert',
-                    time: '2小时前',
+                    time: l10n.momentsHoursAgoSample(2),
                     subtitle: 'Four photos should switch to a 2-column layout',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -90,7 +90,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Howard',
-                    time: '3小时前',
+                    time: l10n.momentsHoursAgoSample(3),
                     subtitle: 'Five photos should fall back to 3 columns',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -105,7 +105,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Monica',
-                    time: '4小时前',
+                    time: l10n.momentsHoursAgoSample(4),
                     subtitle: 'Six photos should fill two rows of three',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -121,7 +121,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Nolan',
-                    time: '5小时前',
+                    time: l10n.momentsHoursAgoSample(5),
                     subtitle: 'Seven photos should still use 3 columns',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -138,8 +138,9 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Olivia',
-                    time: '6小时前',
-                    subtitle: 'Eight photos are useful for checking the last row',
+                    time: l10n.momentsHoursAgoSample(6),
+                    subtitle:
+                        'Eight photos are useful for checking the last row',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -156,7 +157,7 @@ class MomentsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _MomentPostCard(
                     name: 'Parker',
-                    time: '7小时前',
+                    time: l10n.momentsHoursAgoSample(7),
                     subtitle: 'Nine photos should make a full 3x3 grid',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -174,8 +175,8 @@ class MomentsPage extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
                   _MomentPostCard(
-                    name: '李经理',
-                    time: '7小时前',
+                    name: 'Manager Li',
+                    time: l10n.momentsHoursAgoSample(7),
                     subtitle: 'Nine photos should make a full 3x3 grid',
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
@@ -345,10 +346,7 @@ class _StoryAvatarState extends State<_StoryAvatar>
         vsync: this,
         duration: const Duration(milliseconds: 900),
       )..repeat(reverse: true);
-      _pulse = CurvedAnimation(
-        parent: _controller!,
-        curve: Curves.easeInOut,
-      );
+      _pulse = CurvedAnimation(parent: _controller!, curve: Curves.easeInOut);
     }
   }
 
@@ -393,7 +391,10 @@ class _StoryAvatarState extends State<_StoryAvatar>
                     child: Padding(
                       padding: const EdgeInsets.all(2),
                       child: ClipOval(
-                        child: Image.asset(widget.story.avatar, fit: BoxFit.cover),
+                        child: Image.asset(
+                          widget.story.avatar,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
@@ -569,7 +570,9 @@ class _MomentPostCard extends StatelessWidget {
                               ),
                               AppActionPopMenuItem(
                                 icon: 'assets/images/moments/block.png',
-                                label: l10n.translate('moments_block_this_user'),
+                                label: l10n.translate(
+                                  'moments_block_this_user',
+                                ),
                                 onTap: () {},
                               ),
                               AppActionPopMenuItem(
@@ -651,7 +654,8 @@ class _MomentPostCard extends StatelessWidget {
         } else if (imageCount == 2 || imageCount == 4) {
           columns = 2;
         }
-        final itemSize = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final itemSize =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
         return Wrap(
           spacing: spacing,
@@ -668,10 +672,7 @@ class _MomentPostCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.asset(
-                      path,
-                      fit: BoxFit.cover,
-                    ),
+                    Image.asset(path, fit: BoxFit.cover),
                     if (showMoreOverlay)
                       Container(
                         color: Colors.black.withValues(alpha: 0.5),
@@ -707,10 +708,7 @@ class _MomentPostCard extends StatelessWidget {
   }
 }
 
-enum _FollowButtonState {
-  follow,
-  following,
-}
+enum _FollowButtonState { follow, following }
 
 class _PostActionBar extends StatefulWidget {
   final bool initialLiked;
@@ -753,14 +751,18 @@ class _PostActionBarState extends State<_PostActionBar> {
   void _toggleLike() {
     setState(() {
       _isLiked = !_isLiked;
-      _likeCount = _isLiked ? _likeCount + 1 : (_likeCount > 0 ? _likeCount - 1 : 0);
+      _likeCount = _isLiked
+          ? _likeCount + 1
+          : (_likeCount > 0 ? _likeCount - 1 : 0);
     });
   }
 
   void _toggleCollect() {
     setState(() {
       _isCollected = !_isCollected;
-      _collectCount = _isCollected ? _collectCount + 1 : (_collectCount > 0 ? _collectCount - 1 : 0);
+      _collectCount = _isCollected
+          ? _collectCount + 1
+          : (_collectCount > 0 ? _collectCount - 1 : 0);
     });
   }
 
@@ -769,14 +771,18 @@ class _PostActionBarState extends State<_PostActionBar> {
     return Row(
       children: [
         _ActionIconTextButton(
-          icon: _isLiked ? 'assets/images/moments/like-active.png' : 'assets/images/moments/like.png',
+          icon: _isLiked
+              ? 'assets/images/moments/like-active.png'
+              : 'assets/images/moments/like.png',
           text: '$_likeCount',
           active: _isLiked,
           onTap: _toggleLike,
         ),
         const SizedBox(width: 24),
         _ActionIconTextButton(
-          icon: _isCollected ? 'assets/images/moments/collect-active.png' : 'assets/images/moments/collect.png',
+          icon: _isCollected
+              ? 'assets/images/moments/collect-active.png'
+              : 'assets/images/moments/collect.png',
           text: '$_collectCount',
           active: _isCollected,
           onTap: _toggleCollect,
@@ -815,12 +821,8 @@ class _ActionIconTextButton extends StatelessWidget {
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          icon,
-          width: 16,
-          height: 16,
-        ),
-        const SizedBox(width:4),
+        Image.asset(icon, width: 16, height: 16),
+        const SizedBox(width: 4),
         Text(
           text,
           style: AppTextStyles.caption.copyWith(
@@ -851,16 +853,37 @@ class _ShareModalContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     const shareContacts = <_ShareContactData>[
-      _ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-      _ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-      _ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-      _ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-      _ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
+      _ShareContactData(
+        name: 'Kristen',
+        avatar: 'assets/images/chat/avatar.png',
+      ),
+      _ShareContactData(
+        name: 'Kristen',
+        avatar: 'assets/images/chat/avatar.png',
+      ),
+      _ShareContactData(
+        name: 'Kristen',
+        avatar: 'assets/images/chat/avatar.png',
+      ),
+      _ShareContactData(
+        name: 'Kristen',
+        avatar: 'assets/images/chat/avatar.png',
+      ),
+      _ShareContactData(
+        name: 'Kristen',
+        avatar: 'assets/images/chat/avatar.png',
+      ),
     ];
 
     final shareActions = <_ShareActionData>[
-      _ShareActionData(icon: 'assets/images/moments/friends.png', label: l10n.translate('moments_friends')),
-      _ShareActionData(icon: 'assets/images/moments/save.png', label: l10n.translate('moments_save')),
+      _ShareActionData(
+        icon: 'assets/images/moments/friends.png',
+        label: l10n.translate('moments_friends'),
+      ),
+      _ShareActionData(
+        icon: 'assets/images/moments/save.png',
+        label: l10n.translate('moments_save'),
+      ),
       _ShareActionData(
         icon: 'assets/images/moments/link.png',
         label: l10n.translate('moments_copy_link'),
@@ -886,11 +909,8 @@ class _ShareModalContent extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height:16),
-        Container(
-          height: 1,
-          color: AppColors.grey100,
-        ),
+        const SizedBox(height: 16),
+        Container(height: 1, color: AppColors.grey100),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -909,10 +929,7 @@ class _ShareContactData {
   final String name;
   final String avatar;
 
-  const _ShareContactData({
-    required this.name,
-    required this.avatar,
-  });
+  const _ShareContactData({required this.name, required this.avatar});
 }
 
 class _ShareActionData {
@@ -920,11 +937,7 @@ class _ShareActionData {
   final String label;
   final VoidCallback? onTap;
 
-  const _ShareActionData({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const _ShareActionData({required this.icon, required this.label, this.onTap});
 }
 
 class _ShareContactItem extends StatelessWidget {
@@ -985,11 +998,7 @@ class _ShareActionItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(11),
           ),
           alignment: Alignment.center,
-          child: Image.asset(
-            action.icon,
-            width: 20,
-            height: 20,
-          ),
+          child: Image.asset(action.icon, width: 20, height: 20),
         ),
         const SizedBox(height: 4),
         Text(
@@ -1053,10 +1062,7 @@ class _FollowButton extends StatelessWidget {
         color: isFollowing ? Colors.white : AppColors.grey900,
         borderRadius: BorderRadius.circular(28),
         border: isFollowing
-            ? Border.all(
-                color: AppColors.grey200,
-                width: 1.5,
-              )
+            ? Border.all(color: AppColors.grey200, width: 1.5)
             : null,
       ),
       child: Text(

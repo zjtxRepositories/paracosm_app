@@ -191,14 +191,20 @@ class DappModals {
                   const SizedBox(height: 24),
                   _divider(),
                   const SizedBox(height: 16),
-                  _field(label: '交易类型', value: transactionType ?? '转账'),
+                  _field(
+                    label: l10n.dappTransactionType,
+                    value: transactionType ?? l10n.dappTransfer,
+                  ),
                   const SizedBox(height: 16),
                   _field(label: 'From', value: from, trailing: walletLabel),
                   const SizedBox(height: 16),
                   _field(label: 'To', value: to),
                   if (approvalAmount != null && approvalAmount.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    _field(label: '授权额度', value: approvalAmount),
+                    _field(
+                      label: l10n.dappApprovalAmount,
+                      value: approvalAmount,
+                    ),
                   ],
                   const SizedBox(height: 16),
                   _field(
@@ -241,14 +247,21 @@ class DappModals {
                     const SizedBox(height: 12),
                     _infoCard(
                       children: [
-                        _detailItem('交易类型', transactionType ?? '转账'),
+                        _detailItem(
+                          l10n.dappTransactionType,
+                          transactionType ?? l10n.dappTransfer,
+                        ),
                         _detailItem('From', from, copyable: true),
                         _detailItem('To', to, copyable: true),
                         if (approvalAmount != null && approvalAmount.isNotEmpty)
-                          _detailItem('授权额度', approvalAmount),
+                          _detailItem(l10n.dappApprovalAmount, approvalAmount),
                         if (approvalSpender != null &&
                             approvalSpender.isNotEmpty)
-                          _detailItem('授权地址', approvalSpender, copyable: true),
+                          _detailItem(
+                            l10n.dappApprovalAddress,
+                            approvalSpender,
+                            copyable: true,
+                          ),
                         _detailItem(
                           l10n.profileTransferFeeLevel,
                           _feeLevelLabel(l10n, selectedLevel),
@@ -299,6 +312,7 @@ class DappModals {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) {
+        final l10n = AppLocalizations.of(modalContext)!;
         return _sheetScaffold(
           context: modalContext,
           child: Column(
@@ -315,7 +329,10 @@ class DappModals {
               const SizedBox(height: 12),
               _centerTitle(host),
               const SizedBox(height: 24),
-              _field(label: '交易类型', value: '签名信息'),
+              _field(
+                label: l10n.dappTransactionType,
+                value: l10n.dappSignatureInfo,
+              ),
               const SizedBox(height: 16),
               _labeledCard(label: 'Message', value: message, minHeight: 132),
               const SizedBox(height: 24),
@@ -951,7 +968,7 @@ class DappModals {
         onTap: copyable
             ? () async {
                 await Clipboard.setData(ClipboardData(text: value));
-                AppToast.show('已复制');
+                AppToast.show(AppLocalizations.currentText('common_copied'));
               }
             : null,
         child: Row(

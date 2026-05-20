@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:ed25519_hd_key/ed25519_hd_key.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:solana/solana.dart';
 
 class SolanaService {
@@ -21,10 +22,10 @@ class SolanaService {
   /// 创建或获取钱包（助记词）
   /// =========================
   static Future<Ed25519HDKeyPair> createWalletFromMnemonic(
-      String mnemonic, {
-        int account = 0,
-        int index = 0,
-      }) async {
+    String mnemonic, {
+    int account = 0,
+    int index = 0,
+  }) async {
     if (!bip39.validateMnemonic(mnemonic)) {
       throw Exception("Invalid mnemonic");
     }
@@ -57,7 +58,8 @@ class SolanaService {
   /// 导入私钥
   /// =========================
   static Future<Ed25519HDKeyPair> importWalletFromPrivateKey(
-      String base64PrivateKey) async {
+    String base64PrivateKey,
+  ) async {
     final privateKeyBytes = base64Decode(base64PrivateKey);
     final keyPair = await Ed25519HDKeyPair.fromPrivateKeyBytes(
       privateKey: privateKeyBytes,
@@ -79,8 +81,11 @@ class SolanaService {
   /// =========================
   /// 获取地址（通过助记词）
   /// =========================
-  static Future<String> getAddressFromMnemonic(String mnemonic,
-      {int account = 0, int index = 0}) async {
+  static Future<String> getAddressFromMnemonic(
+    String mnemonic, {
+    int account = 0,
+    int index = 0,
+  }) async {
     final kp = await createWalletFromMnemonic(
       mnemonic,
       account: account,
@@ -93,16 +98,17 @@ class SolanaService {
   /// 派生地址（统一入口）
   /// =========================
   static Future<String> deriveAddress(
-      String mnemonic, {
-        int account = 0,
-        int index = 0,
-      }) async {
+    String mnemonic, {
+    int account = 0,
+    int index = 0,
+  }) async {
     return await getAddressFromMnemonic(
       mnemonic,
       account: account,
       index: index,
     );
   }
+
   /// =========================
   /// 私钥 → 地址（导入钱包）
   /// =========================
@@ -127,6 +133,7 @@ class SolanaService {
 
     return address;
   }
+
   /// =========================
   /// 地址 → 私钥（base64）
   /// =========================
@@ -143,13 +150,17 @@ class SolanaService {
   /// =========================
   static Future<Ed25519HDKeyPair> exportKeyPair(String address) async {
     final keyPair = _wallets[address];
-    if (keyPair == null) throw Exception("钱包不存在");
+    if (keyPair == null) {
+      throw Exception(AppLocalizations.currentText('wallet_not_found'));
+    }
     return keyPair;
   }
 
   static Future<String> exportPrivateKey(String address) async {
     final keyPair = _wallets[address];
-    if (keyPair == null) throw Exception("钱包不存在");
+    if (keyPair == null) {
+      throw Exception(AppLocalizations.currentText('wallet_not_found'));
+    }
 
     final keyData = await keyPair.extract();
     return base64Encode(keyData.bytes);
@@ -160,7 +171,9 @@ class SolanaService {
   /// =========================
   static String getPublicKey(String address) {
     final keyPair = _wallets[address];
-    if (keyPair == null) throw Exception("钱包不存在");
+    if (keyPair == null) {
+      throw Exception(AppLocalizations.currentText('wallet_not_found'));
+    }
     return keyPair.publicKey.toBase58();
   }
 

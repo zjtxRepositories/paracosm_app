@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -10,19 +11,16 @@ import '../common/app_toast.dart';
 /// =========================
 class ShareModals {
   static Future<void> show(
-      BuildContext context, {
-        List<ShareContactData>? contacts,
-        List<ShareActionData>? actions,
-      }) {
+    BuildContext context, {
+    List<ShareContactData>? contacts,
+    List<ShareActionData>? actions,
+  }) {
     return AppModal.show(
       context,
-      title: '分享',
+      title: AppLocalizations.of(context)!.momentsShare,
       confirmText: null,
       onConfirm: () {},
-      child: _ShareModalContent(
-        contacts: contacts,
-        actions: actions,
-      ),
+      child: _ShareModalContent(contacts: contacts, actions: actions),
     );
   }
 }
@@ -34,24 +32,38 @@ class _ShareModalContent extends StatelessWidget {
   final List<ShareContactData>? contacts;
   final List<ShareActionData>? actions;
 
-  const _ShareModalContent({
-    this.contacts,
-    this.actions,
-  });
+  const _ShareModalContent({this.contacts, this.actions});
 
   @override
   Widget build(BuildContext context) {
-    final shareContacts = contacts ??
+    final shareContacts =
+        contacts ??
         const [
-          ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-          ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
-          ShareContactData(name: 'Kristen', avatar: 'assets/images/chat/avatar.png'),
+          ShareContactData(
+            name: 'Kristen',
+            avatar: 'assets/images/chat/avatar.png',
+          ),
+          ShareContactData(
+            name: 'Kristen',
+            avatar: 'assets/images/chat/avatar.png',
+          ),
+          ShareContactData(
+            name: 'Kristen',
+            avatar: 'assets/images/chat/avatar.png',
+          ),
         ];
 
-    final shareActions = actions ??
+    final shareActions =
+        actions ??
         [
-          const ShareActionData(icon: 'assets/images/moments/friends.png', label: 'Friends'),
-          const ShareActionData(icon: 'assets/images/moments/save.png', label: 'Save'),
+          const ShareActionData(
+            icon: 'assets/images/moments/friends.png',
+            label: 'Friends',
+          ),
+          const ShareActionData(
+            icon: 'assets/images/moments/save.png',
+            label: 'Save',
+          ),
           ShareActionData(
             icon: 'assets/images/moments/link.png',
             label: 'Copy link',
@@ -110,10 +122,7 @@ class ShareContactData {
   final String name;
   final String avatar;
 
-  const ShareContactData({
-    required this.name,
-    required this.avatar,
-  });
+  const ShareContactData({required this.name, required this.avatar});
 }
 
 class ShareActionData {
@@ -121,11 +130,7 @@ class ShareActionData {
   final String label;
   final VoidCallback? onTap;
 
-  const ShareActionData({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const ShareActionData({required this.icon, required this.label, this.onTap});
 }
 
 /// =========================
@@ -192,11 +197,7 @@ class _ShareActionItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
-            child: Image.asset(
-              action.icon,
-              width: 20,
-              height: 20,
-            ),
+            child: Image.asset(action.icon, width: 20, height: 20),
           ),
           const SizedBox(height: 6),
           Text(

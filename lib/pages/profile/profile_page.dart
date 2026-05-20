@@ -90,8 +90,12 @@ class _ProfilePageState extends State<ProfilePage> {
         if (token.isAdded == false) {
           continue;
         }
-        final index = coins.indexWhere((c) => c.symbol.toLowerCase().split('/')[0] == token.symbol.toLowerCase());
-        if (index != -1){
+        final index = coins.indexWhere(
+          (c) =>
+              c.symbol.toLowerCase().split('/')[0] ==
+              token.symbol.toLowerCase(),
+        );
+        if (index != -1) {
           token.market = coins[index];
         }
         if (token.address.isEmpty && !(index != -1 || token.isAdded == true)) {
@@ -105,21 +109,21 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     WalletDao().updateWallet(_walletModel!);
-    PortfolioService().start( _tokens);
+    PortfolioService().start(_tokens);
   }
 
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (_walletModel == null) return;
     WalletModals.showNetworkSelector(
-        context: context,
-        wallet: _walletModel!,
-        onSelected:
-            (network) {
-              setState(() {
-                _selectedNetwork = network;
-              });
-    });
+      context: context,
+      wallet: _walletModel!,
+      onSelected: (network) {
+        setState(() {
+          _selectedNetwork = network;
+        });
+      },
+    );
   }
 
   @override
@@ -187,7 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
-                  color: AppColors.black
+                  color: AppColors.black,
                 ),
               ),
             ],
@@ -204,9 +208,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: AppColors.primary, // 亮绿色边框
               ),
               child: UserAvatarWidget(
-                userId: accountManager.currentAccount?.accountId ,
+                userId: accountManager.currentAccount?.accountId,
                 avatarUrl: accountManager.currentAccount?.avatar,
-              )
+              ),
             ),
           ),
         ],
@@ -217,11 +221,18 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 构建主钱包资产展示卡片
   Widget _buildWalletCard({
     bool showActions = true,
-    EdgeInsetsGeometry margin = const EdgeInsets.only(top: 16, left: 20, right: 20, bottom: 24),
+    EdgeInsetsGeometry margin = const EdgeInsets.only(
+      top: 16,
+      left: 20,
+      right: 20,
+      bottom: 24,
+    ),
     VoidCallback? onEyeTap,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    String showName = _walletModel?.name ?? '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
+    String showName =
+        _walletModel?.name ??
+        '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
     return Container(
       margin: margin,
       padding: const EdgeInsets.all(16),
@@ -252,7 +263,10 @@ class _ProfilePageState extends State<ProfilePage> {
               GestureDetector(
                 onTap: _showNetworkSelector,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.grey100,
                     borderRadius: BorderRadius.circular(100),
@@ -276,7 +290,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 12,
+                        color: AppColors.grey400,
+                      ),
                     ],
                   ),
                 ),
@@ -295,13 +313,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   return _isBalanceVisible
                       ? Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '\$'),
-                        TextSpan(text: truncateDouble(total)),
-                      ],
-                    ),
-                  )
+                          TextSpan(
+                            children: [
+                              TextSpan(text: '\$'),
+                              TextSpan(text: truncateDouble(total)),
+                            ],
+                          ),
+                        )
                       : Text('********');
                 },
               ),
@@ -312,7 +330,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   onEyeTap?.call();
                 },
                 child: Image.asset(
-                  _isBalanceVisible ? 'assets/images/common/eye-line.png' : 'assets/images/common/eye-off-line.png',
+                  _isBalanceVisible
+                      ? 'assets/images/common/eye-line.png'
+                      : 'assets/images/common/eye-off-line.png',
                   width: 20,
                   height: 20,
                 ),
@@ -327,9 +347,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: {
-                        'chain':_selectedNetwork
-                      });
+                      context.push(
+                        '/transfer',
+                        extra: {'chain': _selectedNetwork},
+                      );
                     },
                     child: Container(
                       height: 44,
@@ -341,10 +362,16 @@ class _ProfilePageState extends State<ProfilePage> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           const SizedBox(width: 6),
-                          Image.asset('assets/images/profile/send.png', width: 32, height: 32),
+                          Image.asset(
+                            'assets/images/profile/send.png',
+                            width: 32,
+                            height: 32,
+                          ),
                           const SizedBox(width: 12),
                           Text(
-                            AppLocalizations.of(context)!.profileTokenNetworkSend,
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkSend,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -366,7 +393,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         extra: {
                           'symbol': _selectedNetwork?.symbol,
                           'network': _selectedNetwork?.name,
-                          'address':_selectedNetwork?.address,
+                          'address': _selectedNetwork?.address,
                         },
                       );
                     },
@@ -375,16 +402,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(32),
-                        border: Border.all(color: AppColors.grey900, width: 1), // 黑色边框
+                        border: Border.all(
+                          color: AppColors.grey900,
+                          width: 1,
+                        ), // 黑色边框
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           const SizedBox(width: 6),
-                          Image.asset('assets/images/profile/receive.png', width: 32, height: 32),
+                          Image.asset(
+                            'assets/images/profile/receive.png',
+                            width: 32,
+                            height: 32,
+                          ),
                           const SizedBox(width: 12),
                           Text(
-                            AppLocalizations.of(context)!.profileTokenNetworkReceive,
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkReceive,
                             style: const TextStyle(
                               color: AppColors.grey900,
                               fontSize: 14,
@@ -403,6 +439,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
   Widget _buildTokenList() {
     return StreamBuilder<List<TokenModel>>(
       stream: PortfolioService().stream,
@@ -449,7 +486,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '资产',
+                    AppLocalizations.of(context)!.profileAssets,
                     style: AppTextStyles.h2.copyWith(
                       fontSize: 18,
                       color: AppColors.black,
@@ -471,7 +508,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
               /// 动态列表
               ...tokens.map((token) {
-                return _buildTokenItem(token,
+                return _buildTokenItem(
+                  token,
                   token.name,
                   token.symbol,
                   token.market?.close ?? 0.0,
@@ -490,7 +528,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// 构建代币列表项
-  Widget _buildTokenItem(TokenModel token,String name, String symbol, double price, double change, bool isUp, String iconName) {
+  Widget _buildTokenItem(
+    TokenModel token,
+    String name,
+    String symbol,
+    double price,
+    double change,
+    bool isUp,
+    String iconName,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -524,7 +570,8 @@ class _ProfilePageState extends State<ProfilePage> {
               // 2. 代币名称 (同样点击跳转代币详情)
               Expanded(
                 flex: 2,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       symbol,
@@ -547,15 +594,19 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         SizedBox(width: 6),
                         Text(
-                          change > 0 ? '+${truncateDouble(change,digits: 2)}%' : '${truncateDouble(change,digits: 2)}%',
+                          change > 0
+                              ? '+${truncateDouble(change, digits: 2)}%'
+                              : '${truncateDouble(change, digits: 2)}%',
                           style: AppTextStyles.caption.copyWith(
-                            color: isUp ? AppColors.primaryDark : AppColors.error,
+                            color: isUp
+                                ? AppColors.primaryDark
+                                : AppColors.error,
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -620,7 +671,7 @@ class ArrowPainter extends CustomPainter {
       path.lineTo(size.width / 2, size.height - padding);
     }
     path.close();
-    
+
     // 先绘制描边以获得圆角效果
     paint.style = PaintingStyle.stroke;
     canvas.drawPath(path, paint);
@@ -630,7 +681,8 @@ class ArrowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant ArrowPainter oldDelegate) => oldDelegate.isUp != isUp;
+  bool shouldRepaint(covariant ArrowPainter oldDelegate) =>
+      oldDelegate.isUp != isUp;
 }
 
 /// 简易迷你图绘制类 (使用 CustomPainter 还原 UI 效果)
@@ -706,7 +758,7 @@ class MiniChartPainter extends CustomPainter {
     for (int i = 0; i < points.length - 1; i++) {
       final p0 = points[i];
       final p1 = points[i + 1];
-      
+
       // 计算控制点，使曲线在各点之间平滑过渡
       final controlPoint1 = Offset(p0.dx + (p1.dx - p0.dx) * 0.5, p0.dy);
       final controlPoint2 = Offset(p0.dx + (p1.dx - p0.dx) * 0.5, p1.dy);
@@ -725,5 +777,6 @@ class MiniChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant MiniChartPainter oldDelegate) => oldDelegate.isUp != isUp;
+  bool shouldRepaint(covariant MiniChartPainter oldDelegate) =>
+      oldDelegate.isUp != isUp;
 }

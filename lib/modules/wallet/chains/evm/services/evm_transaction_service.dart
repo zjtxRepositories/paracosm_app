@@ -1,4 +1,5 @@
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_gas_service.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
@@ -31,10 +32,14 @@ class EvmTransactionService {
     GasFee? gasFee,
     String? customData,
   }) async {
-    if (!EvmService.isValidAddress(to)) throw '地址不合法';
+    if (!EvmService.isValidAddress(to)) {
+      throw AppLocalizations.currentText('wallet_invalid_address');
+    }
 
     final privateKey = EvmService.getPrivateKeyByAddress(chain.address);
-    if (privateKey == null) throw '没有找到该钱包！';
+    if (privateKey == null) {
+      throw AppLocalizations.currentText('wallet_not_found');
+    }
 
     if ((customData ?? '').isNotEmpty) {
       return sendContractTransaction(

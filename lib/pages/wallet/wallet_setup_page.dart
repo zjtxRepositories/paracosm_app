@@ -28,6 +28,7 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
     super.initState();
     ConfigService().init();
   }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -57,7 +58,8 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded( // 包裹 Expanded 防止文字过长导致横向溢出
+                        Expanded(
+                          // 包裹 Expanded 防止文字过长导致横向溢出
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -72,7 +74,9 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                                 children: [
                                   Text(
                                     loc.walletStartTo,
-                                    style: AppTextStyles.h1.copyWith(fontSize: 24),
+                                    style: AppTextStyles.h1.copyWith(
+                                      fontSize: 24,
+                                    ),
                                   ),
                                   Stack(
                                     children: [
@@ -95,7 +99,9 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                                   ),
                                   Text(
                                     ' ${loc.walletStartWorld}',
-                                    style: AppTextStyles.h1.copyWith(fontSize: 24),
+                                    style: AppTextStyles.h1.copyWith(
+                                      fontSize: 24,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -115,15 +121,14 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                     ),
 
                     const Spacer(), // 在有固定高度约束的 Column 中可以使用 Spacer
-
                     // 3. 创建钱包卡片
                     _buildOptionCard(
                       title: loc.walletSetupCreateTitle,
                       subtitle: loc.walletSetupCreateSubtitle,
                       iconPath: 'assets/images/wallet/import-icon.png',
                       onTap: () {
-                        if (!_isAgreed){
-                          AppToast.show('请仔细阅读服务条款和隐私政策');
+                        if (!_isAgreed) {
+                          AppToast.show(loc.walletReadTermsPrivacy);
                           return;
                         }
                         context.push('/wallet-create-step1');
@@ -138,8 +143,8 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                       subtitle: loc.walletSetupImportSubtitle,
                       iconPath: 'assets/images/wallet/create-icon.png',
                       onTap: () {
-                        if (!_isAgreed){
-                          AppToast.show('请仔细阅读服务条款和隐私政策');
+                        if (!_isAgreed) {
+                          AppToast.show(loc.walletReadTermsPrivacy);
                           return;
                         }
                         context.push('/wallet-import');
@@ -224,7 +229,12 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                 children: [
                   Text(title, style: AppTextStyles.h2.copyWith()),
                   const SizedBox(height: 8),
-                  Text(subtitle, style: AppTextStyles.body.copyWith(color: AppColors.grey500)),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.grey500,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   // 跳转图标（参考修改后的，不加额外容器）
                   Image.asset(

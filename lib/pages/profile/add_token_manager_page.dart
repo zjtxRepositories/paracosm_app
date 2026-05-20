@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,8 +20,7 @@ import '../../widgets/modals/wallet_modals.dart';
 import '../../widgets/modals/wallet_protocol_modal.dart';
 
 class AddTokenManagerPage extends StatefulWidget {
-  const AddTokenManagerPage(
-      {super.key});
+  const AddTokenManagerPage({super.key});
 
   @override
   State<AddTokenManagerPage> createState() => _AddTokenManagerPageState();
@@ -34,9 +32,12 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
   WalletModel? wallet = AccountManager().currentWallet;
   late ChainAccount chain;
   bool _isEnabled = false;
-  final TextEditingController addressTextEditingController = TextEditingController();
-  final TextEditingController symbolTextEditingController = TextEditingController();
-  final TextEditingController decimalsTextEditingController = TextEditingController();
+  final TextEditingController addressTextEditingController =
+      TextEditingController();
+  final TextEditingController symbolTextEditingController =
+      TextEditingController();
+  final TextEditingController decimalsTextEditingController =
+      TextEditingController();
   ProtocolType? _protocolType;
   TokenModel? _token;
   String _address = '';
@@ -57,7 +58,6 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
         loadingToken();
       }
     });
-
   }
 
   @override
@@ -78,10 +78,10 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
     _btcTokens = null;
   }
 
-  void loadingToken(){
-    if (chain.chainType == ChainType.bitcoin){
+  void loadingToken() {
+    if (chain.chainType == ChainType.bitcoin) {
       searchBTCAsset();
-    }else{
+    } else {
       getToken();
     }
   }
@@ -89,8 +89,8 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
   Future<void> getToken() async {
     EasyLoading.show();
     final address = addressTextEditingController.text;
-    final isAddress = await EvmFacade.isContractAddress(chain,address);
-    if (!isAddress){
+    final isAddress = await EvmFacade.isContractAddress(chain, address);
+    if (!isAddress) {
       _searchError = true;
       _token = null;
       EasyLoading.dismiss();
@@ -98,7 +98,7 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
       return;
     }
     final result = await EvmFacade.getTokenInfo(chain, address);
-    if (result == null){
+    if (result == null) {
       _searchError = true;
       EasyLoading.dismiss();
       setState(() {});
@@ -117,43 +117,48 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
   Future<void> addToken() async {
     if (_token == null) return;
     EasyLoading.show();
-    await WalletManager.addToken(wallet!.id,_token!);
+    await WalletManager.addToken(wallet!.id, _token!);
     EasyLoading.dismiss();
-    EasyLoading.showToast('添加成功');
+    EasyLoading.showToast(AppLocalizations.currentText('profile_add_success'));
     context.pop();
   }
 
   void searchBTCAsset() async {
     if (_protocolType == null || _keyword.isEmpty) return;
-    final result = await BitcoinSearchTokenInfo.searchBTCAsset(_protocolType!,_keyword);
+    final result = await BitcoinSearchTokenInfo.searchBTCAsset(
+      _protocolType!,
+      _keyword,
+    );
     setState(() {
       _btcTokens = result;
-      _isEnabled = _protocolType != null
-          && (_btcTokens ?? []).isNotEmpty
-          && symbolTextEditingController.text.isNotEmpty;
+      _isEnabled =
+          _protocolType != null &&
+          (_btcTokens ?? []).isNotEmpty &&
+          symbolTextEditingController.text.isNotEmpty;
     });
   }
 
   void addBTCAsset() async {
-    if ((_btcTokens ?? []).isEmpty)return;
+    if ((_btcTokens ?? []).isEmpty) return;
     for (final token in _btcTokens!) {
-      await WalletManager.addToken(wallet!.id,token);
+      await WalletManager.addToken(wallet!.id, token);
     }
-    EasyLoading.showToast('添加成功');
+    EasyLoading.showToast(AppLocalizations.currentText('profile_add_success'));
     context.pop();
-
   }
+
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
     if (wallet == null) return;
     WalletModals.showNetworkSelector(
-        context: context,
-        wallet: wallet!,
-        onSelected: (network) {
-          setState(() {
-            chain = network;
-          });
+      context: context,
+      wallet: wallet!,
+      onSelected: (network) {
+        setState(() {
+          chain = network;
         });
+      },
+    );
   }
 
   @override
@@ -164,7 +169,7 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
       },
       behavior: HitTestBehavior.translucent,
       child: AppPage(
-        title: '自定义币种',
+        title: AppLocalizations.of(context)!.profileCustomToken,
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           height: double.infinity,
@@ -187,14 +192,18 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
               ),
               AppButton(
                 text: AppLocalizations.of(context)!.commonConfirm,
-                onPressed: _isEnabled ? () {
-                  if (chain.chainType == ChainType.bitcoin){
-                    addBTCAsset();
-                    return;
-                  }
-                  addToken();
-                } : null,
-                backgroundColor: _isEnabled ? AppColors.grey900 : AppColors.grey900,
+                onPressed: _isEnabled
+                    ? () {
+                        if (chain.chainType == ChainType.bitcoin) {
+                          addBTCAsset();
+                          return;
+                        }
+                        addToken();
+                      }
+                    : null,
+                backgroundColor: _isEnabled
+                    ? AppColors.grey900
+                    : AppColors.grey900,
                 textColor: Colors.white,
               ),
             ],
@@ -203,27 +212,41 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
       ),
     );
   }
+
   List<Widget> _buildBTC() {
     return [
       _buildProtocol(),
       SizedBox(height: 24.h),
-      _buildInput('币种名称', symbolTextEditingController),
+      _buildInput(
+        AppLocalizations.of(context)!.profileTokenName,
+        symbolTextEditingController,
+      ),
       SizedBox(height: 24.h),
     ];
   }
 
   List<Widget> _buildOther() {
     return [
-      _buildInput('请输入正确的合约地址', addressTextEditingController),
+      _buildInput(
+        AppLocalizations.of(context)!.profileContractAddressHint,
+        addressTextEditingController,
+      ),
       SizedBox(height: 24.h),
-      _buildInput('符号', symbolTextEditingController),
+      _buildInput(
+        AppLocalizations.of(context)!.profileSymbol,
+        symbolTextEditingController,
+      ),
       SizedBox(height: 24.h),
-      _buildInput('小数位', decimalsTextEditingController,keyboardType: TextInputType.number),
+      _buildInput(
+        AppLocalizations.of(context)!.profileDecimals,
+        decimalsTextEditingController,
+        keyboardType: TextInputType.number,
+      ),
     ];
   }
 
   Widget _buildChooseChain() {
-    return  GestureDetector(
+    return GestureDetector(
       onTap: _showNetworkSelector,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -250,7 +273,11 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 12,
+              color: AppColors.grey400,
+            ),
           ],
         ),
       ),
@@ -259,7 +286,7 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
 
   Widget _buildProtocol() {
     return GestureDetector(
-      onTap: (){
+      onTap: () {
         WalletProtocolModal.show(
           context: context,
           onConfirm: (protocolType) {
@@ -273,57 +300,75 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('协议',style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.grey900,
-          )),
+          Text(
+            AppLocalizations.of(context)!.profileProtocol,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey900,
+            ),
+          ),
           SizedBox(height: 12.h),
           Container(
-              height: 52.h,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16.r),
-                border: Border.all(
-                  color:AppColors.grey200,
-                  width: 1,
-                ),
+            height: 52.h,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: AppColors.grey200, width: 1),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _protocolType == null
+                      ? Text(
+                          AppLocalizations.of(
+                            context,
+                          )!.profileProtocolSelectHint,
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          ),
+                        )
+                      : Text(
+                          _protocolType!.text,
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          ),
+                        ),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 12,
+                    color: AppColors.grey400,
+                  ),
+                ],
               ),
-              child:Padding(padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _protocolType == null ?
-                      Text('请选择协议',style:AppTextStyles.body.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.grey900,
-                      ))
-                          :Text(_protocolType!.text,style: AppTextStyles.body.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.grey900,
-                      )),
-                      const Icon(Icons.keyboard_arrow_down, size: 12, color: AppColors.grey400),
-                    ],
-                  )
-
-              )
-          )
+            ),
+          ),
         ],
-      )
+      ),
     );
   }
 
-  Widget _buildInput(String title,TextEditingController? textEditingController,
-      {TextInputType? keyboardType}) {
+  Widget _buildInput(
+    String title,
+    TextEditingController? textEditingController, {
+    TextInputType? keyboardType,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,style: AppTextStyles.body.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.grey900,
-        )),
+        Text(
+          title,
+          style: AppTextStyles.body.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.grey900,
+          ),
+        ),
         SizedBox(height: 12.h),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
@@ -332,13 +377,15 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
-    focusNode: textEditingController == addressTextEditingController ? _focusNode : null,
-    controller: textEditingController,
+            focusNode: textEditingController == addressTextEditingController
+                ? _focusNode
+                : null,
+            controller: textEditingController,
             decoration: InputDecoration(
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
-              hintText: '请输入$title'
+              hintText: AppLocalizations.of(context)!.profileInputHint(title),
             ),
             style: AppTextStyles.body.copyWith(
               color: AppColors.grey900,
@@ -348,21 +395,23 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
             keyboardType: keyboardType ?? TextInputType.text,
             maxLines: 2,
             onChanged: (String text) {
-              if (chain.chainType == ChainType.bitcoin){
-                _isEnabled = _protocolType != null
-                    && (_btcTokens ?? []).isNotEmpty
-                    && symbolTextEditingController.text.isNotEmpty;
-                if (_keyword != symbolTextEditingController.text){
+              if (chain.chainType == ChainType.bitcoin) {
+                _isEnabled =
+                    _protocolType != null &&
+                    (_btcTokens ?? []).isNotEmpty &&
+                    symbolTextEditingController.text.isNotEmpty;
+                if (_keyword != symbolTextEditingController.text) {
                   _keyword = symbolTextEditingController.text;
                 }
                 return;
-              }else {
-                _isEnabled = addressTextEditingController.text.isNotEmpty
-                    && symbolTextEditingController.text.isNotEmpty
-                    && decimalsTextEditingController.text.isNotEmpty;
+              } else {
+                _isEnabled =
+                    addressTextEditingController.text.isNotEmpty &&
+                    symbolTextEditingController.text.isNotEmpty &&
+                    decimalsTextEditingController.text.isNotEmpty;
                 _searchError = false;
-                if(textEditingController == addressTextEditingController){
-                  if (addressTextEditingController.text != _address){
+                if (textEditingController == addressTextEditingController) {
+                  if (addressTextEditingController.text != _address) {
                     _address = addressTextEditingController.text;
                   }
                 }
@@ -371,25 +420,37 @@ class _AddTokenManagerPageState extends State<AddTokenManagerPage> {
             },
           ),
         ),
-        ... chain.chainType == ChainType.bitcoin ? _buildError('未找到该币种',!_isEnabled && textEditingController == symbolTextEditingController && symbolTextEditingController.text.isNotEmpty)
-            : _buildError('请输入正确的合约地址',
-            _searchError == true && textEditingController == addressTextEditingController && addressTextEditingController.text.isNotEmpty)
+        ...chain.chainType == ChainType.bitcoin
+            ? _buildError(
+                AppLocalizations.of(context)!.profileTokenNotFound,
+                !_isEnabled &&
+                    textEditingController == symbolTextEditingController &&
+                    symbolTextEditingController.text.isNotEmpty,
+              )
+            : _buildError(
+                AppLocalizations.of(context)!.profileContractAddressHint,
+                _searchError == true &&
+                    textEditingController == addressTextEditingController &&
+                    addressTextEditingController.text.isNotEmpty,
+              ),
       ],
     );
   }
 
-  List<Widget> _buildError(String text,bool show) {
-    if (!show){
+  List<Widget> _buildError(String text, bool show) {
+    if (!show) {
       return [];
     }
     return [
       SizedBox(height: 12.h),
-      Text(text,style: AppTextStyles.body.copyWith(
-        fontSize: 14,
-        color: AppColors.error,
-        fontWeight: FontWeight.w600,
-      )),
+      Text(
+        text,
+        style: AppTextStyles.body.copyWith(
+          fontSize: 14,
+          color: AppColors.error,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     ];
   }
 }
-

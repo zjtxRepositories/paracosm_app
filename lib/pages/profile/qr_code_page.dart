@@ -20,23 +20,16 @@ import 'package:screenshot/screenshot.dart';
 class QrCodePage extends StatefulWidget {
   final String userId;
 
-  const QrCodePage({
-    super.key,
-    required this.userId,
-  });
+  const QrCodePage({super.key, required this.userId});
 
   @override
-  State<QrCodePage> createState() =>
-      _QrCodePageState();
+  State<QrCodePage> createState() => _QrCodePageState();
 }
 
-class _QrCodePageState
-    extends State<QrCodePage> {
+class _QrCodePageState extends State<QrCodePage> {
   UserDisplayModel? _user;
 
-  final ScreenshotController
-  _screenshotController =
-  ScreenshotController();
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   /// 截图时隐藏下载按钮
   bool _hideDownloadButton = false;
@@ -79,12 +72,9 @@ class _QrCodePageState
       });
 
       /// 等待界面刷新
-      await Future.delayed(
-        const Duration(milliseconds: 50),
-      );
+      await Future.delayed(const Duration(milliseconds: 50));
 
-      final permission =
-      await PhotoManager.requestPermissionExtend();
+      final permission = await PhotoManager.requestPermissionExtend();
 
       if (!permission.isAuth) {
         setState(() {
@@ -93,8 +83,7 @@ class _QrCodePageState
         return;
       }
 
-      final Uint8List? image =
-      await _screenshotController.capture(
+      final Uint8List? image = await _screenshotController.capture(
         pixelRatio: 3,
       );
 
@@ -106,18 +95,17 @@ class _QrCodePageState
       }
 
       if (image == null) {
-        AppToast.show('下载失败');
+        AppToast.show(AppLocalizations.of(context)!.commonDownloadFailed);
         return;
       }
 
       await PhotoManager.editor.saveImage(
         image,
-        filename:
-        'paracosm_qr_${widget.userId}.png',
+        filename: 'paracosm_qr_${widget.userId}.png',
         title: _user?.name ?? 'QR Code',
       );
 
-      AppToast.show('已保存到相册');
+      AppToast.show(AppLocalizations.of(context)!.commonSavedToAlbum);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -125,11 +113,9 @@ class _QrCodePageState
         });
       }
 
-      AppToast.show('下载失败');
+      AppToast.show(AppLocalizations.of(context)!.commonDownloadFailed);
 
-      debugPrint(
-        'save qr error => $e',
-      );
+      debugPrint('save qr error => $e');
     }
   }
 
@@ -137,9 +123,7 @@ class _QrCodePageState
   Widget build(BuildContext context) {
     return AppPage(
       showNav: true,
-      title:
-      AppLocalizations.of(context)!
-          .profileQrCodeQrCode,
+      title: AppLocalizations.of(context)!.profileQrCodeQrCode,
 
       child: Stack(
         children: [
@@ -153,8 +137,7 @@ class _QrCodePageState
 
           /// 内容
           SingleChildScrollView(
-            physics:
-            const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(),
 
             child: Column(
               children: [
@@ -174,99 +157,68 @@ class _QrCodePageState
 
                 /// 二维码卡片
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
 
                   child: Screenshot(
-                    controller:
-                    _screenshotController,
+                    controller: _screenshotController,
 
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius:
-                        BorderRadius.circular(
-                          24,
-                        ),
+                        borderRadius: BorderRadius.circular(24),
                       ),
 
                       child: Column(
-                        mainAxisSize:
-                        MainAxisSize.min,
+                        mainAxisSize: MainAxisSize.min,
 
                         children: [
                           /// 用户信息
                           Padding(
-                            padding:
-                            const EdgeInsets.all(
-                              20,
-                            ),
+                            padding: const EdgeInsets.all(20),
 
                             child: Row(
                               children: [
                                 UserAvatarWidget(
-                                  userId:
-                                  _user?.userId,
+                                  userId: _user?.userId,
 
-                                  avatarUrl:
-                                  _user?.avatar,
+                                  avatarUrl: _user?.avatar,
 
                                   size: 48,
 
-                                  borderRadius:
-                                  BorderRadius.circular(
-                                    12,
-                                  ),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
 
-                                const SizedBox(
-                                  width: 12,
-                                ),
+                                const SizedBox(width: 12),
 
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                                        CrossAxisAlignment.start,
 
                                     children: [
                                       Text(
-                                        _user?.name ??
-                                            '',
+                                        _user?.name ?? '',
 
                                         style: AppTextStyles.h2.copyWith(
-                                          fontSize:
-                                          20,
+                                          fontSize: 20,
 
-                                          fontWeight:
-                                          FontWeight
-                                              .w600,
+                                          fontWeight: FontWeight.w600,
 
-                                          color:
-                                          AppColors
-                                              .grey900,
+                                          color: AppColors.grey900,
                                         ),
                                       ),
 
-                                      const SizedBox(
-                                        height: 2,
-                                      ),
+                                      const SizedBox(height: 2),
 
                                       Text(
                                         AppLocalizations.of(
                                           context,
-                                        )!
-                                            .profileQrCodeScanToAdd,
+                                        )!.profileQrCodeScanToAdd,
 
                                         style: AppTextStyles.body.copyWith(
-                                          fontSize:
-                                          12,
+                                          fontSize: 12,
 
-                                          color:
-                                          AppColors
-                                              .grey400,
+                                          color: AppColors.grey400,
                                         ),
                                       ),
                                     ],
@@ -276,8 +228,7 @@ class _QrCodePageState
                                 /// 下载按钮
                                 if (!_hideDownloadButton)
                                   GestureDetector(
-                                    onTap:
-                                    _saveQrCode,
+                                    onTap: _saveQrCode,
 
                                     child: Image.asset(
                                       'assets/images/profile/user/download.png',
@@ -291,37 +242,26 @@ class _QrCodePageState
 
                           /// 虚线分割
                           Stack(
-                            alignment:
-                            Alignment.center,
+                            alignment: Alignment.center,
 
                             children: [
                               Padding(
-                                padding:
-                                const EdgeInsets.symmetric(
-                                  horizontal:
-                                  20,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
                                 ),
 
                                 child: Row(
-                                  children:
-                                  List.generate(
+                                  children: List.generate(
                                     30,
-                                        (
-                                        index,
-                                        ) => Expanded(
-                                      child:
-                                      Container(
-                                        height:
-                                        1,
+                                    (index) => Expanded(
+                                      child: Container(
+                                        height: 1,
 
-                                        margin:
-                                        const EdgeInsets.symmetric(
-                                          horizontal:
-                                          2,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 2,
                                         ),
 
-                                        color:
-                                        AppColors.grey200,
+                                        color: AppColors.grey200,
                                       ),
                                     ),
                                   ),
@@ -330,52 +270,37 @@ class _QrCodePageState
 
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment
-                                    .spaceBetween,
+                                    MainAxisAlignment.spaceBetween,
 
                                 children: [
                                   /// 左缺口
                                   Transform.translate(
-                                    offset:
-                                    const Offset(
-                                      -10,
-                                      0,
-                                    ),
+                                    offset: const Offset(-10, 0),
 
                                     child: Container(
                                       width: 20,
                                       height: 20,
 
                                       decoration: BoxDecoration(
-                                        color:
-                                        AppColors.grey100,
+                                        color: AppColors.grey100,
 
-                                        shape:
-                                        BoxShape
-                                            .circle,
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
                                   ),
 
                                   /// 右缺口
                                   Transform.translate(
-                                    offset:
-                                    const Offset(
-                                      10,
-                                      0,
-                                    ),
+                                    offset: const Offset(10, 0),
 
                                     child: Container(
                                       width: 20,
                                       height: 20,
 
                                       decoration: BoxDecoration(
-                                        color:
-                                        AppColors.grey100,
+                                        color: AppColors.grey100,
 
-                                        shape:
-                                        BoxShape
-                                            .circle,
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
                                   ),
@@ -386,47 +311,30 @@ class _QrCodePageState
 
                           /// 二维码区域
                           Padding(
-                            padding:
-                            const EdgeInsets.all(
-                              24,
-                            ),
+                            padding: const EdgeInsets.all(24),
 
                             child: AspectRatio(
                               aspectRatio: 1,
 
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color:
-                                  Colors.white,
+                                  color: Colors.white,
 
-                                  borderRadius:
-                                  BorderRadius.circular(
-                                    12,
-                                  ),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
 
-                                padding:
-                                const EdgeInsets.all(
-                                  12,
-                                ),
+                                padding: const EdgeInsets.all(12),
 
-                                child:
-                                PrettyQrView.data(
-                                  data:
-                                  _qrContent,
+                                child: PrettyQrView.data(
+                                  data: _qrContent,
 
-                                  decoration:
-                                  PrettyQrDecoration(
-                                    shape:
-                                    const PrettyQrSmoothSymbol(),
+                                  decoration: PrettyQrDecoration(
+                                    shape: const PrettyQrSmoothSymbol(),
 
-                                    image:
-                                    _user?.avatar != null ? PrettyQrDecorationImage(
-                                      image:
-                                      NetworkImage(
-                                        _user!.avatar,
-                                      ),
-                                    )
+                                    image: _user?.avatar != null
+                                        ? PrettyQrDecorationImage(
+                                            image: NetworkImage(_user!.avatar),
+                                          )
                                         : null,
                                   ),
                                 ),

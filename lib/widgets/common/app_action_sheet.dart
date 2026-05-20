@@ -1,33 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// 底部动作表项
 class AppActionSheetItem {
   final String label;
   final VoidCallback onTap;
 
-  const AppActionSheetItem({
-    required this.label,
-    required this.onTap,
-  });
+  const AppActionSheetItem({required this.label, required this.onTap});
 }
 
 /// 底部动作表
 class AppActionSheet extends StatelessWidget {
   final List<AppActionSheetItem> items;
-  final String cancelText;
+  final String? cancelText;
 
-  const AppActionSheet({
-    super.key,
-    required this.items,
-    this.cancelText = '取消',
-  });
+  const AppActionSheet({super.key, required this.items, this.cancelText});
 
   static Future<void> show(
     BuildContext context, {
     required List<AppActionSheetItem> items,
-    String cancelText = '取消',
+    String? cancelText,
     bool useRootNavigator = true,
   }) {
     return showModalBottomSheet(
@@ -38,10 +32,7 @@ class AppActionSheet extends StatelessWidget {
       enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return AppActionSheet(
-          items: items,
-          cancelText: cancelText,
-        );
+        return AppActionSheet(items: items, cancelText: cancelText);
       },
     );
   }
@@ -49,6 +40,7 @@ class AppActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       color: AppColors.grey100,
@@ -96,7 +88,7 @@ class AppActionSheet extends StatelessWidget {
                 children: [
                   _buildActionItem(
                     context,
-                    label: cancelText,
+                    label: cancelText ?? l10n.commonCancel,
                     onTap: () {},
                     isCancel: true,
                   ),

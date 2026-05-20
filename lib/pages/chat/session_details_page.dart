@@ -107,7 +107,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
     });
 
     if (!success) {
-      AppToast.show('设置失败');
+      AppToast.show(AppLocalizations.of(context)!.commonSettingFailed);
     }
   }
 
@@ -153,7 +153,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
     });
 
     if (!success) {
-      AppToast.show('设置失败');
+      AppToast.show(AppLocalizations.of(context)!.commonSettingFailed);
     }
   }
 
@@ -205,7 +205,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
     });
 
     if (!success) {
-      AppToast.show('设置失败');
+      AppToast.show(AppLocalizations.of(context)!.commonSettingFailed);
     }
   }
 
@@ -236,7 +236,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
       );
 
       if (groupId == null) {
-        AppToast.show('创建群组失败');
+        AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
         return;
       }
 
@@ -273,7 +273,7 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
         ),
       );
     } catch (e) {
-      AppToast.show('创建群组失败');
+      AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
     } finally {
       AppLoading.dismiss();
     }
@@ -293,9 +293,9 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
     );
 
     if (isOk) {
-      AppToast.show('已清空聊天记录');
+      AppToast.show(AppLocalizations.of(context)!.chatClearHistorySuccess);
     } else {
-      AppToast.show('清空聊天记录失败');
+      AppToast.show(AppLocalizations.of(context)!.chatClearHistoryFailed);
     }
   }
 

@@ -60,7 +60,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
     final avatarUrl = asset.logo;
     final roomType = 1;
     final communityType = 1;
-    if (jid.isEmpty){
+    if (jid.isEmpty) {
       jid = "${asset.symbol.toLowerCase()}_${asset.chainId}_native";
     }
     final groupId = generateGroupId(GroupType.dao);
@@ -69,40 +69,51 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
       chainId: asset.chainId,
       tokenAddress: asset.address,
       isNative: asset.address.isEmpty,
-      groupId: groupId
+      groupId: groupId,
     );
     AppLoading.show();
-    final isCreate = await CreateCommunityApi.create(jid, name, desc,
-        asset.address.isNotEmpty ? avatarUrl : '', roomType, communityType,jsonEncode(param.toJson()));
-    if (!isCreate){
+    final isCreate = await CreateCommunityApi.create(
+      jid,
+      name,
+      desc,
+      asset.address.isNotEmpty ? avatarUrl : '',
+      roomType,
+      communityType,
+      jsonEncode(param.toJson()),
+    );
+    if (!isCreate) {
       AppLoading.dismiss();
-      AppToast.show('创建群组失败');
+      AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
       return;
     }
     final groupInfo = RCIMIWGroupInfo.create(
-        groupId: groupId,
-        groupName: name,
-        portraitUri: avatarUrl,
-        introduction:desc
+      groupId: groupId,
+      groupName: name,
+      portraitUri: avatarUrl,
+      introduction: desc,
     );
     final result = await ImGroupManager().createByGroupInfo(groupInfo, []);
-    if (result == null){
+    if (result == null) {
       AppLoading.dismiss();
-      AppToast.show('创建群组失败');
+      AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
       return;
     }
-    final message = CustomMessage(targetId: groupId,
-        customMessageType: CustomMessageType.createDao,
-        conversationType:RCIMIWConversationType.group);
+    final message = CustomMessage(
+      targetId: groupId,
+      customMessageType: CustomMessageType.createDao,
+      conversationType: RCIMIWConversationType.group,
+    );
     final isSend = await ImSender.instance.send(message: message);
     AppLoading.dismiss();
-    if (!isSend)return;
+    if (!isSend) return;
     final conversation = await ImConversationManager().getConversation(
-        type: RCIMIWConversationType.group, targetId: groupId);
-    if (conversation == null)return;
+      type: RCIMIWConversationType.group,
+      targetId: groupId,
+    );
+    if (conversation == null) return;
     final model = ConversationModel(info: conversation);
     await ConversationResolver().resolve(model);
-    AppToast.show('创建成功');
+    AppToast.show(AppLocalizations.of(context)!.commonCreatedSuccess);
     context.pop();
   }
 
@@ -138,7 +149,11 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                               'assets/images/chat/avatar.png',
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.token, size: 60, color: AppColors.grey400),
+                                  const Icon(
+                                    Icons.token,
+                                    size: 60,
+                                    color: AppColors.grey400,
+                                  ),
                             ),
                           ),
                         ),
@@ -162,7 +177,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey600,
                       fontSize: 14,
-                      fontWeight: FontWeight.w500
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -174,7 +189,10 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                     child: TextField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 15,
+                        ),
                         border: InputBorder.none,
                       ),
                       style: AppTextStyles.h2.copyWith(
@@ -190,9 +208,9 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                   Text(
                     l10n.communityCreateDaoDescription,
                     style: AppTextStyles.body.copyWith(
-                     color: AppColors.grey600,
+                      color: AppColors.grey600,
                       fontSize: 14,
-                      fontWeight: FontWeight.w500
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -215,7 +233,10 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                               color: AppColors.grey400,
                               fontSize: 14,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             border: InputBorder.none,
                             counterText: '', // 隐藏默认计数器，使用自定义
                           ),

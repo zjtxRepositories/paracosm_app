@@ -19,10 +19,7 @@ import '../../widgets/common/app_toast.dart';
 class WalletEditPage extends StatefulWidget {
   final WalletModel wallet;
 
-  const WalletEditPage({
-    super.key,
-    required this.wallet,
-  });
+  const WalletEditPage({super.key, required this.wallet});
 
   @override
   State<WalletEditPage> createState() => _WalletEditPageState();
@@ -39,62 +36,65 @@ class _WalletEditPageState extends State<WalletEditPage> {
       final l10n = AppLocalizations.of(context)!;
 
       setState(() {
-        _currentWalletName = widget.wallet.name ??
+        _currentWalletName =
+            widget.wallet.name ??
             '${l10n.profileProfileDetailsWallet} ${widget.wallet.aIndex + 1}';
       });
     });
   }
 
   ///备份
-  void _backupMnemonic(String type){
+  void _backupMnemonic(String type) {
     WalletModals.showPasswordModal(
-        context: context,
-        title: AppLocalizations.of(context)!
-            .profileTransferPassword,
-        onConfirm: (password) async {
-          AppLoading.show();
-          final isResult =
-          await WalletSecurity.verifyPassword(password);
-          AppLoading.dismiss();
-          if (!isResult) {
-            return AppToast.show('密码错误！');
-          }
-          final data = await WalletSecurity.getWallet(walletId: widget.wallet.id, password: password);
-          if (data == null) {
-            return AppToast.show('数据错误！');
-          }
-          if (type == WalletType.privateKey){
-            WalletModals.showChainSelector(
-                context: context,
-                wallet: widget.wallet,
-                onSelected: (chain) async {
-                  if (chain.address.isNotEmpty){
-                    final privateKey = await WalletManager.generatePrivateKey(chain);
-                    context.push('/wallet-backup-private-key',
-                      extra: {
-                        'privateKey': privateKey,
-                      },
-                    );
-                    return;
-                  }
-                  context.push('/wallet-import-private-key',
-                    extra: {
-                      'password': password,
-                      'walletId': widget.wallet.id,
-                      'chainType': chain.chainType,
-                    },
-                  );
-                }
-            );
-            return;
-          }
-          final mnemonic = data['mnemonic'];
-          context.push('/wallet-backup-mnemonic',
-            extra: {
-              'mnemonic': mnemonic,
+      context: context,
+      title: AppLocalizations.of(context)!.profileTransferPassword,
+      onConfirm: (password) async {
+        AppLoading.show();
+        final isResult = await WalletSecurity.verifyPassword(password);
+        AppLoading.dismiss();
+        if (!isResult) {
+          return AppToast.show(
+            AppLocalizations.of(context)!.commonPasswordError,
+          );
+        }
+        final data = await WalletSecurity.getWallet(
+          walletId: widget.wallet.id,
+          password: password,
+        );
+        if (data == null) {
+          return AppToast.show(AppLocalizations.of(context)!.commonDataError);
+        }
+        if (type == WalletType.privateKey) {
+          WalletModals.showChainSelector(
+            context: context,
+            wallet: widget.wallet,
+            onSelected: (chain) async {
+              if (chain.address.isNotEmpty) {
+                final privateKey = await WalletManager.generatePrivateKey(
+                  chain,
+                );
+                context.push(
+                  '/wallet-backup-private-key',
+                  extra: {'privateKey': privateKey},
+                );
+                return;
+              }
+              context.push(
+                '/wallet-import-private-key',
+                extra: {
+                  'password': password,
+                  'walletId': widget.wallet.id,
+                  'chainType': chain.chainType,
+                },
+              );
             },
           );
-        });
+          return;
+        }
+        final mnemonic = data['mnemonic'];
+        context.push('/wallet-backup-mnemonic', extra: {'mnemonic': mnemonic});
+      },
+    );
   }
 
   /// 显示重命名钱包弹窗 (参考 transfer_page.dart 的 _showPasswordModal)
@@ -106,7 +106,10 @@ class _WalletEditPageState extends State<WalletEditPage> {
       confirmText: AppLocalizations.of(context)!.profileWalletEditSave,
       onConfirm: () async {
         if (nameController.text.isNotEmpty) {
-          await WalletManager.changeWalletName(widget.wallet.id, nameController.text);
+          await WalletManager.changeWalletName(
+            widget.wallet.id,
+            nameController.text,
+          );
           setState(() {
             _currentWalletName = nameController.text;
           });
@@ -138,7 +141,9 @@ class _WalletEditPageState extends State<WalletEditPage> {
                         controller: nameController,
                         onChanged: (value) => setModalState(() {}),
                         decoration: InputDecoration(
-                          hintText: AppLocalizations.of(context)!.profileWalletEditEnterWalletName,
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.profileWalletEditEnterWalletName,
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                         ),
@@ -190,21 +195,27 @@ class _WalletEditPageState extends State<WalletEditPage> {
                   const Divider(color: AppColors.grey100, height: 1),
                   const SizedBox(height: 24),
                   // 菜单列表
-                  widget.wallet.isPrivateKey == false ?  _buildMenuItem(
-                    icon: 'learn.png',
-                    title: AppLocalizations.of(context)!.profileWalletEditBackupMnemonics,
-                    onTap: () {
-                      _backupMnemonic(WalletType.mnemonic);
-                    },
-                  ):SizedBox(),
+                  widget.wallet.isPrivateKey == false
+                      ? _buildMenuItem(
+                          icon: 'learn.png',
+                          title: AppLocalizations.of(
+                            context,
+                          )!.profileWalletEditBackupMnemonics,
+                          onTap: () {
+                            _backupMnemonic(WalletType.mnemonic);
+                          },
+                        )
+                      : SizedBox(),
                   const SizedBox(height: 24),
                   _buildMenuItem(
                     icon: 'security.png',
-                    title: AppLocalizations.of(context)!.profileWalletEditBackingUpPrivate,
+                    title: AppLocalizations.of(
+                      context,
+                    )!.profileWalletEditBackingUpPrivate,
                     onTap: () {
                       _backupMnemonic(WalletType.privateKey);
                     },
-                  )
+                  ),
                 ],
               ),
             ),
@@ -229,7 +240,9 @@ class _WalletEditPageState extends State<WalletEditPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        AppLocalizations.of(context)!.profileWalletEditBackupWarning,
+                        AppLocalizations.of(
+                          context,
+                        )!.profileWalletEditBackupWarning,
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
                           color: AppColors.error,

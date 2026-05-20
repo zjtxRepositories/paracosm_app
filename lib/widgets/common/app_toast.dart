@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// 全局 Toast 工具类
 class AppToast {
@@ -20,10 +21,7 @@ class AppToast {
   /// 显示成功提示
   static void showSuccess(String message) {
     showToastWidget(
-      _buildToastChild(
-        icon: Icons.check_circle_outline,
-        message: message,
-      ),
+      _buildToastChild(icon: Icons.check_circle_outline, message: message),
       duration: const Duration(seconds: 2),
       position: ToastPosition.center,
       handleTouch: true,
@@ -33,10 +31,7 @@ class AppToast {
   /// 显示警告/提示消息
   static void showInfo(String message) {
     showToastWidget(
-      _buildToastChild(
-        icon: Icons.info_outline,
-        message: message,
-      ),
+      _buildToastChild(icon: Icons.info_outline, message: message),
       duration: const Duration(seconds: 2),
       position: ToastPosition.center,
       handleTouch: true,
@@ -44,9 +39,11 @@ class AppToast {
   }
 
   /// 显示复制成功提示
-  static void showCopied([String message = 'Copied!']) {
+  static void showCopied([String? message]) {
     showToastWidget(
-      _buildCopiedToastChild(message: message),
+      _buildCopiedToastChild(
+        message: message ?? AppLocalizations.currentText('common_copied'),
+      ),
       duration: const Duration(seconds: 2),
       position: ToastPosition.top,
       handleTouch: true,
@@ -67,11 +64,7 @@ class AppToast {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 24,
-          ),
+          Icon(icon, color: Colors.white, size: 24),
           const SizedBox(height: 8),
           Text(
             message,
@@ -88,9 +81,7 @@ class AppToast {
   }
 
   /// 构建纯文本的 Toast 内容视图
-  static Widget _buildSimpleToastChild({
-    required String message,
-  }) {
+  static Widget _buildSimpleToastChild({required String message}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
@@ -110,9 +101,7 @@ class AppToast {
   }
 
   /// 构建复制成功提示内容视图
-  static Widget _buildCopiedToastChild({
-    required String message,
-  }) {
+  static Widget _buildCopiedToastChild({required String message}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
@@ -122,11 +111,7 @@ class AppToast {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(
-            'assets/images/moments/done.png',
-            width: 16,
-            height: 16,
-          ),
+          Image.asset('assets/images/moments/done.png', width: 16, height: 16),
           const SizedBox(width: 4),
           Text(
             message,

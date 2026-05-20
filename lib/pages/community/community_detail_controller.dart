@@ -6,12 +6,11 @@ import 'package:paracosm/core/network/api/community_dynamics_api.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../widgets/base/app_localizations.dart';
 import '../../widgets/common/app_toast.dart';
 
 class CommunityDetailController extends ChangeNotifier {
-  CommunityDetailController({
-    required this.communityModel,
-  });
+  CommunityDetailController({required this.communityModel});
 
   /// 社区数据
   final CommunityModel communityModel;
@@ -42,8 +41,7 @@ class CommunityDetailController extends ChangeNotifier {
   bool isInitialized = false;
 
   /// 群 ID
-  String? get groupId =>
-      communityModel.communityParam?.groupId;
+  String? get groupId => communityModel.communityParam?.groupId;
 
   /// 房间 ID
   String? get roomId => communityModel.id;
@@ -54,10 +52,7 @@ class CommunityDetailController extends ChangeNotifier {
 
   /// 初始化
   Future<void> init() async {
-    await Future.wait([
-      fetchGroupInfo(),
-      fetchDynamics(refresh: true),
-    ]);
+    await Future.wait([fetchGroupInfo(), fetchDynamics(refresh: true)]);
 
     isInitialized = true;
     notifyListeners();
@@ -69,8 +64,7 @@ class CommunityDetailController extends ChangeNotifier {
       return;
     }
 
-    final groups = await ImGroupManager()
-        .getGroupsInfo([groupId!]);
+    final groups = await ImGroupManager().getGroupsInfo([groupId!]);
 
     if (groups == null || groups.isEmpty) {
       return;
@@ -86,9 +80,7 @@ class CommunityDetailController extends ChangeNotifier {
   }
 
   /// 获取动态列表
-  Future<void> fetchDynamics({
-    bool refresh = false,
-  }) async {
+  Future<void> fetchDynamics({bool refresh = false}) async {
     if (roomId == null || roomId!.isEmpty) {
       return;
     }
@@ -127,14 +119,13 @@ class CommunityDetailController extends ChangeNotifier {
 
       /// 判断是否还有更多
       hasMore = pageIndex < (result?.pageCount ?? 0) - 1;
+
       /// 下一页
       if (hasMore) {
         pageIndex++;
       }
     } catch (e) {
-      debugPrint(
-        'CommunityDetailController fetchDynamics error: $e',
-      );
+      debugPrint('CommunityDetailController fetchDynamics error: $e');
     } finally {
       await CommunityResolver().resolve(dynamics);
       isLoading = false;
@@ -151,18 +142,22 @@ class CommunityDetailController extends ChangeNotifier {
   Future<void> loadMore() async {
     await fetchDynamics();
   }
+
   Future<void> joined() async {
     final groupInfo = group;
     if (groupInfo == null) return;
-    final isJoined = await ImGroupManager().joinGroup(groupInfo.info.groupId ?? '');
-    if (!isJoined){
-      AppToast.show('加入社区失败');
+    final isJoined = await ImGroupManager().joinGroup(
+      groupInfo.info.groupId ?? '',
+    );
+    if (!isJoined) {
+      AppToast.show(AppLocalizations.currentText('community_join_failed'));
       return;
     }
-    AppToast.show('加入社区成功');
+    AppToast.show(AppLocalizations.currentText('community_join_success'));
     group!.info.role = RCIMIWGroupMemberRole.normal;
     notifyListeners();
   }
+
   /// 销毁
   void disposeController() {
     dynamics.clear();

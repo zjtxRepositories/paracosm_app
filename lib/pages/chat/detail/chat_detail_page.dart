@@ -156,6 +156,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Widget _buildSelectionHeader() {
     final count = _selectedMessages.length;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       height: kToolbarHeight + MediaQuery.of(context).padding.top,
@@ -169,7 +170,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           TextButton(
             onPressed: _exitSelectionMode,
             child: Text(
-              '取消',
+              l10n.commonCancel,
               style: AppTextStyles.body.copyWith(
                 color: AppColors.grey900,
                 fontSize: 15,
@@ -178,7 +179,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
           Expanded(
             child: Text(
-              '已选择 $count 条',
+              l10n.chatDetailSelectedCount(count),
               textAlign: TextAlign.center,
               style: AppTextStyles.h2.copyWith(
                 color: AppColors.grey900,
@@ -194,7 +195,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Widget _buildMessageList() {
     if (widget.sessionArgs == null) {
-      return const Center(child: Text('缺少会话参数'));
+      return Center(
+        child: Text(AppLocalizations.of(context)!.chatDetailMissingSessionArgs),
+      );
     }
 
     if (controller.isLoading) {
@@ -276,7 +279,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             Expanded(
               child: _buildSelectionAction(
                 icon: 'assets/images/chat/delete-msg.png',
-                label: '删除',
+                label: AppLocalizations.of(context)!.commonDelete,
                 enabled: hasSelected,
                 onTap: _confirmDeleteSelectedMessages,
               ),
@@ -284,7 +287,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             Expanded(
               child: _buildSelectionAction(
                 icon: 'assets/images/chat/share.png',
-                label: '转发',
+                label: AppLocalizations.of(context)!.commonForward,
                 enabled: hasSelected,
                 onTap: _forwardSelectedMessages,
               ),
@@ -369,10 +372,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     await AppModal.show(
       context,
-      title: '删除消息',
-      description: '确定删除选中的 ${selectedMessages.length} 条消息吗？',
-      confirmText: '删除',
-      cancelText: '取消',
+      title: AppLocalizations.of(context)!.chatDetailDeleteMessageTitle,
+      description: AppLocalizations.of(
+        context,
+      )!.chatDetailDeleteMessagesConfirm(selectedMessages.length),
+      confirmText: AppLocalizations.of(context)!.commonDelete,
+      cancelText: AppLocalizations.of(context)!.commonCancel,
       confirmColor: AppColors.error,
       confirmWidth: 161,
       cancelWidth: 161,
@@ -463,13 +468,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     final quoteSentTime = message.quoteSentTime;
     if (quoteSentTime == null || quoteSentTime <= 0) {
-      AppToast.show('消息未找到');
+      AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
       return;
     }
 
     final loaded = await controller.loadMessagesAroundTime(quoteSentTime);
     if (!loaded) {
-      AppToast.show('消息未找到');
+      AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
       return;
     }
 
@@ -487,7 +492,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return;
     }
 
-    AppToast.show('消息未找到');
+    AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
   }
 
   ChatDetailMessage? _findQuotedMessage(ChatDetailMessage quoteMessage) {
@@ -778,7 +783,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.combineForward:
         final raw = message.extra;
         return ChatCombineMessageContent(
-          title: message.text ?? '聊天记录',
+          title:
+              message.text ?? AppLocalizations.of(context)!.chatDetailHistory,
           summaries: message.combineSummaries ?? const <String>[],
           onTap: raw is RCIMIWCombineV2Message
               ? () => _openCombineForwardDetail(raw)
@@ -817,14 +823,18 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ? () {
               var list = _buildVideoMediaList();
               if (list.isEmpty) {
-                AppToast.show('视频暂不可预览');
+                AppToast.show(
+                  AppLocalizations.of(context)!.commonVideoPreviewUnavailable,
+                );
                 return;
               }
               var index = _getVideoIndex(message);
               if (index < 0) {
                 final current = _videoMediaItem(message);
                 if (current == null) {
-                  AppToast.show('视频暂不可预览');
+                  AppToast.show(
+                    AppLocalizations.of(context)!.commonVideoPreviewUnavailable,
+                  );
                   return;
                 }
                 list = [current];

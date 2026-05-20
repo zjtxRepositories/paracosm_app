@@ -35,6 +35,7 @@ import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
 import '../../../util/string_util.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
+import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -48,6 +49,9 @@ class ChatDetailController extends ChangeNotifier {
   BuildContext? context;
 
   final ImMessageManager _messageManager = ImMessageManager();
+
+  String _tr(String key, [Map<String, dynamic>? params]) =>
+      AppLocalizations.currentText(key, params);
 
   final ImConversationManager _conversationManager = ImConversationManager();
 
@@ -413,7 +417,7 @@ class ChatDetailController extends ChangeNotifier {
         .toList();
 
     if (rawMessages.isEmpty) {
-      AppToast.show('删除失败');
+      AppToast.show(_tr('chat_detail_delete_failed'));
       return false;
     }
 
@@ -422,7 +426,7 @@ class ChatDetailController extends ChangeNotifier {
     );
 
     if (!success) {
-      AppToast.show('删除失败');
+      AppToast.show(_tr('chat_detail_delete_failed'));
     }
 
     return success;
@@ -474,7 +478,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (msgList.isEmpty) {
-      AppToast.show('暂无可转发消息');
+      AppToast.show(_tr('chat_detail_no_forwardable_message'));
       return false;
     }
 
@@ -498,7 +502,11 @@ class ChatDetailController extends ChangeNotifier {
       }
     }
 
-    AppToast.show(allSuccess ? '转发成功' : '转发失败');
+    AppToast.show(
+      allSuccess
+          ? _tr('chat_detail_forward_success')
+          : _tr('chat_detail_forward_failed'),
+    );
     return allSuccess;
   }
 
@@ -512,7 +520,7 @@ class ChatDetailController extends ChangeNotifier {
 
     final raw = message.extra;
     if (raw is! RCIMIWMessage || _isRecallMessage(raw)) {
-      AppToast.show('暂无可转发消息');
+      AppToast.show(_tr('chat_detail_no_forwardable_message'));
       return false;
     }
 
@@ -534,11 +542,15 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (!hasForwardableMessage) {
-      AppToast.show('暂无可转发消息');
+      AppToast.show(_tr('chat_detail_no_forwardable_message'));
       return false;
     }
 
-    AppToast.show(allSuccess ? '转发成功' : '转发失败');
+    AppToast.show(
+      allSuccess
+          ? _tr('chat_detail_forward_success')
+          : _tr('chat_detail_forward_failed'),
+    );
     return allSuccess;
   }
 
@@ -708,7 +720,7 @@ class ChatDetailController extends ChangeNotifier {
   Future<String> _senderName(String? senderUserId) async {
     final userId = senderUserId ?? '';
     if (userId.isEmpty) {
-      return '未知用户';
+      return _tr('chat_detail_unknown_user');
     }
 
     try {
@@ -762,14 +774,14 @@ class ChatDetailController extends ChangeNotifier {
   Future<void> recallMessage(ChatDetailMessage message) async {
     final raw = message.extra;
     if (raw is! RCIMIWMessage) {
-      AppToast.show('撤回失败');
+      AppToast.show(_tr('chat_detail_recall_failed'));
       return;
     }
 
     final success = await _messageManager.recallMessage(message: raw);
 
     if (!success) {
-      AppToast.show('撤回失败');
+      AppToast.show(_tr('chat_detail_recall_failed'));
     }
   }
 
@@ -1465,7 +1477,10 @@ class ChatDetailController extends ChangeNotifier {
     };
 
     voiceManager.onTooShort = () {
-      VoiceRecordOverlay.update(isTooShort: true, text: '录音太短');
+      VoiceRecordOverlay.update(
+        isTooShort: true,
+        text: _tr('chat_detail_voice_too_short'),
+      );
 
       Future.delayed(const Duration(milliseconds: 800), () {
         VoiceRecordOverlay.hide();
@@ -1529,7 +1544,7 @@ class ChatDetailController extends ChangeNotifier {
     final imagePath = path.trim();
 
     if (session == null || imagePath.isEmpty || !File(imagePath).existsSync()) {
-      AppToast.show('图片发送失败');
+      AppToast.show(_tr('chat_detail_image_send_failed'));
       return;
     }
 
@@ -1545,7 +1560,7 @@ class ChatDetailController extends ChangeNotifier {
     );
 
     if (!sent) {
-      AppToast.show('图片发送失败');
+      AppToast.show(_tr('chat_detail_image_send_failed'));
     }
   }
 
@@ -1567,7 +1582,7 @@ class ChatDetailController extends ChangeNotifier {
         !File(videoPath).existsSync() ||
         trimmedRemoteUrl.isEmpty ||
         trimmedCoverUrl.isEmpty) {
-      AppToast.show('视频发送失败');
+      AppToast.show(_tr('chat_detail_video_send_failed'));
       return false;
     }
 
@@ -1589,7 +1604,7 @@ class ChatDetailController extends ChangeNotifier {
     );
 
     if (!sent) {
-      AppToast.show('视频发送失败');
+      AppToast.show(_tr('chat_detail_video_send_failed'));
     }
 
     return sent;
@@ -1650,7 +1665,12 @@ class ChatDetailController extends ChangeNotifier {
   Future<void> voiceStart() async {
     await voiceManager.startRecord();
 
-    VoiceRecordOverlay.show(context!, isUp: false, volume: 0.1, text: '松开发送');
+    VoiceRecordOverlay.show(
+      context!,
+      isUp: false,
+      volume: 0.1,
+      text: _tr('chat_detail_release_to_send'),
+    );
   }
 
   Future<void> voiceEnd() async {
@@ -1675,7 +1695,12 @@ class ChatDetailController extends ChangeNotifier {
     if (cancel != isCancelling) {
       isCancelling = cancel;
 
-      VoiceRecordOverlay.update(isUp: cancel, text: cancel ? '松开取消' : '松开发送');
+      VoiceRecordOverlay.update(
+        isUp: cancel,
+        text: cancel
+            ? _tr('chat_detail_release_to_cancel')
+            : _tr('chat_detail_release_to_send'),
+      );
     }
   }
 
@@ -1830,7 +1855,7 @@ class ChatDetailController extends ChangeNotifier {
           path: pendingPath,
           duration: pendingDuration,
         );
-        AppToast.show('视频发送失败');
+        AppToast.show(_tr('chat_detail_video_send_failed'));
         return;
       }
 
@@ -1906,7 +1931,7 @@ class ChatDetailController extends ChangeNotifier {
           path: pendingPath,
           duration: pendingDuration,
         );
-        AppToast.show('视频上传失败');
+        AppToast.show(_tr('chat_detail_video_upload_failed'));
         return;
       }
 
@@ -1956,7 +1981,7 @@ class ChatDetailController extends ChangeNotifier {
         path: pendingPath,
         duration: pendingDuration,
       );
-      AppToast.show('视频发送失败');
+      AppToast.show(_tr('chat_detail_video_send_failed'));
     } finally {
       compressSub?.unsubscribe();
     }
@@ -2337,7 +2362,7 @@ class ChatDetailController extends ChangeNotifier {
 
   Future<void> openCallPage({required bool isVideo}) async {
     if (args?.isGroup ?? false) {
-      AppToast.showInfo('群通话暂未开放');
+      AppToast.showInfo(_tr('chat_detail_group_call_unavailable'));
       isMenuExpanded = false;
       notifyListeners();
       return;

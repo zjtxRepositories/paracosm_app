@@ -45,7 +45,7 @@ class _ChatCombineForwardDetailPageState
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: '聊天记录',
+      title: AppLocalizations.of(context)!.chatDetailHistory,
       isAddBottomMargin: false,
       backgroundColor: AppColors.grey100,
       child: FutureBuilder<List<ChatDetailMessage>>(
@@ -57,7 +57,9 @@ class _ChatCombineForwardDetailPageState
 
           final messages = snapshot.data ?? const <ChatDetailMessage>[];
           if (messages.isEmpty) {
-            return const AppEmptyView(text: '暂无聊天记录');
+            return AppEmptyView(
+              text: AppLocalizations.of(context)!.chatDetailNoHistory,
+            );
           }
 
           return ListView.builder(
@@ -651,7 +653,8 @@ class _ChatCombineForwardDetailPageState
       case ChatDetailMessageKind.combineForward:
         final raw = message.extra;
         return ChatCombineMessageContent(
-          title: message.text ?? '聊天记录',
+          title:
+              message.text ?? AppLocalizations.of(context)!.chatDetailHistory,
           summaries: message.combineSummaries ?? const <String>[],
           onTap: raw is RCIMIWCombineV2Message
               ? () => _openNestedCombine(raw)

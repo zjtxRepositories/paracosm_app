@@ -286,7 +286,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     if (!success) {
-      AppToast.show('点赞失败！');
+      AppToast.show(AppLocalizations.of(context)!.momentsLikeFailed);
       return;
     }
     if (!mounted) return;
@@ -313,7 +313,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     if (!success) {
-      AppToast.show('收藏失败！');
+      AppToast.show(AppLocalizations.of(context)!.momentsCollectFailed);
       return;
     }
     if (!mounted) return;
@@ -361,8 +361,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         post.userId,
         post.noteId,
       ),
-      successText: '分享成功！',
-      failureText: '分享失败！',
+      successText: AppLocalizations.of(context)!.momentsShareSuccess,
+      failureText: AppLocalizations.of(context)!.momentsShareFailed,
       onSuccess: () {
         setState(() {
           post.shares += 1;
@@ -378,8 +378,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         post.userId,
         post.noteId,
       ),
-      successText: '转发成功！',
-      failureText: '转发失败！',
+      successText: AppLocalizations.of(context)!.momentsForwardSuccess,
+      failureText: AppLocalizations.of(context)!.momentsForwardFailed,
       onSuccess: () {
         setState(() {
           post.forwards += 1;
@@ -395,7 +395,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     required VoidCallback onSuccess,
   }) async {
     if (_currentUserId.isEmpty) {
-      AppToast.show('用户未登录！');
+      AppToast.show(AppLocalizations.of(context)!.momentsUserNotLoggedIn);
       return;
     }
 
@@ -424,7 +424,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
     final userId = _profileUserId;
     if (userId.isEmpty) {
-      AppToast.show('用户信息为空！');
+      AppToast.show(AppLocalizations.of(context)!.momentsUserInfoEmpty);
       return;
     }
 
@@ -453,7 +453,11 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       setState(() {
         _isFollowLoading = false;
       });
-      AppToast.show(nextIsFollowing ? '关注失败！' : '取消关注失败！');
+      AppToast.show(
+        nextIsFollowing
+            ? AppLocalizations.of(context)!.momentsFollowFailed
+            : AppLocalizations.of(context)!.momentsUnfollowFailed,
+      );
       return;
     }
 
@@ -718,10 +722,16 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     AppActionSheet.show(
       context,
       items: [
-        AppActionSheetItem(label: '从默认头像选择', onTap: () {}),
-        AppActionSheetItem(label: '从手机相册选择', onTap: () {}),
+        AppActionSheetItem(
+          label: AppLocalizations.of(context)!.momentsDefaultAvatar,
+          onTap: () {},
+        ),
+        AppActionSheetItem(
+          label: AppLocalizations.of(context)!.commonChooseFromAlbum,
+          onTap: () {},
+        ),
       ],
-      cancelText: '取消',
+      cancelText: AppLocalizations.of(context)!.commonCancel,
     );
   }
 

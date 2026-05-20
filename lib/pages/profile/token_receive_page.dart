@@ -169,9 +169,7 @@ class TokenReceivePage extends StatelessWidget {
                       const SizedBox(height: 12),
                       // 底部操作栏 (白色背景)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 18,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -224,7 +222,8 @@ class TokenReceivePage extends StatelessWidget {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                          l10n.profileTokenReceiveCopiedToClipboard),
+                                        l10n.profileTokenReceiveCopiedToClipboard,
+                                      ),
                                     ),
                                   );
                                 },
@@ -436,8 +435,10 @@ class TokenReceivePage extends StatelessWidget {
                                 fit: BoxFit.contain,
                               ),
                               // 分割线 (带圆弧缺口)
-                              _buildTicketSeparator(context,
-                                  bgColor: Colors.black.withOpacity(0.5)),
+                              _buildTicketSeparator(
+                                context,
+                                bgColor: Colors.black.withOpacity(0.5),
+                              ),
                               // 底部邀请信息
                               Padding(
                                 padding: const EdgeInsets.all(24),
@@ -544,10 +545,17 @@ class TokenReceivePage extends StatelessWidget {
                             onTap: () {
                               Clipboard.setData(
                                 const ClipboardData(
-                                    text: 'PARACOSM World Invite'),
+                                  text: 'PARACOSM World Invite',
+                                ),
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('已复制邀请链接')),
+                                SnackBar(
+                                  content: Text(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.profileInviteLinkCopied,
+                                  ),
+                                ),
                               );
                             },
                             behavior: HitTestBehavior.opaque,
@@ -645,7 +653,8 @@ class _NotchBorderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.grey200 // 与容器边框颜色一致
+      ..color = AppColors
+          .grey200 // 与容器边框颜色一致
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
@@ -231,14 +231,17 @@ class _WalletImportPageState extends State<WalletImportPage>
 
     _mnemonicController.addListener(_validateMnemonic);
     _privateKeyController.addListener(_validatePrivateKey);
-
   }
 
   void _validateMnemonic() {
     if (!mounted) return;
-    final isMnemonic = MnemonicService.validateMnemonic(_mnemonicController.text);
+    final isMnemonic = MnemonicService.validateMnemonic(
+      _mnemonicController.text,
+    );
     setState(() {
-      _mnemonicError = !isMnemonic ? '无效的助记词' : null;
+      _mnemonicError = !isMnemonic
+          ? AppLocalizations.currentText('wallet_invalid_mnemonic')
+          : null;
       _isMnemonicInvalid = _mnemonicController.text.isNotEmpty && isMnemonic;
     });
   }
@@ -246,10 +249,15 @@ class _WalletImportPageState extends State<WalletImportPage>
   void _validatePrivateKey() {
     if (!mounted) return;
     setState(() {
-      final isPrivateKey = EvmService.isValidPrivateKey(_privateKeyController.text);
+      final isPrivateKey = EvmService.isValidPrivateKey(
+        _privateKeyController.text,
+      );
       setState(() {
-        _privateKeyError = !isPrivateKey ? '无效的私钥' : null;
-        _isPrivateKeyInvalid = _privateKeyController.text.isNotEmpty && isPrivateKey;
+        _privateKeyError = !isPrivateKey
+            ? AppLocalizations.currentText('wallet_invalid_private_key')
+            : null;
+        _isPrivateKeyInvalid =
+            _privateKeyController.text.isNotEmpty && isPrivateKey;
       });
     });
   }
@@ -395,8 +403,8 @@ class _WalletImportPageState extends State<WalletImportPage>
                                         ),
                                         unselectedLabelStyle: AppTextStyles.body
                                             .copyWith(
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                         indicatorSize: TabBarIndicatorSize.tab,
                                         padding: const EdgeInsets.all(4),
                                         tabs: [
@@ -421,25 +429,47 @@ class _WalletImportPageState extends State<WalletImportPage>
                                   // 5. 底部导入按钮
                                   AppButton(
                                     text: loc.walletImportAction,
-                                    onPressed: (_tabController.index == 0 ? _isMnemonicInvalid : _isPrivateKeyInvalid) ? () async {
-                                      if (widget.password != null){
-                                        try {
-                                          AppLoading.show();
-                                          await AccountService.creating(mnemonic: _tabController.index == 0 ?_mnemonicController.text : null,
-                                              privateKey: _tabController.index == 1 ?_privateKeyController.text : null, password: widget.password!);
-                                          await AccountManager().init();
-                                          AppLoading.dismiss();
-                                          context.go('/chat');
-                                        }catch(e){
-                                          AppToast.show('导入钱包错误: $e');
-                                        }
-                                        return;
-                                      }
-                                      context.push('/wallet-import-password',  extra: {
-                                        'mnemonic': _mnemonicController.text,
-                                        'privateKey': _privateKeyController.text
-                                      },);
-                                    } : null,
+                                    onPressed:
+                                        (_tabController.index == 0
+                                            ? _isMnemonicInvalid
+                                            : _isPrivateKeyInvalid)
+                                        ? () async {
+                                            if (widget.password != null) {
+                                              try {
+                                                AppLoading.show();
+                                                await AccountService.creating(
+                                                  mnemonic:
+                                                      _tabController.index == 0
+                                                      ? _mnemonicController.text
+                                                      : null,
+                                                  privateKey:
+                                                      _tabController.index == 1
+                                                      ? _privateKeyController
+                                                            .text
+                                                      : null,
+                                                  password: widget.password!,
+                                                );
+                                                await AccountManager().init();
+                                                AppLoading.dismiss();
+                                                context.go('/chat');
+                                              } catch (e) {
+                                                AppToast.show(
+                                                  loc.walletImportError(e),
+                                                );
+                                              }
+                                              return;
+                                            }
+                                            context.push(
+                                              '/wallet-import-password',
+                                              extra: {
+                                                'mnemonic':
+                                                    _mnemonicController.text,
+                                                'privateKey':
+                                                    _privateKeyController.text,
+                                              },
+                                            );
+                                          }
+                                        : null,
                                   ),
                                 ],
                               ),
@@ -499,11 +529,13 @@ class _WalletImportPageState extends State<WalletImportPage>
             ImportTipItem(text: loc.walletImportMnemonicNotEnglish),
             const SizedBox(height: 8),
             // 3. 错误提示 (单词数错误)
-            _mnemonicError != null ? ImportTipItem(
-              iconPath: 'assets/images/common/tips-error-icon.png',
-              text: loc.walletImportMnemonicWordCountError,
-              textColor: AppColors.error,
-            ) : SizedBox(),
+            _mnemonicError != null
+                ? ImportTipItem(
+                    iconPath: 'assets/images/common/tips-error-icon.png',
+                    text: loc.walletImportMnemonicWordCountError,
+                    textColor: AppColors.error,
+                  )
+                : SizedBox(),
           ],
         ),
         // const SizedBox(height: 27),
@@ -558,11 +590,13 @@ class _WalletImportPageState extends State<WalletImportPage>
             // ),
             // const SizedBox(height: 8),
             // 2. 错误提示
-            _privateKeyError != null ? ImportTipItem(
-              iconPath: 'assets/images/common/tips-error-icon.png',
-              text: loc.walletImportPrivateKeyInvalidError,
-              textColor: AppColors.error,
-            ) : SizedBox(),
+            _privateKeyError != null
+                ? ImportTipItem(
+                    iconPath: 'assets/images/common/tips-error-icon.png',
+                    text: loc.walletImportPrivateKeyInvalidError,
+                    textColor: AppColors.error,
+                  )
+                : SizedBox(),
           ],
         ),
         const SizedBox(height: 27),

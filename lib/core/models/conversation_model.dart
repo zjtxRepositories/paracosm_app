@@ -6,6 +6,7 @@ import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/manager/im_engine_manager.dart';
@@ -19,7 +20,7 @@ class ConversationModel extends ChangeNotifier {
   String? portraitUri;
 
   ConversationModel({required this.info});
-  int get time =>  info.lastMessage?.sentTime ?? 0;
+  int get time => info.lastMessage?.sentTime ?? 0;
   // int get time => max(
   //   info.operationTime ?? 0,
   //   info.lastMessage?.sentTime ?? 0,
@@ -79,7 +80,7 @@ class ConversationResolver {
     }
 
     if (info.conversationType == RCIMIWConversationType.system) {
-      title = '通知';
+      title = AppLocalizations.currentText('chat_system_notification');
     }
 
     // subtitle
@@ -116,21 +117,23 @@ class ConversationResolver {
       case RCIMIWMessageType.text:
         return (message as RCIMIWTextMessage).text ?? '';
       case RCIMIWMessageType.image:
-        return '[图片]';
+        return AppLocalizations.currentText('chat_image');
       case RCIMIWMessageType.voice:
-        return '[语音]';
+        return AppLocalizations.currentText('chat_voice');
       case RCIMIWMessageType.sight:
-        return '[视频]';
+        return AppLocalizations.currentText('chat_video');
       case RCIMIWMessageType.file:
-        return '[文件]';
+        return AppLocalizations.currentText('chat_file');
       case RCIMIWMessageType.recall:
-        return '撤回了一条消息';
+        return AppLocalizations.currentText('chat_recalled_message');
       case RCIMIWMessageType.reference:
         return message is RCIMIWReferenceMessage
-            ? (message.text?.isNotEmpty ?? false ? message.text! : '[消息]')
-            : '[消息]';
+            ? (message.text?.isNotEmpty ?? false
+                  ? message.text!
+                  : AppLocalizations.currentText('chat_detail_generic_message'))
+            : AppLocalizations.currentText('chat_detail_generic_message');
       case RCIMIWMessageType.combineV2:
-        return '[聊天记录]';
+        return AppLocalizations.currentText('chat_detail_history');
       case RCIMIWMessageType.custom:
         RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(
           message.toJson(),
@@ -142,19 +145,23 @@ class ConversationResolver {
         );
         return _formatCustomMessage(model);
       default:
-        return '[消息]';
+        return AppLocalizations.currentText('chat_detail_generic_message');
     }
   }
 
   Future<String> _formatCustomMessage(CustomMessageModel message) async {
     switch (message.type) {
       case CustomMessageType.friendAdd:
-        return '我们已成功添加为好友，现在可以开始聊天啦～';
+        return AppLocalizations.currentText('chat_friend_added_message');
       case CustomMessageType.groupInvited:
         final group = await _getGroup(message.toUserId);
-        final members = await _getMemberNames(message.userIds) ?? await group?.memberName;
+        final members =
+            await _getMemberNames(message.userIds) ?? await group?.memberName;
         final user = await _getUser(message.fromUserId);
-        return '"${user?.name ?? ''}"邀请$members加入了群聊';
+        return AppLocalizations.currentText('chat_invited_members_message', {
+          'user': user?.name ?? '',
+          'members': members,
+        });
       case CustomMessageType.createDao:
         final group = await _getGroup(message.toUserId);
         return '${group?.info.groupName} DAO has been created';
@@ -163,10 +170,14 @@ class ConversationResolver {
         return '${group?.name} Club has been created';
       case CustomMessageType.quitGroup:
         final user = await _getUser(message.fromUserId);
-        return '${user?.name} 退出了群聊';
+        return AppLocalizations.currentText('chat_user_quit_group_message', {
+          'user': user?.name ?? '',
+        });
       case CustomMessageType.groupRemoved:
         final members = await _getMemberNames(message.userIds);
-        return '$members 被移出了群聊';
+        return AppLocalizations.currentText('chat_members_removed_message', {
+          'members': members ?? '',
+        });
       default:
         return _formatContent(message.content ?? '');
     }
@@ -203,7 +214,7 @@ class ConversationResolver {
     final names = await Future.wait(
       userIds.map((userId) async {
         if (userId == currentUserId) {
-          return '我';
+          return AppLocalizations.currentText('chat_me');
         }
         final user = await UserDisplayStateCenter().getUser(userId);
         final name = user?.name.trim();
@@ -217,7 +228,7 @@ class ConversationResolver {
     if (result.isEmpty) {
       return null;
     }
-    return result.join('、');
+    return result.join(AppLocalizations.currentText('common_list_separator'));
   }
 
   Future<UserDisplayModel?> _getUser(String id) async {

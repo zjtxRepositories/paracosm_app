@@ -2,19 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// 全局通用搜索框组件
 class AppSearchInput extends StatelessWidget {
   /// 控制器
   final TextEditingController? controller;
+
   /// 占位文本
   final String? hintText;
+
   /// 输入改变回调
   final ValueChanged<String>? onChanged;
+
   /// 提交回调
   final ValueChanged<String>? onSubmitted;
+
   /// 自动获取焦点
   final bool autofocus;
+
   /// 内边距
   final EdgeInsetsGeometry? padding;
 
@@ -62,7 +68,11 @@ class AppSearchInput extends StatelessWidget {
                   height: 1.2, // 调整行高
                 ),
                 decoration: InputDecoration(
-                  hintText: hintText ?? 'Search by alias, name, or address',
+                  hintText:
+                      hintText ??
+                      AppLocalizations.of(
+                        context,
+                      )!.commonSearchAliasNameAddress,
                   hintStyle: AppTextStyles.body.copyWith(
                     color: AppColors.grey400,
                     fontSize: 14,
@@ -70,35 +80,37 @@ class AppSearchInput extends StatelessWidget {
                   ),
                   border: InputBorder.none,
                   isCollapsed: true, // 使用 collapsed 减少默认内边距干扰
-                  contentPadding: const EdgeInsets.symmetric(vertical: 4), // 手动控制垂直内边距
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                  ), // 手动控制垂直内边距
                   suffixIconConstraints: const BoxConstraints(
                     minHeight: 24,
                     minWidth: 24,
                   ),
                   suffixIcon: controller != null
                       ? ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: controller!,
-                    builder: (context, value, child) {
-                      if (value.text.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return GestureDetector(
-                        onTap: () {
-                          controller!.clear();
-                          onChanged?.call('');
-                        },
-                        child: const Icon(
-                          Icons.close,
-                          color: AppColors.grey400,
-                          size: 20,
-                        ),
-                      );
-                    },
-                  )
+                          valueListenable: controller!,
+                          builder: (context, value, child) {
+                            if (value.text.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return GestureDetector(
+                              onTap: () {
+                                controller!.clear();
+                                onChanged?.call('');
+                              },
+                              child: const Icon(
+                                Icons.close,
+                                color: AppColors.grey400,
+                                size: 20,
+                              ),
+                            );
+                          },
+                        )
                       : null,
                 ),
               ),
-            )
+            ),
           ),
         ],
       ),

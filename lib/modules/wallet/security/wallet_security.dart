@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletSecurity {
@@ -31,10 +32,7 @@ class WalletSecurity {
       final all = await _storage.readAll();
       print("删除后: $all");
       final salt = _randomBytes(16);
-      await _storage.write(
-        key: _saltKey,
-        value: base64Encode(salt),
-      );
+      await _storage.write(key: _saltKey, value: base64Encode(salt));
 
       await prefs.setBool(_initFlag, true);
     }
@@ -55,7 +53,7 @@ class WalletSecurity {
     final all = await _storage.readAll();
 
     final walletKey = all.keys.firstWhere(
-          (k) => k.startsWith("wallet_v1_"),
+      (k) => k.startsWith("wallet_v1_"),
       orElse: () => "",
     );
     if (walletKey.isEmpty) return false;
@@ -72,10 +70,7 @@ class WalletSecurity {
   /// =========================
   /// 加密
   /// =========================
-  static Future<String> encryptData(
-      String data,
-      String password,
-      ) async {
+  static Future<String> encryptData(String data, String password) async {
     final salt = await _getSalt();
     final key = _deriveKey(password, salt);
 
@@ -85,10 +80,7 @@ class WalletSecurity {
       encrypt.AES(key, mode: encrypt.AESMode.gcm),
     );
 
-    final encrypted = encrypter.encrypt(
-      data,
-      iv: encrypt.IV(iv),
-    );
+    final encrypted = encrypter.encrypt(data, iv: encrypt.IV(iv));
 
     return jsonEncode({
       "iv": base64Encode(iv),
@@ -100,9 +92,9 @@ class WalletSecurity {
   /// 解密
   /// =========================
   static Future<String> decryptData(
-      String encryptedData,
-      String password,
-      ) async {
+    String encryptedData,
+    String password,
+  ) async {
     final salt = await _getSalt();
     final key = _deriveKey(password, salt);
 
@@ -115,10 +107,7 @@ class WalletSecurity {
       encrypt.AES(key, mode: encrypt.AESMode.gcm),
     );
 
-    return encrypter.decrypt(
-      encrypt.Encrypted(data),
-      iv: iv,
-    );
+    return encrypter.decrypt(encrypt.Encrypted(data), iv: iv);
   }
 
   /// =========================
@@ -127,14 +116,14 @@ class WalletSecurity {
 
   static Uint8List _randomBytes(int length) {
     final rand = Random.secure();
-    return Uint8List.fromList(
-      List.generate(length, (_) => rand.nextInt(256)),
-    );
+    return Uint8List.fromList(List.generate(length, (_) => rand.nextInt(256)));
   }
 
   static Future<Uint8List> _getSalt() async {
     final salt = await _storage.read(key: _saltKey);
-    if (salt == null) throw Exception("未初始化");
+    if (salt == null) {
+      throw Exception(AppLocalizations.currentText('common_not_initialized'));
+    }
     return base64Decode(salt);
   }
 
@@ -143,10 +132,7 @@ class WalletSecurity {
   }
 
   /// 标准 PBKDF2
-  static Uint8List _pbkdf2(
-      String password,
-      Uint8List salt,
-      ) {
+  static Uint8List _pbkdf2(String password, Uint8List salt) {
     final hmac = Hmac(sha256, utf8.encode(password));
 
     int blockCount = (_keyLength / 32).ceil();
@@ -189,8 +175,9 @@ class WalletSecurity {
   }) async {
     print('password：$password');
     final encryptedMnemonic = await encryptData(mnemonic, password);
-    final encryptedPk =
-    privateKey == null ? '' : await encryptData(privateKey, password);
+    final encryptedPk = privateKey == null
+        ? ''
+        : await encryptData(privateKey, password);
 
     await _storage.write(
       key: "wallet_v1_$walletId",
@@ -212,19 +199,15 @@ class WalletSecurity {
     final json = jsonDecode(data);
 
     try {
-      final mnemonic =
-      await decryptData(json["mnemonic"], password);
+      final mnemonic = await decryptData(json["mnemonic"], password);
 
       final privateKey = json["privateKey"] != ""
           ? await decryptData(json["privateKey"], password)
           : "";
 
-      return {
-        "mnemonic": mnemonic,
-        "privateKey": privateKey,
-      };
+      return {"mnemonic": mnemonic, "privateKey": privateKey};
     } catch (e) {
-      throw Exception("密码错误");
+      throw Exception(AppLocalizations.currentText('common_password_error'));
     }
   }
 
@@ -241,10 +224,7 @@ class WalletSecurity {
     final salt = await _getSalt();
     final keyBytes = _pbkdf2(password, salt);
 
-    await _storage.write(
-      key: _autoUnlockKey,
-      value: base64Encode(keyBytes),
-    );
+    await _storage.write(key: _autoUnlockKey, value: base64Encode(keyBytes));
   }
 
   static Future<String?> tryAutoUnlock(String walletId) async {
@@ -268,10 +248,7 @@ class WalletSecurity {
     );
 
     try {
-      return encrypter.decrypt(
-        encrypt.Encrypted(bytes),
-        iv: iv,
-      );
+      return encrypter.decrypt(encrypt.Encrypted(bytes), iv: iv);
     } catch (e) {
       return null;
     }
@@ -287,12 +264,13 @@ class WalletSecurity {
     // 1. 先校验
     final isValid = await verifyPassword(oldPassword);
     if (!isValid) {
-      throw Exception("旧密码错误");
+      throw Exception(
+        AppLocalizations.currentText('common_old_password_error'),
+      );
     }
 
     final all = await _storage.readAll();
-    final walletKeys =
-    all.keys.where((k) => k.startsWith("wallet_v1_"));
+    final walletKeys = all.keys.where((k) => k.startsWith("wallet_v1_"));
 
     final temp = <String, Map<String, String>>{};
 
@@ -300,23 +278,21 @@ class WalletSecurity {
     for (final key in walletKeys) {
       final data = jsonDecode(all[key]!);
 
-      final mnemonic =
-      await decryptData(data["mnemonic"], oldPassword);
+      final mnemonic = await decryptData(data["mnemonic"], oldPassword);
 
       final privateKey = data["privateKey"] != ""
           ? await decryptData(data["privateKey"], oldPassword)
           : "";
 
-      temp[key] = {
-        "mnemonic": mnemonic,
-        "privateKey": privateKey,
-      };
+      temp[key] = {"mnemonic": mnemonic, "privateKey": privateKey};
     }
 
     // 3. 统一加密写入
     for (final entry in temp.entries) {
-      final newEncryptedMnemonic =
-      await encryptData(entry.value["mnemonic"]!, newPassword);
+      final newEncryptedMnemonic = await encryptData(
+        entry.value["mnemonic"]!,
+        newPassword,
+      );
 
       final newEncryptedPk = entry.value["privateKey"]!.isNotEmpty
           ? await encryptData(entry.value["privateKey"]!, newPassword)

@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:eth_sig_util/eth_sig_util.dart';
 import 'package:eth_sig_util/util/utils.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import '../evm_service.dart';
 
 class EvmSignService {
-
   static Future<String> signMessage({
     required String address,
     required String message,
@@ -13,7 +13,7 @@ class EvmSignService {
   }) async {
     final privateKey = EvmService.getPrivateKeyByAddress(address);
     if (privateKey == null) {
-      throw Exception("找不到该钱包");
+      throw Exception(AppLocalizations.currentText('wallet_not_found'));
     }
 
     final keyBytes = _normalizePrivateKey(privateKey);
@@ -61,10 +61,12 @@ class EvmSignService {
 
     if (key is String) {
       final clean = key.startsWith('0x') ? key.substring(2) : key;
-      return Uint8List.fromList(List<int>.generate(
-        clean.length ~/ 2,
-            (i) => int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16),
-      ));
+      return Uint8List.fromList(
+        List<int>.generate(
+          clean.length ~/ 2,
+          (i) => int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16),
+        ),
+      );
     }
 
     throw Exception("Unsupported privateKey format");

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 import '../../util/string_util.dart';
 
@@ -33,7 +34,9 @@ class RongCallSummaryParser {
     final reason = _readInt(data['hangupReason']) ?? _readInt(data['reason']);
     final isVideo = _isVideoCall(data['mediaType']);
     final text = _formatText(duration: duration, reason: reason);
-    final prefix = isVideo ? '[视频通话]' : '[语音通话]';
+    final prefix = isVideo
+        ? AppLocalizations.currentText('call_video_prefix')
+        : AppLocalizations.currentText('call_audio_prefix');
 
     return RongCallSummary(
       isVideo: isVideo,
@@ -142,28 +145,30 @@ class RongCallSummaryParser {
 
   static String _formatText({required int? duration, required int? reason}) {
     if (duration != null && duration > 0) {
-      return '通话时长 ${formatDurationFromMs(duration)}';
+      return AppLocalizations.currentText('call_duration', {
+        'duration': formatDurationFromMs(duration),
+      });
     }
 
     switch (reason) {
       case 1:
       case 10:
       case 11:
-        return '已取消';
+        return AppLocalizations.currentText('call_canceled');
       case 2:
       case 12:
-        return '已拒绝';
+        return AppLocalizations.currentText('call_rejected');
       case 4:
       case 14:
-        return '对方忙线';
+        return AppLocalizations.currentText('call_busy');
       case 5:
       case 15:
-        return '未接听';
+        return AppLocalizations.currentText('call_unanswered');
       case 7:
       case 16:
-        return '网络异常';
+        return AppLocalizations.currentText('call_network_error');
       default:
-        return '通话已结束';
+        return AppLocalizations.currentText('call_ended');
     }
   }
 

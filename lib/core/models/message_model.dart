@@ -1,13 +1,13 @@
-
-
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/listener/group_state_center.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
 import 'custom_message_model.dart';
+
 class MessageModel {
   final RCIMIWMessage item;
   String? nikeName;
@@ -17,7 +17,9 @@ class MessageModel {
   final Map<String, GroupModel?> _groupCache = {};
 
   Future<String> formatCustomContent() async {
-    RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(item.toJson());
+    RCIMIWCustomMessage customMessage = RCIMIWCustomMessage.fromJson(
+      item.toJson(),
+    );
     final data = customMessage.fields;
     if (data == null) return '';
     final message = CustomMessageModel.fromJson(
@@ -25,12 +27,16 @@ class MessageModel {
     );
     switch (message.type) {
       case CustomMessageType.friendAdd:
-        return '我们已成功添加为好友，现在可以开始聊天啦～';
+        return AppLocalizations.currentText('chat_friend_added_message');
       case CustomMessageType.groupInvited:
         final group = await _getGroup(message.toUserId);
-        final members = await _getMemberNames(message.userIds) ?? await group?.memberName;
+        final members =
+            await _getMemberNames(message.userIds) ?? await group?.memberName;
         final user = await _getUser(message.fromUserId);
-        return '"${user?.name ?? ''}"邀请$members加入了群聊';
+        return AppLocalizations.currentText('chat_invited_members_message', {
+          'user': user?.name ?? '',
+          'members': members,
+        });
       case CustomMessageType.createDao:
         final group = await _getGroup(message.toUserId);
         return '${group?.info.groupName} DAO has been created';
@@ -39,14 +45,19 @@ class MessageModel {
         return '${group?.name} Club has been created';
       case CustomMessageType.quitGroup:
         final user = await _getUser(message.fromUserId);
-        return '${user?.name} 退出了群聊';
+        return AppLocalizations.currentText('chat_user_quit_group_message', {
+          'user': user?.name ?? '',
+        });
       case CustomMessageType.groupRemoved:
         final members = await _getMemberNames(message.userIds);
-        return '$members 被移出了群聊';
+        return AppLocalizations.currentText('chat_members_removed_message', {
+          'members': members ?? '',
+        });
       default:
         return _formatContent(message.content ?? '');
     }
   }
+
   Future<String> _formatContent(String content) async {
     if (content.isEmpty) return content;
 
@@ -78,7 +89,7 @@ class MessageModel {
     final names = await Future.wait(
       userIds.map((userId) async {
         if (userId == currentUserId) {
-          return '我';
+          return AppLocalizations.currentText('chat_me');
         }
         final user = await UserDisplayStateCenter().getUser(userId);
         final name = user?.name.trim();
@@ -92,7 +103,7 @@ class MessageModel {
     if (result.isEmpty) {
       return null;
     }
-    return result.join('、');
+    return result.join(AppLocalizations.currentText('common_list_separator'));
   }
 
   Future<UserDisplayModel?> _getUser(String id) async {
@@ -105,6 +116,7 @@ class MessageModel {
     return GroupModel(info: group);
   }
 }
+
 //
 // class MessageResolver {
 //   final Map<String, UserModel?> _userCache = {};

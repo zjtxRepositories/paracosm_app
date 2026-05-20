@@ -1,8 +1,9 @@
-
 import 'dart:convert';
 import 'dart:typed_data';
 
-String truncateDouble(double value,{int digits = 8}) {
+import 'package:paracosm/widgets/base/app_localizations.dart';
+
+String truncateDouble(double value, {int digits = 8}) {
   if (value == 0) return '0';
 
   // 小于1时，保留更多精度
@@ -31,7 +32,7 @@ String ellipsisMiddle(String text, {int head = 7, int tail = 7}) {
   return '${text.substring(0, head)}...${text.substring(text.length - tail)}';
 }
 
-String formatTrim(double value,{int fractionDigits = 8}) {
+String formatTrim(double value, {int fractionDigits = 8}) {
   return value.toStringAsFixed(8).replaceFirst(RegExp(r'\.?0*$'), '');
 }
 
@@ -46,15 +47,23 @@ String formatIMTime(int timestamp) {
 
   /// 今天
   if (_isSameDay(now, dateTime)) {
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+    if (diff.inMinutes < 1) {
+      return AppLocalizations.currentText('time_just_now');
+    }
+    if (diff.inMinutes < 60) {
+      return AppLocalizations.currentText('time_minutes_ago', {
+        'count': diff.inMinutes,
+      });
+    }
     return _formatTime(dateTime); // HH:mm
   }
 
   /// 昨天
   final yesterday = now.subtract(const Duration(days: 1));
   if (_isSameDay(yesterday, dateTime)) {
-    return '昨天 ${_formatTime(dateTime)}';
+    return AppLocalizations.currentText('time_yesterday_time', {
+      'time': _formatTime(dateTime),
+    });
   }
 
   /// 本周
@@ -72,9 +81,7 @@ String formatIMTime(int timestamp) {
 }
 
 bool _isSameDay(DateTime a, DateTime b) {
-  return a.year == b.year &&
-      a.month == b.month &&
-      a.day == b.day;
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 String _formatTime(DateTime dt) {
@@ -84,10 +91,17 @@ String _formatTime(DateTime dt) {
 String _two(int n) => n.toString().padLeft(2, '0');
 
 String _weekDay(DateTime dt) {
-  const list = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  final list = [
+    AppLocalizations.currentText('time_weekday_monday'),
+    AppLocalizations.currentText('time_weekday_tuesday'),
+    AppLocalizations.currentText('time_weekday_wednesday'),
+    AppLocalizations.currentText('time_weekday_thursday'),
+    AppLocalizations.currentText('time_weekday_friday'),
+    AppLocalizations.currentText('time_weekday_saturday'),
+    AppLocalizations.currentText('time_weekday_sunday'),
+  ];
   return list[dt.weekday - 1];
 }
-
 
 Uint8List base64ToBytes(String base64String) {
   final cleaned = base64String.contains(',')

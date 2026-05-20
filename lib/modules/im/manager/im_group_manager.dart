@@ -208,8 +208,10 @@ class ImGroupManager {
       );
     };
 
+    if (IMEngineManager().connection.isConnected){
     /// 首次拉取
     refreshAllGroups();
+    }
   }
 
   /// =======================================================

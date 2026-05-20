@@ -53,8 +53,9 @@ class WalletManager {
   static Future<void> unlock({required String walletId}) async {
     final mnemonic = await WalletSecurity.tryAutoUnlock(walletId);
     if (mnemonic == null) return;
+    final wallet = await WalletDao().getWalletById(walletId);
 
-    print('恢复----${mnemonic}');
+    print('恢复----$mnemonic');
 
     /// 2. 恢复三条链
     /// EVM
@@ -65,6 +66,13 @@ class WalletManager {
 
     /// BTC
     await BitcoinService.getOrCreateWallet(mnemonic);
+    if (wallet != null) {
+      for (final chain in wallet.chains) {
+        if (chain.chainType == ChainType.bitcoin && chain.address.isNotEmpty) {
+          await BitcoinService.restoreAddressIndex(mnemonic, chain.address);
+        }
+      }
+    }
 
     /// 3. BTC 同步（重要）
     BitcoinService.sync(mnemonic);
@@ -98,7 +106,11 @@ class WalletManager {
   }
 
   /// 切链
-  static Future<void> switchChain(String walletId, int chainId,{bool isSilent = false}) async {
+  static Future<void> switchChain(
+    String walletId,
+    int chainId, {
+    bool isSilent = false,
+  }) async {
     final wallet = await WalletDao().getWalletById(walletId);
     if (wallet == null) return;
     if (!wallet.hasChain(chainId)) return;
@@ -109,7 +121,7 @@ class WalletManager {
   }
 
   static Future<void> switchChainSilent(String walletId, int chainId) async {
-    await switchChain(walletId, chainId,isSilent: true);
+    await switchChain(walletId, chainId, isSilent: true);
   }
 
   /// 添加链

@@ -1,5 +1,7 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/core/network/client/http_client.dart';
+import 'package:paracosm/modules/wallet/security/wallet_security.dart';
 import '../model/gas_fee.dart';
 import 'bitcoin_service.dart';
 import 'bitcoin_tx_detail.dart';
@@ -17,17 +19,12 @@ class BitcoinChainService {
   static int _feeCacheTime = 0;
 
   /// ⭐ mempool API（主网）
-  static const String _feeUrl =
-      "https://mempool.space/api/v1/fees/recommended";
-
+  static const String _feeUrl = "https://mempool.space/api/v1/fees/recommended";
 
   /// =========================
   /// 获取余额
   /// =========================
-  Future<BigInt> getBalance(
-      String address, {
-        bool forceRefresh = false,
-      }) async {
+  Future<BigInt> getBalance(String address, {bool forceRefresh = false}) async {
     final now = DateTime.now();
 
     /// ✅ 缓存命中
@@ -38,9 +35,8 @@ class BitcoinChainService {
       return _cachedBalance!;
     }
 
-    /// ✅ 通过 address 找钱包
+    await _ensureWalletIndexed(address);
     final wallet = BitcoinService.getWalletByAddress(address);
-
     if (wallet == null) {
       throw Exception("Wallet not found for address: $address");
     }
@@ -69,6 +65,7 @@ class BitcoinChainService {
   /// 获取交易记录
   /// =========================
   Future<List<TransactionDetails>> getTransactions(String address) async {
+    await _ensureWalletIndexed(address);
     final wallet = BitcoinService.getWalletByAddress(address);
 
     if (wallet == null) {
@@ -95,27 +92,31 @@ class BitcoinChainService {
     double? feePerVbyte, // 可选：自定义 sat/vByte
     bool isSegWit = true,
   }) async {
+    await _ensureWalletIndexed(fromAddress);
     final wallet = BitcoinService.getWalletByAddress(fromAddress);
     if (wallet == null) throw Exception("Wallet not found");
 
     final descriptor = BitcoinService.getDescriptorByAddress(fromAddress);
     if (descriptor == null) throw Exception("Descriptor not found");
 
-    final blockchain = BitcoinService().blockchain;
-    if (blockchain == null) throw Exception("blockchain not found");
-
     // 同步钱包
     await BitcoinService.syncByDescriptor(descriptor);
+    final blockchain = await BitcoinService.requireBlockchain();
 
     // 获取手续费，如果没传 feePerVbyte，就用默认中速费率
-    double feeRateUsed = feePerVbyte ?? (await BitcoinChainService.getFeeEstimate(
-      inputs: 1,
-      outputs: 2,
-      isSegWit: isSegWit,
-    ))["medium"]!.toDouble();
+    double feeRateUsed =
+        feePerVbyte ??
+        (await BitcoinChainService.getFeeEstimate(
+          inputs: 1,
+          outputs: 2,
+          isSegWit: isSegWit,
+        ))["medium"]!.toDouble();
     final service = BitcoinService();
     // 构建 ScriptBuf
-    final addressObj = await Address.fromString(s: toAddress, network: service.network);
+    final addressObj = await Address.fromString(
+      s: toAddress,
+      network: service.network,
+    );
     final script = addressObj.scriptPubkey();
 
     // 构建交易
@@ -134,21 +135,37 @@ class BitcoinChainService {
     return txId;
   }
 
+  static Future<void> _ensureWalletIndexed(String address) async {
+    if (BitcoinService.getWalletByAddress(address) != null) return;
+
+    final wallet = AccountManager().currentWallet;
+    if (wallet == null) return;
+
+    final hasAddress = wallet.chains.any((chain) => chain.address == address);
+    if (!hasAddress) return;
+
+    final mnemonic = await WalletSecurity.tryAutoUnlock(wallet.id);
+    if (mnemonic == null) return;
+
+    await BitcoinService.restoreAddressIndex(mnemonic, address);
+  }
+
   /// =========================
   /// 获取交易详情
   /// =========================
   Future<BitcoinTxDetail?> getTransactionDetail(
-      String address,
-      String txid,
-      ) async {
+    String address,
+    String txid,
+  ) async {
     try {
       final txs = await getTransactions(address);
 
       final tx = txs.firstWhere(
-            (e) => e.txid == txid,
+        (e) => e.txid == txid,
         orElse: () => throw Exception("tx not found"),
       );
       final currentHeight = tx.confirmationTime?.height ?? 0;
+
       ///  confirmations
       final confirmations = tx.confirmationTime != null
           ? currentHeight - tx.confirmationTime!.height + 1
@@ -211,11 +228,7 @@ class BitcoinChainService {
       return result;
     } catch (e) {
       /// ⭐ fallback（防止接口挂）
-      return BtcFeeRate(
-        slow: 10,
-        medium: 15,
-        fast: 25,
-      );
+      return BtcFeeRate(slow: 10, medium: 15, fast: 25);
     }
   }
 
@@ -262,18 +275,9 @@ class BitcoinChainService {
     );
 
     return {
-      "slow": estimateFee(
-        feeRate: feeRate.slow,
-        txSize: txSize,
-      ),
-      "medium": estimateFee(
-        feeRate: feeRate.medium,
-        txSize: txSize,
-      ),
-      "fast": estimateFee(
-        feeRate: feeRate.fast,
-        txSize: txSize,
-      ),
+      "slow": estimateFee(feeRate: feeRate.slow, txSize: txSize),
+      "medium": estimateFee(feeRate: feeRate.medium, txSize: txSize),
+      "fast": estimateFee(feeRate: feeRate.fast, txSize: txSize),
     };
   }
 }

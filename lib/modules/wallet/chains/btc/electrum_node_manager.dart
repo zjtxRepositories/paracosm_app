@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 class ElectrumNodeManager {
-  static final ElectrumNodeManager _instance =
-  ElectrumNodeManager._internal();
+  static final ElectrumNodeManager _instance = ElectrumNodeManager._internal();
 
   factory ElectrumNodeManager() => _instance;
 
@@ -102,9 +102,10 @@ class ElectrumNodeManager {
       }
     }
 
-    /// ❗ 兜底：强制返回一个
+    /// ❗ 兜底：强制返回一个，后续 Blockchain.create 仍会做真实连接校验
     final fallback = shuffled.first;
     _currentNode = fallback;
+    _lastSelectTime = now;
     return fallback;
   }
 
@@ -124,15 +125,28 @@ class ElectrumNodeManager {
   /// 健康检测（简单版）
   /// =========================
   Future<bool> _checkNode(String node) async {
+    Socket? socket;
     try {
-      /// ⚠️ 这里只做轻量检测（避免复杂TCP）
-      /// 实际可升级：socket / electrum ping
+      final uri = _parseNode(node);
+      if (uri.host.isEmpty || !uri.hasPort) return false;
 
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      return true;
+      socket = await Socket.connect(
+        uri.host,
+        uri.port,
+        timeout: const Duration(milliseconds: 1500),
+      );
+      return socket.remoteAddress.address.isNotEmpty;
     } catch (_) {
       return false;
+    } finally {
+      socket?.destroy();
     }
+  }
+
+  Uri _parseNode(String node) {
+    final normalized = node.contains('://')
+        ? node.trim()
+        : 'ssl://${node.trim()}';
+    return Uri.parse(normalized);
   }
 }

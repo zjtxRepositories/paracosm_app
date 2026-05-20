@@ -17,10 +17,10 @@ class BitcoinService {
   /// =========================
   /// 多钱包存储（安全）
   /// =========================
-  static final Map<String, Wallet> _wallets = {};       // walletId -> wallet
-  static final Map<String, String> _mnemonics = {};     // walletId -> mnemonic
-  static final Map<String, String> _privateKeys = {};   // walletId -> wif
-  static final Map<String, String> _descriptors = {};   // walletId -> descriptor
+  static final Map<String, Wallet> _wallets = {}; // walletId -> wallet
+  static final Map<String, String> _mnemonics = {}; // walletId -> mnemonic
+  static final Map<String, String> _privateKeys = {}; // walletId -> wif
+  static final Map<String, String> _descriptors = {}; // walletId -> descriptor
 
   /// =========================
   /// Blockchain（全局单例）
@@ -32,10 +32,10 @@ class BitcoinService {
   /// =========================
   /// 地址缓存（核心）
   /// =========================
-  static final Map<String, String> _addressIndex = {};      // address -> walletId
-  static final Map<String, int> _addressPathIndex = {};     // address -> index
-  static final Map<String, int> _addressAccountIndex = {};  // address -> account
-  static final Map<String, int> _addressChangeIndex = {};   // address -> change
+  static final Map<String, String> _addressIndex = {}; // address -> walletId
+  static final Map<String, int> _addressPathIndex = {}; // address -> index
+  static final Map<String, int> _addressAccountIndex = {}; // address -> account
+  static final Map<String, int> _addressChangeIndex = {}; // address -> change
 
   /// =========================
   /// 工具
@@ -76,7 +76,10 @@ class BitcoinService {
   /// =========================
   /// 获取或创建钱包
   /// =========================
-  static Future<Wallet> getOrCreateWallet(String mnemonic, {int account = 0}) async {
+  static Future<Wallet> getOrCreateWallet(
+    String mnemonic, {
+    int account = 0,
+  }) async {
     if (!bip39.validateMnemonic(mnemonic)) {
       throw Exception("Invalid mnemonic");
     }
@@ -101,43 +104,61 @@ class BitcoinService {
   /// Blockchain 初始化
   /// =========================
   static Future<Blockchain?> _initBlockchain() async {
-    final node = await ElectrumNodeManager().getNode(testnet: false);
+    for (var attempt = 0; attempt < 5; attempt++) {
+      final node = await ElectrumNodeManager().getNode(testnet: false);
+      final url = _normalizeElectrumUrl(node);
 
-    final url = node.startsWith("ssl://") || node.startsWith("tcp://")
-        ? node
-        : "ssl://$node";
+      print("🌐 Electrum URL => $url");
 
-    print("🌐 Electrum URL => $url");
-
-    try {
-      final blockchain = await Blockchain.create(
-        config: BlockchainConfig.electrum(
-          config: ElectrumConfig(
-            url: url,
-            retry: 1,
-            timeout: 5,
-            stopGap: BigInt.from(50),
-            validateDomain: false,
+      try {
+        final blockchain = await Blockchain.create(
+          config: BlockchainConfig.electrum(
+            config: ElectrumConfig(
+              url: url,
+              retry: 1,
+              timeout: 5,
+              stopGap: BigInt.from(50),
+              validateDomain: false,
+            ),
           ),
-        ),
-      ).timeout(const Duration(seconds: 10));
+        ).timeout(const Duration(seconds: 10));
 
-      _blockchain = blockchain;
-      _currentNode = url;
+        _blockchain = blockchain;
+        _currentNode = url;
 
-      return blockchain;
-    } catch (e) {
-      print("❌ blockchain init failed: $e");
-      return null;
+        return blockchain;
+      } catch (e) {
+        ElectrumNodeManager().markFailed(url);
+        print("❌ blockchain init failed: $url, $e");
+      }
     }
+
+    _blockchain = null;
+    _currentNode = null;
+    return null;
+  }
+
+  static String _normalizeElectrumUrl(String node) {
+    final trimmed = node.trim();
+    if (trimmed.startsWith("ssl://") || trimmed.startsWith("tcp://")) {
+      return trimmed;
+    }
+    return "ssl://$trimmed";
   }
 
   static Future<Blockchain?> _getBlockchain() async {
     if (_blockchain != null) return _blockchain!;
-    await _initBlockchain()
-        .timeout(const Duration(seconds: 10)); // ✅ 防卡死
+    await _initBlockchain().timeout(const Duration(seconds: 45)); // ✅ 防卡死
     print('_blockchain--$_blockchain');
     return _blockchain;
+  }
+
+  static Future<Blockchain> requireBlockchain() async {
+    final blockchain = await _getBlockchain();
+    if (blockchain == null) {
+      throw Exception("blockchain error: no available Electrum node");
+    }
+    return blockchain;
   }
 
   /// =========================
@@ -148,29 +169,7 @@ class BitcoinService {
     final wallet = _wallets[walletId];
     if (wallet == null) throw Exception("Wallet not found");
 
-    final blockchain = await _getBlockchain();
-    if (blockchain == null) throw Exception("blockchain error");
-
-    try {
-      await wallet.sync(blockchain: blockchain);
-    } catch (e) {
-      if (_currentNode != null) {
-        ElectrumNodeManager().markFailed(_currentNode!);
-      }
-      await _initBlockchain();
-      if (_blockchain != null){
-        await wallet.sync(blockchain: _blockchain!);
-      }
-    }
-  }
-
-  /// =========================
-  /// 同步（助记词）
-  /// =========================
-  static Future<void> sync(String mnemonic, {int account = 0}) async {
-    final wallet = await getOrCreateWallet(mnemonic, account: account);
-    final blockchain = await _getBlockchain();
-    if (blockchain == null) throw Exception("blockchain error");
+    final blockchain = await requireBlockchain();
 
     try {
       await wallet.sync(blockchain: blockchain);
@@ -181,7 +180,31 @@ class BitcoinService {
       await _initBlockchain();
       if (_blockchain != null) {
         await wallet.sync(blockchain: _blockchain!);
+        return;
       }
+      throw Exception("blockchain error: no available Electrum node");
+    }
+  }
+
+  /// =========================
+  /// 同步（助记词）
+  /// =========================
+  static Future<void> sync(String mnemonic, {int account = 0}) async {
+    final wallet = await getOrCreateWallet(mnemonic, account: account);
+    final blockchain = await requireBlockchain();
+
+    try {
+      await wallet.sync(blockchain: blockchain);
+    } catch (e) {
+      if (_currentNode != null) {
+        ElectrumNodeManager().markFailed(_currentNode!);
+      }
+      await _initBlockchain();
+      if (_blockchain != null) {
+        await wallet.sync(blockchain: _blockchain!);
+        return;
+      }
+      throw Exception("blockchain error: no available Electrum node");
     }
   }
 
@@ -189,12 +212,12 @@ class BitcoinService {
   /// 地址缓存
   /// =========================
   static void _cacheAddress(
-      String address,
-      String walletId,
-      int index,
-      int account, {
-        int change = 0,
-      }) {
+    String address,
+    String walletId,
+    int index,
+    int account, {
+    int change = 0,
+  }) {
     _addressIndex[address] = walletId;
     _addressPathIndex[address] = index;
     _addressAccountIndex[address] = account;
@@ -204,7 +227,10 @@ class BitcoinService {
   /// =========================
   /// 获取未使用地址
   /// =========================
-  static Future<String> deriveAddress(String mnemonic, {int account = 0}) async {
+  static Future<String> deriveAddress(
+    String mnemonic, {
+    int account = 0,
+  }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
 
@@ -264,7 +290,10 @@ class BitcoinService {
   /// =========================
   /// 新地址
   /// =========================
-  static Future<String> getNewAddress(String mnemonic, {int account = 0}) async {
+  static Future<String> getNewAddress(
+    String mnemonic, {
+    int account = 0,
+  }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
 
@@ -286,10 +315,10 @@ class BitcoinService {
   /// 指定 index 地址
   /// =========================
   static Future<String> getAddressByIndex(
-      String mnemonic, {
-        int account = 0,
-        int index = 0,
-      }) async {
+    String mnemonic, {
+    int account = 0,
+    int index = 0,
+  }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
 
@@ -304,6 +333,35 @@ class BitcoinService {
     _cacheAddress(address, walletId, index, account, change: 0);
 
     return address;
+  }
+
+  /// =========================
+  /// 恢复已持久化地址索引
+  /// =========================
+  static Future<bool> restoreAddressIndex(
+    String mnemonic,
+    String address, {
+    int account = 0,
+    int maxIndex = 20,
+  }) async {
+    final descriptor = _buildDescriptor(mnemonic, account: account);
+    final walletId = _hash(descriptor);
+
+    await getOrCreateWallet(mnemonic, account: account);
+
+    for (var index = 0; index <= maxIndex; index++) {
+      final candidate = await getAddressByIndex(
+        mnemonic,
+        account: account,
+        index: index,
+      );
+      if (candidate == address) {
+        _cacheAddress(address, walletId, index, account, change: 0);
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /// =========================
@@ -335,9 +393,7 @@ class BitcoinService {
     final seed = bip39.mnemonicToSeed(mnemonic);
     final root = bip32.BIP32.fromSeed(seed);
 
-    final child = root.derivePath(
-      "m/84'/0'/$account'/$change/$index",
-    );
+    final child = root.derivePath("m/84'/0'/$account'/$change/$index");
 
     return child.toWIF();
   }

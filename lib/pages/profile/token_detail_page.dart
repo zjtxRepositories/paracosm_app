@@ -6,6 +6,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 import '../../modules/wallet/model/trade_model.dart';
 import '../../util/string_util.dart';
@@ -326,6 +327,15 @@ class _TokenDetailPageState extends State<TokenDetailPage>
   Widget _buildHistoryList() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_list.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 68),
+        child: AppEmptyView(
+          text: AppLocalizations.of(context)!.chatSearchNoData,
+        ),
+      );
     }
 
     return ListView.builder(

@@ -232,7 +232,10 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final communityId = state.extra as String?;
-          return  NewPostPage(isRetweet: state.uri.queryParameters['retweet'] == '1',communityId: communityId);
+          return NewPostPage(
+            isRetweet: state.uri.queryParameters['retweet'] == '1',
+            communityId: communityId,
+          );
         },
       ),
       GoRoute(
@@ -352,7 +355,9 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final group = state.extra as GroupModel?;
-          return group == null ? SizedBox() :GroupInformationPage(group: group);
+          return group == null
+              ? SizedBox()
+              : GroupInformationPage(group: group);
         },
       ),
       // 群简介编辑页
@@ -655,6 +660,7 @@ class AppRouter {
             walletAddress:
                 extra?['address'] ??
                 '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
+            tokenLogo: extra?['logo'] ?? '',
           );
         },
       ),

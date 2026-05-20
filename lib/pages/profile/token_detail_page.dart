@@ -243,6 +243,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                           'symbol': widget.token.symbol,
                           'network': widget.token.name,
                           'address': widget.token.showAddress,
+                          'logo': widget.token.logo,
                         },
                       );
                     },

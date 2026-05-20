@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/common/app_network_image.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:screenshot/screenshot.dart';
 
 /// 代币收款页面
 ///
@@ -20,11 +22,17 @@ class TokenReceivePage extends StatelessWidget {
   /// 钱包地址
   final String walletAddress;
 
-  const TokenReceivePage({
+  /// 代币图标
+  final String tokenLogo;
+
+  final ScreenshotController _cardScreenshotController = ScreenshotController();
+
+  TokenReceivePage({
     super.key,
     this.tokenSymbol = 'BNB',
     this.networkName = 'Binancestry(BSC)',
     this.walletAddress = '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
+    this.tokenLogo = '',
   });
 
   @override
@@ -55,115 +63,116 @@ class TokenReceivePage extends StatelessWidget {
                   child: Column(
                     children: [
                       // 收款卡片容器
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.grey200,
-                            width: 1,
+                      Screenshot(
+                        controller: _cardScreenshotController,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.grey200,
+                              width: 1,
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. 用户信息展示行 (头像 + 名称 + 扫码提示)
-                            Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.asset(
-                                      'assets/images/chat/avatar.png',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 1. 用户信息展示行 (头像 + 名称 + 扫码提示)
+                              Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(
+                                  children: [
+                                    AppNetworkImage(
+                                      url: tokenLogo,
                                       width: 48,
                                       height: 48,
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.contain,
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          tokenSymbol,
-                                          style: AppTextStyles.h2.copyWith(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.grey900,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            tokenSymbol,
+                                            style: AppTextStyles.h2.copyWith(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.grey900,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          l10n.profileTokenReceiveScanQrToPay,
-                                          style: AppTextStyles.body.copyWith(
-                                            fontSize: 12,
-                                            color: AppColors.grey400,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            l10n.profileTokenReceiveScanQrToPay,
+                                            style: AppTextStyles.body.copyWith(
+                                              fontSize: 12,
+                                              color: AppColors.grey400,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // 2. 带圆弧缺口的虚线分割线
-                            _buildTicketSeparator(context),
-
-                            // 3. 二维码展示区域
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: 24,
-                                bottom: 16,
-                                left: 24,
-                                right: 24,
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: Image.asset(
-                                  'assets/images/profile/user/test-code.png', // 指定的测试二维码路径
-                                  fit: BoxFit.contain,
+                                  ],
                                 ),
                               ),
-                            ),
 
-                            // 4. 虚线分割线 (无缺口)
-                            _buildDashedLine(),
+                              // 2. 带圆弧缺口的虚线分割线
+                              _buildTicketSeparator(context),
 
-                            // 5. 钱包地址展示区域
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: 16,
-                                left: 20,
-                                right: 20,
-                                bottom: 20,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.profileTokenReceiveWalletAddress,
-                                    style: AppTextStyles.body.copyWith(
-                                      fontSize: 14,
-                                      color: AppColors.grey700,
-                                    ),
+                              // 3. 二维码展示区域
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 24,
+                                  bottom: 16,
+                                  left: 24,
+                                  right: 24,
+                                ),
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: Image.asset(
+                                    'assets/images/profile/user/test-code.png', // 指定的测试二维码路径
+                                    fit: BoxFit.contain,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    walletAddress,
-                                    style: AppTextStyles.body.copyWith(
-                                      fontSize: 14,
-                                      color: AppColors.grey800,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ],
+
+                              // 4. 虚线分割线 (无缺口)
+                              _buildDashedLine(),
+
+                              // 5. 钱包地址展示区域
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 16,
+                                  left: 20,
+                                  right: 20,
+                                  bottom: 20,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.profileTokenReceiveWalletAddress,
+                                      style: AppTextStyles.body.copyWith(
+                                        fontSize: 14,
+                                        color: AppColors.grey700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      walletAddress,
+                                      style: AppTextStyles.body.copyWith(
+                                        fontSize: 14,
+                                        color: AppColors.grey800,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -180,22 +189,22 @@ class TokenReceivePage extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            // 分享按钮
+                            // 下载按钮
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => _showShareDialog(context),
+                                onTap: () => _saveReceiveCard(context),
                                 behavior: HitTestBehavior.opaque,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Image.asset(
-                                      'assets/images/common/share.png',
+                                      'assets/images/profile/user/share-download.png',
                                       width: 20,
                                       height: 20,
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      l10n.profileTokenReceiveShare,
+                                      l10n.profileTokenReceiveSave,
                                       style: AppTextStyles.body.copyWith(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
@@ -261,6 +270,41 @@ class TokenReceivePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _saveReceiveCard(BuildContext context) async {
+    try {
+      final permission = await PhotoManager.requestPermissionExtend();
+      if (!permission.isAuth) {
+        if (!context.mounted) return;
+        AppToast.show(AppLocalizations.of(context)!.commonDownloadFailed);
+        return;
+      }
+
+      final Uint8List? image = await _cardScreenshotController.capture(
+        pixelRatio: 3,
+      );
+      if (!context.mounted) return;
+
+      if (image == null) {
+        AppToast.show(AppLocalizations.of(context)!.commonDownloadFailed);
+        return;
+      }
+
+      await PhotoManager.editor.saveImage(
+        image,
+        filename:
+            'paracosm_receive_${tokenSymbol}_${DateTime.now().millisecondsSinceEpoch}.png',
+        title: '$tokenSymbol Receive',
+      );
+
+      if (!context.mounted) return;
+      AppToast.show(AppLocalizations.of(context)!.commonSavedToAlbum);
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.show(AppLocalizations.of(context)!.commonDownloadFailed);
+      debugPrint('save receive card error => $e');
+    }
   }
 
   /// 构建带圆弧缺口的虚线分割线
@@ -338,310 +382,6 @@ class TokenReceivePage extends StatelessWidget {
       ),
     );
   }
-
-  /// 显示分享弹窗
-  void _showShareDialog(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'ShareDialog',
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 335,
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 1. 上半部分：主内容区域 (带特殊切边的容器)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ClipPath(
-                        clipper: _ShareClipper(),
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 欢迎文字
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 48,
-                                  left: 20,
-                                  right: 50, // 给右上角的绳子留点空间
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      l10n.walletStartWelcome,
-                                      style: AppTextStyles.h1.copyWith(
-                                        fontSize: 38.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.grey900,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          l10n.walletStartTo,
-                                          style: AppTextStyles.h1.copyWith(
-                                            fontSize: 22.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.grey900,
-                                          ),
-                                        ),
-                                        Text(
-                                          'PARACOSM',
-                                          style: AppTextStyles.h1.copyWith(
-                                            fontSize: 22.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.grey900, // 主色
-                                            decoration:
-                                                TextDecoration.underline,
-                                            decorationColor: AppColors.primary,
-                                            decorationThickness: 2,
-                                          ),
-                                        ),
-                                        Text(
-                                          l10n.walletStartWorld,
-                                          style: AppTextStyles.h1.copyWith(
-                                            fontSize: 22.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.grey900,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // 中间插画图片
-                              Image.asset(
-                                'assets/images/profile/user/share-bg.png',
-                                width: double.infinity,
-                                height: 292,
-                                fit: BoxFit.contain,
-                              ),
-                              // 分割线 (带圆弧缺口)
-                              _buildTicketSeparator(
-                                context,
-                                bgColor: Colors.black.withOpacity(0.5),
-                              ),
-                              // 底部邀请信息
-                              Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            l10n.profileProfileDetailsInviteFriends,
-                                            style: AppTextStyles.h2.copyWith(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.grey900,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            l10n.profileQrCodeScanToAdd,
-                                            style: AppTextStyles.body.copyWith(
-                                              fontSize: 12,
-                                              color: AppColors.grey400,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Image.asset(
-                                      'assets/images/profile/user/test-code.png',
-                                      width: 48,
-                                      height: 48,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // 右上角绳子图标
-                      Positioned(
-                        top: -12,
-                        right: 8,
-                        child: Image.asset(
-                          'assets/images/profile/user/rope.png',
-                          width: 48,
-                          height: 70,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // 2. 下半部分：操作按钮区域
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        // Download
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              // TODO: 下载功能
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Image.asset(
-                                  'assets/images/profile/user/share-download.png',
-                                  width: 20,
-                                  height: 20,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Download',
-                                  style: AppTextStyles.body.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.grey800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // 垂直分割线
-                        Container(
-                          width: 1,
-                          height: 30,
-                          color: AppColors.grey200,
-                        ),
-                        // Copy
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Clipboard.setData(
-                                const ClipboardData(
-                                  text: 'PARACOSM World Invite',
-                                ),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    )!.profileInviteLinkCopied,
-                                  ),
-                                ),
-                              );
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Image.asset(
-                                  'assets/images/common/copy-black.png',
-                                  width: 20,
-                                  height: 20,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Copy',
-                                  style: AppTextStyles.body.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.grey800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// 自定义弹窗顶部特殊切边
-class _ShareClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    const radius = 16.0;
-    const curveRadius = 80.0; // 右上角特殊的圆角半径
-
-    // 从左上角开始
-    path.moveTo(radius, 0);
-    // 顶部边缘
-    path.lineTo(size.width - curveRadius, 0);
-    // 右上角特殊的圆弧
-    path.arcToPoint(
-      Offset(size.width, curveRadius),
-      radius: const Radius.circular(curveRadius),
-      clockwise: true,
-    );
-    // 右侧边缘
-    path.lineTo(size.width, size.height - radius);
-    // 右下角圆角
-    path.arcToPoint(
-      Offset(size.width - radius, size.height),
-      radius: const Radius.circular(radius),
-      clockwise: true,
-    );
-    // 底部边缘
-    path.lineTo(radius, size.height);
-    // 左下角圆角
-    path.arcToPoint(
-      Offset(0, size.height - radius),
-      radius: const Radius.circular(radius),
-      clockwise: true,
-    );
-    // 左侧边缘
-    path.lineTo(0, radius);
-    // 左上角圆角
-    path.arcToPoint(
-      Offset(radius, 0),
-      radius: const Radius.circular(radius),
-      clockwise: true,
-    );
-
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 /// 绘制圆弧缺口的边框

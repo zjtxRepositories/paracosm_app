@@ -344,6 +344,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                           'symbol': _selectedNetwork?.symbol,
                           'network': _selectedNetwork?.name,
                           'address': _selectedNetwork?.address,
+                          'logo': _selectedNetwork?.logo,
                         },
                       );
                     },

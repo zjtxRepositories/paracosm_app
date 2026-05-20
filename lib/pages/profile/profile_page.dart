@@ -17,7 +17,6 @@ import '../../modules/account/manager/account_manager.dart';
 import '../../modules/wallet/chains/model/coin_market_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../util/string_util.dart';
-import '../../widgets/common/app_modal.dart';
 import '../../widgets/common/app_network_image.dart';
 
 /// 个人中心页面 (钱包首页)
@@ -234,212 +233,213 @@ class _ProfilePageState extends State<ProfilePage> {
         _walletModel?.name ??
         '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
     return GestureDetector(
-          onTap: () => context.push('/token-network'),
-          child: Container(
-      margin: margin,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.grey200, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 钱包名称
-              Row(
-                children: [
-                  Text(
-                    showName,
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.grey400,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              // 网络选择 (BNB 下拉)
-              GestureDetector(
-                onTap: _showNetworkSelector,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey100,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: AppColors.grey200, width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      AppNetworkImage(
-                        url: _selectedNetwork?.logo,
-                        width: 16,
-                        height: 16,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _selectedNetwork?.name ?? '',
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.grey900,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 12,
-                        color: AppColors.grey400,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 余额数值及显隐切换按钮
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              StreamBuilder<double>(
-                stream: PortfolioService().totalUsdStream,
-                builder: (context, snapshot) {
-                  final total = snapshot.data ?? 0;
-
-                  return _isBalanceVisible
-                      ? Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: '\$'),
-                              TextSpan(text: truncateDouble(total)),
-                            ],
-                          ),
-                        )
-                      : Text('********');
-                },
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  setState(() => _isBalanceVisible = !_isBalanceVisible);
-                  onEyeTap?.call();
-                },
-                child: Image.asset(
-                  _isBalanceVisible
-                      ? 'assets/images/common/eye-line.png'
-                      : 'assets/images/common/eye-off-line.png',
-                  width: 20,
-                  height: 20,
-                ),
-              ),
-            ],
-          ),
-          if (showActions) ...[
-            const SizedBox(height: 16),
+      onTap: () => context.push('/token-network'),
+      child: Container(
+        margin: margin,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.grey200, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Send 按钮
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      context.push(
-                        '/transfer',
-                        extra: {'chain': _selectedNetwork},
-                      );
-                    },
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.grey900, // 深黑色背景
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          const SizedBox(width: 6),
-                          Image.asset(
-                            'assets/images/profile/send.png',
-                            width: 32,
-                            height: 32,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.profileTokenNetworkSend,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                // 钱包名称
+                Row(
+                  children: [
+                    Text(
+                      showName,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.grey400,
+                        fontSize: 14,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                // Receive 按钮
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      context.push(
-                        '/token-receive',
-                        extra: {
-                          'symbol': _selectedNetwork?.symbol,
-                          'network': _selectedNetwork?.name,
-                          'address': _selectedNetwork?.address,
-                        },
-                      );
-                    },
-                    child: Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
-                          color: AppColors.grey900,
-                          width: 1,
-                        ), // 黑色边框
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          const SizedBox(width: 6),
-                          Image.asset(
-                            'assets/images/profile/receive.png',
-                            width: 32,
-                            height: 32,
+                // 网络选择 (BNB 下拉)
+                GestureDetector(
+                  onTap: _showNetworkSelector,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey100,
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: AppColors.grey200, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        AppNetworkImage(
+                          url: _selectedNetwork?.logo,
+                          width: 16,
+                          height: 16,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _selectedNetwork?.name ?? '',
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
                           ),
-                          const SizedBox(width: 12),
-                          Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.profileTokenNetworkReceive,
-                            style: const TextStyle(
-                              color: AppColors.grey900,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 12,
+                          color: AppColors.grey400,
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            // 余额数值及显隐切换按钮
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                StreamBuilder<double>(
+                  stream: PortfolioService().totalUsdStream,
+                  builder: (context, snapshot) {
+                    final total = snapshot.data ?? 0;
+
+                    return _isBalanceVisible
+                        ? Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: '\$'),
+                                TextSpan(text: truncateDouble(total)),
+                              ],
+                            ),
+                          )
+                        : Text('********');
+                  },
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _isBalanceVisible = !_isBalanceVisible);
+                    onEyeTap?.call();
+                  },
+                  child: Image.asset(
+                    _isBalanceVisible
+                        ? 'assets/images/common/eye-line.png'
+                        : 'assets/images/common/eye-off-line.png',
+                    width: 20,
+                    height: 20,
+                  ),
+                ),
+              ],
+            ),
+            if (showActions) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  // Send 按钮
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        context.push(
+                          '/transfer',
+                          extra: {'chain': _selectedNetwork},
+                        );
+                      },
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.grey900, // 深黑色背景
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              'assets/images/profile/send.png',
+                              width: 32,
+                              height: 32,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.profileTokenNetworkSend,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Receive 按钮
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        context.push(
+                          '/token-receive',
+                          extra: {
+                            'symbol': _selectedNetwork?.symbol,
+                            'network': _selectedNetwork?.name,
+                            'address': _selectedNetwork?.address,
+                            'logo': _selectedNetwork?.logo,
+                          },
+                        );
+                      },
+                      child: Container(
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: AppColors.grey900,
+                            width: 1,
+                          ), // 黑色边框
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              'assets/images/profile/receive.png',
+                              width: 32,
+                              height: 32,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.profileTokenNetworkReceive,
+                              style: const TextStyle(
+                                color: AppColors.grey900,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
     );
   }
 

@@ -56,7 +56,7 @@ class _GroupAvatarWidgetState extends State<GroupAvatarWidget> {
         final list = ImDataCenter().getGroupMembers(
           _groupId,
         );
-        print('groups=====${list}');
+        // print('groups=====${list}');
 
         setState(() {
           _memberAvatars = list;

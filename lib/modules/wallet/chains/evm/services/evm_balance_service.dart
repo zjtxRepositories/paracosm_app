@@ -42,7 +42,7 @@ class EvmBalanceService {
         contract: contract,
         function: contract.function('balanceOf'),
         params: [EthereumAddress.fromHex(address)],
-      );
+      ).timeout(const Duration(seconds: 8));
 
       return result.first as BigInt;
     });

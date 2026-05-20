@@ -11,9 +11,6 @@
     "coinId": "ethereum",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.ankr.com/eth",
-      "https://cloudflare-eth.com",
-      "https://eth.llamarpc.com",
       "https://rpc.flashbots.net"
     ],
     "explorer": "https://etherscan.io",
@@ -44,11 +41,11 @@
     "chainType": "evm",
     "nodes": [
       "https://bsc-rpc.publicnode.com",
+      "https://bsc.publicnode.com",
       "https://bsc-dataseed.binance.org",
       "https://bsc-dataseed1.binance.org",
       "https://bsc-dataseed2.binance.org",
       "https://rpc.ankr.com/bsc",
-      "https://bsc.publicnode.com",
       "https://bsc.meowrpc.com"
     ],
     "txApiUrl": "https://api.bscscan.com/api",
@@ -89,7 +86,9 @@
     "coinId": "binancecoin",
     "chainType": "evm",
     "nodes": [
-      "https://bsc-testnet-rpc.publicnode.com"
+      "https://data-seed-prebsc-1-s1.binance.org:8545",
+      "https://data-seed-prebsc-2-s1.binance.org:8545",
+      "https://data-seed-prebsc-1-s2.binance.org:8545"
     ],
     "txApiUrl": "https://api.bscscan.com/api",
     "explorer": "https://testnet.bscscan.com/",
@@ -150,10 +149,7 @@
     "coinId": "arbitrum",
     "chainType": "evm",
     "nodes": [
-      "https://arb1.arbitrum.io/rpc",
-      "https://rpc.ankr.com/arbitrum",
-      "https://arbitrum.publicnode.com",
-      "https://arb-mainnet.g.alchemy.com/v2/demo"
+      "https://1rpc.io/arb"
     ],
     "explorer": "https://arbiscan.io",
     "explorerTxUrl": "https://arbiscan.io/tx/",
@@ -180,10 +176,7 @@
     "coinId": "optimism",
     "chainType": "evm",
     "nodes": [
-      "https://mainnet.optimism.io",
-      "https://rpc.ankr.com/optimism",
-      "https://optimism.publicnode.com",
-      "https://optimism-mainnet.g.alchemy.com/v2/demo"
+      "https://mainnet.optimism.io"
     ],
     "explorer": "https://optimistic.etherscan.io",
     "explorerTxUrl": "https://optimistic.etherscan.io/tx/",
@@ -210,11 +203,7 @@
     "coinId": "polygon",
     "chainType": "evm",
     "nodes": [
-      "https://polygon-rpc.com",
-      "https://rpc.ankr.com/polygon",
-      "https://polygon.publicnode.com",
-      "https://rpc-mainnet.maticvigil.com",
-      "https://polygon.llamarpc.com"
+      "https://1rpc.io/matic"
     ],
     "explorer": "https://polygonscan.com",
     "explorerTxUrl": "https://polygonscan.com/tx/",
@@ -244,10 +233,7 @@
     "coinId": "avalanche-2",
     "chainType": "evm",
     "nodes": [
-      "https://api.avax.network/ext/bc/C/rpc",
-      "https://rpc.ankr.com/avalanche",
-      "https://avalanche.publicnode.com",
-      "https://avax.meowrpc.com"
+      "https://api.avax.network/ext/bc/C/rpc"
     ],
     "explorer": "https://snowtrace.io",
     "explorerTxUrl": "https://snowtrace.io/tx/",
@@ -277,10 +263,6 @@
     "coinId": "fantom",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.ftm.tools",
-      "https://rpc.ankr.com/fantom",
-      "https://fantom.publicnode.com",
-      "https://fantom.llamarpc.com",
       "https://rpcapi.fantom.network"
     ],
     "explorer": "https://ftmscan.com",
@@ -311,10 +293,7 @@
     "coinId": "base",
     "chainType": "evm",
     "nodes": [
-      "https://mainnet.base.org",
-      "https://rpc.ankr.com/base",
-      "https://base.publicnode.com",
-      "https://base.llamarpc.com"
+      "https://1rpc.io/base"
     ],
     "explorer": "https://base.blockscout.com/",
     "explorerTxUrl": "https://base.blockscout.com/tx/",
@@ -344,10 +323,7 @@
     "coinId": "zksync",
     "chainType": "evm",
     "nodes": [
-      "https://mainnet.era.zksync.io",
-      "https://rpc.ankr.com/zksync_era",
-      "https://zksync-era.publicnode.com",
-      "https://zksync.llamarpc.com"
+      "https://mainnet.era.zksync.io"
     ],
     "explorer": "https://explorer.zksync.io/",
     "explorerTxUrl": "https://explorer.zksync.io/tx/",
@@ -376,10 +352,7 @@
     "coinId": "blast",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.blast.io",
-      "https://blast.publicnode.com",
-      "https://rpc.ankr.com/blast",
-      "https://blast.llamarpc.com"
+      "https://rpc.blast.io"
     ],
     "explorer": "https://blastscan.io",
     "explorerTxUrl": "https://blastscan.io/tx/",
@@ -406,10 +379,7 @@
     "coinId": "merlin-token",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.merlinchain.io",
-      "https://merlin.publicnode.com",
-      "https://rpc.ankr.com/merlin",
-      "https://merlin.llamarpc.com"
+      "https://rpc.merlinchain.io"
     ],
     "explorer": "https://explorer.merlinchain.io",
     "explorerTxUrl": "https://explorer.merlinchain.io/tx/",
@@ -438,10 +408,7 @@
     "coinId": "linea",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.linea.build",
-      "https://rpc.ankr.com/linea",
-      "https://linea.publicnode.com",
-      "https://linea.llamarpc.com"
+      "https://1rpc.io/linea"
     ],
     "explorer": "https://lineascan.build/",
     "explorerTxUrl": "https://lineascan.build/tx/",
@@ -470,10 +437,7 @@
     "coinId": "scroll",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.scroll.io",
-      "https://rpc.ankr.com/scroll",
-      "https://scroll.publicnode.com",
-      "https://scroll.llamarpc.com"
+      "https://1rpc.io/scroll"
     ],
     "explorer": "https://scrollscan.com/",
     "explorerTxUrl": "https://scrollscan.com/tx/",
@@ -502,10 +466,7 @@
     "coinId": "mantle",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.mantle.xyz",
-      "https://mantle.publicnode.com",
-      "https://rpc.ankr.com/mantle",
-      "https://mantle.llamarpc.com"
+      "https://rpc.mantle.xyz"
     ],
     "explorer": "https://explorer.mantle.xyz/",
     "explorerTxUrl": "https://explorer.mantle.xyz/tx/",
@@ -534,10 +495,7 @@
     "coinId": "xlayer",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.xlayer.tech",
-      "https://xlayer.publicnode.com",
-      "https://rpc.ankr.com/xlayer",
-      "https://xlayer.llamarpc.com"
+      "https://rpc.xlayer.tech"
     ],
     "explorer": "https://www.oklink.com/xlayer",
     "explorerTxUrl": "https://www.oklink.com/xlayer/tx/",
@@ -575,40 +533,6 @@
         "coinId": "bitcoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png",
         "native": 1
-      }
-    ]
-  },
-  {
-    "name": "BSC Testnet",
-    "chainName": "BSC Testnet",
-    "chainId": 97,
-    "symbol": "tBNB",
-    "coinName": "BNB Test",
-    "decimals": 18,
-    "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
-    "coinIndex": 714,
-    "coinId": "binancecoin",
-    "chainType": "evm",
-    "nodes": [
-      "https://data-seed-prebsc-1-s1.binance.org:8545",
-      "https://data-seed-prebsc-2-s1.binance.org:8545",
-      "https://data-seed-prebsc-1-s2.binance.org:8545",
-      "https://rpc.ankr.com/bsc_testnet",
-      "https://bsc-testnet.publicnode.com"
-    ],
-    "explorer": "https://testnet.bscscan.com",
-    "explorerTxUrl": "https://testnet.bscscan.com/tx/",
-    "explorerAddressUrl": "https://testnet.bscscan.com/address/",
-    "tokens": [
-      {
-        "symbol": "tBNB",
-        "address": "",
-        "decimals": 18,
-        "name": "Testnet BNB",
-        "coinId": "binancecoin",
-        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
-        "native": 1,
-        "isAdded": 1
       }
     ]
   },

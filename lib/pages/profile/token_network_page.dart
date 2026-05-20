@@ -50,9 +50,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
   void _loadCurrentChainTokens() {
     final wallet = _accountManager.currentWallet;
     final chain = wallet?.currentChain;
-    final tokens =
-        chain?.tokens.where((token) => token.isAdded == true).toList() ??
-        <TokenModel>[];
+    final tokens = chain?.tokens.toList() ?? <TokenModel>[];
     tokens.sort((a, b) => b.balance.compareTo(a.balance));
 
     if (!mounted) return;
@@ -71,9 +69,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
       context: context,
       wallet: wallet,
       onSelected: (network) {
-        final tokens = network.tokens
-            .where((token) => token.isAdded == true)
-            .toList();
+        final tokens = network.tokens.toList();
         tokens.sort((a, b) => b.balance.compareTo(a.balance));
         setState(() {
           _selectedNetwork = network;

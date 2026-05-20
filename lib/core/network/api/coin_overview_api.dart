@@ -16,7 +16,7 @@ class CoinOverviewApi {
     final data = res.data["data"];
     final list =  (data as List).map((e) {
       final utxo = CoinMarketModel.fromJson(e);
-      print("GetMarketListApi---${utxo.coinImg}---${utxo.symbol}");
+      // print("GetMarketListApi---${utxo.coinImg}---${utxo.symbol}");
       return utxo;
     }).toList();
     return list;

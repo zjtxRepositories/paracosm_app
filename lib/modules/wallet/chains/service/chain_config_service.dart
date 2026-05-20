@@ -38,7 +38,9 @@ class ChainConfigService {
           decimals: t.decimals,
           balance: BigInt.zero,
           logo: t.icon,
-          coinId: t.coinId, chainId: config.chainId,
+          coinId: t.coinId,
+          chainId: config.chainId,
+          isAdded: t.isAdded == true,
         );
       }).toList();
 
@@ -100,6 +102,7 @@ class ChainConfigService {
             logo: t.icon,
             coinId: t.coinId,
             chainId: config.chainId,
+            isAdded: t.isAdded == true,
           );
         }).toList();
 

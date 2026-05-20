@@ -86,9 +86,6 @@ class _ProfilePageState extends State<ProfilePage> {
     for (final chain in chains) {
       final tokens = chain.tokens;
       for (final token in tokens) {
-        if (token.isAdded == false) {
-          continue;
-        }
         final index = coins.indexWhere(
           (c) =>
               c.symbol.toLowerCase().split('/')[0] ==
@@ -97,7 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
         if (index != -1) {
           token.market = coins[index];
         }
-        if (token.address.isEmpty && !(index != -1 || token.isAdded == true)) {
+        if (token.isAdded != true && index == -1) {
           continue;
         }
         token.isAdded = true;
@@ -449,13 +446,14 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (context, snapshot) {
         final List<TokenModel> tokens = [];
         if (snapshot.hasData && snapshot.data != null) {
+          final visibleKeys = _tokens.map(_tokenKey).toSet();
           final snapList = snapshot.data!
-              .where((t) => t.isAdded == true)
+              .where((t) => visibleKeys.contains(_tokenKey(t)))
               .toList();
           tokens.addAll(snapList);
-          final snapAddresses = snapList.map((t) => t.symbol).toSet();
+          final snapKeys = snapList.map(_tokenKey).toSet();
           tokens.addAll(
-            _tokens.where((t) => !snapAddresses.contains(t.symbol)),
+            _tokens.where((t) => !snapKeys.contains(_tokenKey(t))),
           );
         } else {
           tokens.addAll(_tokens);
@@ -528,6 +526,10 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       },
     );
+  }
+
+  String _tokenKey(TokenModel token) {
+    return '${token.chainId}:${token.address.toLowerCase()}:${token.symbol}';
   }
 
   /// 构建代币列表项

@@ -7,6 +7,7 @@ class TokenConfigModel {
   String coinId;
   String icon;
   int? native;
+  bool? isAdded;
 
   TokenConfigModel({
     required this.symbol,
@@ -16,6 +17,7 @@ class TokenConfigModel {
     required this.coinId,
     required this.icon,
     this.native,
+    this.isAdded,
   });
 
   factory TokenConfigModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class TokenConfigModel {
       coinId: json["coinId"] ?? "",
       icon: json["icon"] ?? "",
       native: json["native"],
+      isAdded: json["isAdded"] == 1 || json["isAdded"] == true,
     );
   }
 

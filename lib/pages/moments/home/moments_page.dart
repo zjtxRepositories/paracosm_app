@@ -137,11 +137,11 @@ class _MomentsPageState extends State<MomentsPage> {
             ),
           ),
 
-          _MessageButton(
-            onTap: () {
-              context.push('/message-center');
-            },
-          ),
+          // _MessageButton(
+          //   onTap: () {
+          //     context.push('/message-center');
+          //   },
+          // ),
         ],
       ),
     );

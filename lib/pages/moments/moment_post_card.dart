@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/moment_post_model.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../core/models/social_media_model.dart';
 import '../../util/string_util.dart';
+import '../../widgets/base/app_localizations.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
 import '../../widgets/common/app_action_pop_menu.dart';
 
@@ -67,13 +68,11 @@ class MomentPostCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 16),
+
             /// 内容
             Text(
               model.item.content,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF404040),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF404040)),
             ),
 
             const SizedBox(height: 8),
@@ -81,9 +80,9 @@ class MomentPostCard extends StatelessWidget {
             /// 图片
             ImageGrid(
               medias: model.item.media,
-              onTap: (index){
+              onTap: (index) {
                 onMediaTap?.call(index);
-              }
+              },
             ),
 
             const SizedBox(height: 12),
@@ -148,10 +147,7 @@ class _Header extends StatelessWidget {
                 ),
                 Text(
                   _formatTime(model.item.timestamp),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               ],
             ),
@@ -160,10 +156,11 @@ class _Header extends StatelessWidget {
 
         Row(
           children: [
-            FollowButton(isFollowing: isFollowing,onTap: onFollow),
+            FollowButton(isFollowing: isFollowing, onTap: onFollow),
             const SizedBox(width: 8),
             Builder(
               builder: (context) {
+                final l10n = AppLocalizations.of(context)!;
                 final moreButtonKey = GlobalKey();
 
                 return GestureDetector(
@@ -178,18 +175,20 @@ class _Header extends StatelessWidget {
                       items: [
                         AppActionPopMenuItem(
                           icon: 'assets/images/moments/share-pop.png',
-                          label: 'Share',
-                          onTap: onShare ?? (){},
+                          label: l10n.translate('moments_share'),
+                          onTap: onShare ?? () {},
                         ),
                         AppActionPopMenuItem(
                           icon: 'assets/images/moments/block.png',
-                          label: isBlock ? 'Unblock this use' : 'Block this user',
-                          onTap: onBlock ?? (){},
+                          label: isBlock
+                              ? l10n.translate('moments_unblock_this_user')
+                              : l10n.translate('moments_block_this_user'),
+                          onTap: onBlock ?? () {},
                         ),
                         AppActionPopMenuItem(
                           icon: 'assets/images/moments/report.png',
-                          label: 'Report',
-                          onTap: onReport ?? (){},
+                          label: l10n.translate('moments_report'),
+                          onTap: onReport ?? () {},
                           showDivider: false,
                         ),
                       ],
@@ -209,11 +208,9 @@ class _Header extends StatelessWidget {
     );
   }
 
-
   String _formatTime(int time) {
     return formatIMTime(time);
   }
-
 }
 
 class ImageGrid extends StatelessWidget {
@@ -221,7 +218,8 @@ class ImageGrid extends StatelessWidget {
   final double spacing;
   final Function(int)? onTap;
 
-  const ImageGrid({super.key,
+  const ImageGrid({
+    super.key,
     required this.medias,
     this.spacing = 4,
     this.onTap,
@@ -236,9 +234,7 @@ class ImageGrid extends StatelessWidget {
     final visibleCount = hasMore ? 9 : count;
     final hiddenCount = count - 9;
 
-    final columns = count == 1
-        ? 1
-        : (count <= 4 ? 2 : 3);
+    final columns = count == 1 ? 1 : (count <= 4 ? 2 : 3);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -254,7 +250,7 @@ class ImageGrid extends StatelessWidget {
             final showOverlay = hasMore && isLast;
 
             return GestureDetector(
-              onTap: ()=> onTap?.call(index),
+              onTap: () => onTap?.call(index),
               child: SizedBox(
                 width: itemSize,
                 height: itemSize,
@@ -315,14 +311,18 @@ class _PostActionBar extends StatelessWidget {
     return Row(
       children: [
         _Item(
-          icon: model.isLike? 'assets/images/moments/like-active.png' : 'assets/images/moments/like.png',
+          icon: model.isLike
+              ? 'assets/images/moments/like-active.png'
+              : 'assets/images/moments/like.png',
           text: '${model.likes}',
           onTap: onLike,
         ),
         const SizedBox(width: 24),
 
         _Item(
-          icon: model.isCollect? 'assets/images/moments/collect-active.png' : 'assets/images/moments/collect.png',
+          icon: model.isCollect
+              ? 'assets/images/moments/collect-active.png'
+              : 'assets/images/moments/collect.png',
           text: '${model.collects}',
           onTap: onCollect,
         ),
@@ -350,11 +350,7 @@ class _Item extends StatelessWidget {
   final String text;
   final VoidCallback? onTap;
 
-  const _Item({
-    required this.icon,
-    required this.text,
-    this.onTap,
-  });
+  const _Item({required this.icon, required this.text, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -380,11 +376,7 @@ class Avatar extends StatelessWidget {
   final double size;
   final double radius;
 
-  const Avatar({
-    this.url,
-    this.size = 36,
-    this.radius = 8,
-  });
+  const Avatar({this.url, this.size = 36, this.radius = 8});
 
   @override
   Widget build(BuildContext context) {
@@ -426,27 +418,18 @@ class FollowButton extends StatelessWidget {
   final bool isFollowing;
   final VoidCallback? onTap;
 
-  const FollowButton({
-    this.isFollowing = false,
-    this.onTap,
-    super.key,
-  });
+  const FollowButton({this.isFollowing = false, this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 5,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
           color: isFollowing ? Colors.white : Colors.black,
           borderRadius: BorderRadius.circular(28),
-          border: isFollowing
-              ? Border.all(color: Colors.grey.shade300)
-              : null,
+          border: isFollowing ? Border.all(color: Colors.grey.shade300) : null,
         ),
         child: Text(
           isFollowing ? 'Following' : 'Follow',

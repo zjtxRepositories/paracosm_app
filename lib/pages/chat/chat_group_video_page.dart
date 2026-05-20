@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 class ChatGroupVideoPage extends StatefulWidget {
@@ -283,7 +284,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
             ),
           ),
           TextSpan(
-            text: 'Invite you to a multiplayer session...',
+            text: AppLocalizations.currentText('call_invite_group_session'),
             style: baseStyle,
           ),
         ],
@@ -296,7 +297,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     final topPadding = MediaQuery.of(context).padding.top + 14;
     final titleText = _isInCall
         ? '00:08:32'
-        : 'Waiting for $_localUserName and others to join...';
+        : AppLocalizations.currentText('call_waiting_group_join', {
+            'name': _localUserName,
+          });
     final titleStyle = _isInCall
         ? AppTextStyles.h1.copyWith(
             fontSize: 16,

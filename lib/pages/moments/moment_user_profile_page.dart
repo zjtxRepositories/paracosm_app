@@ -210,7 +210,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
     try {
       final user = await UserDisplayStateCenter().getUser(userId);
-      if (user == null){
+      if (user == null) {
         return null;
       }
       final userInfo = await GetUerInfoApi.search(userId);
@@ -339,22 +339,23 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   void _showShare(SocialInvitationModel post) {
+    final l10n = AppLocalizations.of(context)!;
     ShareModals.show(
       context,
       actions: [
         ShareActionData(
           icon: 'assets/images/moments/share-pop.png',
-          label: 'Share',
+          label: l10n.momentsShare,
           onTap: () => _sharePost(post),
         ),
         ShareActionData(
           icon: 'assets/images/moments/friends.png',
-          label: 'Retweet',
+          label: l10n.momentsRetweet,
           onTap: () => _forwardPost(post),
         ),
         ShareActionData(
           icon: 'assets/images/moments/link.png',
-          label: 'Copy link',
+          label: l10n.translate('moments_copy_link'),
           onTap: AppToast.showCopied,
         ),
       ],
@@ -1022,7 +1023,7 @@ class _MomentProfileHeaderData {
   });
 
   factory _MomentProfileHeaderData.fromUserInfo(
-      UserDisplayModel userInfo, {
+    UserDisplayModel userInfo, {
     required String fallbackUserId,
   }) {
     return _MomentProfileHeaderData(

@@ -154,6 +154,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           ),
           Builder(
             builder: (context) {
+              final l10n = AppLocalizations.of(context)!;
               final moreButtonKey = GlobalKey();
 
               return GestureDetector(
@@ -167,12 +168,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
                     items: [
                       AppActionPopMenuItem(
                         icon: 'assets/images/moments/block.png',
-                        label: 'Block this user',
+                        label: l10n.translate('moments_block_this_user'),
                         onTap: () {},
                       ),
                       AppActionPopMenuItem(
                         icon: 'assets/images/moments/report.png',
-                        label: 'Report',
+                        label: l10n.translate('moments_report'),
                         onTap: () {},
                         showDivider: false,
                       ),
@@ -194,9 +195,9 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 头像与操作按钮
   Widget _buildAvatarAndJoinAction(
-      BuildContext context,
-      AppLocalizations l10n,
-      ) {
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     return SizedBox(
       height: 64,
       child: Stack(
@@ -207,7 +208,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             bottom: 16,
             right: 0,
             child: AppButton(
-              text:'Follow',
+              text: 'Follow',
               onPressed: () {},
               width: 85,
               height: 28,
@@ -326,11 +327,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   Widget _buildDynamicSection() {
     return Row(
       children: [
-        Image.asset(
-          'assets/images/moments/mike.png',
-          width: 20,
-          height: 20,
-        ),
+        Image.asset('assets/images/moments/mike.png', width: 20, height: 20),
         const SizedBox(width: 4),
         Text(
           'Dynamic',
@@ -496,14 +493,18 @@ class _PostActionBarState extends State<_PostActionBar> {
   void _toggleLike() {
     setState(() {
       _isLiked = !_isLiked;
-      _likeCount = _isLiked ? _likeCount + 1 : (_likeCount > 0 ? _likeCount - 1 : 0);
+      _likeCount = _isLiked
+          ? _likeCount + 1
+          : (_likeCount > 0 ? _likeCount - 1 : 0);
     });
   }
 
   void _toggleCollect() {
     setState(() {
       _isCollected = !_isCollected;
-      _collectCount = _isCollected ? _collectCount + 1 : (_collectCount > 0 ? _collectCount - 1 : 0);
+      _collectCount = _isCollected
+          ? _collectCount + 1
+          : (_collectCount > 0 ? _collectCount - 1 : 0);
     });
   }
 
@@ -512,14 +513,18 @@ class _PostActionBarState extends State<_PostActionBar> {
     return Row(
       children: [
         _ActionIconTextButton(
-          icon: _isLiked ? 'assets/images/moments/like-active.png' : 'assets/images/moments/like.png',
+          icon: _isLiked
+              ? 'assets/images/moments/like-active.png'
+              : 'assets/images/moments/like.png',
           text: '$_likeCount',
           active: _isLiked,
           onTap: _toggleLike,
         ),
         const SizedBox(width: 24),
         _ActionIconTextButton(
-          icon: _isCollected ? 'assets/images/moments/collect-active.png' : 'assets/images/moments/collect.png',
+          icon: _isCollected
+              ? 'assets/images/moments/collect-active.png'
+              : 'assets/images/moments/collect.png',
           text: '$_collectCount',
           active: _isCollected,
           onTap: _toggleCollect,
@@ -557,11 +562,7 @@ class _ActionIconTextButton extends StatelessWidget {
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          icon,
-          width: 16,
-          height: 16,
-        ),
+        Image.asset(icon, width: 16, height: 16),
         const SizedBox(width: 4),
         Text(
           text,

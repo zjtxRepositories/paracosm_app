@@ -7,6 +7,7 @@ import '../../core/models/community_model.dart';
 import '../../core/network/api/community_list_api.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/base/app_localizations.dart';
 import '../../widgets/chat/group_avatar_widget.dart';
 
 class CommunityListPage extends StatefulWidget {
@@ -14,14 +15,11 @@ class CommunityListPage extends StatefulWidget {
   const CommunityListPage({super.key, required this.type});
 
   @override
-  State<CommunityListPage> createState() =>
-      _CommunityListPageState();
+  State<CommunityListPage> createState() => _CommunityListPageState();
 }
 
-class _CommunityListPageState
-    extends State<CommunityListPage>
+class _CommunityListPageState extends State<CommunityListPage>
     with AutomaticKeepAliveClientMixin {
-
   List<CommunityModel> _list = [];
 
   bool _loading = true;
@@ -51,15 +49,11 @@ class _CommunityListPageState
     super.build(context);
 
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_list.isEmpty) {
-      return const Center(
-        child: Text('No DAO'),
-      );
+      return Center(child: Text(AppLocalizations.of(context)!.communityNoDao));
     }
 
     return ListView.builder(
@@ -75,7 +69,7 @@ class _CommunityListPageState
 
   Widget _buildCommunityItem(CommunityModel item) {
     return GestureDetector(
-      onTap: () => context.push('/community-detail',extra: item),
+      onTap: () => context.push('/community-detail', extra: item),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -139,7 +133,7 @@ class _CommunityListPageState
                             ),
                             const SizedBox(width: 2),
                             Text(
-                              ' ${ellipsisMiddle(item.displayAddress,head: 5,tail: 5)}',
+                              ' ${ellipsisMiddle(item.displayAddress, head: 5, tail: 5)}',
                               style: AppTextStyles.body.copyWith(
                                 fontSize: 10,
                                 color: AppColors.grey400,
@@ -153,27 +147,25 @@ class _CommunityListPageState
                           children: [
                             Expanded(
                               child: Padding(
-                                padding: EdgeInsets.only(
-                                  right: 70,
-                                ),
+                                padding: EdgeInsets.only(right: 70),
                                 child: item.desc != null
                                     ? Text(
-                                  item.desc ?? '',
-                                  style: AppTextStyles.body.copyWith(
-                                    fontSize: 10,
-                                    color: AppColors.grey400,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )
+                                        item.desc ?? '',
+                                        style: AppTextStyles.body.copyWith(
+                                          fontSize: 10,
+                                          color: AppColors.grey400,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
                                     : ((item.tags ?? []).isNotEmpty
-                                    ? Wrap(
-                                  spacing: 4,
-                                  children: item.tags!
-                                      .map((tag) => _buildTag(tag))
-                                      .toList(),
-                                )
-                                    : const SizedBox.shrink()),
+                                          ? Wrap(
+                                              spacing: 4,
+                                              children: item.tags!
+                                                  .map((tag) => _buildTag(tag))
+                                                  .toList(),
+                                            )
+                                          : const SizedBox.shrink()),
                               ),
                             ),
                           ],
@@ -251,6 +243,7 @@ class _CommunityListPageState
       ),
     );
   }
+
   /// KeepAlive
   @override
   bool get wantKeepAlive => true;

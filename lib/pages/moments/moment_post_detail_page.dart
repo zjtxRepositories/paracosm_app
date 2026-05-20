@@ -66,17 +66,19 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 items: [
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/share-pop.png',
-                    label: 'Share',
+                    label: l10n.translate('moments_share'),
                     onTap: () => controller.toggleShare(model, context),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/block.png',
-                    label: 'Block this user',
+                    label: isBlock
+                        ? l10n.translate('moments_unblock_this_user')
+                        : l10n.translate('moments_block_this_user'),
                     onTap: () => controller.toggleBlock(model),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/report.png',
-                    label: isBlock ? 'Unblock this use' : 'Block this user',
+                    label: l10n.translate('moments_report'),
                     onTap: () => controller.toggleReport(model, context),
                     showDivider: false,
                   ),

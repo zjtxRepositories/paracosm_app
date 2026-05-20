@@ -18,7 +18,6 @@ import '../common/app_modal.dart';
 import '../common/app_network_image.dart';
 import '../common/app_network_selector.dart';
 import '../common/app_toast.dart';
-import 'community_modals.dart';
 
 class WalletModals {
   /// =========================
@@ -78,9 +77,12 @@ class WalletModals {
     AssetType type = AssetType.token,
     required Function(TokenModel) onSelected,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     AppModal.show(
       context,
-      title: type == AssetType.token ? 'Select Token' : 'Select NFT',
+      title: type == AssetType.token
+          ? l10n.walletSelectTokenTitle
+          : l10n.walletSelectNftTitle,
       confirmText: null,
       onConfirm: () {},
       child: WalletSelectTokenModal(
@@ -329,9 +331,17 @@ class WalletModals {
               const SizedBox(height: 24),
               Container(height: 1, color: AppColors.grey100),
               const SizedBox(height: 16),
-              buildDetailRow('From', from, copyable: true),
+              buildDetailRow(
+                l10n.profileTransferDetailsSender,
+                from,
+                copyable: true,
+              ),
               const SizedBox(height: 12),
-              buildDetailRow('To', to, copyable: true),
+              buildDetailRow(
+                l10n.profileTransferDetailsRecipient,
+                to,
+                copyable: true,
+              ),
               const SizedBox(height: 12),
               buildDetailRow(l10n.profileTransferNetwork, network),
               const SizedBox(height: 12),
@@ -373,9 +383,17 @@ class WalletModals {
                   ),
                   child: Column(
                     children: [
-                      buildDetailRow('From', from, compact: false),
+                      buildDetailRow(
+                        l10n.profileTransferDetailsSender,
+                        from,
+                        compact: false,
+                      ),
                       const SizedBox(height: 12),
-                      buildDetailRow('To', to, compact: false),
+                      buildDetailRow(
+                        l10n.profileTransferDetailsRecipient,
+                        to,
+                        compact: false,
+                      ),
                       const SizedBox(height: 12),
                       buildDetailRow(
                         l10n.profileTransferEstimatedFee,

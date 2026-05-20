@@ -30,6 +30,7 @@ class DappModals {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) {
+        final l10n = AppLocalizations.of(modalContext)!;
         return _sheetScaffold(
           context: modalContext,
           child: Column(
@@ -37,7 +38,7 @@ class DappModals {
             children: [
               _sheetHeader(
                 modalContext,
-                title: 'Connect Wallet',
+                title: l10n.dappConnectWalletTitle,
                 onClose: () => Navigator.pop(
                   modalContext,
                   const DAppConnectDecision(approved: false, remember: false),
@@ -53,9 +54,9 @@ class DappModals {
               const SizedBox(height: 24),
               _infoCard(
                 children: [
-                  _permissionItem('View wallet balance'),
-                  _permissionItem('Request transactions'),
-                  _permissionItem('Request signatures'),
+                  _permissionItem(l10n.dappPermissionViewBalance),
+                  _permissionItem(l10n.dappPermissionRequestTransactions),
+                  _permissionItem(l10n.dappPermissionRequestSignatures),
                 ],
               ),
               const SizedBox(height: 8),
@@ -67,7 +68,7 @@ class DappModals {
                   activeColor: AppColors.grey900,
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Text(
-                    'Remember this site',
+                    l10n.dappRememberSite,
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.grey900,
                     ),
@@ -76,8 +77,8 @@ class DappModals {
               ),
               const SizedBox(height: 16),
               _actionRow(
-                secondaryLabel: 'Reject',
-                primaryLabel: 'Connect',
+                secondaryLabel: l10n.commonReject,
+                primaryLabel: l10n.commonConnect,
                 onSecondary: () => Navigator.pop(
                   modalContext,
                   const DAppConnectDecision(approved: false, remember: false),
@@ -196,9 +197,16 @@ class DappModals {
                     value: transactionType ?? l10n.dappTransfer,
                   ),
                   const SizedBox(height: 16),
-                  _field(label: 'From', value: from, trailing: walletLabel),
+                  _field(
+                    label: l10n.profileTransferDetailsSender,
+                    value: from,
+                    trailing: walletLabel,
+                  ),
                   const SizedBox(height: 16),
-                  _field(label: 'To', value: to),
+                  _field(
+                    label: l10n.profileTransferDetailsRecipient,
+                    value: to,
+                  ),
                   if (approvalAmount != null && approvalAmount.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _field(
@@ -228,8 +236,8 @@ class DappModals {
                   const SizedBox(height: 12),
                   _warningText(
                     isContractCall
-                        ? 'This request includes a contract call. Review the target and data before confirming.'
-                        : 'Make sure this transaction is safe before confirming.',
+                        ? l10n.dappContractCallWarning
+                        : l10n.dappTransactionSafeWarning,
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
@@ -251,8 +259,16 @@ class DappModals {
                           l10n.dappTransactionType,
                           transactionType ?? l10n.dappTransfer,
                         ),
-                        _detailItem('From', from, copyable: true),
-                        _detailItem('To', to, copyable: true),
+                        _detailItem(
+                          l10n.profileTransferDetailsSender,
+                          from,
+                          copyable: true,
+                        ),
+                        _detailItem(
+                          l10n.profileTransferDetailsRecipient,
+                          to,
+                          copyable: true,
+                        ),
                         if (approvalAmount != null && approvalAmount.isNotEmpty)
                           _detailItem(l10n.dappApprovalAmount, approvalAmount),
                         if (approvalSpender != null &&
@@ -320,7 +336,7 @@ class DappModals {
             children: [
               _sheetHeader(
                 modalContext,
-                title: 'Request to Sign Information',
+                title: l10n.dappSignInfoTitle,
                 onClose: () => Navigator.pop(modalContext, false),
               ),
               _divider(),
@@ -334,19 +350,23 @@ class DappModals {
                 value: l10n.dappSignatureInfo,
               ),
               const SizedBox(height: 16),
-              _labeledCard(label: 'Message', value: message, minHeight: 132),
+              _labeledCard(
+                label: l10n.dappMessage,
+                value: message,
+                minHeight: 132,
+              ),
               const SizedBox(height: 24),
               _divider(),
               const SizedBox(height: 24),
               _field(
-                label: 'Signature Wallet',
+                label: l10n.dappSignatureWallet,
                 value: address,
                 trailing: walletLabel,
               ),
               const SizedBox(height: 24),
               _actionRow(
-                secondaryLabel: 'Refused',
-                primaryLabel: 'Confirm',
+                secondaryLabel: l10n.commonReject,
+                primaryLabel: l10n.commonConfirm,
                 onSecondary: () => Navigator.pop(modalContext, false),
                 onPrimary: () => Navigator.pop(modalContext, true),
               ),
@@ -373,6 +393,7 @@ class DappModals {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) {
+        final l10n = AppLocalizations.of(modalContext)!;
         return _sheetScaffold(
           context: modalContext,
           child: Column(
@@ -380,7 +401,7 @@ class DappModals {
             children: [
               _sheetHeader(
                 modalContext,
-                title: 'Add Token',
+                title: l10n.dappAddTokenTitle,
                 onClose: () => Navigator.pop(modalContext, false),
               ),
               _divider(),
@@ -391,16 +412,20 @@ class DappModals {
               const SizedBox(height: 4),
               _mutedText(host, textAlign: TextAlign.center),
               const SizedBox(height: 24),
-              _field(label: 'Network', value: address, trailing: chainName),
+              _field(
+                label: l10n.dappNetwork,
+                value: address,
+                trailing: chainName,
+              ),
               const SizedBox(height: 24),
               _field(
-                label: 'Token Details',
-                value: 'Symbol $symbol\nDecimals $decimals',
+                label: l10n.dappTokenDetails,
+                value: l10n.dappTokenDetailsValue(symbol, decimals),
               ),
               const SizedBox(height: 24),
               _actionRow(
-                secondaryLabel: 'Reject',
-                primaryLabel: 'Add Token',
+                secondaryLabel: l10n.commonReject,
+                primaryLabel: l10n.dappAddTokenTitle,
                 onSecondary: () => Navigator.pop(modalContext, false),
                 onPrimary: () => Navigator.pop(modalContext, true),
               ),
@@ -1025,6 +1050,7 @@ class DAppAddChainSheet {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) {
+        final l10n = AppLocalizations.of(modalContext)!;
         return DappModals._sheetScaffold(
           context: modalContext,
           child: Column(
@@ -1032,28 +1058,26 @@ class DAppAddChainSheet {
             children: [
               DappModals._sheetHeader(
                 modalContext,
-                title: 'Add Network',
+                title: l10n.dappAddNetworkTitle,
                 onClose: () => Navigator.pop(modalContext, false),
               ),
               DappModals._divider(),
               const SizedBox(height: 24),
               DappModals._infoCard(
                 children: [
-                  _item('Network Name', name),
-                  _item('Chain ID', '0x${chainId.toRadixString(16)}'),
-                  _item('Currency', symbol),
-                  _item('RPC URL', rpc),
-                  _item('Source', origin),
+                  _item(l10n.dappNetworkName, name),
+                  _item(l10n.dappChainId, '0x${chainId.toRadixString(16)}'),
+                  _item(l10n.dappCurrency, symbol),
+                  _item(l10n.dappRpcUrl, rpc),
+                  _item(l10n.dappSource, origin),
                 ],
               ),
               const SizedBox(height: 16),
-              DappModals._warningText(
-                'Make sure you trust this network before adding it.',
-              ),
+              DappModals._warningText(l10n.dappAddNetworkWarning),
               const SizedBox(height: 24),
               DappModals._actionRow(
-                secondaryLabel: 'Reject',
-                primaryLabel: 'Approve',
+                secondaryLabel: l10n.commonReject,
+                primaryLabel: l10n.commonApprove,
                 onSecondary: () => Navigator.pop(modalContext, false),
                 onPrimary: () => Navigator.pop(modalContext, true),
               ),

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
-import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/theme/app_colors.dart';
-import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_reply_sheet.dart';
 
@@ -13,7 +10,6 @@ class MessageCenterPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final l10n = AppLocalizations.of(context)!;
     final items = <_MessageCenterItemData>[
       _MessageCenterItemData(
@@ -25,40 +21,40 @@ class MessageCenterPage extends StatelessWidget {
         isActive: true,
         isFilledButton: true,
       ),
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Leslie',
-        message: 'Followed you',
+        message: l10n.translate('moments_followed_you'),
         date: '2025/04/17',
-        buttonText: 'Message',
+        buttonText: l10n.translate('moments_message'),
         badgeIcon: 'assets/images/moments/center-user.png',
       ),
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Bell',
-        message: 'Followed you',
+        message: l10n.translate('moments_followed_you'),
         date: '2025/04/17',
-        buttonText: 'Follow',
+        buttonText: l10n.translate('moments_follow'),
         badgeIcon: 'assets/images/moments/center-user.png',
         isFilledButton: true,
       ),
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Eleanor Pena',
-        message: 'Followed you',
+        message: l10n.translate('moments_followed_you'),
         date: '2025/04/17',
-        buttonText: 'Message',
+        buttonText: l10n.translate('moments_message'),
         badgeIcon: 'assets/images/moments/center-user.png',
       ),
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Simmons',
-        message: 'Liked you',
+        message: l10n.translate('moments_liked_you'),
         date: '2025/04/17',
-        buttonText: 'Reply',
+        buttonText: l10n.translate('moments_reply'),
         badgeIcon: 'assets/images/moments/center-like.png',
       ),
-      const _MessageCenterItemData(
+      _MessageCenterItemData(
         name: 'Wade Warren',
-        message: 'Collected you',
+        message: l10n.translate('moments_collected_you'),
         date: '2025/04/17',
-        buttonText: 'Follow',
+        buttonText: l10n.translate('moments_follow'),
         badgeIcon: 'assets/images/moments/center-collect.png',
         isFilledButton: true,
       ),
@@ -193,15 +189,11 @@ class _MessageCenterListItem extends StatelessWidget {
                     Positioned(
                       right: -3,
                       bottom: -3,
-                      child: Image.asset(
-                        item.badgeIcon,
-                        width: 16,
-                        height: 16,
-                      ),
+                      child: Image.asset(item.badgeIcon, width: 16, height: 16),
                     ),
                   ],
                 ),
-                const SizedBox(width:8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,24 +243,18 @@ class _MessageCenterListItem extends StatelessWidget {
             left: 68,
             right: 0,
             bottom: 0,
-            child: Container(
-              height: 1,
-              color: AppColors.grey200,
-            ),
+            child: Container(height: 1, color: AppColors.grey200),
           ),
         ],
       ),
     );
   }
 
-
   Widget _buildActionButton(BuildContext context) {
     return _MessageCenterActionButton(
       text: item.buttonText,
       isFilled: item.isFilledButton,
-      onTap: item.isReplyAction
-          ? () => _showReplySheet(context)
-          : null,
+      onTap: item.isReplyAction ? () => _showReplySheet(context) : null,
     );
   }
 
@@ -307,10 +293,7 @@ class _MessageCenterActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           border: isFilled
               ? null
-              : Border.all(
-                  color: AppColors.grey200,
-                  width: 1.5,
-                ),
+              : Border.all(color: AppColors.grey200, width: 1.5),
         ),
         child: Center(
           child: Text(

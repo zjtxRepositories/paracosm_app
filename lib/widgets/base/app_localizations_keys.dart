@@ -787,6 +787,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_token_market_contract_address');
   String get profileTokenNetworkNoNft =>
       translate('profile_token_network_no_nft');
+  String get profileTokenNetworkNoTokens =>
+      translate('profile_token_network_no_tokens');
   String get profileTokenNetworkSend => translate('profile_token_network_send');
   String get profileTokenNetworkReceive =>
       translate('profile_token_network_receive');

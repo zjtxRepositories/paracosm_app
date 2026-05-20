@@ -355,6 +355,7 @@
   "profile_token_market_total_issue": "发行总量",
   "profile_token_market_contract_address": "合约地址",
   "profile_token_network_no_nft": "暂无 NFT",
+  "profile_token_network_no_tokens": "暂无代币",
   "profile_token_network_send": "发送",
   "profile_token_network_receive": "接收",
   "profile_token_network_tokens": "代币",

@@ -355,6 +355,7 @@
   "profile_token_market_total_issue": "Total Issue",
   "profile_token_market_contract_address": "Contract Address",
   "profile_token_network_no_nft": "No NFT",
+  "profile_token_network_no_tokens": "No tokens",
   "profile_token_network_send": "Send",
   "profile_token_network_receive": "Receive",
   "profile_token_network_tokens": "Tokens",

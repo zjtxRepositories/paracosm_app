@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/common/app_network_image.dart';
+import 'package:paracosm/widgets/modals/wallet_modals.dart';
 
 /// 代币网络详情页面
 ///
@@ -18,24 +24,63 @@ class TokenNetworkPage extends StatefulWidget {
 class _TokenNetworkPageState extends State<TokenNetworkPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late final AccountManager _accountManager;
   bool _isBalanceVisible = true;
 
-  Map<String, dynamic> _selectedNetwork = {
-    'name': 'BNB Chain',
-    'symbol': 'BNB',
-    'icon': 'bnb-small.png',
-  };
+  WalletModel? _wallet;
+  ChainAccount? _selectedNetwork;
+  List<TokenModel> _tokens = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _accountManager = AccountManager();
+    _accountManager.addListener(_loadCurrentChainTokens);
+    _loadCurrentChainTokens();
   }
 
   @override
   void dispose() {
+    _accountManager.removeListener(_loadCurrentChainTokens);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _loadCurrentChainTokens() {
+    final wallet = _accountManager.currentWallet;
+    final chain = wallet?.currentChain;
+    final tokens =
+        chain?.tokens.where((token) => token.isAdded == true).toList() ??
+        <TokenModel>[];
+    tokens.sort((a, b) => b.balance.compareTo(a.balance));
+
+    if (!mounted) return;
+    setState(() {
+      _wallet = wallet;
+      _selectedNetwork = chain;
+      _tokens = tokens;
+    });
+  }
+
+  void _showNetworkSelector() {
+    final wallet = _wallet;
+    if (wallet == null) return;
+
+    WalletModals.showNetworkSelector(
+      context: context,
+      wallet: wallet,
+      onSelected: (network) {
+        final tokens = network.tokens
+            .where((token) => token.isAdded == true)
+            .toList();
+        tokens.sort((a, b) => b.balance.compareTo(a.balance));
+        setState(() {
+          _selectedNetwork = network;
+          _tokens = tokens;
+        });
+      },
+    );
   }
 
   @override
@@ -49,30 +94,35 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
         centerTitle: true,
         titleSpacing: 0,
         leadingWidth: 60, // 20 (padding) + 32 (icon width) + 8 (extra)
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/profile/${_selectedNetwork['icon']}',
-              width: 20,
-              height: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _selectedNetwork['name'],
-              style: AppTextStyles.h2.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+        title: GestureDetector(
+          onTap: _showNetworkSelector,
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppNetworkImage(
+                url: _selectedNetwork?.logo,
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _selectedNetwork?.name ?? '',
+                style: AppTextStyles.h2.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.grey900,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                size: 20,
                 color: AppColors.grey900,
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 20,
-              color: AppColors.grey900,
-            ),
-          ],
+            ],
+          ),
         ),
         leading: Container(
           margin: const EdgeInsets.only(left: 20),
@@ -88,24 +138,23 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
             onPressed: () => context.pop(),
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                // TODO: 跳转历史记录
-              },
-              icon: Image.asset(
-                'assets/images/profile/clock.png',
-                width: 24,
-                height: 24,
-              ),
-              
-            ),
-          ),
-        ],
+        // actions: [
+        //   Padding(
+        //     padding: const EdgeInsets.only(right: 20),
+        //     child: IconButton(
+        //       padding: EdgeInsets.zero,
+        //       constraints: const BoxConstraints(),
+        //       onPressed: () {
+        //         // TODO: 跳转历史记录
+        //       },
+        //       icon: Image.asset(
+        //         'assets/images/profile/clock.png',
+        //         width: 24,
+        //         height: 24,
+        //       ),
+        //     ),
+        //   ),
+        // ],
       ),
       backgroundColor: AppColors.white,
       child: Column(
@@ -149,6 +198,15 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
     ),
     VoidCallback? onEyeTap,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    final walletName =
+        _wallet?.name ??
+        '${l10n.profileProfileDetailsWallet} ${(_wallet?.aIndex ?? 0) + 1}';
+    final totalUsd = _tokens.fold<double>(
+      0,
+      (sum, token) => sum + token.usdValue,
+    );
+
     return Container(
       margin: margin,
       padding: const EdgeInsets.all(16),
@@ -167,7 +225,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
               Row(
                 children: [
                   Text(
-                    'Wallet No. 1',
+                    walletName,
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.grey400,
                       fontSize: 14,
@@ -196,7 +254,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                           ),
                           const WidgetSpan(child: SizedBox(width: 2)),
                           TextSpan(
-                            text: '7,859,942.00',
+                            text: totalUsd.toStringAsFixed(2),
                             style: AppTextStyles.h1.copyWith(
                               fontSize: 28,
                               fontWeight: FontWeight.w600,
@@ -241,9 +299,10 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      context.push('/transfer', extra: {
-                        'chain': _selectedNetwork,
-                      },);
+                      context.push(
+                        '/transfer',
+                        extra: {'chain': _selectedNetwork},
+                      );
                     },
                     child: Container(
                       height: 44,
@@ -282,10 +341,9 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                       context.push(
                         '/token-receive',
                         extra: {
-                          'symbol': 'ETH',
-                          'network': 'Ethereum',
-                          'address':
-                              '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
+                          'symbol': _selectedNetwork?.symbol,
+                          'network': _selectedNetwork?.name,
+                          'address': _selectedNetwork?.address,
                         },
                       );
                     },
@@ -367,12 +425,25 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
 
   /// 构建代币列表
   Widget _buildTokenList() {
+    if (_tokens.isEmpty) {
+      return Center(
+        child: Text(
+          AppLocalizations.of(context)!.profileTokenNetworkNoTokens,
+          style: AppTextStyles.body.copyWith(
+            fontSize: 14,
+            color: AppColors.grey500,
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount: 2,
+      itemCount: _tokens.length,
       itemBuilder: (context, index) {
+        final token = _tokens[index];
         return GestureDetector(
-          onTap: () => _showTokenDetail(context),
+          onTap: () => context.push('/token-detail', extra: token),
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(12),
@@ -386,10 +457,11 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                 // 代币图标 (叠加网络小图标)
                 Stack(
                   children: [
-                    Image.asset(
-                      'assets/images/profile/eth-icon.png',
+                    AppNetworkImage(
+                      url: token.logo,
                       width: 44,
                       height: 44,
+                      fit: BoxFit.contain,
                     ),
                     Positioned(
                       right: 0,
@@ -400,10 +472,11 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                           color: AppColors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: Image.asset(
-                          'assets/images/profile/eth-icon.png',
+                        child: AppNetworkImage(
+                          url: _selectedNetwork?.logo,
                           width: 16,
                           height: 16,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -412,7 +485,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                 const SizedBox(width: 12),
                 // 代币名称
                 Text(
-                  'ETH',
+                  token.symbol,
                   style: AppTextStyles.h2.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -425,7 +498,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '0',
+                      token.showBalance,
                       style: AppTextStyles.h2.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -434,7 +507,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '\$0',
+                      '\$${token.showUsdValue}',
                       style: AppTextStyles.body.copyWith(
                         fontSize: 12,
                         color: AppColors.grey600,
@@ -447,248 +520,6 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
           ),
         );
       },
-    );
-  }
-
-  /// 显示代币详情弹窗
-  void _showTokenDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: EdgeInsets.only(
-            top: 12,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(context).padding.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 顶部指示条
-              Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.grey300,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // 顶部工具栏 (浏览器 & 关闭)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      // TODO: 跳转浏览器查看
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(60),
-                        border: Border.all(color: AppColors.grey200),
-                      ),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            'assets/images/common/network.png',
-                            width: 12,
-                            height: 12,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Go to the browser to check',
-                            style: AppTextStyles.body.copyWith(
-                              fontSize: 10,
-                              color: AppColors.grey900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const SizedBox(
-                    height: 20,
-                    child: VerticalDivider(width: 1, color: AppColors.grey200),
-                  ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(
-                      Icons.close,
-                      size: 24,
-                      color: AppColors.grey700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Divider(height: 1, color: AppColors.grey100),
-              const SizedBox(height: 40),
-              // 代币图标 (大)
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/profile/eth-icon.png',
-                    width: 68,
-                    height: 68,
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: AppColors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Image.asset(
-                        'assets/images/profile/eth-icon.png',
-                        width: 20,
-                        height: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 余额
-              Text(
-                '0',
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.grey900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '≈ \$0',
-                style: AppTextStyles.body.copyWith(
-                  fontSize: 14,
-                  color: AppColors.grey400,
-                ),
-              ),
-              const SizedBox(height: 24),
-              // 操作按钮 (Send, Receive, Message)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildActionButton(
-                    icon: 'assets/images/common/send-coin.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkSend,
-                    onTap: () {
-                      context.push('/transfer', extra: _selectedNetwork);
-                    },
-                  ),
-                  _buildActionButton(
-                    icon: 'assets/images/common/receive-coin.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkReceive,
-                    onTap: () {
-                      
-                    },
-                  ),
-                  _buildActionButton(
-                    icon: 'assets/images/common/msg-coin.png',
-                    label: AppLocalizations.of(context)!.profileTokenNetworkMessage,
-                    onTap: () {
-                      
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Divider(height: 1, color: AppColors.grey100),
-              const SizedBox(height: 16),
-              // 当前价格
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset(
-                    'assets/images/common/money.png',
-                    width: 16,
-                    height: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Current price',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 14,
-                                color: AppColors.grey900,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '\$0',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: AppColors.success,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.chevron_right,
-                              size: 20,
-                              color: AppColors.grey400,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 1, color: AppColors.grey200),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 构建弹窗中的操作按钮
-  Widget _buildActionButton({
-    required String icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child:Image.asset(icon, width: 48, height: 48)
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey800,
-          ),
-        ),
-      ],
     );
   }
 }

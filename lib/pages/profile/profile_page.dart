@@ -233,7 +233,9 @@ class _ProfilePageState extends State<ProfilePage> {
     String showName =
         _walletModel?.name ??
         '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
-    return Container(
+    return GestureDetector(
+          onTap: () => context.push('/token-network'),
+          child: Container(
       margin: margin,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -437,6 +439,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ],
       ),
+    ),
     );
   }
 

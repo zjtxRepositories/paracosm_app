@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -12,6 +13,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../widgets/base/app_page.dart';
 import '../../widgets/common/app_empty_view.dart';
+import 'chat_session_args.dart';
 
 /// 群组列表页面
 /// 展示用户加入的所有群组，按首字母进行分类，并提供快速索引功能
@@ -180,7 +182,7 @@ class _GroupListPageState extends State<GroupListPage> {
 
   Future<void> loadData() async {
     _contactGroups = await _buildContactGroups();
-
+    setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _buildOffsetMap(_contactGroups);
     });
@@ -230,7 +232,17 @@ class _GroupListPageState extends State<GroupListPage> {
                           isStar: false,
                           showDivider: i != groups.length - 1,
                           onTap: () {
-
+                            final title = group.showName ?? '';
+                            context.push(
+                              '/chat-detail/${Uri.encodeComponent(title)}',
+                              extra: ChatSessionArgs(
+                                targetId: group.info.groupId ?? '',
+                                conversationType:RCIMIWConversationType.group,
+                                name: title,
+                                isGroup: true,
+                                avatar: group.info.portraitUri,
+                              ),
+                            );
                           }
                       );
                     },

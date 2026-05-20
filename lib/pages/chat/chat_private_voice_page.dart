@@ -7,6 +7,7 @@ import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 /// 私聊语音通话静态页
@@ -278,13 +279,13 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   /// 根据不同状态返回说明文案。
   String _buildSubtitle() {
     if (_isIncoming) {
-      return 'Invite you to voice call';
+      return AppLocalizations.currentText('call_invite_voice');
     }
     if (_isInCall) {
       return formatDurationFromMs(_callElapsedMs);
     }
     // 默认状态展示拨打中的提示文案。
-    return 'Waiting for the invitation to be accepted...';
+    return AppLocalizations.currentText('call_waiting_accept');
   }
 
   /// 底部控制区。
@@ -721,7 +722,7 @@ class _VoiceMiniBubbleState extends State<_VoiceMiniBubble> {
     if (_callState.status == RongCallStatus.inCall) {
       return formatDurationFromMs(_callElapsedMs);
     }
-    return 'Waiting...';
+    return AppLocalizations.currentText('call_waiting_short');
   }
 
   void _syncCallState(RongCallState state) {

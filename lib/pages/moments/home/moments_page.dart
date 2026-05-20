@@ -49,9 +49,7 @@ class _MomentsPageState extends State<MomentsPage> {
             const SizedBox(height: 8),
             _buildHeader(context),
             _buildStories(),
-           Expanded(
-              child: _buildBody()
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
@@ -61,9 +59,7 @@ class _MomentsPageState extends State<MomentsPage> {
   Widget _buildBody() {
     /// 首屏 loading
     if (controller.initialLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     /// 空状态
@@ -79,7 +75,7 @@ class _MomentsPageState extends State<MomentsPage> {
       child: NotificationListener<ScrollNotification>(
         onNotification: (scrollInfo) {
           if (scrollInfo.metrics.pixels >=
-              scrollInfo.metrics.maxScrollExtent - 100 &&
+                  scrollInfo.metrics.maxScrollExtent - 100 &&
               !controller.loading) {
             controller.fetchMore();
           }
@@ -88,45 +84,35 @@ class _MomentsPageState extends State<MomentsPage> {
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           physics: const BouncingScrollPhysics(),
-          itemCount:
-          controller.items.length + (controller.loading ? 1 : 0),
+          itemCount: controller.items.length + (controller.loading ? 1 : 0),
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             /// 底部 loading
             if (index == controller.items.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
             final model = controller.items[index];
             final item = model.item;
             return MomentPostCard(
               model: model,
-              isFollowing:
-              controller.followIds.contains(item.userId),
-              isBlock:
-              controller.blockIds.contains(item.userId),
+              isFollowing: controller.followIds.contains(item.userId),
+              isBlock: controller.blockIds.contains(item.userId),
               onLike: () => controller.toggleLike(item),
               onCollect: () => controller.toggleCollect(item),
-              onShare: () =>
-                  controller.toggleShare(item, context),
+              onShare: () => controller.toggleShare(item, context),
               onFollow: () => controller.toggleFollow(item),
               onBlock: () => controller.toggleBlock(item),
-              onReport: () =>
-                  controller.toggleReport(item, context),
-              onMediaTap: (i) =>
-                  controller.toggleMedia(item.media, i, context),
+              onReport: () => controller.toggleReport(item, context),
+              onMediaTap: (i) => controller.toggleMedia(item.media, i, context),
               onTap: () => context.push(
                 '/moment-post-detail',
                 extra: {
                   'item': item,
-                  'isFollowing':
-                  controller.followIds.contains(item.userId),
-                  'isBlock':
-                  controller.blockIds.contains(item.userId),
+                  'isFollowing': controller.followIds.contains(item.userId),
+                  'isBlock': controller.blockIds.contains(item.userId),
                 },
               ),
             );
@@ -143,7 +129,7 @@ class _MomentsPageState extends State<MomentsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Moment',
+            AppLocalizations.of(context)!.translate('moments_moment_title'),
             style: AppTextStyles.h1.copyWith(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -175,8 +161,8 @@ class _MomentsPageState extends State<MomentsPage> {
             itemBuilder: (context, index) {
               return GestureDetector(
                 child: _StoryAvatar(story: stories[index]),
-                onTap: (){
-                  if (!stories[index].showAddBadge){
+                onTap: () {
+                  if (!stories[index].showAddBadge) {
                     context.push('/new-post?retweet=0');
                     return;
                   }
@@ -189,10 +175,9 @@ class _MomentsPageState extends State<MomentsPage> {
         ),
       ],
     );
-
   }
-
 }
+
 class _MessageButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -216,10 +201,7 @@ class _StoryAvatar extends StatelessWidget {
   final StoryData story;
   final VoidCallback? onTap;
 
-  const _StoryAvatar({
-    required this.story,
-    this.onTap,
-  });
+  const _StoryAvatar({required this.story, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -230,10 +212,7 @@ class _StoryAvatar extends StatelessWidget {
           height: 54,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: story.outsideColor,
-              width: 2,
-            ),
+            border: Border.all(color: story.outsideColor, width: 2),
           ),
           child: Padding(
             padding: const EdgeInsets.all(2),
@@ -244,18 +223,12 @@ class _StoryAvatar extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: story.insideColor,
-                        width: 2,
-                      ),
+                      border: Border.all(color: story.insideColor, width: 2),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(2),
                       child: ClipOval(
-                        child: Image.asset(
-                          story.avatar,
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.asset(story.avatar, fit: BoxFit.cover),
                       ),
                     ),
                   ),
@@ -264,11 +237,7 @@ class _StoryAvatar extends StatelessWidget {
                 /// + icon（完全不动）
                 if (story.showPlusIcon)
                   const Center(
-                    child: Icon(
-                      Icons.add,
-                      size: 18,
-                      color: AppColors.grey600,
-                    ),
+                    child: Icon(Icons.add, size: 18, color: AppColors.grey600),
                   ),
 
                 /// add badge（完全不动）

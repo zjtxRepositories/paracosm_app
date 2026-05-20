@@ -85,7 +85,9 @@ class _ChatPageState extends State<ChatPage> {
                         title: AppLocalizations.of(
                           context,
                         )!.chatNotificationTitle,
-                        subtitle: 'sub',
+                        subtitle: AppLocalizations.of(
+                          context,
+                        )!.chatNotificationSubtitle,
                         time: AppLocalizations.of(context)!.chatYesterday,
                         unreadCount: 1,
                         icon: Icons.nat,

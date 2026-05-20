@@ -7,6 +7,7 @@ import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 /// 选择成员弹窗
@@ -21,7 +22,7 @@ class SelectMembersModal extends StatefulWidget {
   const SelectMembersModal({
     super.key,
     this.showTag = true,
-    this.confirmText = 'Create',
+    this.confirmText = '',
     this.showSelectedCount = false,
     this.friends,
     this.defaultSelectedUserIds,
@@ -30,14 +31,14 @@ class SelectMembersModal extends StatefulWidget {
 
   /// 显示弹窗
   static Future<List<String>?> show(
-      BuildContext context, {
-        bool showTag = true,
-        String confirmText = 'Create',
-        bool showSelectedCount = false,
-        List<RCIMIWFriendInfo>? friends,
-        List<String>? defaultSelectedUserIds,
-        int? minSelectedCount
-      }) {
+    BuildContext context, {
+    bool showTag = true,
+    String confirmText = '',
+    bool showSelectedCount = false,
+    List<RCIMIWFriendInfo>? friends,
+    List<String>? defaultSelectedUserIds,
+    int? minSelectedCount,
+  }) {
     return showModalBottomSheet<List<String>>(
       context: context,
       useRootNavigator: true,
@@ -59,9 +60,9 @@ class SelectMembersModal extends StatefulWidget {
 }
 
 class _SelectMembersModalState extends State<SelectMembersModal> {
-
   List<RCIMIWFriendInfo> get _members => widget.friends ?? [];
-  List<String> get _defaultSelectedUserIds => widget.defaultSelectedUserIds ?? [];
+  List<String> get _defaultSelectedUserIds =>
+      widget.defaultSelectedUserIds ?? [];
   final Set<String> _selectedMembers = {};
   late List<RCIMIWFriendInfo> _filterMembers;
   @override
@@ -69,29 +70,40 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     super.initState();
     _filterMembers = _members;
   }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     const double itemHeight = 72.0;
-    final double listHeight =
-        _members.length < 5 ? _members.length * itemHeight : 5 * itemHeight;
-    final confirm = widget.minSelectedCount == null ? _selectedMembers.isNotEmpty : (widget.minSelectedCount ?? 0) <= _selectedMembers.length + _defaultSelectedUserIds.length;
+    final double listHeight = _members.length < 5
+        ? _members.length * itemHeight
+        : 5 * itemHeight;
+    final confirm = widget.minSelectedCount == null
+        ? _selectedMembers.isNotEmpty
+        : (widget.minSelectedCount ?? 0) <=
+              _selectedMembers.length + _defaultSelectedUserIds.length;
+
+    final confirmText = widget.confirmText.isEmpty
+        ? l10n.commonCreate
+        : widget.confirmText;
 
     return AppModal(
-      title: 'Select Members',
+      title: l10n.chatSelectMembersTitle,
       confirmText: widget.showSelectedCount
-          ? '${widget.confirmText} (${_selectedMembers.length})'
-          : widget.confirmText,
+          ? '$confirmText (${_selectedMembers.length})'
+          : confirmText,
       confirmColor: confirm ? AppColors.grey900 : AppColors.grey300,
-      onConfirm:() {
+      onConfirm: () {
         if (!confirm) return;
         Navigator.pop(context, _selectedMembers.toList());
-        } ,
+      },
       contentPadding: true,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
+          Padding(
+            padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
             child: AppSearchInput(
               onChanged: (t) {
                 setState(() {
@@ -123,11 +135,11 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                   itemBuilder: (context, index) {
                     final member = _filterMembers[index];
                     return GestureDetector(
-                      onTap: (){
+                      onTap: () {
                         setState(() {
-                          if (_selectedMembers.contains(member.userId)){
+                          if (_selectedMembers.contains(member.userId)) {
                             _selectedMembers.remove(member.userId);
-                          }else{
+                          } else {
                             _selectedMembers.add(member.userId ?? '');
                           }
                         });
@@ -156,11 +168,7 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                               Color(0xCCFFFFFF),
                               Color(0xFFFFFFFF),
                             ],
-                            stops: [
-                              0.0,
-                              0.78,
-                              1.0,
-                            ],
+                            stops: [0.0, 0.78, 1.0],
                           ),
                         ),
                       ),
@@ -179,23 +187,27 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
     required bool showDivider,
   }) {
     final member = FriendModel(info: friend);
-    final selected = _selectedMembers.contains(member.info.userId)
-        || _defaultSelectedUserIds.contains(member.info.userId);
+    final selected =
+        _selectedMembers.contains(member.info.userId) ||
+        _defaultSelectedUserIds.contains(member.info.userId);
     return IgnorePointer(
       ignoring: _defaultSelectedUserIds.contains(member.info.userId),
       child: Opacity(
-        opacity: _defaultSelectedUserIds.contains(member.info.userId) ? 0.45 : 1,
+        opacity: _defaultSelectedUserIds.contains(member.info.userId)
+            ? 0.45
+            : 1,
         child: GestureDetector(
-          onTap: (){
+          onTap: () {
             setState(() {
-              if (_selectedMembers.contains(member.info.userId)){
+              if (_selectedMembers.contains(member.info.userId)) {
                 _selectedMembers.remove(member.info.userId);
-              }else{
+              } else {
                 _selectedMembers.add(member.info.userId ?? '');
               }
             });
           },
-          child: Container(margin: EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 20),
             height: 76,
             child: Row(
               children: [
@@ -211,8 +223,11 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                     decoration: BoxDecoration(
                       border: showDivider
                           ? const Border(
-                        bottom: BorderSide(color: AppColors.grey100, width: 1),
-                      )
+                              bottom: BorderSide(
+                                color: AppColors.grey100,
+                                width: 1,
+                              ),
+                            )
                           : null,
                     ),
                     child: Row(
@@ -232,7 +247,7 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                ellipsisMiddle( member.info.userId ?? ''),
+                                ellipsisMiddle(member.info.userId ?? ''),
                                 style: AppTextStyles.caption.copyWith(
                                   color: AppColors.grey700,
                                   fontSize: 12,
@@ -255,9 +270,11 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
                           value: selected,
                           onChanged: (val) {
                             setState(() {
-                              if (_selectedMembers.contains(member.info.userId)){
+                              if (_selectedMembers.contains(
+                                member.info.userId,
+                              )) {
                                 _selectedMembers.remove(member.info.userId);
-                              }else{
+                              } else {
                                 _selectedMembers.add(member.info.userId ?? '');
                               }
                             });
@@ -270,7 +287,7 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
               ],
             ),
           ),
-        )
+        ),
       ),
     );
   }

@@ -12,6 +12,10 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get commonCopied => translate('common_copied');
   String get commonRiskTips => translate('common_risk_tips');
   String get commonGotIt => translate('common_got_it');
+  String get commonReject => translate('common_reject');
+  String get commonApprove => translate('common_approve');
+  String get commonConnect => translate('common_connect');
+  String get commonCreate => translate('common_create');
 
   // --- 钱包启动页 ---
   String get walletStartWelcome => translate('wallet_start_welcome');
@@ -137,6 +141,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatYesterday => translate('chat_yesterday');
   String get chatStarFriend => translate('chat_star_friend');
   String get chatNotificationTitle => translate('chat_notification_title');
+  String get chatNotificationSubtitle =>
+      translate('chat_notification_subtitle');
   String get chatImage => translate('chat_image');
   String get chatVoice => translate('chat_voice');
   String get chatVideo => translate('chat_video');
@@ -488,6 +494,10 @@ extension AppLocalizationsKeys on AppLocalizations {
 
   // --- 成员选择 ---
   String get chatSelectMembersTitle => translate('chat_select_members_title');
+  String get walletSelectTokenTitle => translate('wallet_select_token_title');
+  String get walletSelectNftTitle => translate('wallet_select_nft_title');
+  String get walletSearchNftNameOrContract =>
+      translate('wallet_search_nft_name_or_contract');
 
   // --- 更多通用 ---
   String get commonDelete => translate('common_delete');
@@ -704,6 +714,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get scanWebQrInvalid => translate('scan_web_qr_invalid');
   String get scanFriendQrInvalid => translate('scan_friend_qr_invalid');
   String get scanPaymentPending => translate('scan_payment_pending');
+  String get discoverScanHint => translate('discover_scan_hint');
   String get dappTransactionType => translate('dapp_transaction_type');
   String get dappTransfer => translate('dapp_transfer');
   String get dappApprovalAmount => translate('dapp_approval_amount');
@@ -716,6 +727,43 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get dappContractInteraction => translate('dapp_contract_interaction');
   String get dappChainDetailIncomplete =>
       translate('dapp_chain_detail_incomplete');
+  String get dappConnectWalletTitle => translate('dapp_connect_wallet_title');
+  String get dappPermissionViewBalance =>
+      translate('dapp_permission_view_balance');
+  String get dappPermissionRequestTransactions =>
+      translate('dapp_permission_request_transactions');
+  String get dappPermissionRequestSignatures =>
+      translate('dapp_permission_request_signatures');
+  String get dappRememberSite => translate('dapp_remember_site');
+  String get dappContractCallWarning => translate('dapp_contract_call_warning');
+  String get dappTransactionSafeWarning =>
+      translate('dapp_transaction_safe_warning');
+  String get dappSignInfoTitle => translate('dapp_sign_info_title');
+  String get dappMessage => translate('dapp_message');
+  String get dappSignatureWallet => translate('dapp_signature_wallet');
+  String get dappAddTokenTitle => translate('dapp_add_token_title');
+  String get dappNetwork => translate('dapp_network');
+  String get dappTokenDetails => translate('dapp_token_details');
+  String dappTokenDetailsValue(String symbol, int decimals) => translate(
+    'dapp_token_details_value',
+    {'symbol': symbol, 'decimals': decimals},
+  );
+  String get dappAddNetworkTitle => translate('dapp_add_network_title');
+  String get dappNetworkName => translate('dapp_network_name');
+  String get dappChainId => translate('dapp_chain_id');
+  String get dappCurrency => translate('dapp_currency');
+  String get dappRpcUrl => translate('dapp_rpc_url');
+  String get dappSource => translate('dapp_source');
+  String get dappAddNetworkWarning => translate('dapp_add_network_warning');
+  String get callTurnOffCamera => translate('call_turn_off_camera');
+  String get callOpenCamera => translate('call_open_camera');
+  String get callNotifications => translate('call_notifications');
+  String get callInviteVideo => translate('call_invite_video');
+  String get callInviteVoice => translate('call_invite_voice');
+  String get callWaitingAccept => translate('call_waiting_accept');
+  String get callInviteGroupSession => translate('call_invite_group_session');
+  String callWaitingGroupJoin(String name) =>
+      translate('call_waiting_group_join', {'name': name});
   String get momentsLikeFailed => translate('moments_like_failed');
   String get momentsShare => translate('moments_share');
   String get momentsCollectFailed => translate('moments_collect_failed');
@@ -735,6 +783,17 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get momentsBlockFailed => translate('moments_block_failed');
   String momentsHoursAgoSample(int count) =>
       translate('moments_hours_ago_sample', {'count': count});
+  String get momentsSampleSubtitle1 => translate('moments_sample_subtitle_1');
+  String get momentsSampleSubtitle2 => translate('moments_sample_subtitle_2');
+  String get momentsSampleSubtitle3 => translate('moments_sample_subtitle_3');
+  String get momentsSampleSubtitle4 => translate('moments_sample_subtitle_4');
+  String get momentsSampleSubtitle5 => translate('moments_sample_subtitle_5');
+  String get momentsSampleSubtitle6 => translate('moments_sample_subtitle_6');
+  String get momentsSampleSubtitle7 => translate('moments_sample_subtitle_7');
+  String get momentsSampleSubtitle8 => translate('moments_sample_subtitle_8');
+  String get momentsSampleSubtitle9 => translate('moments_sample_subtitle_9');
+  String get momentsMe => translate('moments_me');
+  String get momentsRetweet => translate('moments_retweet');
 
   // --- Profile Pages ---
   String get profileAboutAbout => translate('profile_about_about');

@@ -268,7 +268,7 @@ class _ChatScanPageState extends State<ChatScanPage>
     return SizedBox(
       width: double.infinity,
       child: Text(
-        'Put the QR code/bar code into the box and it can be scanned automatically',
+        AppLocalizations.of(context)!.discoverScanHint,
         textAlign: TextAlign.center,
         style: AppTextStyles.body.copyWith(
           color: const Color(0xFF8A8A8A),

@@ -8,10 +8,8 @@ import '../../theme/app_text_styles.dart';
 import '../base/app_localizations.dart';
 import '../common/app_network_image.dart';
 import '../common/app_search_input.dart';
-enum AssetType {
-  token,
-  nft,
-}
+
+enum AssetType { token, nft }
 
 class WalletSelectTokenModal extends StatefulWidget {
   final TokenModel? selectedToken;
@@ -26,20 +24,16 @@ class WalletSelectTokenModal extends StatefulWidget {
     required this.onSelected,
     required this.wallet,
     this.type = AssetType.token,
-
   });
 
   @override
-  State<WalletSelectTokenModal> createState() =>
-      _WalletSelectTokenModalState();
+  State<WalletSelectTokenModal> createState() => _WalletSelectTokenModalState();
 }
 
-class _WalletSelectTokenModalState
-    extends State<WalletSelectTokenModal> {
+class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
   List<ChainAccount> _chains = [];
 
-  final TextEditingController _searchController =
-  TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   /// ⭐ 链滚动控制器
   // final ScrollController _chainScrollController =
@@ -70,22 +64,19 @@ class _WalletSelectTokenModalState
 
   void _scrollToSelectedChain() {
     /// ⭐ 提前算 index
-    final index = _chains.indexWhere(
-          (c) => c.chainId == _selectChainId,
-    );
+    final index = _chains.indexWhere((c) => c.chainId == _selectChainId);
 
     const itemWidth = 100.0;
     final offset = index == -1 ? 0.0 : index * itemWidth;
 
     /// ⭐ 核心：初始就带 offset
-    _chainScrollController = ScrollController(
-      initialScrollOffset: offset,
-    );
+    _chainScrollController = ScrollController(initialScrollOffset: offset);
   }
+
   @override
   Widget build(BuildContext context) {
     List<TokenModel> tokens = [];
-    if (widget.type == AssetType.token){
+    if (widget.type == AssetType.token) {
       final hasSearch = _keyword.isNotEmpty;
       if (hasSearch) {
         /// 👉 跨链搜索
@@ -94,11 +85,9 @@ class _WalletSelectTokenModalState
         }
       } else {
         /// 👉 当前链
-        final chain = _chains
-            .where((c) => c.chainId == _selectChainId)
-            .isNotEmpty
-            ? _chains.firstWhere(
-                (c) => c.chainId == _selectChainId)
+        final chain =
+            _chains.where((c) => c.chainId == _selectChainId).isNotEmpty
+            ? _chains.firstWhere((c) => c.chainId == _selectChainId)
             : null;
 
         tokens = chain?.tokens ?? [];
@@ -114,8 +103,7 @@ class _WalletSelectTokenModalState
       }).toList();
 
       /// 📊 排序（余额高在前）
-      tokens.sort(
-              (a, b) => b.balance.compareTo(a.balance));
+      tokens.sort((a, b) => b.balance.compareTo(a.balance));
     }
 
     final l10n = AppLocalizations.of(context)!;
@@ -126,7 +114,9 @@ class _WalletSelectTokenModalState
         // 搜索框
         AppSearchInput(
           controller: _searchController,
-          hintText: widget.type == AssetType.token ? l10n.communityModalSearchTokenHint : 'Search NFT name or contract',
+          hintText: widget.type == AssetType.token
+              ? l10n.communityModalSearchTokenHint
+              : l10n.walletSearchNftNameOrContract,
           onChanged: (value) {
             if (_keyword == value) return;
 
@@ -165,33 +155,31 @@ class _WalletSelectTokenModalState
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(height: 400,
+        SizedBox(
+          height: 400,
           child: tokens.isEmpty
               ? SizedBox()
               : ListView.separated(
-            itemCount: tokens.length,
-            separatorBuilder: (_, __) =>
-            const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final token = tokens[index];
+                  itemCount: tokens.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final token = tokens[index];
 
-              return _buildTokenModalItem(
-                icon: token.logo,
-                symbol: token.symbol,
-                amount: token.showBalance,
-                value: '\$${token.showUsdValue}',
-                onTap: (){
-                  widget.onSelected(token);
-                }
-              );
-            },
-          ),
+                    return _buildTokenModalItem(
+                      icon: token.logo,
+                      symbol: token.symbol,
+                      amount: token.showBalance,
+                      value: '\$${token.showUsdValue}',
+                      onTap: () {
+                        widget.onSelected(token);
+                      },
+                    );
+                  },
+                ),
         ),
       ],
     );
-
   }
-
 
   /// 构建弹窗中的网络筛选 Chip
   Widget _buildNetworkChip({
@@ -199,12 +187,12 @@ class _WalletSelectTokenModalState
     required String label,
     required bool isSelected,
     bool showArrow = false,
-    GestureTapCallback? onTap
+    GestureTapCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.only(left: 4,top: 5, right: 12, bottom: 5),
+        padding: const EdgeInsets.only(left: 4, top: 5, right: 12, bottom: 5),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -233,8 +221,11 @@ class _WalletSelectTokenModalState
             ),
             if (showArrow) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down,
-                  size: 16, color: AppColors.grey400),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: AppColors.grey400,
+              ),
             ],
           ],
         ),
@@ -248,7 +239,7 @@ class _WalletSelectTokenModalState
     required String symbol,
     required String amount,
     required String value,
-    GestureTapCallback? onTap
+    GestureTapCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -317,5 +308,4 @@ class _WalletSelectTokenModalState
       ),
     );
   }
-
 }

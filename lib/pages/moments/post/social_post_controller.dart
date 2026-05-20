@@ -40,14 +40,12 @@ class SocialPostController extends GetxController {
   bool showRetweetDeleteBar = false;
 
   int privacyLevel = 0;
-  String visibilityTitle = "Public";
 
   /// ======================
   /// 隐私设置
   /// ======================
-  void setPrivacy(int level, String title) {
+  void setPrivacy(int level) {
     privacyLevel = level;
-    visibilityTitle = title;
     update();
   }
 
@@ -210,9 +208,7 @@ class SocialPostController extends GetxController {
     }
   }
 
-  Future<bool> addCommunityDynamics({
-    required String roomId,
-  }) async {
+  Future<bool> addCommunityDynamics({required String roomId}) async {
     if (isSubmitting) return false;
     isSubmitting = true;
     AppLoading.show();
@@ -224,7 +220,7 @@ class SocialPostController extends GetxController {
         content: textController.text.trim(),
         media: mediaList,
       );
-      return await AddCommunityDynamics.add(roomId,jsonEncode(model.toJson()));
+      return await AddCommunityDynamics.add(roomId, jsonEncode(model.toJson()));
     } catch (e) {
       // debugPrint("publish error: $e");
       // AppToast.show('发布动态失败：${e.toString()}');

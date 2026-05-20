@@ -36,6 +36,7 @@ class _ShareModalContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final shareContacts =
         contacts ??
         const [
@@ -56,17 +57,17 @@ class _ShareModalContent extends StatelessWidget {
     final shareActions =
         actions ??
         [
-          const ShareActionData(
+          ShareActionData(
             icon: 'assets/images/moments/friends.png',
-            label: 'Friends',
+            label: l10n.translate('moments_friends'),
           ),
-          const ShareActionData(
+          ShareActionData(
             icon: 'assets/images/moments/save.png',
-            label: 'Save',
+            label: l10n.translate('moments_save'),
           ),
           ShareActionData(
             icon: 'assets/images/moments/link.png',
-            label: 'Copy link',
+            label: l10n.translate('moments_copy_link'),
             onTap: AppToast.showCopied,
           ),
         ];

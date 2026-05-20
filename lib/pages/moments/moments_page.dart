@@ -33,7 +33,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Cody',
                     time: l10n.translate('moments_seconds_ago_sample'),
-                    subtitle: 'Let\'s learn English together',
+                    subtitle: l10n.momentsSampleSubtitle1,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: ['assets/images/moments/moment1.png'],
                     followState: _FollowButtonState.following,
@@ -48,7 +48,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Devon Lane',
                     time: l10n.translate('moments_minutes_ago_sample'),
-                    subtitle: 'Two photos should switch to a 2-column layout',
+                    subtitle: l10n.momentsSampleSubtitle2,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -64,7 +64,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Kristen',
                     time: l10n.translate('moments_hour_ago_sample'),
-                    subtitle: 'Three photos should keep a 3-column layout',
+                    subtitle: l10n.momentsSampleSubtitle3,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -77,7 +77,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Robert',
                     time: l10n.momentsHoursAgoSample(2),
-                    subtitle: 'Four photos should switch to a 2-column layout',
+                    subtitle: l10n.momentsSampleSubtitle4,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -91,7 +91,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Howard',
                     time: l10n.momentsHoursAgoSample(3),
-                    subtitle: 'Five photos should fall back to 3 columns',
+                    subtitle: l10n.momentsSampleSubtitle5,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -106,7 +106,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Monica',
                     time: l10n.momentsHoursAgoSample(4),
-                    subtitle: 'Six photos should fill two rows of three',
+                    subtitle: l10n.momentsSampleSubtitle6,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -122,7 +122,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Nolan',
                     time: l10n.momentsHoursAgoSample(5),
-                    subtitle: 'Seven photos should still use 3 columns',
+                    subtitle: l10n.momentsSampleSubtitle7,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -139,8 +139,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Olivia',
                     time: l10n.momentsHoursAgoSample(6),
-                    subtitle:
-                        'Eight photos are useful for checking the last row',
+                    subtitle: l10n.momentsSampleSubtitle8,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -158,7 +157,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Parker',
                     time: l10n.momentsHoursAgoSample(7),
-                    subtitle: 'Nine photos should make a full 3x3 grid',
+                    subtitle: l10n.momentsSampleSubtitle9,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -177,7 +176,7 @@ class MomentsPage extends StatelessWidget {
                   _MomentPostCard(
                     name: 'Manager Li',
                     time: l10n.momentsHoursAgoSample(7),
-                    subtitle: 'Nine photos should make a full 3x3 grid',
+                    subtitle: l10n.momentsSampleSubtitle9,
                     avatar: 'assets/images/chat/avatar.png',
                     imagePaths: [
                       'assets/images/moments/moment1.png',
@@ -234,6 +233,7 @@ class MomentsPage extends StatelessWidget {
   }
 
   Widget _buildStories(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final stories = <_StoryData>[
       _StoryData(
         label: '',
@@ -244,7 +244,7 @@ class MomentsPage extends StatelessWidget {
         onTap: () => context.push('/new-post'),
       ),
       _StoryData(
-        label: 'ME',
+        label: l10n.momentsMe,
         avatar: 'assets/images/chat/avatar.png',
         insideColor: Color(0xFF5A45FE),
         outsideColor: Color(0xFFDEDAFF),

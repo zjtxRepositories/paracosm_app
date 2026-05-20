@@ -7,6 +7,7 @@ import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
@@ -376,7 +377,11 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _cameraEnabled ? 'Turn Off Camera' : 'Open The Camera',
+                  AppLocalizations.currentText(
+                    _cameraEnabled
+                        ? 'call_turn_off_camera'
+                        : 'call_open_camera',
+                  ),
                   style: AppTextStyles.body.copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
@@ -430,7 +435,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       right: 0,
       child: Center(
         child: Text(
-          'Notifications',
+          AppLocalizations.currentText('call_notifications'),
           style: AppTextStyles.h1.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -512,7 +517,9 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _cameraEnabled ? 'Turn Off Camera' : 'Open The Camera',
+            AppLocalizations.currentText(
+              _cameraEnabled ? 'call_turn_off_camera' : 'call_open_camera',
+            ),
             style: AppTextStyles.body.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w400,
@@ -655,12 +662,12 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
 
   String _buildSubtitle() {
     if (_isIncoming) {
-      return 'Invite you to video call';
+      return AppLocalizations.currentText('call_invite_video');
     }
     if (_isInCall) {
       return _callDurationText;
     }
-    return 'Waiting for the invitation to be accepted...';
+    return AppLocalizations.currentText('call_waiting_accept');
   }
 
   /// 挂断时同时关闭通话页和悬浮窗，避免小窗残留。

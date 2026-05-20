@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/social_review_model.dart';
 import '../../theme/app_colors.dart';
 import '../../util/string_util.dart';
+import '../../widgets/base/app_localizations.dart';
 
 class MomentCommentsSection extends StatefulWidget {
   final String noteId;
@@ -18,8 +19,7 @@ class MomentCommentsSection extends StatefulWidget {
   });
 
   @override
-  State<MomentCommentsSection> createState() =>
-      _MomentCommentsSectionState();
+  State<MomentCommentsSection> createState() => _MomentCommentsSectionState();
 }
 
 class _MomentCommentsSectionState extends State<MomentCommentsSection> {
@@ -35,13 +35,12 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
         const SizedBox(height: 20),
 
         if (widget.reviews.isEmpty)
-          const Text(
-            "No comments yet",
-            style: TextStyle(color: AppColors.grey400),
+          Text(
+            AppLocalizations.of(context)!.translate('moments_no_comments_yet'),
+            style: const TextStyle(color: AppColors.grey400),
           )
         else
-          for (final c in widget.reviews)
-            _buildThread(c),
+          for (final c in widget.reviews) _buildThread(c),
       ],
     );
   }
@@ -53,8 +52,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
     final isExpanded = _expanded.contains(id);
 
     /// ✅ 只显示前2条 or 全部
-    final visibleReplies =
-    isExpanded ? replies : replies.take(2).toList();
+    final visibleReplies = isExpanded ? replies : replies.take(2).toList();
 
     /// ✅ 是否显示展开按钮
     final showExpand = replies.length > 2 && !isExpanded;
@@ -64,7 +62,11 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
         name: c.userFullInfo?.nickname ?? '',
         time: formatIMTime(c.timestamp),
         content: c.content,
-        onTap: ()=> widget.onReply?.call(c.reviewId,c.userId,c.userFullInfo?.nickname ?? ''),
+        onTap: () => widget.onReply?.call(
+          c.reviewId,
+          c.userId,
+          c.userFullInfo?.nickname ?? '',
+        ),
       ),
 
       replies: visibleReplies.map((r) {
@@ -74,19 +76,26 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
           content: r.content,
           leftInset: 38,
           showConnector: true,
-          onTap: ()=> widget.onReply?.call(r.reviewId,r.userId,r.userFullInfo?.nickname ?? ''),
+          onTap: () => widget.onReply?.call(
+            r.reviewId,
+            r.userId,
+            r.userFullInfo?.nickname ?? '',
+          ),
         );
       }).toList(),
 
-      expandLabel:
-      showExpand ? 'Expand ${replies.length - 2} replies' : '',
+      expandLabel: showExpand
+          ? AppLocalizations.of(context)!.translate('moments_expand_replies', {
+              'count': replies.length - 2,
+            })
+          : '',
 
       onExpand: showExpand
           ? () {
-        setState(() {
-          _expanded.add(id);
-        });
-      }
+              setState(() {
+                _expanded.add(id);
+              });
+            }
           : null,
     );
   }
@@ -95,23 +104,16 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
 class _CommentHeader extends StatelessWidget {
   final int count;
 
-  const _CommentHeader({
-    required this.count,
-    super.key,
-  });
+  const _CommentHeader({required this.count, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Image.asset(
-          'assets/images/moments/comment.png',
-          width: 20,
-          height: 20,
-        ),
+        Image.asset('assets/images/moments/comment.png', width: 20, height: 20),
         const SizedBox(width: 4),
-        const Text(
-          'Comments',
+        Text(
+          AppLocalizations.of(context)!.translate('moments_comments'),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -191,7 +193,6 @@ class _MomentCommentItem extends StatelessWidget {
   final bool showConnector;
   final VoidCallback? onTap;
 
-
   const _MomentCommentItem({
     required this.name,
     required this.time,
@@ -260,7 +261,7 @@ class _MomentCommentItem extends StatelessWidget {
             ),
           ],
         ),
-      )
+      ),
     );
   }
 }

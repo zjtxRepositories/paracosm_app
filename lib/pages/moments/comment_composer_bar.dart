@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/base/app_localizations.dart';
 
 class CommentComposerBar extends StatefulWidget {
   final SocialInvitationModel model;
@@ -35,7 +36,7 @@ class CommentComposerBarState extends State<CommentComposerBar> {
   /// 回复相关状态
   String rootReviewId = '';
   String? toUserId;
-  String hint = 'Please Enter...';
+  String? replyUserName;
 
   /// =========================
   /// 外部调用：设置回复对象 + 弹起键盘
@@ -48,7 +49,7 @@ class CommentComposerBarState extends State<CommentComposerBar> {
     setState(() {
       rootReviewId = rootId;
       this.toUserId = toUserId;
-      hint = 'Reply @$userName';
+      replyUserName = userName;
     });
 
     /// 弹起键盘
@@ -73,7 +74,7 @@ class CommentComposerBarState extends State<CommentComposerBar> {
     setState(() {
       rootReviewId = '';
       toUserId = '';
-      hint = 'Please Enter...';
+      replyUserName = null;
     });
   }
 
@@ -108,6 +109,10 @@ class CommentComposerBarState extends State<CommentComposerBar> {
   @override
   Widget build(BuildContext context) {
     final model = widget.model;
+    final l10n = AppLocalizations.of(context)!;
+    final hint = replyUserName == null
+        ? l10n.translate('moments_please_enter')
+        : l10n.translate('moments_reply_to_user', {'name': replyUserName});
     final showSendButton = _focusNode.hasFocus || _hasText;
 
     return Container(

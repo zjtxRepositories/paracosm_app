@@ -7,6 +7,7 @@ import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 class ChatGroupVoicePage extends StatefulWidget {
@@ -28,7 +29,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   static const String _localUserName = 'Wei Wei';
   static const List<_VoiceParticipant> _inCallParticipants = [
     _VoiceParticipant(
-      name: 'ME',
+      name: '_me',
       micEnabled: true,
       avatarColor: Color(0xFFB58C84),
     ),
@@ -53,7 +54,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       avatarColor: Color(0xFF92D1FF),
     ),
     _VoiceParticipant(
-      name: 'Others',
+      name: '_others',
       micEnabled: false,
       avatarColor: Color(0xFF6A655F),
       isOverflow: true,
@@ -295,7 +296,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
           _buildParticipantAvatar(participant),
           const SizedBox(height: 12),
           Text(
-            participant.name,
+            _participantName(participant.name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -308,6 +309,16 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
         ],
       ),
     );
+  }
+
+  String _participantName(String name) {
+    if (name == '_me') {
+      return AppLocalizations.currentText('moments_me');
+    }
+    if (name == '_others') {
+      return AppLocalizations.currentText('chat_filter_others');
+    }
+    return name;
   }
 
   Widget _buildParticipantAvatar(_VoiceParticipant participant) {
@@ -685,7 +696,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
     if (_isIncoming) {
       return Text(
-        'Invite you to voice call',
+        AppLocalizations.currentText('call_invite_voice'),
         textAlign: TextAlign.center,
         style: baseStyle,
       );
@@ -701,15 +712,12 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: 'Waiting for ', style: baseStyle),
           TextSpan(
-            text: _localUserName,
-            style: baseStyle.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            text: AppLocalizations.currentText('call_waiting_group_join', {
+              'name': _localUserName,
+            }),
+            style: baseStyle,
           ),
-          TextSpan(text: ' and others to join...', style: baseStyle),
         ],
       ),
       textAlign: TextAlign.center,
@@ -1123,7 +1131,7 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     if (widget.status == 'in_call') {
       return formatDurationFromMs(_callElapsedMs);
     }
-    return 'Waiting...';
+    return AppLocalizations.currentText('call_waiting_short');
   }
 
   void _updateCallElapsed() {

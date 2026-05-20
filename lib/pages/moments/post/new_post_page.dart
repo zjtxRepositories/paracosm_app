@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:paracosm/pages/moments/post/social_post_controller.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 
@@ -16,11 +16,7 @@ class NewPostPage extends StatefulWidget {
   final bool isRetweet;
   final String? communityId;
 
-  const NewPostPage({
-    super.key,
-    this.isRetweet = false,
-    this.communityId,
-  });
+  const NewPostPage({super.key, this.isRetweet = false, this.communityId});
 
   @override
   State<NewPostPage> createState() => _NewPostPageState();
@@ -47,7 +43,10 @@ class _NewPostPageState extends State<NewPostPage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.isRetweet ? 'Retweet a post' : 'New Post';
+    final l10n = AppLocalizations.of(context)!;
+    final title = widget.isRetweet
+        ? l10n.translate('moments_retweet_post_title')
+        : l10n.translate('moments_new_post_title');
 
     return AppPage(
       title: title,
@@ -80,7 +79,9 @@ class _NewPostPageState extends State<NewPostPage> {
                           ),
                           onChanged: (_) => _refresh(),
                           decoration: InputDecoration(
-                            hintText: 'Thoughts at this moment...',
+                            hintText: l10n.translate(
+                              'moments_thoughts_placeholder',
+                            ),
                             hintStyle: AppTextStyles.body.copyWith(
                               color: AppColors.grey400,
                             ),
@@ -90,7 +91,7 @@ class _NewPostPageState extends State<NewPostPage> {
 
                         const SizedBox(height: 20),
 
-                        buildMediaRow(controller,context),
+                        buildMediaRow(controller, context),
                         const SizedBox(height: 16),
 
                         // =========================
@@ -120,7 +121,7 @@ class _NewPostPageState extends State<NewPostPage> {
                           children: [
                             const Icon(Icons.person, size: 16),
                             const SizedBox(width: 8),
-                            const Text('Who can see'),
+                            Text(l10n.translate('moments_who_can_see')),
 
                             const Spacer(),
 
@@ -131,7 +132,7 @@ class _NewPostPageState extends State<NewPostPage> {
                               child: Row(
                                 children: [
                                   Text(
-                                    controller.visibilityTitle,
+                                    _privacyTitle(l10n),
                                     style: const TextStyle(
                                       color: AppColors.grey400,
                                       fontSize: 12,
@@ -155,22 +156,26 @@ class _NewPostPageState extends State<NewPostPage> {
                 // 发布按钮
                 // =========================
                 AppButton(
-                  text: 'Release',
-                  onPressed: controller.isSubmitting || controller.textController.text.isEmpty
+                  text: l10n.translate('moments_release'),
+                  onPressed:
+                      controller.isSubmitting ||
+                          controller.textController.text.isEmpty
                       ? null
                       : () async {
-                    if (widget.communityId != null){
-                      final ok = await controller.addCommunityDynamics(roomId: widget.communityId!);
-                      if (ok && mounted) {
-                        Navigator.pop(context);
-                      }
-                      return;
-                    }
-                    final ok = await controller.publish();
-                    if (ok && mounted) {
-                      Navigator.pop(context);
-                    }
-                  },
+                          if (widget.communityId != null) {
+                            final ok = await controller.addCommunityDynamics(
+                              roomId: widget.communityId!,
+                            );
+                            if (ok && mounted) {
+                              Navigator.pop(context);
+                            }
+                            return;
+                          }
+                          final ok = await controller.publish();
+                          if (ok && mounted) {
+                            Navigator.pop(context);
+                          }
+                        },
                 ),
               ],
             ),
@@ -193,10 +198,10 @@ class _NewPostPageState extends State<NewPostPage> {
                   child: Container(
                     height: 80,
                     color: Colors.red,
-                    child: const Center(
+                    child: Center(
                       child: Text(
-                        "Delete Retweet",
-                        style: TextStyle(color: Colors.white),
+                        l10n.translate('moments_delete_retweet'),
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -212,6 +217,7 @@ class _NewPostPageState extends State<NewPostPage> {
   // 隐私选择
   // =========================
   void _showPrivacySheet() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       builder: (_) {
@@ -219,25 +225,25 @@ class _NewPostPageState extends State<NewPostPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text("Public"),
+              title: Text(l10n.translate('moments_public')),
               onTap: () {
-                controller.setPrivacy(0, "Public");
+                controller.setPrivacy(0);
                 _refresh();
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              title: const Text("Private"),
+              title: Text(l10n.translate('moments_private')),
               onTap: () {
-                controller.setPrivacy(1, "Private");
+                controller.setPrivacy(1);
                 _refresh();
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              title: const Text("Friends"),
+              title: Text(l10n.translate('moments_friends')),
               onTap: () {
-                controller.setPrivacy(2, "Friends");
+                controller.setPrivacy(2);
                 _refresh();
                 Navigator.pop(context);
               },
@@ -247,12 +253,24 @@ class _NewPostPageState extends State<NewPostPage> {
       },
     );
   }
+
+  String _privacyTitle(AppLocalizations l10n) {
+    switch (controller.privacyLevel) {
+      case 1:
+        return l10n.translate('moments_private');
+      case 2:
+        return l10n.translate('moments_friends');
+      case 0:
+      default:
+        return l10n.translate('moments_public');
+    }
+  }
 }
 
 // =========================
 // UI组件
 // =========================
-Widget buildMediaRow(SocialPostController controller,BuildContext context) {
+Widget buildMediaRow(SocialPostController controller, BuildContext context) {
   return Obx(() {
     return Wrap(
       spacing: 8,
@@ -262,7 +280,7 @@ Widget buildMediaRow(SocialPostController controller,BuildContext context) {
           final index = e.key;
           final item = e.value;
           return GestureDetector(
-            onTap: (){
+            onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -359,11 +377,7 @@ class _ImagePreview extends StatelessWidget {
                 color: Colors.black54,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.close,
-                size: 12,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.close, size: 12, color: Colors.white),
             ),
           ),
         ),
@@ -387,10 +401,11 @@ class _UploadTile extends StatelessWidget {
 class _RetweetPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(12),
       color: Colors.grey[100],
-      child: const Text("Retweet content preview"),
+      child: Text(l10n.translate('moments_retweet_content_preview')),
     );
   }
 }

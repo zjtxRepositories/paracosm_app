@@ -158,6 +158,7 @@ class _ChatScanPageState extends State<ChatScanPage>
                 children: [
                   _buildTopBar(context),
                   const Spacer(flex: 2),
+                  const SizedBox(height: 120),
                   _buildScanArea(),
                   const SizedBox(height: 80),
                   _buildHintText(context),
@@ -238,8 +239,8 @@ class _ChatScanPageState extends State<ChatScanPage>
                   ),
                   builder: (context, child) {
                     final top = Tween<double>(
-                      begin: scanSize - 20,
-                      end: -scanLineHeight,
+                      begin: -scanLineHeight,
+                      end: scanSize - 20,
                     ).evaluate(_scanLineAnimation);
 
                     return Stack(

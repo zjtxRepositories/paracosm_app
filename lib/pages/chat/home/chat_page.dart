@@ -26,6 +26,7 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey _addButtonKey = GlobalKey();
+  final ScrollController _chatScrollController = ScrollController();
   final ScrollController _contactScrollController = ScrollController();
   late final ChatController controller;
 
@@ -34,14 +35,26 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
     controller = ChatController();
     controller.init();
+    _chatScrollController.addListener(_onChatScroll);
   }
 
   @override
   void dispose() {
     controller.dispose();
+    _chatScrollController.removeListener(_onChatScroll);
+    _chatScrollController.dispose();
     _contactScrollController.dispose();
 
     super.dispose();
+  }
+
+  void _onChatScroll() {
+    if (!_chatScrollController.hasClients) return;
+
+    final position = _chatScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 120) {
+      controller.loadMoreConversations();
+    }
   }
 
   @override
@@ -75,9 +88,16 @@ class _ChatPageState extends State<ChatPage> {
                   bottomOffset: 50, // 调整偏移，视觉更平衡
                 )
               : ListView.builder(
+                  controller: _chatScrollController,
                   padding: EdgeInsets.zero,
-                  itemCount: controller.conversations.length,
+                  itemCount:
+                      controller.conversations.length +
+                      (controller.isConversationLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index >= controller.conversations.length) {
+                      return _buildLoadingMoreFooter();
+                    }
+
                     final item = controller.conversations[index];
                     if (item.info.conversationType ==
                         RCIMIWConversationType.system) {
@@ -136,6 +156,19 @@ class _ChatPageState extends State<ChatPage> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLoadingMoreFooter() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
     );
   }
 

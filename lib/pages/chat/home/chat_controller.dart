@@ -52,6 +52,9 @@ class ChatController extends ChangeNotifier {
 
   Map<int, List<RCIMIWConversation>>? tabCache;
 
+  bool isConversationLoadingMore = false;
+  bool hasMoreConversations = true;
+
   bool _inited = false;
 
   /// 会话变更订阅
@@ -106,6 +109,7 @@ class ChatController extends ChangeNotifier {
     final sub = _engineManager.conversation.stream.listen((map) {
       // print('conversation.stream-${map.length}');
       tabCache = map;
+      _syncConversationPageState();
       _buildConversationList();
     });
 
@@ -310,9 +314,42 @@ class ChatController extends ChangeNotifier {
     if (selectedFilterIndex == index) return;
 
     selectedFilterIndex = index;
+    _syncConversationPageState();
 
     /// ❗ 不再 refreshConversation，全量由 stream 驱动
     _buildConversationList();
+
+    if (conversations.isEmpty && hasMoreConversations) {
+      Future.microtask(loadMoreConversations);
+    }
+  }
+
+  Future<void> loadMoreConversations() async {
+    if (isConversationLoadingMore || !hasMoreConversations) {
+      return;
+    }
+
+    isConversationLoadingMore = true;
+    _notify();
+
+    try {
+      await _engineManager.conversation.loadMoreConversations(
+        selectedFilterIndex,
+      );
+    } finally {
+      isConversationLoadingMore = false;
+      _syncConversationPageState();
+      _notify();
+    }
+  }
+
+  void _syncConversationPageState() {
+    hasMoreConversations = _engineManager.conversation.hasMore(
+      selectedFilterIndex,
+    );
+    isConversationLoadingMore = _engineManager.conversation.isTabLoading(
+      selectedFilterIndex,
+    );
   }
 
   /// =========================

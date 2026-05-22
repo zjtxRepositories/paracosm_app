@@ -705,16 +705,16 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             size: 64,
             borderRadius: BorderRadius.circular(8),
           ),
-          if (showPhotoIcon)
-            Positioned(
-              right: -8,
-              bottom: -8,
-              child: Image.asset(
-                'assets/images/community/photo.png',
-                width: 24,
-                height: 24,
-              ),
-            ),
+          // if (showPhotoIcon)
+          //   Positioned(
+          //     right: -8,
+          //     bottom: -8,
+          //     child: Image.asset(
+          //       'assets/images/community/photo.png',
+          //       width: 24,
+          //       height: 24,
+          //     ),
+          //   ),
         ],
       ),
     );

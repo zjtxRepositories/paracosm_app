@@ -68,7 +68,7 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
   /// 处理已选单词移除
   void _onRemoveWord(int index) {
     if (_selectedMnemonics[index] == null) return;
-    
+
     setState(() {
       _clickedWords.remove(_selectedMnemonics[index]);
       _selectedMnemonics[index] = null;
@@ -162,7 +162,7 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
                                   children: [
                                     Text.rich(
                                       TextSpan(
-                                        text: 'Step 3',
+                                        text: loc.walletStepProgress(3),
                                         style: AppTextStyles.body.copyWith(
                                           fontSize: 14,
                                           color: AppColors.grey900,
@@ -236,21 +236,30 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
                                       ),
                                       child: GridView.builder(
                                         shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 3,
-                                          childAspectRatio: 2.2,
-                                          mainAxisSpacing: 8,
-                                          crossAxisSpacing: 8,
-                                        ),
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 3,
+                                              childAspectRatio: 2.2,
+                                              mainAxisSpacing: 8,
+                                              crossAxisSpacing: 8,
+                                            ),
                                         itemCount: 12,
                                         itemBuilder: (context, index) {
-                                          final word = _selectedMnemonics[index];
-                                          final isCorrect = word == null || word == _correctMnemonics[index];
-                                          
+                                          final word =
+                                              _selectedMnemonics[index];
+                                          final isCorrect =
+                                              word == null ||
+                                              word == _correctMnemonics[index];
+
                                           return GestureDetector(
                                             onTap: () => _onRemoveWord(index),
-                                            child: _buildSelectedWordItem(index + 1, word ?? loc.walletStep3SelectHint, isCorrect),
+                                            child: _buildSelectedWordItem(
+                                              index + 1,
+                                              word ?? loc.walletStep3SelectHint,
+                                              isCorrect,
+                                            ),
                                           );
                                         },
                                       ),
@@ -263,11 +272,18 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
                                         spacing: 8,
                                         runSpacing: 8,
                                         alignment: WrapAlignment.center,
-                                        children: _shuffledMnemonics.map((word) {
-                                          final isUsed = _clickedWords.contains(word);
+                                        children: _shuffledMnemonics.map((
+                                          word,
+                                        ) {
+                                          final isUsed = _clickedWords.contains(
+                                            word,
+                                          );
                                           return GestureDetector(
                                             onTap: () => _onWordTap(word),
-                                            child: _buildOptionWordItem(word, isUsed),
+                                            child: _buildOptionWordItem(
+                                              word,
+                                              isUsed,
+                                            ),
                                           );
                                         }).toList(),
                                       ),
@@ -279,7 +295,8 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
                                       text: loc.commonContinue,
                                       onPressed: _isAllCorrect()
                                           ? () {
-                                              context.push('/wallet-creating',
+                                              context.push(
+                                                '/wallet-creating',
                                                 extra: {
                                                   'password': widget.password,
                                                   'mnemonics': widget.mnemonic,
@@ -326,7 +343,8 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
 
   /// 构建已选单词项
   Widget _buildSelectedWordItem(int index, String? word, bool isCorrect) {
-    if (word == null || word == AppLocalizations.of(context)!.walletStep3SelectHint) {
+    if (word == null ||
+        word == AppLocalizations.of(context)!.walletStep3SelectHint) {
       // 未选状态：虚线效果边框
       return DottedBorder(
         radius: 8,
@@ -383,9 +401,7 @@ class _WalletCreateStep3PageState extends State<WalletCreateStep3Page> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.grey200,
-        ),
+        border: Border.all(color: AppColors.grey200),
       ),
       child: Text(
         word,

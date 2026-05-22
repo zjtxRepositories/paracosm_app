@@ -432,7 +432,9 @@ class FollowButton extends StatelessWidget {
           border: isFollowing ? Border.all(color: Colors.grey.shade300) : null,
         ),
         child: Text(
-          isFollowing ? 'Following' : 'Follow',
+          isFollowing
+              ? AppLocalizations.of(context)!.momentsFollowing
+              : AppLocalizations.of(context)!.momentsFollow,
           style: TextStyle(
             fontSize: 12,
             color: isFollowing ? Colors.black : Colors.white,

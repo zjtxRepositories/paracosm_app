@@ -37,6 +37,7 @@
   "wallet_step_3_title": "确认助记词",
   "wallet_step_3_subtitle": "请正确顺序选择单词",
   "wallet_step_3_select_hint": "请选择",
+  "wallet_step_progress": "第 {step} 步",
   "wallet_creating_title": "正在创建钱包...",
   "wallet_creating_tip": "助记词需妥善放置安全处，防止丢失",
   "wallet_creating_star_network": "星际网络",
@@ -200,6 +201,7 @@
     "community_mock_asset_usdt_value": "1",
     "community_mock_asset_vbox_value": "0",
     "community_mock_asset_default_value": "0.00",
+    "community_mock_asset_zero_value": "0 美元",
     "community_mock_donor_amount_1": "0.57",
     "community_mock_donor_amount_2": "0.057",
     "community_mock_donor_amount_3": "0.016",
@@ -253,6 +255,11 @@
   "discover_section_new_arrivals": "新上线",
   "discover_section_defi": "DeFi",
   "discover_section_airdrop": "空投",
+  "discover_search_hint": "搜索 DApp 或输入网址",
+  "discover_search_empty_hint": "暂无搜索结果",
+  "discover_search_open_url": "打开网址",
+  "discover_search_web": "网页",
+  "discover_scan_no_result": "未识别到有效二维码",
    "community_filter_tooltip": "过滤",
    "community_mock_bkok_group": "BKOK持仓群",
    "community_mock_salary_desc": "每月领一千U工资，欢迎加入",
@@ -380,10 +387,15 @@
   "profile_transfer_network": "网络名称",
   "profile_transfer_asset": "资产",
   "profile_transfer_amount": "金额",
+  "profile_transfer_max": "最大",
   "profile_transfer_balance": "余额",
   "profile_transfer_address": "地址",
   "profile_transfer_network_fees": "网络费用",
+<<<<<<< HEAD
   "profile_transfer_fee_level": "费用档位",
+=======
+  "profile_transfer_fee_level": "费用等级",
+>>>>>>> afa2a7000c66e9e1372559860d63526afec1fbc1
   "profile_transfer_fee_estimated": "预估",
   "profile_transfer_estimated_fee": "预估费用",
   "profile_transfer_fee_rate": "费率",
@@ -391,7 +403,11 @@
   "profile_transfer_gas_limit": "Gas 限额",
   "profile_transfer_contract_data": "合约数据",
   "profile_transfer_more_transaction_info": "更多交易信息",
+<<<<<<< HEAD
   "profile_transfer_hide_transaction_info": "收起交易信息",
+=======
+  "profile_transfer_hide_transaction_info": "隐藏交易信息",
+>>>>>>> afa2a7000c66e9e1372559860d63526afec1fbc1
   "profile_transfer_payment_address": "支付地址",
   "profile_transfer_miner_fee": "矿工费",
   "profile_transfer_absenteeism": "缺勤",
@@ -496,6 +512,7 @@
   "moments_follow": "关注",
   "moments_edit_profile": "编辑资料",
   "moments_following": "已关注",
+  "profile_title": "我的",
   "moments_post_body_title": "帖子内容",
   "moments_comments": "评论",
   "moments_no_comments_yet": "暂无评论",

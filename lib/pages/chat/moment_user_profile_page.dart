@@ -208,7 +208,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             bottom: 16,
             right: 0,
             child: AppButton(
-              text: 'Follow',
+              text: l10n.momentsFollow,
               onPressed: () {},
               width: 85,
               height: 28,
@@ -296,7 +296,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 5),
         Text(
-          'Following',
+          AppLocalizations.of(context)!.momentsFollowing,
           style: AppTextStyles.body.copyWith(
             fontSize: 10,
             color: AppColors.grey400,
@@ -313,7 +313,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ),
         const SizedBox(width: 5),
         Text(
-          'Followers',
+          AppLocalizations.of(context)!.momentsFollowers,
           style: AppTextStyles.body.copyWith(
             fontSize: 10,
             color: AppColors.grey400,

@@ -63,12 +63,15 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                 const SizedBox(height: 16),
                                 // 顶部标题 - 创建新钱包 (仅“新钱包”有下划线)
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Text(
                                       loc.walletCreateTitle,
-                                      style: AppTextStyles.h1.copyWith(fontSize: 24),
+                                      style: AppTextStyles.h1.copyWith(
+                                        fontSize: 24,
+                                      ),
                                     ),
                                     Stack(
                                       clipBehavior: Clip.none,
@@ -84,7 +87,9 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                         ),
                                         Text(
                                           loc.walletCreateNew,
-                                          style: AppTextStyles.h1.copyWith(fontSize: 24),
+                                          style: AppTextStyles.h1.copyWith(
+                                            fontSize: 24,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -93,11 +98,12 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                 const SizedBox(height: 4),
                                 // Step 信息
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text.rich(
                                       TextSpan(
-                                        text: 'Step 1',
+                                        text: loc.walletStepProgress(1),
                                         style: AppTextStyles.body.copyWith(
                                           fontSize: 14,
                                           color: AppColors.grey900,
@@ -124,15 +130,25 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
 
                             // 3. 设置密码卡片
                             Padding(
-                              padding: const EdgeInsets.only(top: 40, bottom: 20),
+                              padding: const EdgeInsets.only(
+                                top: 40,
+                                bottom: 20,
+                              ),
                               child: Container(
-                                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  20,
+                                  16,
+                                  20,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       blurRadius: 20,
                                       offset: const Offset(0, 10),
                                     ),
@@ -141,7 +157,10 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(loc.walletStep1Title, style: AppTextStyles.h2.copyWith()),
+                                    Text(
+                                      loc.walletStep1Title,
+                                      style: AppTextStyles.h2.copyWith(),
+                                    ),
                                     const SizedBox(height: 8),
                                     Text(
                                       loc.walletStep1Subtitle,
@@ -156,7 +175,9 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                       hintText: loc.walletStep1HintPwd,
                                       onChanged: (String text) {
                                         setState(() {
-                                          isEnabled = text == _confirmPwdController.text &&
+                                          isEnabled =
+                                              text ==
+                                                  _confirmPwdController.text &&
                                               text.isNotEmpty;
                                         });
                                       },
@@ -171,7 +192,8 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                       hintText: loc.walletStep1HintConfirmPwd,
                                       onChanged: (String text) {
                                         setState(() {
-                                          isEnabled = text == _pwdController.text &&
+                                          isEnabled =
+                                              text == _pwdController.text &&
                                               text.isNotEmpty;
                                         });
                                       },
@@ -182,14 +204,17 @@ class _WalletCreateStep1PageState extends State<WalletCreateStep1Page> {
                                     // 下一步按钮
                                     AppButton(
                                       text: loc.commonNext,
-                                      onPressed: !isEnabled ? null : () {
-                                        context.push(
-                                          '/wallet-create-step2',
-                                          extra: {
-                                            'password': _pwdController.text,
-                                          },
-                                        );
-                                      },
+                                      onPressed: !isEnabled
+                                          ? null
+                                          : () {
+                                              context.push(
+                                                '/wallet-create-step2',
+                                                extra: {
+                                                  'password':
+                                                      _pwdController.text,
+                                                },
+                                              );
+                                            },
                                     ),
                                   ],
                                 ),

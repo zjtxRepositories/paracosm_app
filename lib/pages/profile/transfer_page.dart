@@ -55,13 +55,23 @@ class _TransferPageState extends State<TransferPage> {
   @override
   void initState() {
     super.initState();
+
+    initChain();
+    _showToken = widget.token;
+
+    getBalance(token: widget.token, chain: widget.chain);
+    getCalculateFee();
+  }
+
+  Future<void> initChain() async {
+    if (widget.token != null){
+      _selectedNetwork = widget.token!.getChain();
+      return;
+    }
     if (_wallet != null && widget.chain == null) {
       _selectedNetwork = _wallet.currentChain;
     }
     _selectedNetwork ??= widget.chain;
-    _showToken = widget.token;
-    getBalance(token: widget.token, chain: widget.chain);
-    getCalculateFee();
   }
 
   @override

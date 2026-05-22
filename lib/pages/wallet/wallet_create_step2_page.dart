@@ -13,19 +13,17 @@ import 'package:paracosm/widgets/common/app_modal.dart';
 import '../../modules/account/service/account_service.dart';
 import '../../modules/wallet/service/mnemonic_service.dart';
 
-
 /// 创建钱包 - 第二步：备份助记词
 class WalletCreateStep2Page extends StatefulWidget {
   final String? password;
-  const WalletCreateStep2Page({super.key,this.password});
+  const WalletCreateStep2Page({super.key, this.password});
 
   @override
   State<WalletCreateStep2Page> createState() => _WalletCreateStep2PageState();
 }
 
 class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
-  final List<String> _mnemonics =
-  MnemonicService.generateMnemonic().split(" ");
+  final List<String> _mnemonics = MnemonicService.generateMnemonic().split(" ");
 
   bool _isCopied = false;
   bool _hasBeenCopied = false;
@@ -86,7 +84,10 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
     if (match == null) {
       return text;
     }
-    return text.substring(0, match.end).trim().replaceAll(RegExp(r'[。\.]\s*$'), '');
+    return text
+        .substring(0, match.end)
+        .trim()
+        .replaceAll(RegExp(r'[。\.]\s*$'), '');
   }
 
   /// 从风险文案中拆出正文，避免与标题重复显示。
@@ -195,7 +196,7 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                   children: [
                                     Text.rich(
                                       TextSpan(
-                                        text: 'Step 2',
+                                        text: loc.walletStepProgress(2),
                                         style: AppTextStyles.body.copyWith(
                                           fontSize: 14,
                                           color: AppColors.grey900,
@@ -258,8 +259,9 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                       loc.walletStep2Subtitle,
                                       style: AppTextStyles.body.copyWith(),
                                     ),
-                                    const SizedBox(height: 0), // 移除外部间距，因为按钮上方已有 15px 透明热区，下方有 28px Padding
-
+                                    const SizedBox(
+                                      height: 0,
+                                    ), // 移除外部间距，因为按钮上方已有 15px 透明热区，下方有 28px Padding
                                     // 助记词展示区域
                                     Stack(
                                       alignment: Alignment.topCenter,
@@ -267,9 +269,16 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                       children: [
                                         // 下层助记词容器：通过 Padding 为按钮预留空间
                                         Padding(
-                                          padding: const EdgeInsets.only(top: 28), // 28px = 15(透明热区) + 13(按钮中心)
+                                          padding: const EdgeInsets.only(
+                                            top: 28,
+                                          ), // 28px = 15(透明热区) + 13(按钮中心)
                                           child: Container(
-                                            padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
+                                            padding: const EdgeInsets.fromLTRB(
+                                              8,
+                                              24,
+                                              8,
+                                              12,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: AppColors.grey100,
                                               borderRadius:
@@ -281,11 +290,11 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                                   const NeverScrollableScrollPhysics(),
                                               gridDelegate:
                                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 3,
-                                                childAspectRatio: 2.2,
-                                                mainAxisSpacing: 8,
-                                                crossAxisSpacing: 8,
-                                              ),
+                                                    crossAxisCount: 3,
+                                                    childAspectRatio: 2.2,
+                                                    mainAxisSpacing: 8,
+                                                    crossAxisSpacing: 8,
+                                                  ),
                                               itemCount: _mnemonics.length,
                                               itemBuilder: (context, index) {
                                                 return Container(
@@ -293,7 +302,9 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                                   decoration: BoxDecoration(
                                                     color: Colors.white,
                                                     borderRadius:
-                                                        BorderRadius.circular(8),
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Text(
                                                     '${index + 1}.${_mnemonics[index]}',
@@ -319,15 +330,19 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                           child: Center(
                                             child: GestureDetector(
                                               onTap: () {
-                                                Clipboard.setData(ClipboardData(
-                                                        text: _mnemonics.join(' ')))
-                                                    .then((_) {
+                                                Clipboard.setData(
+                                                  ClipboardData(
+                                                    text: _mnemonics.join(' '),
+                                                  ),
+                                                ).then((_) {
                                                   _toggleCopyStatus();
                                                 });
                                               },
                                               behavior: HitTestBehavior.opaque,
                                               child: Container(
-                                                padding: const EdgeInsets.all(15),
+                                                padding: const EdgeInsets.all(
+                                                  15,
+                                                ),
                                                 color: Colors.transparent,
                                                 child: Container(
                                                   padding:
@@ -338,7 +353,9 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                                   decoration: BoxDecoration(
                                                     color: Colors.white,
                                                     borderRadius:
-                                                        BorderRadius.circular(14),
+                                                        BorderRadius.circular(
+                                                          14,
+                                                        ),
                                                     boxShadow: [
                                                       BoxShadow(
                                                         color: Colors.black
@@ -377,12 +394,16 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                                       ),
                                                       const SizedBox(width: 4),
                                                       Text(
-                                                        _isCopied ? loc.commonCopied : loc.commonCopy,
-                                                        style: AppTextStyles.body
+                                                        _isCopied
+                                                            ? loc.commonCopied
+                                                            : loc.commonCopy,
+                                                        style: AppTextStyles
+                                                            .body
                                                             .copyWith(
                                                               fontSize: 12,
                                                               fontWeight:
-                                                                  FontWeight.w400,
+                                                                  FontWeight
+                                                                      .w400,
                                                               color: _isCopied
                                                                   ? AppColors
                                                                         .primaryDark
@@ -416,7 +437,7 @@ class _WalletCreateStep2PageState extends State<WalletCreateStep2Page> {
                                       },
                                     ),
                                   ],
-                                )
+                                ),
                               ),
                             ),
                           ],

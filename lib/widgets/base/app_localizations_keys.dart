@@ -54,6 +54,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get walletStep3Title => translate('wallet_step_3_title');
   String get walletStep3Subtitle => translate('wallet_step_3_subtitle');
   String get walletStep3SelectHint => translate('wallet_step_3_select_hint');
+  String walletStepProgress(int step) =>
+      translate('wallet_step_progress', {'step': step});
   String get walletCreatingTitle => translate('wallet_creating_title');
   String get walletCreatingTip => translate('wallet_creating_tip');
   String get walletCreatingStarNetwork =>
@@ -764,6 +766,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get callInviteGroupSession => translate('call_invite_group_session');
   String callWaitingGroupJoin(String name) =>
       translate('call_waiting_group_join', {'name': name});
+  String get momentsMomentTitle => translate('moments_moment_title');
   String get momentsLikeFailed => translate('moments_like_failed');
   String get momentsShare => translate('moments_share');
   String get momentsCollectFailed => translate('moments_collect_failed');
@@ -773,6 +776,9 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get momentsForwardFailed => translate('moments_forward_failed');
   String get momentsUserNotLoggedIn => translate('moments_user_not_logged_in');
   String get momentsUserInfoEmpty => translate('moments_user_info_empty');
+  String get momentsFollow => translate('moments_follow');
+  String get momentsFollowing => translate('moments_following');
+  String get momentsFollowers => translate('moments_followers');
   String get momentsFollowFailed => translate('moments_follow_failed');
   String get momentsUnfollowFailed => translate('moments_unfollow_failed');
   String get momentsDefaultAvatar => translate('moments_default_avatar');
@@ -869,6 +875,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileTransferNetwork => translate('profile_transfer_network');
   String get profileTransferAsset => translate('profile_transfer_asset');
   String get profileTransferAmount => translate('profile_transfer_amount');
+  String get profileTransferMax => translate('profile_transfer_max');
   String get profileTransferBalance => translate('profile_transfer_balance');
   String get profileTransferAddress => translate('profile_transfer_address');
   String get profileTransferNetworkFees =>
@@ -972,6 +979,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileProfileWalletNo1 =>
       translate('profile_profile_wallet_no_1');
   String get profileProfileAll => translate('profile_profile_all');
+  String get profileTitle => translate('profile_title');
   String get profileWalletManagerWallet =>
       translate('profile_wallet_manager_wallet');
 

@@ -220,8 +220,10 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                             height: 32,
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Send',
+                          Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkSend,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -268,8 +270,10 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                             height: 32,
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Receive',
+                          Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkReceive,
                             style: TextStyle(
                               color: AppColors.grey900,
                               fontSize: 14,
@@ -315,9 +319,15 @@ class _TokenDetailPageState extends State<TokenDetailPage>
         ),
         dividerColor: Colors.transparent,
         tabAlignment: TabAlignment.start,
-        tabs: const [
-          Tab(text: 'Transfer History'),
-          Tab(text: 'Token Overview'),
+        tabs: [
+          Tab(
+            text: AppLocalizations.of(
+              context,
+            )!.profileTokenMarketTransferHistory,
+          ),
+          Tab(
+            text: AppLocalizations.of(context)!.profileTokenMarketTokenOverview,
+          ),
         ],
       ),
     );
@@ -470,7 +480,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
 
           _buildOverviewItem(
             title: AppLocalizations.of(context)!.profileTokenDetailTotalIssue,
-            value: 'unknown',
+            value: AppLocalizations.of(context)!.profileTokenMarketUnknown,
           ),
           const SizedBox(height: 24),
           widget.token.address.isNotEmpty

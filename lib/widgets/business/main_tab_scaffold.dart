@@ -3,31 +3,27 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 
 /// MainTabScaffold 是整个应用的主外壳组件。
 /// 它使用 StatefulNavigationShell 来管理底部的持久化导航栏。
 /// 这种模式下，每个 Tab 都有自己独立的导航栈，且状态在切换时会被保持（如滚动位置）。
 class MainTabScaffold extends StatelessWidget {
-  const MainTabScaffold({
-    super.key,
-    required this.navigationShell,
-  });
+  const MainTabScaffold({super.key, required this.navigationShell});
 
   /// StatefulNavigationShell 是 GoRouter 提供的用于管理 Tab 分支状态的容器
   final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       // body 使用 navigationShell，它会自动渲染当前激活的分支页面
       body: navigationShell,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(
-              color: AppColors.grey200,
-              width: 0.5.w,
-            ),
+            top: BorderSide(color: AppColors.grey200, width: 0.5.w),
           ),
         ),
         child: NavigationBarTheme(
@@ -61,27 +57,27 @@ class MainTabScaffold extends StatelessWidget {
             destinations: <Widget>[
               _buildDestination(
                 index: 0,
-                label: 'Chat',
+                label: l10n.chatTitle,
                 iconName: 'chat',
               ),
               _buildDestination(
                 index: 1,
-                label: 'Moments',
+                label: l10n.momentsMomentTitle,
                 iconName: 'moments',
               ),
               _buildDestination(
                 index: 2,
-                label: 'Community',
+                label: l10n.communityTitle,
                 iconName: 'community',
               ),
               _buildDestination(
                 index: 3,
-                label: 'Discover',
+                label: l10n.discoverTitle,
                 iconName: 'discover',
               ),
               _buildDestination(
                 index: 4,
-                label: 'Profile',
+                label: l10n.profileTitle,
                 iconName: 'profile',
               ),
             ],

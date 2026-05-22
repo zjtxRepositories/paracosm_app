@@ -316,8 +316,10 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                             height: 32,
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Send',
+                          Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkSend,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -364,8 +366,10 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                             height: 32,
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Receive',
+                          Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.profileTokenNetworkReceive,
                             style: TextStyle(
                               color: AppColors.grey900,
                               fontSize: 14,

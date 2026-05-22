@@ -517,7 +517,7 @@ class _TransferPageState extends State<TransferPage> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Text(
-                        'Max',
+                        AppLocalizations.of(context)!.profileTransferMax,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 12,
                           color: Colors.white,

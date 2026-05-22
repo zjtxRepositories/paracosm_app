@@ -1,5 +1,4 @@
 class ApiPaths {
-
   /// 用户
   static const login = "/user/loginRegRes";
   static const logout = "/user/logout";
@@ -34,4 +33,6 @@ class ApiPaths {
   static const communityDynamics = '/room/community/dynamics/page';
   static const addCommunityDynamics = '/room/community/dynamics/add';
 
+  /// block
+  static const getTokenTransactionRecord = '/block/getTokenTransactionRecord';
 }

@@ -40,12 +40,12 @@
     "coinId": "binancecoin",
     "chainType": "evm",
     "nodes": [
+      "https://rpc.ankr.com/bsc",
+      "https://bsc-dataseed1.binance.org",
+      "https://bsc-dataseed2.binance.org",
       "https://bsc-rpc.publicnode.com",
       "https://bsc.publicnode.com",
       "https://bsc-dataseed.binance.org",
-      "https://bsc-dataseed1.binance.org",
-      "https://bsc-dataseed2.binance.org",
-      "https://rpc.ankr.com/bsc",
       "https://bsc.meowrpc.com"
     ],
     "txApiUrl": "https://api.bscscan.com/api",
@@ -88,7 +88,8 @@
     "nodes": [
       "https://data-seed-prebsc-1-s1.binance.org:8545",
       "https://data-seed-prebsc-2-s1.binance.org:8545",
-      "https://data-seed-prebsc-1-s2.binance.org:8545"
+      "https://data-seed-prebsc-1-s2.binance.org:8545",
+      "https://bsc-testnet.publicnode.com"
     ],
     "txApiUrl": "https://api.bscscan.com/api",
     "explorer": "https://testnet.bscscan.com/",

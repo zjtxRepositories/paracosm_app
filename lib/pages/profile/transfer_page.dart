@@ -307,7 +307,7 @@ class _TransferPageState extends State<TransferPage> {
         return {
           l10n.profileTransferFeeRate:
               '${truncateDouble(GasCalculator.toGwei(gasPrice), digits: 4)} Gwei',
-          'Gas limit': '21000',
+          l10n.profileTransferGasLimit: '21000',
         };
       case ChainType.solana:
       case null:
@@ -517,7 +517,7 @@ class _TransferPageState extends State<TransferPage> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Text(
-                        'Max',
+                        AppLocalizations.of(context)!.profileTransferMax,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 12,
                           color: Colors.white,
@@ -757,7 +757,7 @@ class _TransferPageState extends State<TransferPage> {
               ),
             ),
             Text(
-              '${truncateDouble(_calculateFee)} (Estimated)',
+              '${truncateDouble(_calculateFee)} (${AppLocalizations.of(context)!.profileTransferFeeEstimated})',
               style: AppTextStyles.body.copyWith(
                 fontSize: 14,
                 color: AppColors.grey400,

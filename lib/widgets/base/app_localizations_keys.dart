@@ -866,6 +866,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileTransferSlow => translate('profile_transfer_slow');
   String get profileTransferMiddle => translate('profile_transfer_middle');
   String get profileTransferFast => translate('profile_transfer_fast');
+  String get profileTransferMax => translate('profile_transfer_max');
   String get profileTransferNetwork => translate('profile_transfer_network');
   String get profileTransferAsset => translate('profile_transfer_asset');
   String get profileTransferAmount => translate('profile_transfer_amount');

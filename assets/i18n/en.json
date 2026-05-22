@@ -391,7 +391,6 @@
   "profile_transfer_balance": "Balance",
   "profile_transfer_address": "Address",
   "profile_transfer_network_fees": "Network Fees",
-<<<<<<< HEAD
   "profile_transfer_fee_level": "Fee Level",
   "profile_transfer_fee_estimated": "Estimated",
   "profile_transfer_estimated_fee": "Estimated Fee",
@@ -401,7 +400,6 @@
   "profile_transfer_contract_data": "Contract Data",
   "profile_transfer_more_transaction_info": "More Transaction Info",
   "profile_transfer_hide_transaction_info": "Hide Transaction Info",
-=======
   "profile_transfer_fee_level": "Fee level",
   "profile_transfer_fee_estimated": "Estimated",
   "profile_transfer_estimated_fee": "Estimated fee",
@@ -411,7 +409,6 @@
   "profile_transfer_contract_data": "Contract data",
   "profile_transfer_more_transaction_info": "More transaction info",
   "profile_transfer_hide_transaction_info": "Hide transaction info",
->>>>>>> afa2a7000c66e9e1372559860d63526afec1fbc1
   "profile_transfer_payment_address": "Payment address",
   "profile_transfer_miner_fee": "Miner Fee",
   "profile_transfer_absenteeism": "Absenteeism",

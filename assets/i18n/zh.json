@@ -391,11 +391,8 @@
   "profile_transfer_balance": "余额",
   "profile_transfer_address": "地址",
   "profile_transfer_network_fees": "网络费用",
-<<<<<<< HEAD
   "profile_transfer_fee_level": "费用档位",
-=======
   "profile_transfer_fee_level": "费用等级",
->>>>>>> afa2a7000c66e9e1372559860d63526afec1fbc1
   "profile_transfer_fee_estimated": "预估",
   "profile_transfer_estimated_fee": "预估费用",
   "profile_transfer_fee_rate": "费率",
@@ -403,11 +400,8 @@
   "profile_transfer_gas_limit": "Gas 限额",
   "profile_transfer_contract_data": "合约数据",
   "profile_transfer_more_transaction_info": "更多交易信息",
-<<<<<<< HEAD
   "profile_transfer_hide_transaction_info": "收起交易信息",
-=======
   "profile_transfer_hide_transaction_info": "隐藏交易信息",
->>>>>>> afa2a7000c66e9e1372559860d63526afec1fbc1
   "profile_transfer_payment_address": "支付地址",
   "profile_transfer_miner_fee": "矿工费",
   "profile_transfer_absenteeism": "缺勤",

@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/util/string_util.dart';
 
 import '../../core/models/community_model.dart';
+import '../../core/models/group_model.dart';
 import '../../core/network/api/community_list_api.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -24,11 +28,31 @@ class _CommunityListPageState extends State<CommunityListPage>
   List<CommunityModel> _list = [];
 
   bool _loading = true;
+  StreamSubscription? _groupSub;
 
   @override
   void initState() {
     super.initState();
     _fetch();
+    _listenGroupList();
+  }
+
+  void _listenGroupList() {
+    _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) {
+      final prefix = switch (widget.type) {
+        RoomType.club => 'group_${GroupType.club.name}',
+        RoomType.dao => 'group_${GroupType.dao.name}',
+        _ => null,
+      };
+
+      if (prefix == null) return;
+
+      final hasMatched = groupIds.any((groupId) => groupId.startsWith(prefix));
+
+      if (hasMatched) {
+        _fetch();
+      }
+    });
   }
 
   Future<void> _fetch() async {
@@ -43,6 +67,13 @@ class _CommunityListPageState extends State<CommunityListPage>
       _list = data;
       _loading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    _groupSub?.cancel();
   }
 
   @override

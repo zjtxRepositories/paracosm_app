@@ -126,12 +126,12 @@ class _CommunityPageState extends State<CommunityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12),
+          _recommends.isEmpty ? SizedBox(): const SizedBox(height: 12),
 
           /// 推荐社区
-          _buildRecommendedSection(),
+          _recommends.isEmpty ? SizedBox():  _buildRecommendedSection(),
 
-          const SizedBox(height: 16),
+          _recommends.isEmpty ? SizedBox():  const SizedBox(height: 16),
 
           /// TabBar
           _buildTabBarSection(tabs),
@@ -243,9 +243,6 @@ class _CommunityPageState extends State<CommunityPage>
   /// 构建推荐社区板块
   /// 展示横向滚动的推荐社区卡片
   Widget _buildRecommendedSection() {
-    if (_recommends.isEmpty){
-      return SizedBox();
-    }
     final l10n = AppLocalizations.of(context)!;
     return SizedBox(
       height: 96, // 给卡片内部三行内容留足垂直空间

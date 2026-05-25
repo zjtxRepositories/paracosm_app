@@ -1,261 +1,500 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+import 'package:dio/dio.dart';
+import 'package:paracosm/modules/wallet/chains/evm/services/evm_erc20_rpc_scan_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 
 import '../model/trade_model.dart';
 
 class BlockChainService {
-  final _solanaRpc = "https://api.mainnet-beta.solana.com";
-  final _evmApiUrl = "https://api.etherscan.io/v2/api";
-  final _evmApiKey = "AJYYQC9NT6NV5WGPDSDNXXQHDRF375RQ4Q";
+  static const String _solanaRpc = 'https://api.mainnet-beta.solana.com';
+  static const String _evmApiUrl = 'https://api.etherscan.io/v2/api';
+  static const String _evmApiKey = 'AJYYQC9NT6NV5WGPDSDNXXQHDRF375RQ4Q';
 
-  /// 统一入口: 获取代币交易记录 (ETH, BNB, Solana)
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 20),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
+
+  /// 统一入口：获取代币/主币交易记录（EVM、Solana、BTC）
   Future<List<TradeModel>> getTokenTransactions(
-      ChainAccount chain,
-      String address, {
-        String? contractAddress,
-        int limit = 20,
-      }) async {
-    List<Map<String, dynamic>> rawTxs;
+    ChainAccount chain,
+    String address, {
+    String? contractAddress,
+    int limit = 20,
+  }) async {
     switch (chain.chainType) {
       case ChainType.solana:
-        rawTxs = await _getTokenTransactionsSolana(address, limit: limit);
-        return _parseSolanaTxsToTradeModel(rawTxs, address);
-      case ChainType.bitcoin:
-        rawTxs = await _getTokenTransactionsBTC(address, limit: limit);
-        return _parseBtcTxsToTradeModel(rawTxs, address);
-      default:
-        rawTxs = await _getTokenTransactionsEvm(
-          chain,
+        final rawTxs = await _getTokenTransactionsSolana(
+          address,
+          contractAddress: contractAddress,
+          limit: limit,
+        );
+        return _parseSolanaTxsToTradeModel(
+          rawTxs,
           address,
           contractAddress: contractAddress,
         );
-        return _parseEvmTxsToTradeModel(rawTxs, address);
-    }
-  }
-
-  /// 获取 ERC20 / BEP20 代币交易记录（强制使用 V2 API）
-  Future<List<Map<String, dynamic>>> _getTokenTransactionsEvm(
-      ChainAccount chain,
-      String address, {
-        String? contractAddress,
-      }) async {
-    final isToken = contractAddress != null && contractAddress.isNotEmpty;
-    final action = isToken ? "tokentx" : "txlist";
-
-    String baseUrl = chain.txApiUrl ?? _evmApiUrl;
-    String apiKey = chain.apiKey ?? _evmApiKey;
-    final chainId = chain.chainId;
-
-    final urlString = "$baseUrl"
-        "?chainid=$chainId"
-        "&module=account"
-        "&action=$action"
-        "&address=$address"
-        "${isToken ? "&contractaddress=$contractAddress" : ""}"
-        "&startblock=0&endblock=99999999"
-        "&sort=desc"
-        "&apikey=$apiKey";
-
-    print('V2 API url: $urlString');
-
-    final url = Uri.parse(urlString);
-    final res = await http.get(url, headers: {"User-Agent": "Mozilla/5.0"});
-    print('res: ${res.statusCode}');
-
-    if (res.statusCode == 200) {
-      print('response: ${res.body}');
-      final data = jsonDecode(res.body);
-
-      if (data['status'] == "1") {
-        // V2 返回 result.transactions
-        if (data['result'] is Map && data['result']['transactions'] != null) {
-          return List<Map<String, dynamic>>.from(data['result']['transactions']);
-        } else {
-          return List<Map<String, dynamic>>.from(data['result']);
+      case ChainType.bitcoin:
+        final rawTxs = await _getTokenTransactionsBtc(address, limit: limit);
+        return _parseBtcTxsToTradeModel(rawTxs, address);
+      case ChainType.evm:
+        if (_hasValue(contractAddress)) {
+          return EvmErc20RpcScanService.getErc20Transactions(
+            chain: chain,
+            walletAddress: address,
+            contractAddress: contractAddress!,
+            limit: limit,
+          );
         }
-      } else {
-        print('获取交易记录失败: ${data['message']}');
-        return [];
-      }
-    } else {
-      throw Exception("请求失败: ${res.statusCode}");
+
+        final rawTxs = await _getTokenTransactionsEvm(
+          chain,
+          address,
+          contractAddress: contractAddress,
+          limit: limit,
+        );
+        return _parseEvmTxsToTradeModel(rawTxs, address, chain: chain);
     }
   }
 
-  /// 获取 Solana SPL Token 交易记录
-  Future<List<Map<String, dynamic>>> _getTokenTransactionsSolana(
-      String address,
-      {int limit = 5}) async {
-    final sigRes = await http.post(
-      Uri.parse(_solanaRpc),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getSignaturesForAddress",
-        "params": [address, {"limit": limit}]
-      }),
-    );
+  /// 获取 ERC20 / BEP20 / EVM 主币交易记录（Etherscan V2 兼容接口）
+  Future<List<Map<String, dynamic>>> _getTokenTransactionsEvm(
+    ChainAccount chain,
+    String address, {
+    String? contractAddress,
+    int limit = 20,
+  }) async {
+    final isToken = _hasValue(contractAddress);
+    final action = isToken ? 'tokentx' : 'txlist';
+    final baseUrl = _resolveEvmApiUrl(chain.txApiUrl);
+    final apiKey = _hasValue(chain.apiKey) ? chain.apiKey! : _evmApiKey;
 
-    final sigData = jsonDecode(sigRes.body);
-    final signatures = sigData['result'] as List? ?? [];
+    final queryParameters = <String, String>{
+      'chainid': chain.chainId.toString(),
+      'module': 'account',
+      'action': action,
+      'address': address,
+      'startblock': '0',
+      'endblock': '99999999',
+      'page': '1',
+      'offset': limit.toString(),
+      'sort': 'desc',
+      'apikey': apiKey,
+      if (isToken) 'contractaddress': contractAddress!,
+    };
 
-    List<Map<String, dynamic>> txs = [];
-
-    for (var sig in signatures) {
-      final txRes = await http.post(
-        Uri.parse(_solanaRpc),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "jsonrpc": "2.0",
-          "id": 1,
-          "method": "getTransaction",
-          "params": [sig['signature'], {"encoding": "jsonParsed"}]
-        }),
+    final url = Uri.parse(baseUrl).replace(queryParameters: queryParameters);
+    late final Response<dynamic> res;
+    try {
+      res = await _dio.getUri(
+        url,
+        options: Options(headers: {'User-Agent': 'Mozilla/5.0'}),
       );
-
-      final txData = jsonDecode(txRes.body);
-      if (txData['result'] != null) {
-        final tx = txData['result'];
-        final meta = tx['meta'];
-        final preTokenBalances = meta?['preTokenBalances'] ?? [];
-        final postTokenBalances = meta?['postTokenBalances'] ?? [];
-
-        txs.add({
-          "signature": sig['signature'],
-          "blockTime": tx['blockTime'],
-          "preTokenBalances": preTokenBalances,
-          "postTokenBalances": postTokenBalances,
-        });
-      }
+    } on DioException catch (e) {
+      if (_isTimeoutException(e)) return [];
+      rethrow;
     }
+
+    if (res.statusCode != 200) {
+      throw Exception('EVM 请求失败: ${res.statusCode}');
+    }
+    final data = _decodeResponseData(res.data);
+    if (data is! Map<String, dynamic>) return [];
+
+    final status = data['status']?.toString();
+    final message = data['message']?.toString();
+    if (status != '1') {
+      // Etherscan 无交易时常返回 status=0,message=No transactions found。
+      if (message == 'No transactions found') return [];
+      return [];
+    }
+
+    final result = data['result'];
+    if (result is List) {
+      return List<Map<String, dynamic>>.from(result);
+    }
+    if (result is Map && result['transactions'] is List) {
+      return List<Map<String, dynamic>>.from(result['transactions']);
+    }
+    return [];
+  }
+
+  /// 获取 Solana SPL Token 交易记录。
+  ///
+  /// 这里先取钱包地址签名，再拉取交易详情；后续解析时按 pre/post token balance
+  /// 的差值计算买入/卖出。
+  Future<List<Map<String, dynamic>>> _getTokenTransactionsSolana(
+    String address, {
+    String? contractAddress,
+    int limit = 20,
+  }) async {
+    late final Response<dynamic> sigRes;
+    try {
+      sigRes = await _dio.post(
+        _solanaRpc,
+        options: Options(headers: {'Content-Type': 'application/json'}),
+        data: {
+          'jsonrpc': '2.0',
+          'id': 1,
+          'method': 'getSignaturesForAddress',
+          'params': [
+            address,
+            {'limit': limit},
+          ],
+        },
+      );
+    } on DioException catch (e) {
+      if (_isTimeoutException(e)) return [];
+      rethrow;
+    }
+
+    if (sigRes.statusCode != 200) {
+      throw Exception('Solana 签名请求失败: ${sigRes.statusCode}');
+    }
+
+    final sigData = _decodeResponseData(sigRes.data);
+    final signatures = sigData is Map ? sigData['result'] as List? ?? [] : [];
+    final txs = <Map<String, dynamic>>[];
+
+    for (final sig in signatures) {
+      final signature = sig is Map ? sig['signature']?.toString() : null;
+      if (!_hasValue(signature)) continue;
+
+      late final Response<dynamic> txRes;
+      try {
+        txRes = await _dio.post(
+          _solanaRpc,
+          options: Options(headers: {'Content-Type': 'application/json'}),
+          data: {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'method': 'getTransaction',
+            'params': [
+              signature,
+              {'encoding': 'jsonParsed', 'maxSupportedTransactionVersion': 0},
+            ],
+          },
+        );
+      } on DioException catch (e) {
+        if (_isTimeoutException(e)) continue;
+        rethrow;
+      }
+
+      if (txRes.statusCode != 200) continue;
+
+      final txData = _decodeResponseData(txRes.data);
+      final tx = txData is Map ? txData['result'] : null;
+      if (tx is! Map) continue;
+
+      final meta = tx['meta'];
+      if (meta is! Map) continue;
+
+      txs.add({
+        'signature': signature,
+        'blockTime': tx['blockTime'],
+        'preTokenBalances': meta['preTokenBalances'] ?? [],
+        'postTokenBalances': meta['postTokenBalances'] ?? [],
+      });
+    }
+
     return txs;
   }
 
-  /// EVM 交易转 TradeModel
-  List<TradeModel> _parseEvmTxsToTradeModel(List<Map<String, dynamic>> txs, String userAddress) {
-    return txs.map((tx) {
-      final decimals = int.tryParse(tx["tokenDecimal"]?.toString() ?? "18") ?? 18;
-      final rawValue = BigInt.tryParse(tx["value"]?.toString() ?? "0") ?? BigInt.zero;
-      final amount = rawValue / BigInt.from(10).pow(decimals);
+  Future<List<Map<String, dynamic>>> _getTokenTransactionsBtc(
+    String address, {
+    int limit = 20,
+  }) async {
+    final url = Uri.parse(
+      'https://api.blockcypher.com/v1/btc/main/addrs/$address/full?limit=$limit',
+    );
+    late final Response<dynamic> res;
+    try {
+      res = await _dio.getUri(url);
+    } on DioException catch (e) {
+      if (_isTimeoutException(e)) return [];
+      rethrow;
+    }
 
-      final direction = tx["from"].toString().toLowerCase() == userAddress.toLowerCase()
+    if (res.statusCode != 200) {
+      throw Exception('BTC 请求失败: ${res.statusCode}');
+    }
+
+    final data = _decodeResponseData(res.data);
+    if (data is! Map<String, dynamic>) return [];
+    return List<Map<String, dynamic>>.from(data['txs'] ?? []);
+  }
+
+  /// EVM 交易转 TradeModel
+  List<TradeModel> _parseEvmTxsToTradeModel(
+    List<Map<String, dynamic>> txs,
+    String userAddress, {
+    required ChainAccount chain,
+  }) {
+    return txs.map((tx) {
+      final isTokenTx = _hasValue(tx['tokenSymbol']);
+      final decimals =
+          int.tryParse(
+            tx['tokenDecimal']?.toString() ?? (isTokenTx ? '18' : '18'),
+          ) ??
+          18;
+      final rawValue =
+          BigInt.tryParse(tx['value']?.toString() ?? '0') ?? BigInt.zero;
+      final amount = _formatBigIntAmount(rawValue, decimals);
+      final from = tx['from']?.toString();
+      final to = tx['to']?.toString();
+      final direction = from?.toLowerCase() == userAddress.toLowerCase()
           ? TradeDirection.sell
           : TradeDirection.buy;
+      final time = int.tryParse(tx['timeStamp']?.toString() ?? '0') ?? 0;
+      final symbol = tx['tokenSymbol']?.toString().isNotEmpty == true
+          ? tx['tokenSymbol'].toString()
+          : chain.symbol;
 
       return TradeModel(
-        symbol: tx["tokenSymbol"] ?? "ETH",
+        symbol: symbol,
         price: 0.0,
-        amount: amount.toDouble(),
+        amount: amount,
         buyTurnover: 0.0,
         direction: direction,
-        time: int.tryParse(tx["timeStamp"]?.toString() ?? "0") ?? 0,
+        time: time,
         createdAt: DateTime.now().millisecondsSinceEpoch,
-        from: tx["from"],
-        to: tx["to"],
-        contractAddress: tx["contractAddress"],
-        tokenName: tx["tokenName"],
+        from: from,
+        to: to,
+        contractAddress: tx['contractAddress']?.toString(),
+        tokenName: tx['tokenName']?.toString(),
       );
     }).toList();
   }
 
   /// Solana 交易转 TradeModel
-  List<TradeModel> _parseSolanaTxsToTradeModel(List<Map<String, dynamic>> txs, String userAddress) {
-    List<TradeModel> trades = [];
+  List<TradeModel> _parseSolanaTxsToTradeModel(
+    List<Map<String, dynamic>> txs,
+    String userAddress, {
+    String? contractAddress,
+  }) {
+    final trades = <TradeModel>[];
+    final lowerUserAddress = userAddress.toLowerCase();
+    final lowerContractAddress = contractAddress?.toLowerCase();
 
-    for (var tx in txs) {
-      final blockTime = tx['blockTime'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    for (final tx in txs) {
+      final blockTime =
+          int.tryParse(tx['blockTime']?.toString() ?? '') ??
+          DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final preBalances = tx['preTokenBalances'] as List? ?? [];
       final postBalances = tx['postTokenBalances'] as List? ?? [];
+      final balanceKeys = <String>{};
 
-      for (var token in postBalances) {
-        final mint = token['mint'] ?? '';
-        final amount = double.tryParse(token['uiTokenAmount']?['uiAmountString']?.toString() ?? "0") ?? 0.0;
-        final direction = (token['owner']?.toString().toLowerCase() == userAddress.toLowerCase())
-            ? TradeDirection.buy
-            : TradeDirection.sell;
+      for (final item in [...preBalances, ...postBalances]) {
+        if (item is! Map) continue;
+        final mint = item['mint']?.toString() ?? '';
+        final owner = item['owner']?.toString() ?? '';
+        final accountIndex = item['accountIndex']?.toString() ?? '';
+        if (!_hasValue(mint) || owner.toLowerCase() != lowerUserAddress) {
+          continue;
+        }
+        if (_hasValue(lowerContractAddress) &&
+            mint.toLowerCase() != lowerContractAddress) {
+          continue;
+        }
+        balanceKeys.add('$mint|$owner|$accountIndex');
+      }
 
-        trades.add(TradeModel(
-          symbol: mint,
-          price: 0.0,
-          amount: amount,
-          buyTurnover: 0.0,
-          direction: direction,
-          time: blockTime,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          from: direction == TradeDirection.sell ? userAddress : null,
-          to: direction == TradeDirection.buy ? userAddress : null,
-          contractAddress: mint,
-          tokenName: null,
-        ));
+      for (final key in balanceKeys) {
+        final parts = key.split('|');
+        final mint = parts[0];
+        final owner = parts[1];
+        final accountIndex = parts[2];
+        final preAmount = _findSolanaTokenAmount(
+          preBalances,
+          mint: mint,
+          owner: owner,
+          accountIndex: accountIndex,
+        );
+        final postAmount = _findSolanaTokenAmount(
+          postBalances,
+          mint: mint,
+          owner: owner,
+          accountIndex: accountIndex,
+        );
+        final delta = postAmount - preAmount;
+        if (delta == 0) continue;
+
+        final direction = delta > 0 ? TradeDirection.buy : TradeDirection.sell;
+
+        trades.add(
+          TradeModel(
+            symbol: mint,
+            price: 0.0,
+            amount: delta.abs(),
+            buyTurnover: 0.0,
+            direction: direction,
+            time: blockTime,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            from: direction == TradeDirection.sell ? userAddress : null,
+            to: direction == TradeDirection.buy ? userAddress : null,
+            contractAddress: mint,
+            tokenName: null,
+          ),
+        );
       }
     }
+
     return trades;
   }
 
-  Future<List<Map<String, dynamic>>> _getTokenTransactionsBTC(
-      String address, {
-        int limit = 10,
-      }) async {
-    final url = Uri.parse("https://api.blockcypher.com/v1/btc/main/addrs/$address/full?limit=$limit");
-    final res = await http.get(url);
-
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      final txs = List<Map<String, dynamic>>.from(data['txs'] ?? []);
-      return txs;
-    } else {
-      throw Exception("BTC 请求失败: ${res.statusCode}");
-    }
-  }
   List<TradeModel> _parseBtcTxsToTradeModel(
-      List<Map<String, dynamic>> txs, String userAddress) {
-    List<TradeModel> trades = [];
+    List<Map<String, dynamic>> txs,
+    String userAddress,
+  ) {
+    final trades = <TradeModel>[];
 
-    for (var tx in txs) {
-      final time = DateTime.tryParse(tx['confirmed'] ?? '')?.millisecondsSinceEpoch ?? 0;
+    for (final tx in txs) {
+      final time =
+          DateTime.tryParse(
+            tx['confirmed']?.toString() ?? '',
+          )?.millisecondsSinceEpoch ??
+          0;
+      var totalReceived = 0.0;
+      var totalSent = 0.0;
 
-      double totalReceived = 0;
-      double totalSent = 0;
-
-      // 输出
-      for (var output in tx['outputs']) {
-        final addresses = List<String>.from(output['addresses'] ?? []);
-        final value = (output['value'] ?? 0) / 1e8; // satoshi -> BTC
+      for (final output in tx['outputs'] as List? ?? []) {
+        if (output is! Map) continue;
+        final addresses = (output['addresses'] as List? ?? []).map(
+          (e) => e.toString(),
+        );
+        final value = ((output['value'] as num?) ?? 0) / 1e8;
         if (addresses.contains(userAddress)) {
           totalReceived += value;
         }
       }
 
-      // 输入
-      for (var input in tx['inputs']) {
-        final addresses = List<String>.from(input['addresses'] ?? []);
-        final value = (input['output_value'] ?? 0) / 1e8;
+      for (final input in tx['inputs'] as List? ?? []) {
+        if (input is! Map) continue;
+        final addresses = (input['addresses'] as List? ?? []).map(
+          (e) => e.toString(),
+        );
+        final value = ((input['output_value'] as num?) ?? 0) / 1e8;
         if (addresses.contains(userAddress)) {
           totalSent += value;
         }
       }
 
-      final direction = totalSent > 0 ? TradeDirection.sell : TradeDirection.buy;
-      final amount = direction == TradeDirection.sell ? totalSent : totalReceived;
+      if (totalReceived == 0 && totalSent == 0) continue;
 
-      trades.add(TradeModel(
-        symbol: "BTC",
-        price: 0.0,
-        amount: amount,
-        buyTurnover: 0.0,
-        direction: direction,
-        time: (time / 1000).toInt(), // 转成秒
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        from: direction == TradeDirection.sell ? userAddress : null,
-        to: direction == TradeDirection.buy ? userAddress : null,
-        contractAddress: null,
-        tokenName: null,
-      ));
+      final direction = totalSent > 0
+          ? TradeDirection.sell
+          : TradeDirection.buy;
+      final amount = direction == TradeDirection.sell
+          ? totalSent
+          : totalReceived;
+
+      trades.add(
+        TradeModel(
+          symbol: 'BTC',
+          price: 0.0,
+          amount: amount,
+          buyTurnover: 0.0,
+          direction: direction,
+          time: (time / 1000).toInt(),
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          from: direction == TradeDirection.sell ? userAddress : null,
+          to: direction == TradeDirection.buy ? userAddress : null,
+          contractAddress: null,
+          tokenName: null,
+        ),
+      );
     }
 
     return trades;
   }
 
+  double _findSolanaTokenAmount(
+    List balances, {
+    required String mint,
+    required String owner,
+    required String accountIndex,
+  }) {
+    for (final item in balances) {
+      if (item is! Map) continue;
+      if (item['mint']?.toString() != mint ||
+          item['owner']?.toString() != owner ||
+          item['accountIndex']?.toString() != accountIndex) {
+        continue;
+      }
 
+      final uiTokenAmount = item['uiTokenAmount'];
+      if (uiTokenAmount is! Map) return 0;
+
+      final amount = BigInt.tryParse(uiTokenAmount['amount']?.toString() ?? '');
+      final decimals =
+          int.tryParse(uiTokenAmount['decimals']?.toString() ?? '0') ?? 0;
+      if (amount == null) {
+        return double.tryParse(
+              uiTokenAmount['uiAmountString']?.toString() ?? '0',
+            ) ??
+            0;
+      }
+      return _formatBigIntAmount(amount, decimals);
+    }
+
+    return 0;
+  }
+
+  double _formatBigIntAmount(BigInt value, int decimals) {
+    if (value == BigInt.zero) return 0;
+    if (decimals <= 0) return value.toDouble();
+
+    final negative = value.isNegative;
+    final valueString = value.abs().toString().padLeft(decimals + 1, '0');
+    final integer = valueString.substring(0, valueString.length - decimals);
+    var fraction = valueString.substring(valueString.length - decimals);
+    fraction = fraction.replaceFirst(RegExp(r'0+$'), '');
+    final amountString =
+        '${negative ? '-' : ''}$integer${fraction.isEmpty ? '' : '.$fraction'}';
+
+    return double.tryParse(amountString) ?? 0;
+  }
+
+  bool _hasValue(Object? value) => value != null && value.toString().isNotEmpty;
+
+  bool _isTimeoutException(DioException e) {
+    return e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout;
+  }
+
+  String _resolveEvmApiUrl(String? txApiUrl) {
+    if (!_hasValue(txApiUrl)) return _evmApiUrl;
+
+    final uri = Uri.tryParse(txApiUrl!);
+    final host = uri?.host.toLowerCase() ?? '';
+    final isEtherscanV2 = host == 'api.etherscan.io' && uri?.path == '/v2/api';
+    if (isEtherscanV2) return txApiUrl;
+
+    const deprecatedV1Hosts = {
+      'api.etherscan.io',
+      'api.bscscan.com',
+      'api-testnet.bscscan.com',
+      'api.polygonscan.com',
+      'api.arbiscan.io',
+      'api-optimistic.etherscan.io',
+      'api.snowtrace.io',
+      'api.basescan.org',
+    };
+
+    if (deprecatedV1Hosts.contains(host)) {
+      return _evmApiUrl;
+    }
+
+    return txApiUrl;
+  }
+
+  dynamic _decodeResponseData(dynamic data) {
+    if (data is String) return jsonDecode(data);
+    return data;
+  }
 }

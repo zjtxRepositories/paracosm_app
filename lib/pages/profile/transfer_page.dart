@@ -401,44 +401,58 @@ class _TransferPageState extends State<TransferPage> {
     return AppPage(
       showNav: true,
       title: AppLocalizations.of(context)!.profileTransferTransfer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            // 金额输入卡片
-            _buildAmountCard(),
-            const SizedBox(height: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    // 金额输入卡片
+                    _buildAmountCard(),
+                    const SizedBox(height: 24),
 
-            _buildChooseChain(),
-            const SizedBox(height: 24),
+                    _buildChooseChain(),
+                    const SizedBox(height: 24),
 
-            // 收款地址输入
-            _buildAddressInput(),
-            const SizedBox(height: 38),
-            // 矿工费滑动条
-            _buildMinerFeeSection(),
-            const Spacer(),
-            // 继续按钮
-            AppButton(
-              text: AppLocalizations.of(context)!.profileTransferConfirm,
-              onPressed:
-                  _amountController.text.isNotEmpty &&
-                      _addressController.text.isNotEmpty
-                  ? () {
-                      if (_validateTransferAmount()) {
-                        _showPaymentDetails();
-                      }
-                    }
-                  : null,
-              backgroundColor: _amountController.text.isEmpty
-                  ? AppColors.grey300
-                  : AppColors.grey900,
-              textColor: Colors.white,
+                    // 收款地址输入
+                    _buildAddressInput(),
+                    const SizedBox(height: 38),
+                    // 矿工费滑动条
+                    _buildMinerFeeSection(),
+                    const Spacer(),
+                    // 继续按钮
+                    AppButton(
+                      text: AppLocalizations.of(
+                        context,
+                      )!.profileTransferConfirm,
+                      onPressed:
+                          _amountController.text.isNotEmpty &&
+                              _addressController.text.isNotEmpty
+                          ? () {
+                              if (_validateTransferAmount()) {
+                                _showPaymentDetails();
+                              }
+                            }
+                          : null,
+                      backgroundColor:
+                          _amountController.text.isEmpty ||
+                              _addressController.text.isEmpty
+                          ? AppColors.grey300
+                          : AppColors.grey900,
+                      textColor: Colors.white,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

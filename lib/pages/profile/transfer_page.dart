@@ -64,7 +64,7 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Future<void> initChain() async {
-    if (widget.token != null){
+    if (widget.token != null) {
       _selectedNetwork = widget.token!.getChain();
       return;
     }
@@ -180,7 +180,7 @@ class _TransferPageState extends State<TransferPage> {
     double balance = _token!.formatBalance();
     if (_calculateFee > balance) return 0;
     if (_selectedNetwork?.chainType == ChainType.evm) {
-      if (_showToken != null) {
+      if (_showToken != null && _token!.address.isNotEmpty) {
         return balance;
       }
     }
@@ -302,6 +302,58 @@ class _TransferPageState extends State<TransferPage> {
     );
   }
 
+  bool _validateTransferAmount() {
+    final token = _token;
+    if (token == null) return false;
+
+    final amount = _parseAmountToBigInt(
+      _amountController.text.trim(),
+      token.decimals,
+    );
+    if (amount == null || amount <= BigInt.zero) {
+      AppToast.show(AppLocalizations.of(context)!.profileTransferPleaseEnter);
+      return false;
+    }
+
+    final fee = _shouldDeductFeeFromTokenBalance()
+        ? doubleToBigInt(_calculateFee, decimals: token.decimals)
+        : BigInt.zero;
+    if (amount + fee > token.balance) {
+      AppToast.show(
+        AppLocalizations.of(context)!.profileTransferInsufficientBalance,
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _shouldDeductFeeFromTokenBalance() {
+    return _selectedNetwork?.chainType != ChainType.solana &&
+        (_token?.address.isEmpty ?? false);
+  }
+
+  BigInt? _parseAmountToBigInt(String value, int decimals) {
+    if (value.isEmpty || value.startsWith('-')) return null;
+    final parts = value.split('.');
+    if (parts.length > 2) return null;
+
+    final integer = parts[0].isEmpty ? '0' : parts[0];
+    final fraction = parts.length == 2 ? parts[1] : '';
+    if (!RegExp(r'^\d+$').hasMatch(integer)) return null;
+    if (fraction.isNotEmpty && !RegExp(r'^\d+$').hasMatch(fraction)) {
+      return null;
+    }
+    if (fraction.length > decimals) return null;
+
+    final factor = BigInt.from(10).pow(decimals);
+    final integerAmount = BigInt.parse(integer) * factor;
+    final fractionAmount = fraction.isEmpty
+        ? BigInt.zero
+        : BigInt.parse(fraction.padRight(decimals, '0'));
+    return integerAmount + fractionAmount;
+  }
+
   Map<String, String> _buildFeeDetails(AppLocalizations l10n, FeeLevel level) {
     switch (_selectedNetwork?.chainType) {
       case ChainType.bitcoin:
@@ -332,11 +384,13 @@ class _TransferPageState extends State<TransferPage> {
       title: AppLocalizations.of(context)!.profileTransferPassword,
       onConfirm: (password) async {
         final isResult = await WalletSecurity.verifyPassword(password);
+        if (!mounted) return;
         if (!isResult) {
           return AppToast.show(
             AppLocalizations.of(context)!.commonPasswordError,
           );
         }
+        if (!_validateTransferAmount()) return;
         _sendTransfer(_amountController.text, _addressController.text);
       },
     );
@@ -372,7 +426,7 @@ class _TransferPageState extends State<TransferPage> {
                   _amountController.text.isNotEmpty &&
                       _addressController.text.isNotEmpty
                   ? () {
-                      if (_amountController.text.isNotEmpty) {
+                      if (_validateTransferAmount()) {
                         _showPaymentDetails();
                       }
                     }

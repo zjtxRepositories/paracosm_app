@@ -877,6 +877,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileTransferAsset => translate('profile_transfer_asset');
   String get profileTransferAmount => translate('profile_transfer_amount');
   String get profileTransferBalance => translate('profile_transfer_balance');
+  String get profileTransferInsufficientBalance =>
+      translate('profile_transfer_insufficient_balance');
   String get profileTransferAddress => translate('profile_transfer_address');
   String get profileTransferNetworkFees =>
       translate('profile_transfer_network_fees');

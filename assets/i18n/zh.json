@@ -389,6 +389,7 @@
   "profile_transfer_amount": "金额",
   "profile_transfer_max": "最大",
   "profile_transfer_balance": "余额",
+  "profile_transfer_insufficient_balance": "余额不足",
   "profile_transfer_address": "地址",
   "profile_transfer_network_fees": "网络费用",
   "profile_transfer_fee_level": "费用档位",

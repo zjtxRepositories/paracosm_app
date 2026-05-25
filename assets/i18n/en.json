@@ -389,6 +389,7 @@
   "profile_transfer_amount": "Amount",
   "profile_transfer_max": "Max",
   "profile_transfer_balance": "Balance",
+  "profile_transfer_insufficient_balance": "Insufficient balance",
   "profile_transfer_address": "Address",
   "profile_transfer_network_fees": "Network Fees",
   "profile_transfer_fee_level": "Fee Level",

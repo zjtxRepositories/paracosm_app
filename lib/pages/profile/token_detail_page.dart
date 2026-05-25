@@ -8,6 +8,7 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
+import '../../core/network/api/get_token_transaction_record_api.dart';
 import '../../modules/wallet/model/trade_model.dart';
 import '../../util/string_util.dart';
 
@@ -336,7 +337,10 @@ class _TokenDetailPageState extends State<TokenDetailPage>
   /// 构建历史记录列表
   Widget _buildHistoryList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Padding(
+        padding: const EdgeInsets.only(top: 68),
+        child: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (_list.isEmpty) {

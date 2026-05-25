@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/base/app_localizations.dart';
 import '../../widgets/chat/group_avatar_widget.dart';
+import '../../widgets/common/app_empty_view.dart';
 
 class CommunityListPage extends StatefulWidget {
   final RoomType type;
@@ -53,7 +54,10 @@ class _CommunityListPageState extends State<CommunityListPage>
     }
 
     if (_list.isEmpty) {
-      return Center(child: Text(AppLocalizations.of(context)!.communityNoDao));
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.chatSearchNoData,
+        bottomOffset: 50,
+      );
     }
 
     return ListView.builder(

@@ -412,10 +412,13 @@ class AppRouter {
           final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
           final status = state.uri.queryParameters['status'] ?? 'dialing';
           final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
+          final remoteOnBackdrop =
+              state.uri.queryParameters['backdrop'] == 'remote';
           return ChatPrivateVideoPage(
             name: name,
             status: status,
             cameraEnabled: cameraEnabled,
+            initialRemoteOnBackdrop: remoteOnBackdrop,
           );
         },
       ),

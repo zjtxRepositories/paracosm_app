@@ -71,6 +71,24 @@
         "coinId": "tether",
         "version": 1,
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png"
+      },
+      {
+        "symbol": "小胖子",
+        "address": "0x26131eb28a342cdf75fafa9effd3ce20c6ca518a",
+        "decimals": 18,
+        "name": "小胖子",
+        "coinId": "小胖子",
+        "version": 1,
+        "icon": "http://dl.zjtx9.top/file/other/4e48e2ccbbee4a4d98c27a97161dc73e.png"
+      },
+      {
+        "symbol": "小浣熊",
+        "address": "0x59efe8bd4571c56107678b555d8bd853bf1d7333",
+        "decimals": 18,
+        "name": "小浣熊",
+        "coinId": "小浣熊",
+        "version": 1,
+        "icon": "http://dl.zjtx9.top/file/other/959e7a4ccbea4977b75982bc2c05d13f.jpg"
       }
     ]
   },
@@ -534,46 +552,6 @@
         "coinId": "bitcoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png",
         "native": 1
-      }
-    ]
-  },
-  {
-    "name": "VET",
-    "chainName": "VET Mainnet",
-    "chainId": 62176,
-    "symbol": "VET",
-    "coinName": "VET",
-    "decimals": 18,
-    "icon": "http://dl.zjtx9.top/tigim/other/20251106/3ab1bde8c1d24833befde8c9af228769.jpg",
-    "coinIndex": 60,
-    "coinId": "",
-    "chainType": "evm",
-    "nodes": [
-      "https://node.vetchain.top"
-    ],
-    "txApiUrl": "https://scan.vetchain.top/api",
-    "explorer": "https://scan.vetchain.top",
-    "explorerTxUrl": "https://scan.vetchain.top/tx/",
-    "explorerAddressUrl": "https://scan.vetchain.top/address/",
-    "version": 1,
-    "tokens": [
-      {
-        "symbol": "VET",
-        "address": "",
-        "decimals": 18,
-        "name": "VET",
-        "coinId": "",
-        "icon": "http://dl.zjtx9.top/tigim/other/20251106/3ab1bde8c1d24833befde8c9af228769.jpg",
-        "native": 1,
-        "isAdded": 1
-      },
-      {
-        "symbol": "USDA",
-        "address": "0xB396a76607ce0e6fDe11834fd034A49bF27e5d56",
-        "decimals": 18,
-        "name": "USDA",
-        "coinId": "tether",
-        "icon": "http://dl.zjtx9.top/tigim/other/20251130/25e9111d9c17496694e59695dedda6b7.png"
       }
     ]
   }

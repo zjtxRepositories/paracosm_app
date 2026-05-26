@@ -343,6 +343,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
                           'network': _selectedNetwork?.name,
                           'address': _selectedNetwork?.address,
                           'logo': _selectedNetwork?.logo,
+                          'chainId': _selectedNetwork?.chainId,
                         },
                       );
                     },

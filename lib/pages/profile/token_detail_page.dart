@@ -8,7 +8,6 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
-import '../../core/network/api/get_token_transaction_record_api.dart';
 import '../../modules/wallet/model/trade_model.dart';
 import '../../util/string_util.dart';
 
@@ -57,8 +56,7 @@ class _TokenDetailPageState extends State<TokenDetailPage>
         _list = result;
       });
     } catch (e) {
-      // 可以加个提示
-      print("获取交易记录失败: $e");
+      debugPrint('get token transactions failed: $e');
     } finally {
       setState(() {
         _isLoading = false; // 结束加载
@@ -241,13 +239,15 @@ class _TokenDetailPageState extends State<TokenDetailPage>
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
+                      final chain = widget.token.getChain();
                       context.push(
                         '/token-receive',
                         extra: {
                           'symbol': widget.token.symbol,
-                          'network': widget.token.name,
-                          'address': widget.token.showAddress,
+                          'network': chain?.name ?? widget.token.name,
+                          'address': chain?.address ?? '',
                           'logo': widget.token.logo,
+                          'chainId': widget.token.chainId,
                         },
                       );
                     },

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paracosm/modules/scan/scan_result_parser.dart';
+import 'package:paracosm/pages/profile/token_receive_payload.dart';
 
 void main() {
   test('parses web URLs', () {
@@ -28,6 +29,22 @@ void main() {
     expect(result.amount, '1.5');
     expect(result.tokenSymbol, 'BNB');
     expect(result.chain, 'bsc');
+  });
+
+  test('parses token receive QR payment payloads without amount', () {
+    final payload = buildTokenReceivePaymentPayload(
+      address: '0xwallet',
+      tokenSymbol: 'USDT',
+      chain: 'Binancestry(BSC)',
+    );
+
+    final result = ScanResultParser.parse(payload);
+
+    expect(result.type, ScanResultType.walletPayment);
+    expect(result.address, '0xwallet');
+    expect(result.amount, isNull);
+    expect(result.tokenSymbol, 'USDT');
+    expect(result.chain, 'Binancestry(BSC)');
   });
 
   test('parses paracosm friend links', () {

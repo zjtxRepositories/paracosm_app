@@ -21,6 +21,10 @@ class BalanceService {
 
     switch (chain.chainType) {
       case ChainType.evm:
+        if (!EvmFacade.isValidAddress(chain.address)) {
+          token.balance = BigInt.zero;
+          break;
+        }
         final balance = await EvmFacade.getBalance(
           chain,
           chain.address,
@@ -29,10 +33,18 @@ class BalanceService {
         token.balance = balance;
         break;
       case ChainType.solana:
+        if (chain.address.isEmpty) {
+          token.balance = BigInt.zero;
+          break;
+        }
         token.balance = await SolanaChainService().getBalance(chain.address);
         break;
 
       case ChainType.bitcoin:
+        if (chain.address.isEmpty) {
+          token.balance = BigInt.zero;
+          break;
+        }
         token.balance = await BitcoinChainService().getBalance(chain.address);
         break;
     }

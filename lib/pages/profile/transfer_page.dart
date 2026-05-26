@@ -191,28 +191,30 @@ class _TransferPageState extends State<TransferPage> {
     try {
       AppLoading.show();
       String? tx;
+      final trimmedAmount = amount.trim();
+      final trimmedAddress = address.trim();
       if (_selectedNetwork?.chainType == ChainType.evm) {
         final amountWei = doubleToBigInt(
-          double.parse(amount),
+          double.parse(trimmedAmount),
           decimals: _token!.decimals,
         );
         tx = await EvmFacade.send(
           chain: _selectedNetwork!,
           contractAddress: _token!.address,
-          to: address,
+          to: trimmedAddress,
           amountWei: amountWei,
           gasFee: _gasFee,
         );
         // tx = '0xb09659fb4d4f7c59397c1823e993fde0d6c1cbab4c4feae3e017d2f4c5e74825';
       }
       if (_selectedNetwork?.chainType == ChainType.bitcoin) {
-        final satoshis = GasCalculator.btcToSatoshi(amount);
+        final satoshis = GasCalculator.btcToSatoshi(trimmedAmount);
         final feeRate =
             _btcFeeRateByLevel[_feeLevel] ??
             (await BitcoinChainService.getFeeRate()).medium;
         tx = await BitcoinChainService.sendTransaction(
           fromAddress: _selectedNetwork!.address,
-          toAddress: address,
+          toAddress: trimmedAddress,
           amount: satoshis,
           feePerVbyte: feeRate.toDouble(),
         );
@@ -221,8 +223,8 @@ class _TransferPageState extends State<TransferPage> {
       if (_selectedNetwork?.chainType == ChainType.solana) {
         tx = await SolanaChainService().sendSol(
           address: _selectedNetwork!.address,
-          toAddress: address,
-          amount: double.parse(amount),
+          toAddress: trimmedAddress,
+          amount: double.parse(trimmedAmount),
         );
       }
       AppLoading.dismiss();
@@ -273,7 +275,7 @@ class _TransferPageState extends State<TransferPage> {
     };
     WalletModals.showPaymentDetails(
       context,
-      amount: _amountController.text,
+      amount: _amountController.text.trim(),
       logo: _token!.logo,
       network: _selectedNetwork!.name.isNotEmpty
           ? _selectedNetwork!.name
@@ -282,7 +284,7 @@ class _TransferPageState extends State<TransferPage> {
       from: (_token!.address.isNotEmpty)
           ? _token!.address
           : _selectedNetwork!.address,
-      to: _addressController.text,
+      to: _addressController.text.trim(),
       feeLevel: _feeLevel,
       feeOptions: feeOptions,
       feeDetails: feeDetails,
@@ -326,6 +328,53 @@ class _TransferPageState extends State<TransferPage> {
     }
 
     return true;
+  }
+
+  bool _validateSelectedNetwork() {
+    final network = _selectedNetwork;
+    if (network == null) {
+      AppToast.show(AppLocalizations.of(context)!.profileTransferPleaseEnter);
+      return false;
+    }
+
+    if (network.chainType == ChainType.evm &&
+        !EvmFacade.isValidAddress(network.address)) {
+      AppToast.show(
+        AppLocalizations.of(context)!.translate('wallet_invalid_address'),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _validateRecipientAddress() {
+    final address = _addressController.text.trim();
+    final chainType = _selectedNetwork?.chainType;
+    if (address.isEmpty) {
+      AppToast.show(AppLocalizations.of(context)!.profileTransferPleaseEnter);
+      return false;
+    }
+    if (chainType == ChainType.evm && !EvmFacade.isValidAddress(address)) {
+      AppToast.show(
+        AppLocalizations.of(context)!.translate('wallet_invalid_address'),
+      );
+      return false;
+    }
+    if (chainType == ChainType.solana &&
+        !SolanaChainService().isValidAddress(address)) {
+      AppToast.show(
+        AppLocalizations.of(context)!.translate('wallet_invalid_address'),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateTransferForm() {
+    return _validateSelectedNetwork() &&
+        _validateTransferAmount() &&
+        _validateRecipientAddress();
   }
 
   bool _shouldDeductFeeFromTokenBalance() {
@@ -390,7 +439,7 @@ class _TransferPageState extends State<TransferPage> {
             AppLocalizations.of(context)!.commonPasswordError,
           );
         }
-        if (!_validateTransferAmount()) return;
+        if (!_validateTransferForm()) return;
         _sendTransfer(_amountController.text, _addressController.text);
       },
     );
@@ -431,17 +480,17 @@ class _TransferPageState extends State<TransferPage> {
                         context,
                       )!.profileTransferConfirm,
                       onPressed:
-                          _amountController.text.isNotEmpty &&
-                              _addressController.text.isNotEmpty
+                          _amountController.text.trim().isNotEmpty &&
+                              _addressController.text.trim().isNotEmpty
                           ? () {
-                              if (_validateTransferAmount()) {
+                              if (_validateTransferForm()) {
                                 _showPaymentDetails();
                               }
                             }
                           : null,
                       backgroundColor:
-                          _amountController.text.isEmpty ||
-                              _addressController.text.isEmpty
+                          _amountController.text.trim().isEmpty ||
+                              _addressController.text.trim().isEmpty
                           ? AppColors.grey300
                           : AppColors.grey900,
                       textColor: Colors.white,

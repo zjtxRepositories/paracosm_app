@@ -53,6 +53,9 @@ class EvmClientManager {
         _bestRpcCache[chainId] = rpc;
         return result;
       } catch (e) {
+        if (_isInvalidParamsError(e)) {
+          throw Exception("RPC参数错误: $e");
+        }
         lastError = Exception("RPC失败: $rpc -> $e");
         print(lastError);
         continue;
@@ -60,6 +63,14 @@ class EvmClientManager {
     }
 
     throw lastError ?? Exception("所有RPC失败");
+  }
+
+  static bool _isInvalidParamsError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('code -32602') ||
+        message.contains('invalid argument') ||
+        message.contains('invalid address') ||
+        message.contains('empty hex string');
   }
 
   /// 通用 RPC 调用

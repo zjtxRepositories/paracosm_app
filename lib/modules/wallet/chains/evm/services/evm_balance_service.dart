@@ -2,6 +2,7 @@ import 'package:web3dart/contracts.dart';
 import 'package:web3dart/credentials.dart';
 
 import '../../../model/chain_account.dart';
+import '../evm_service.dart';
 import '../client/evm_client_manager.dart';
 
 class EvmBalanceService {
@@ -12,7 +13,13 @@ class EvmBalanceService {
   static Future<BigInt> getBalance(ChainAccount chain,
       String address,
       {String? contractAddress}) {
+    if (!EvmService.isValidAddress(address)) {
+      throw Exception('wallet_invalid_address');
+    }
     if ((contractAddress ?? '').isNotEmpty) {
+      if (!EvmService.isValidAddress(contractAddress!)) {
+        throw Exception('wallet_invalid_address');
+      }
       return getTokenBalance(chain, contractAddress!, address);
     }
     return getNativeBalance(chain, address);

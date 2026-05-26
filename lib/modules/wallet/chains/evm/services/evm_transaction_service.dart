@@ -32,7 +32,16 @@ class EvmTransactionService {
     GasFee? gasFee,
     String? customData,
   }) async {
+    if (!EvmService.isValidAddress(chain.address)) {
+      throw AppLocalizations.currentText('wallet_invalid_address');
+    }
+
     if (!EvmService.isValidAddress(to)) {
+      throw AppLocalizations.currentText('wallet_invalid_address');
+    }
+
+    if ((contractAddress ?? '').isNotEmpty &&
+        !EvmService.isValidAddress(contractAddress!)) {
       throw AppLocalizations.currentText('wallet_invalid_address');
     }
 

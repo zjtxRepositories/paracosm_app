@@ -8,8 +8,10 @@ enum CustomMessageType {
   transfer,
   quitGroup,
   groupRemoved,
+  customFace,
   unknown,
 }
+
 CustomMessageType _typeFromString(String? type) {
   switch (type) {
     case 'friend_add':
@@ -30,6 +32,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.quitGroup;
     case 'group_removed':
       return CustomMessageType.groupRemoved;
+    case 'custom_face':
+      return CustomMessageType.customFace;
     default:
       return CustomMessageType.unknown;
   }
@@ -41,6 +45,8 @@ class CustomMessageModel {
   final String toUserId;
   String? content;
   final List<String>? userIds;
+  final String? facePackId;
+  final String? faceName;
 
   CustomMessageModel({
     required this.type,
@@ -48,6 +54,8 @@ class CustomMessageModel {
     required this.toUserId,
     this.content,
     this.userIds,
+    this.facePackId,
+    this.faceName,
   });
 
   /// =========================
@@ -59,9 +67,9 @@ class CustomMessageModel {
       fromUserId: json['fromUserId'] ?? '',
       toUserId: json['toUserId'] ?? '',
       content: json['content'] ?? '',
-      userIds: (json['userIds'] as List?)
-          ?.map((e) => e.toString())
-          .toList(),
+      userIds: (json['userIds'] as List?)?.map((e) => e.toString()).toList(),
+      facePackId: json['facePackId']?.toString(),
+      faceName: json['faceName']?.toString(),
     );
   }
 
@@ -69,15 +77,21 @@ class CustomMessageModel {
   /// toJson
   /// =========================
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'type': _typeToString(type),
       'fromUserId': fromUserId,
       'toUserId': toUserId,
       'content': content,
       'userIds': userIds,
     };
+    if (facePackId != null) {
+      json['facePackId'] = facePackId;
+    }
+    if (faceName != null) {
+      json['faceName'] = faceName;
+    }
+    return json;
   }
-
 
   String _typeToString(CustomMessageType type) {
     switch (type) {
@@ -99,6 +113,8 @@ class CustomMessageModel {
         return 'group_quit';
       case CustomMessageType.groupRemoved:
         return 'group_removed';
+      case CustomMessageType.customFace:
+        return 'custom_face';
       case CustomMessageType.unknown:
         return 'unknown';
     }

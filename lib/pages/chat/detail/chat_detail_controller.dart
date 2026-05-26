@@ -29,6 +29,7 @@ import '../../../core/models/media_item.dart';
 import '../../../modules/call/rong_call_manager.dart';
 import '../../../modules/call/rong_call_summary_parser.dart';
 import '../../../modules/im/message/base/im_message.dart';
+import '../../../modules/im/message/custom_face_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
@@ -82,6 +83,8 @@ class ChatDetailController extends ChangeNotifier {
   bool isInputEmpty = true;
 
   bool isMenuExpanded = false;
+
+  bool isEmojiPanelExpanded = false;
 
   bool isVoiceMode = false;
 
@@ -1539,6 +1542,26 @@ class ChatDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> sendCustomFace(ChatCustomFace face) async {
+    final session = args;
+    if (session == null) return;
+
+    final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
+    final sent = await ImSender.instance.send(
+      message: CustomFaceMessage(
+        conversationType: session.conversationType,
+        targetId: session.targetId,
+        channelId: session.channelId,
+        face: face,
+        destructDuration: burnSeconds,
+      ),
+    );
+
+    if (!sent) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+    }
+  }
+
   Future<void> sendImage(String path) async {
     final session = args;
     final imagePath = path.trim();
@@ -1724,9 +1747,48 @@ class ChatDetailController extends ChangeNotifier {
 
     isMenuExpanded = !isMenuExpanded;
 
+    isEmojiPanelExpanded = false;
+
     isVoiceMode = false;
 
     notifyListeners();
+  }
+
+  void toggleEmojiPanel() {
+    if (engine.isAtBottom) {
+      engine.scrollToBottom();
+    }
+
+    FocusScope.of(context!).unfocus();
+
+    isEmojiPanelExpanded = !isEmojiPanelExpanded;
+    isMenuExpanded = false;
+    isVoiceMode = false;
+
+    notifyListeners();
+  }
+
+  void handleTextFieldTap() {
+    var changed = false;
+    if (isMenuExpanded) {
+      isMenuExpanded = false;
+      changed = true;
+    }
+    if (isEmojiPanelExpanded) {
+      isEmojiPanelExpanded = false;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
+  void insertEmoji(String emoji) {
+    ChatEmojiInputEditor.insert(inputController, emoji);
+  }
+
+  void deleteInputCharacter() {
+    ChatEmojiInputEditor.deletePreviousCharacter(inputController);
   }
 
   void toggleVoice() {
@@ -1735,6 +1797,8 @@ class ChatDetailController extends ChangeNotifier {
     isVoiceMode = !isVoiceMode;
 
     isMenuExpanded = false;
+
+    isEmojiPanelExpanded = false;
 
     notifyListeners();
   }

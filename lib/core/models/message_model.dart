@@ -53,6 +53,8 @@ class MessageModel {
         return AppLocalizations.currentText('chat_members_removed_message', {
           'members': members ?? '',
         });
+      case CustomMessageType.customFace:
+        return AppLocalizations.currentText('chat_detail_custom_face');
       default:
         return _formatContent(message.content ?? '');
     }

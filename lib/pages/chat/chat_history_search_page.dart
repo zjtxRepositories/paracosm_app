@@ -450,6 +450,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage> {
         return message.text ?? '';
       case ChatDetailMessageKind.image:
         return AppLocalizations.of(context)!.chatImage;
+      case ChatDetailMessageKind.customFace:
+        return AppLocalizations.of(context)!.chatDetailCustomFace;
       case ChatDetailMessageKind.voice:
         return AppLocalizations.of(context)!.chatVoice;
       case ChatDetailMessageKind.video:

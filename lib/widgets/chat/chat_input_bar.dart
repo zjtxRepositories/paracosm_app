@@ -11,9 +11,11 @@ class ChatInputBar extends StatelessWidget {
     required this.isRecording,
     required this.isCancelling,
     required this.isMenuExpanded,
+    required this.isEmojiPanelExpanded,
     required this.isInputEmpty,
     required this.onToggleVoiceMode,
     required this.onTextFieldTap,
+    required this.onEmojiTap,
     required this.onActionTap,
     required this.onVoiceLongPressStart,
     required this.onVoiceLongPressMoveUpdate,
@@ -27,9 +29,11 @@ class ChatInputBar extends StatelessWidget {
   final bool isRecording;
   final bool isCancelling;
   final bool isMenuExpanded;
+  final bool isEmojiPanelExpanded;
   final bool isInputEmpty;
   final VoidCallback onToggleVoiceMode;
   final VoidCallback onTextFieldTap;
+  final VoidCallback onEmojiTap;
   final VoidCallback onActionTap;
   final GestureLongPressStartCallback onVoiceLongPressStart;
   final GestureLongPressMoveUpdateCallback onVoiceLongPressMoveUpdate;
@@ -149,7 +153,21 @@ class ChatInputBar extends StatelessWidget {
                       ),
               ),
               const SizedBox(width: 12),
-              Image.asset('assets/images/chat/emoj.png', width: 24, height: 24),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onEmojiTap,
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Image.asset(
+                    isEmojiPanelExpanded
+                        ? 'assets/images/chat/keyboard.png'
+                        : 'assets/images/chat/emoj.png',
+                    width: 24,
+                    height: 24,
+                  ),
+                ),
+              ),
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: onActionTap,

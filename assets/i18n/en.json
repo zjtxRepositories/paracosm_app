@@ -643,6 +643,7 @@
   "chat_detail_no_history": "No chat history",
   "chat_detail_empty_message": "[Empty message]",
   "chat_detail_generic_message": "[Message]",
+  "chat_detail_custom_face": "[Emoji]",
   "chat_detail_unsupported_message_type": "[Unsupported message type]",
   "chat_detail_forward_target_title": "Select forwarding target",
   "chat_detail_forward_count": "Forward ({count})",

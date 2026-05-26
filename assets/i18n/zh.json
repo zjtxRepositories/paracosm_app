@@ -636,6 +636,7 @@
   "chat_detail_no_history": "暂无聊天记录",
   "chat_detail_empty_message": "[空消息]",
   "chat_detail_generic_message": "[消息]",
+  "chat_detail_custom_face": "[表情]",
   "chat_detail_unsupported_message_type": "[暂不支持的消息类型]",
   "chat_detail_forward_target_title": "选择转发对象",
   "chat_detail_forward_count": "转发 ({count})",

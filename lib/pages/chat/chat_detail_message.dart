@@ -11,6 +11,7 @@ enum ChatDetailMessageKind {
   redBagNotice,
   withdrawnNotice,
   combineForward,
+  customFace,
   fm,
 }
 

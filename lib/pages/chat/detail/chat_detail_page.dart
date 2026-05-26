@@ -12,6 +12,7 @@ import '../../../tool/keyboard_detector.dart';
 import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
+import '../../../widgets/chat/chat_emoji_panel.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
 import '../../../widgets/chat/chat_input_bar.dart';
 import '../../../widgets/chat/chat_message_contents.dart';
@@ -108,16 +109,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       isRecording: controller.isRecording,
                       isCancelling: controller.isCancelling,
                       isMenuExpanded: controller.isMenuExpanded,
+                      isEmojiPanelExpanded: controller.isEmojiPanelExpanded,
                       isInputEmpty: controller.isInputEmpty,
                       quoteText: controller.quotedText,
                       onClearQuote: controller.clearQuote,
                       onToggleVoiceMode: controller.toggleVoice,
-                      onTextFieldTap: () {
-                        if (controller.isMenuExpanded) {
-                          controller.isMenuExpanded = false;
-                          setState(() {});
-                        }
-                      },
+                      onTextFieldTap: controller.handleTextFieldTap,
+                      onEmojiTap: controller.toggleEmojiPanel,
                       onActionTap: controller.toggleAction,
                       onVoiceLongPressStart: (d) => controller.voiceStart(),
                       onVoiceLongPressMoveUpdate: (d) =>
@@ -143,6 +141,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                               controller.toggleFile();
                           }
                         },
+                      ),
+                    if (controller.isEmojiPanelExpanded)
+                      ChatEmojiPanel(
+                        onEmojiTap: controller.insertEmoji,
+                        onDeleteTap: controller.deleteInputCharacter,
+                        onCustomFaceTap: controller.sendCustomFace,
                       ),
                   ],
                 ],
@@ -774,6 +778,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             remoteUrl: message.remote,
             thumbnailBase64String: message.thumbnailBase64String,
           ),
+        );
+      case ChatDetailMessageKind.customFace:
+        return ChatCustomFaceMessageContent(
+          assetPath: message.imagePath ?? '',
+          fallbackText: AppLocalizations.of(context)!.chatDetailCustomFace,
         );
       case ChatDetailMessageKind.video:
         return _buildVideoMessageContent(message);

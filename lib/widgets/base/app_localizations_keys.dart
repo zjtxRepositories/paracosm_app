@@ -596,6 +596,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatDetailEmptyMessage => translate('chat_detail_empty_message');
   String get chatDetailGenericMessage =>
       translate('chat_detail_generic_message');
+  String get chatDetailCustomFace => translate('chat_detail_custom_face');
   String get chatDetailUnsupportedMessageType =>
       translate('chat_detail_unsupported_message_type');
   String get chatDetailForwardTargetTitle =>

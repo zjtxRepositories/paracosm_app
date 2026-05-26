@@ -98,6 +98,44 @@ class ChatImageMessageContent extends StatefulWidget {
       _ChatImageMessageContentState();
 }
 
+class ChatCustomFaceMessageContent extends StatelessWidget {
+  const ChatCustomFaceMessageContent({
+    super.key,
+    required this.assetPath,
+    required this.fallbackText,
+  });
+
+  final String assetPath;
+  final String fallbackText;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 96,
+      height: 96,
+      child: assetPath.trim().isEmpty
+          ? _buildFallback()
+          : Image.asset(
+              assetPath,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => _buildFallback(),
+            ),
+    );
+  }
+
+  Widget _buildFallback() {
+    return Center(
+      child: Text(
+        fallbackText,
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.grey500,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _ChatImageMessageContentState extends State<ChatImageMessageContent> {
   static const double _maxSize = 180;
   static const Size _placeholderSize = Size(_maxSize, _maxSize);

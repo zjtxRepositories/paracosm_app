@@ -1,6 +1,7 @@
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
+import 'package:paracosm/modules/im/message/custom_face_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -42,7 +43,9 @@ class ChatDetailMessageMapper {
     final sentTime = message.sentTime ?? message.receivedTime;
     final messageKey = messageKeyFor(message);
 
-    final senderUserInfo = await UserDisplayStateCenter().getUser(message.senderUserId ?? '');
+    final senderUserInfo = await UserDisplayStateCenter().getUser(
+      message.senderUserId ?? '',
+    );
 
     if (_isRecallMessage(message)) {
       return ChatDetailMessage(
@@ -66,8 +69,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -82,8 +85,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -111,8 +114,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -126,8 +129,8 @@ class ChatDetailMessageMapper {
         isVideo: callSummary.isVideo,
         text: callSummary.text,
         extra: message,
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -145,7 +148,7 @@ class ChatDetailMessageMapper {
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
         senderUserId: message.senderUserId,
-        senderAvatarUrl: senderUserInfo?.avatar
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -162,8 +165,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
@@ -182,8 +185,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
     if (message is RCIMIWVoiceMessage) {
@@ -199,8 +202,8 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
     if (message is RCIMIWFileMessage) {
@@ -216,12 +219,30 @@ class ChatDetailMessageMapper {
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),
         groupReadCount: _groupReadCount(message),
-          senderUserId: message.senderUserId,
-          senderAvatarUrl: senderUserInfo?.avatar
+        senderUserId: message.senderUserId,
+        senderAvatarUrl: senderUserInfo?.avatar,
       );
     }
 
     if (message.messageType == RCIMIWMessageType.custom) {
+      final face = ChatCustomFace.fromMessage(message);
+      if (face != null) {
+        return ChatDetailMessage(
+          messageId: messageKey,
+          kind: ChatDetailMessageKind.customFace,
+          isMe: isMe,
+          showBubble: false,
+          sentTime: sentTime,
+          imagePath: face.assetPath,
+          text: AppLocalizations.currentText('chat_detail_custom_face'),
+          extra: message,
+          showReadReceipt: _shouldShowReadReceipt(message, isMe),
+          isRead: _isReadReceiptRead(message),
+          groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar,
+        );
+      }
       MessageModel model = MessageModel(item: message);
       final content = await model.formatCustomContent();
       return ChatDetailMessage(
@@ -273,7 +294,8 @@ class ChatDetailMessageMapper {
         message is RCIMIWVoiceMessage ||
         message is RCIMIWFileMessage ||
         message is RCIMIWCombineV2Message ||
-        message.messageType == RCIMIWMessageType.combineV2;
+        message.messageType == RCIMIWMessageType.combineV2 ||
+        ChatCustomFace.fromMessage(message) != null;
   }
 
   static bool supportsReadReceiptKind(ChatDetailMessageKind kind) {
@@ -282,7 +304,8 @@ class ChatDetailMessageMapper {
         kind == ChatDetailMessageKind.video ||
         kind == ChatDetailMessageKind.voice ||
         kind == ChatDetailMessageKind.file ||
-        kind == ChatDetailMessageKind.combineForward;
+        kind == ChatDetailMessageKind.combineForward ||
+        kind == ChatDetailMessageKind.customFace;
   }
 
   static bool _shouldShowReadReceipt(RCIMIWMessage message, bool isMe) {
@@ -355,6 +378,9 @@ class ChatDetailMessageMapper {
     }
 
     if (message.messageType == RCIMIWMessageType.custom) {
+      if (ChatCustomFace.fromMessage(message) != null) {
+        return AppLocalizations.currentText('chat_detail_custom_face');
+      }
       final model = MessageModel(item: message);
       final content = await model.formatCustomContent();
       return content.isNotEmpty

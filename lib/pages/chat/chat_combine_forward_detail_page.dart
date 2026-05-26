@@ -642,6 +642,11 @@ class _ChatCombineForwardDetailPageState
           remoteUrl: message.remote,
           thumbnailBase64String: message.thumbnailBase64String,
         );
+      case ChatDetailMessageKind.customFace:
+        return ChatCustomFaceMessageContent(
+          assetPath: message.imagePath ?? '',
+          fallbackText: AppLocalizations.of(context)!.chatDetailCustomFace,
+        );
       case ChatDetailMessageKind.video:
         return ChatVideoMessageContent(
           thumbnailBase64String: message.thumbnailBase64String ?? '',

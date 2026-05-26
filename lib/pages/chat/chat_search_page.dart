@@ -43,7 +43,7 @@ class ChatSearchPage extends StatefulWidget {
 }
 
 class _ChatSearchPageState extends State<ChatSearchPage> {
-  final TextEditingController _searchController = TextEditingController(text: '0xe6590a740a45bc2b4d4996a85ab4a2ad371fbb6b');
+  final TextEditingController _searchController = TextEditingController();
 
   Timer? _debounce;
 

@@ -661,6 +661,7 @@ class AppRouter {
                 extra?['address'] ??
                 '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
             tokenLogo: extra?['logo'] ?? '',
+            chainId: extra?['chainId'] as int?,
           );
         },
       ),

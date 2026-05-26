@@ -393,6 +393,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             'network': _selectedNetwork?.name,
                             'address': _selectedNetwork?.address,
                             'logo': _selectedNetwork?.logo,
+                            'chainId': _selectedNetwork?.chainId,
                           },
                         );
                       },
@@ -452,9 +453,7 @@ class _ProfilePageState extends State<ProfilePage> {
               .toList();
           tokens.addAll(snapList);
           final snapKeys = snapList.map(_tokenKey).toSet();
-          tokens.addAll(
-            _tokens.where((t) => !snapKeys.contains(_tokenKey(t))),
-          );
+          tokens.addAll(_tokens.where((t) => !snapKeys.contains(_tokenKey(t))));
         } else {
           tokens.addAll(_tokens);
         }

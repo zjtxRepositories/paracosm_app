@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/pages/profile/token_receive_payload.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_network_image.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:screenshot/screenshot.dart';
 
 /// 代币收款页面
@@ -25,6 +28,9 @@ class TokenReceivePage extends StatelessWidget {
   /// 代币图标
   final String tokenLogo;
 
+  /// 链 ID
+  final int? chainId;
+
   final ScreenshotController _cardScreenshotController = ScreenshotController();
 
   TokenReceivePage({
@@ -33,12 +39,33 @@ class TokenReceivePage extends StatelessWidget {
     this.networkName = 'Binancestry(BSC)',
     this.walletAddress = '0xc84sa01ua125d15uvcbv78fa98uu9daccf915uvc',
     this.tokenLogo = '',
+    this.chainId,
   });
+
+  String get _displayAddress {
+    if (chainId != null) {
+      final chains = AccountManager().currentWallet?.chains ?? [];
+      for (final chain in chains) {
+        if (chain.chainId == chainId && chain.address.isNotEmpty) {
+          return chain.address;
+        }
+      }
+    }
+    return walletAddress;
+  }
+
+  String get _qrContent {
+    return buildTokenReceivePaymentPayload(
+      address: _displayAddress,
+      tokenSymbol: tokenSymbol,
+      chain: networkName,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    print('wallet---$walletAddress');
+    final displayAddress = _displayAddress;
     return AppPage(
       showNav: true,
       title: l10n.profileTokenReceiveQrCodePayment,
@@ -132,9 +159,18 @@ class TokenReceivePage extends StatelessWidget {
                                 ),
                                 child: AspectRatio(
                                   aspectRatio: 1,
-                                  child: Image.asset(
-                                    'assets/images/profile/user/test-code.png', // 指定的测试二维码路径
-                                    fit: BoxFit.contain,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.all(12),
+                                    child: PrettyQrView.data(
+                                      data: _qrContent,
+                                      decoration: const PrettyQrDecoration(
+                                        shape: PrettyQrSmoothSymbol(),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -162,7 +198,7 @@ class TokenReceivePage extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      walletAddress,
+                                      displayAddress,
                                       style: AppTextStyles.body.copyWith(
                                         fontSize: 14,
                                         color: AppColors.grey800,
@@ -227,7 +263,7 @@ class TokenReceivePage extends StatelessWidget {
                               child: GestureDetector(
                                 onTap: () {
                                   Clipboard.setData(
-                                    ClipboardData(text: walletAddress),
+                                    ClipboardData(text: displayAddress),
                                   );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(

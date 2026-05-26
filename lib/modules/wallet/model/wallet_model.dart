@@ -37,7 +37,7 @@ class WalletModel {
     required this.aIndex,
     required this.chains,
     required this.type, // ⭐ 必填
-    this.currentChainId = 62176,
+    this.currentChainId = 56,
     this.name,
   });
 

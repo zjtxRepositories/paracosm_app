@@ -91,7 +91,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           _buildCloseButton(context),
           if (_isIncoming) _buildIncomingTitle(),
           if (_cameraEnabled && _isInCall) _buildCallTimer(),
-          if (_cameraEnabled && _isInCall) _buildLocalPreview(),
+          if (_cameraEnabled && _isInCall) _buildRemotePreview(),
           if (!(_cameraEnabled && _isInCall))
             Align(
               alignment: const Alignment(0, -0.70),
@@ -114,45 +114,31 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     );
   }
 
-  /// 整体背景，直接使用视频背景图作为主视觉。
+  /// 整体背景，拨打中优先使用本地预备采集画面。
   Widget _buildBackground() {
     if (!_cameraEnabled) {
       return _buildCameraOffBackground();
     }
+    final localView = _callState.localVideoView;
+    if (_callState.isVideo &&
+        _callState.isActive &&
+        localView != null &&
+        !_isIncoming) {
+      return _buildVideoBackdrop(localView);
+    }
 
     final remoteView = _callState.remoteVideoView;
     if (_isInCall && _callState.remoteCameraEnabled && remoteView != null) {
-      return Stack(
-        children: [
-          Positioned.fill(child: remoteView),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.18),
-                    Colors.black.withValues(alpha: 0.04),
-                    Colors.black.withValues(alpha: 0.24),
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
+      return _buildVideoBackdrop(remoteView);
     }
 
+    return _buildCameraOffBackground();
+  }
+
+  Widget _buildVideoBackdrop(Widget videoView) {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/images/chat/call/video-bg.png',
-            fit: BoxFit.cover,
-          ),
-        ),
+        Positioned.fill(child: videoView),
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -585,10 +571,11 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     );
   }
 
-  /// 通话中的右上角小窗预览。
-  Widget _buildLocalPreview() {
+  /// 通话中的右上角远端预览，不能复用大屏的本地 RCCallView。
+  Widget _buildRemotePreview() {
     final topPadding = MediaQuery.of(context).padding.top + 84;
-    final localView = _callState.localVideoView;
+    final remoteView = _callState.remoteVideoView;
+    final showRemoteView = _callState.remoteCameraEnabled && remoteView != null;
 
     return Positioned(
       right: 20,
@@ -608,22 +595,20 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
           ],
         ),
         clipBehavior: Clip.hardEdge,
-        child:
-            localView ??
-            Image.asset(
-              'assets/images/chat/call/video-bg.png',
-              fit: BoxFit.cover,
-            ),
+        child: showRemoteView
+            ? IgnorePointer(child: remoteView)
+            : Image.asset(
+                'assets/images/chat/call/video-bg.png',
+                fit: BoxFit.cover,
+              ),
       ),
     );
   }
 
   /// 底部控制区：麦克风、挂断、摄像头。
   Widget _buildBottomControls(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom + 24;
-
     return Padding(
-      padding: EdgeInsets.only(left: 48, right: 48, bottom: bottomPadding),
+      padding: EdgeInsets.only(left: 48, right: 48, bottom: 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -708,10 +693,8 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
       _cameraEnabled = state.cameraEnabled;
     });
     _syncCallTimer(state);
-    if (state.isVideo &&
-        state.status == RongCallStatus.inCall &&
-        state.cameraEnabled) {
-      RongCallManager().prepareVideoViews();
+    if (state.isVideo && state.isActive && state.cameraEnabled) {
+      unawaited(RongCallManager().prepareVideoViews());
     }
   }
 
@@ -786,6 +769,7 @@ class _VideoMiniOverlayController {
             return;
           }
           dismiss();
+          RongCallManager().clearVideoViews();
           rootContext.push(
             '/chat-private-video/$encodedName?status=$_status&camera=${_cameraEnabled ? 'on' : 'off'}',
           );
@@ -819,8 +803,8 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
   bool _isDragging = false;
   late RongCallState _callState;
   StreamSubscription<RongCallState>? _callSub;
-  RCCallView? _remoteVideoView;
-  bool _isPreparingRemoteView = false;
+  RCCallView? _localVideoView;
+  bool _isPreparingLocalView = false;
 
   @override
   void initState() {
@@ -828,7 +812,7 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
     _callState = RongCallManager().state;
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
-    unawaited(_prepareRemoteVideoViewIfNeeded());
+    unawaited(_prepareLocalVideoViewIfNeeded());
   }
 
   @override
@@ -904,10 +888,6 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
   @override
   Widget build(BuildContext context) {
     final position = _position ?? Offset.zero;
-    final showRemoteView =
-        _callState.status == RongCallStatus.inCall &&
-        _callState.remoteCameraEnabled &&
-        _remoteVideoView != null;
 
     return AnimatedPositioned(
       duration: _isDragging ? Duration.zero : const Duration(milliseconds: 180),
@@ -936,11 +916,10 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
             ],
           ),
           clipBehavior: Clip.hardEdge,
-          child: showRemoteView
-              ? _remoteVideoView!
-              : Image.asset(
-                  'assets/images/chat/call/video-bg.png',
-                  fit: BoxFit.cover,
+          child: _localVideoView != null
+              ? IgnorePointer(child: _localVideoView!)
+              : const DecoratedBox(
+                  decoration: BoxDecoration(color: Colors.black),
                 ),
         ),
       ),
@@ -959,35 +938,39 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
     if (!mounted) return;
     setState(() {
       _callState = state;
-      if (state.status != RongCallStatus.inCall || !state.remoteCameraEnabled) {
-        _remoteVideoView = null;
+      if (!_shouldShowLocalVideo(state)) {
+        _localVideoView = null;
       }
     });
-    unawaited(_prepareRemoteVideoViewIfNeeded());
+    unawaited(_prepareLocalVideoViewIfNeeded());
   }
 
-  Future<void> _prepareRemoteVideoViewIfNeeded() async {
-    if (_isPreparingRemoteView || _remoteVideoView != null) return;
-    if (_callState.status != RongCallStatus.inCall ||
-        !_callState.remoteCameraEnabled) {
-      return;
-    }
-    _isPreparingRemoteView = true;
-    final view = await RongCallManager().createRemoteVideoView();
+  bool _shouldShowLocalVideo(RongCallState state) {
+    return state.isVideo && state.isActive && state.cameraEnabled;
+  }
+
+  Future<void> _prepareLocalVideoViewIfNeeded() async {
+    if (_isPreparingLocalView || _localVideoView != null) return;
+    if (!_shouldShowLocalVideo(_callState)) return;
+
+    _isPreparingLocalView = true;
+    await RongCallManager().prepareVideoViews();
+    await WidgetsBinding.instance.endOfFrame;
+    final view = await RongCallManager().createLocalVideoView();
     if (!mounted) return;
     setState(() {
-      _remoteVideoView = view;
+      _localVideoView = view;
     });
     await WidgetsBinding.instance.endOfFrame;
     final isBound = view != null
-        ? await RongCallManager().bindRemoteVideoView(view)
+        ? await RongCallManager().bindLocalVideoView(view)
         : false;
     if (!mounted) return;
     setState(() {
       if (!isBound) {
-        _remoteVideoView = null;
+        _localVideoView = null;
       }
-      _isPreparingRemoteView = false;
+      _isPreparingLocalView = false;
     });
   }
 }

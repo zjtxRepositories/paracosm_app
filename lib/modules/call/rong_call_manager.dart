@@ -279,6 +279,55 @@ class RongCallManager {
     await _engine?.switchCamera();
   }
 
+  Future<RCCallView?> createLocalVideoView() async {
+    final engine = _engine;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (engine == null ||
+        currentUserId == null ||
+        currentUserId.isEmpty ||
+        !_state.isVideo ||
+        !_state.isActive ||
+        !_state.cameraEnabled) {
+      return null;
+    }
+
+    try {
+      final view = await RCCallView.create(fit: BoxFit.cover, mirror: true);
+      if (!_state.isVideo || !_state.isActive || !_state.cameraEnabled) {
+        return null;
+      }
+      return view;
+    } catch (e) {
+      debugPrint('create local video view failed: $e');
+      return null;
+    }
+  }
+
+  Future<bool> bindLocalVideoView(RCCallView view) async {
+    final engine = _engine;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (engine == null ||
+        currentUserId == null ||
+        currentUserId.isEmpty ||
+        !_state.isVideo ||
+        !_state.isActive ||
+        !_state.cameraEnabled) {
+      return false;
+    }
+
+    try {
+      final code = await engine.setVideoView(currentUserId, view);
+      if (code != 0) {
+        debugPrint('bind local video view failed: $code');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('bind local video view failed: $e');
+      return false;
+    }
+  }
+
   Future<RCCallView?> createRemoteVideoView() async {
     final engine = _engine;
     final targetId = _state.targetId;

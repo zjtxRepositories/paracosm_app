@@ -365,7 +365,33 @@ class EvmTransactionService {
       }
     });
   }
+
+
+  static Future<TransactionInformation?> safeGetTransactionDetail({
+    required ChainAccount chain,
+    required String txHash,
+    int retry = 10,
+  }) async {
+    for (int i = 0; i < retry; i++) {
+      try {
+        final tx =
+        await EvmTransactionService.getTransactionDetail(chain, txHash);
+
+        if (tx != null) {
+          return tx;
+        }
+      } catch (_) {}
+
+      /// 等待一下再查
+      await Future.delayed(
+        const Duration(seconds: 2),
+      );
+    }
+
+    return null;
+  }
 }
+
 
 const String _erc20TransferAbi = '''
 [

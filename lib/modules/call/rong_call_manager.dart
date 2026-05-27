@@ -31,6 +31,7 @@ class RongCallState {
     required this.status,
     this.targetId = '',
     this.displayName = '',
+    this.avatar = '',
     this.mediaType = RCCallMediaType.audio,
     this.isOutgoing = false,
     this.micEnabled = true,
@@ -51,6 +52,7 @@ class RongCallState {
   final RongCallStatus status;
   final String targetId;
   final String displayName;
+  final String avatar;
   final RCCallMediaType mediaType;
   final bool isOutgoing;
   final bool micEnabled;
@@ -216,7 +218,6 @@ class RongCallManager {
       return false;
     }
     _setState(_state.copyWith(status: RongCallStatus.connecting));
-    unawaited(prepareVideoViews());
     final code = await _engine?.accept() ?? -1;
     if (code != 0) {
       AppToast.showInfo(
@@ -266,10 +267,8 @@ class RongCallManager {
     final code = await _engine?.enableCamera(next, RCCallCamera.front) ?? -1;
     if (code == 0) {
       _setState(_state.copyWith(cameraEnabled: next));
-      if (next) {
-        await prepareVideoViews();
-      } else {
-        clearVideoViews();
+      if (!next) {
+        clearLocalVideoView();
       }
     }
   }
@@ -277,6 +276,68 @@ class RongCallManager {
   Future<void> switchCamera() async {
     if (!_state.cameraEnabled) return;
     await _engine?.switchCamera();
+  }
+
+  Future<RCCallView?> createLocalVideoView() async {
+    final engine = _engine;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (engine == null ||
+        currentUserId == null ||
+        currentUserId.isEmpty ||
+        !_state.isVideo ||
+        !_state.isActive ||
+        !_state.cameraEnabled) {
+      return null;
+    }
+
+    try {
+      final view = await RCCallView.create(fit: BoxFit.cover, mirror: true);
+      if (!_state.isVideo || !_state.isActive || !_state.cameraEnabled) {
+        return null;
+      }
+      return view;
+    } catch (e) {
+      debugPrint('create local video view failed: $e');
+      return null;
+    }
+  }
+
+  Future<bool> bindLocalVideoView(RCCallView view) async {
+    final engine = _engine;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (engine == null ||
+        currentUserId == null ||
+        currentUserId.isEmpty ||
+        !_state.isVideo ||
+        !_state.isActive ||
+        !_state.cameraEnabled) {
+      return false;
+    }
+
+    try {
+      final code = await engine.setVideoView(currentUserId, view);
+      if (code != 0) {
+        debugPrint('bind local video view failed: $code');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('bind local video view failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> unbindLocalVideoView() async {
+    final engine = _engine;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (engine == null || currentUserId == null || currentUserId.isEmpty) {
+      return;
+    }
+    try {
+      await engine.setVideoView(currentUserId, null);
+    } catch (e) {
+      debugPrint('unbind local video view failed: $e');
+    }
   }
 
   Future<RCCallView?> createRemoteVideoView() async {
@@ -322,6 +383,17 @@ class RongCallManager {
     } catch (e) {
       debugPrint('bind remote video view failed: $e');
       return false;
+    }
+  }
+
+  Future<void> unbindRemoteVideoView() async {
+    final engine = _engine;
+    final targetId = _state.targetId;
+    if (engine == null || targetId.isEmpty) return;
+    try {
+      await engine.setVideoView(targetId, null);
+    } catch (e) {
+      debugPrint('unbind remote video view failed: $e');
     }
   }
 
@@ -447,6 +519,30 @@ class RongCallManager {
     );
   }
 
+  void clearLocalVideoView() {
+    if (_state.localVideoView == null) return;
+    _localVideoViewBound = false;
+    _setState(
+      RongCallState(
+        status: _state.status,
+        targetId: _state.targetId,
+        displayName: _state.displayName,
+        mediaType: _state.mediaType,
+        isOutgoing: _state.isOutgoing,
+        micEnabled: _state.micEnabled,
+        speakerEnabled: _state.speakerEnabled,
+        cameraEnabled: _state.cameraEnabled,
+        remoteMicEnabled: _state.remoteMicEnabled,
+        remoteCameraEnabled: _state.remoteCameraEnabled,
+        disconnectReason: _state.disconnectReason,
+        errorCode: _state.errorCode,
+        session: _state.session,
+        remoteVideoView: _state.remoteVideoView,
+        connectedTimeMs: _state.connectedTimeMs,
+      ),
+    );
+  }
+
   void markIdle() {
     _setState(const RongCallState.idle());
   }
@@ -496,7 +592,6 @@ class RongCallManager {
           connectedTimeMs: connectedTime,
         ),
       );
-      unawaited(prepareVideoViews());
       unawaited(_applyConnectedMediaSettings(engine, _state));
     };
 
@@ -530,9 +625,6 @@ class RongCallManager {
     engine.onRemoteUserDidChangeCameraState = (_, enabled) {
       _remoteVideoViewBound = false;
       _setState(_state.copyWith(remoteCameraEnabled: enabled));
-      if (enabled) {
-        unawaited(prepareVideoViews());
-      }
     };
   }
 

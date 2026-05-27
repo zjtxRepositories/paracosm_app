@@ -3,6 +3,7 @@ import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_transaction_service.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 import 'package:solana/dto.dart';
+import 'package:web3dart/web3dart.dart';
 import '../chains/evm/evm_chain_service.dart';
 import '../model/chain_account.dart';
 import '../model/token_model.dart';
@@ -103,10 +104,27 @@ class TransactionService {
     required String txHash,
     void Function(TransactionModel model)? onPending,
   }) async {
-    final tx =
-    await EvmTransactionService.getTransactionDetail(chain, txHash);
+    final tx = await EvmTransactionService.safeGetTransactionDetail(
+      chain: chain,
+      txHash: txHash,
+    );
 
-    if (tx == null) return null;
+    if (tx == null) {
+      return TransactionResult(
+        model: TransactionModel(
+          hash: txHash,
+          from: '',
+          to: '',
+          value: BigInt.zero,
+          fee: null,
+          logo: token.logo,
+          time: null,
+          decimals: token.decimals,
+          symbol: token.symbol,
+        ),
+        status: TransferStatus.waiting,
+      );
+    }
 
     /// pending 先返回
     final pendingModel = TransactionModel(
@@ -165,6 +183,7 @@ class TransactionService {
       ),
     );
   }
+
 
   /// =========================
   /// BTC

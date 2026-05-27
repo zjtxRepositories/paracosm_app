@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/dApp_hive.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/pages/profile/transfer_scan_address.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
@@ -74,9 +76,40 @@ class ScanResultHandler {
 
   /// 钱包支付二维码。
   static void _handleWalletPayment(BuildContext context, ScanResult result) {
-    // TODO: 钱包收款二维码协议确定后，在这里把 address/amount/token/chain
-    // 映射到 TransferPage 的入参或新增预填充参数。
-    // 当前 TransferPage 只支持 token/chain 入参，尚不能安全预填扫描地址。
-    AppToast.show(AppLocalizations.of(context)!.scanPaymentPending);
+    final address = result.address?.trim();
+    if (address == null || address.isEmpty) {
+      AppToast.show(
+        AppLocalizations.of(context)?.discoverScanUnsupported ??
+            AppLocalizations.currentText('discover_scan_unsupported'),
+      );
+      return;
+    }
+
+    final wallet = AccountManager().currentWallet;
+    if (wallet == null) {
+      AppToast.show(
+        AppLocalizations.of(context)?.discoverScanUnsupported ??
+            AppLocalizations.currentText('discover_scan_unsupported'),
+      );
+      return;
+    }
+
+    final prefill = TransferScanPrefill(
+      address: address,
+      amount: result.amount,
+      tokenSymbol: result.tokenSymbol,
+      chain: result.chain,
+    );
+    final match = matchTransferScanAsset(wallet, prefill);
+
+    context.push(
+      '/transfer',
+      extra: {
+        'token': match.token,
+        'chain': match.chain,
+        'prefillAddress': prefill.address,
+        'prefillAmount': prefill.amount,
+      },
+    );
   }
 }

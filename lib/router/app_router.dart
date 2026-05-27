@@ -587,7 +587,12 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final token = data?['token'];
           final chain = data?['chain'];
-          return TransferPage(token: token, chain: chain);
+          return TransferPage(
+            token: token,
+            chain: chain,
+            prefillAddress: data?['prefillAddress'] as String?,
+            prefillAmount: data?['prefillAmount'] as String?,
+          );
         },
       ),
       // 转账详情页

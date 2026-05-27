@@ -5,6 +5,7 @@ import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/pages/profile/transfer_scan_address.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
 import '../../modules/account/manager/account_manager.dart';
@@ -26,8 +27,16 @@ import '../../widgets/common/app_toast.dart';
 class TransferPage extends StatefulWidget {
   final TokenModel? token;
   final ChainAccount? chain;
+  final String? prefillAddress;
+  final String? prefillAmount;
 
-  const TransferPage({super.key, required this.token, required this.chain});
+  const TransferPage({
+    super.key,
+    required this.token,
+    required this.chain,
+    this.prefillAddress,
+    this.prefillAmount,
+  });
 
   @override
   State<TransferPage> createState() => _TransferPageState();
@@ -56,6 +65,8 @@ class _TransferPageState extends State<TransferPage> {
   void initState() {
     super.initState();
 
+    _addressController.text = widget.prefillAddress?.trim() ?? '';
+    _amountController.text = widget.prefillAmount?.trim() ?? '';
     initChain();
     _showToken = widget.token;
 
@@ -156,6 +167,29 @@ class _TransferPageState extends State<TransferPage> {
         _calculateFee = fee;
       });
     }
+  }
+
+  Future<void> _scanTransferAddress() async {
+    final raw = await context.push<String>('/qr-scan');
+    if (!mounted || raw == null || raw.trim().isEmpty) {
+      return;
+    }
+
+    final prefill = extractTransferPrefillFromScan(raw);
+    if (prefill == null || prefill.address.isEmpty) {
+      AppToast.show(
+        AppLocalizations.of(context)?.discoverScanUnsupported ??
+            AppLocalizations.currentText('discover_scan_unsupported'),
+      );
+      return;
+    }
+
+    setState(() {
+      _addressController.text = prefill.address;
+      if (prefill.amount != null) {
+        _amountController.text = prefill.amount!;
+      }
+    });
   }
 
   FeeLevel _feeLevelFromProgress(double progress) {
@@ -757,9 +791,7 @@ class _TransferPageState extends State<TransferPage> {
               ),
             ),
             GestureDetector(
-              onTap: () {
-                // TODO: 处理扫描逻辑
-              },
+              onTap: _scanTransferAddress,
               child: Image.asset(
                 'assets/images/profile/user/scan.png',
                 width: 16,

@@ -19,6 +19,7 @@
         "eth_sig_util",
         "file_picker",
         "flutter",
+        "flutter_app_update",
         "flutter_easyloading",
         "flutter_image_compress",
         "flutter_inappwebview",
@@ -36,6 +37,7 @@
         "k_chart_plus",
         "mobile_scanner",
         "oktoast",
+        "package_info_plus",
         "path",
         "permission_handler",
         "photo_manager",
@@ -528,6 +530,29 @@
         "flutter_secure_storage_web",
         "flutter_secure_storage_windows",
         "meta"
+      ]
+    },
+    {
+      "name": "flutter_app_update",
+      "version": "3.2.3",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "package_info_plus",
+      "version": "8.3.1",
+      "dependencies": [
+        "clock",
+        "ffi",
+        "flutter",
+        "flutter_web_plugins",
+        "http",
+        "meta",
+        "package_info_plus_platform_interface",
+        "path",
+        "web",
+        "win32"
       ]
     },
     {
@@ -1692,6 +1717,15 @@
       "version": "0.2.0",
       "dependencies": [
         "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "package_info_plus_platform_interface",
+      "version": "3.2.1",
+      "dependencies": [
+        "flutter",
+        "meta",
         "plugin_platform_interface"
       ]
     },

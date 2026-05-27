@@ -1,17 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:paracosm/modules/update/app_update_service.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 
 /// 关于页面
-class AboutPage extends StatelessWidget {
+class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
 
   @override
+  State<AboutPage> createState() => _AboutPageState();
+}
+
+class _AboutPageState extends State<AboutPage> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _version = packageInfo.version;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final version = _version.isEmpty ? '-' : _version;
+
     return AppPage(
-      title: AppLocalizations.of(context)!.profileAboutAbout,
+      title: l10n.profileAboutAbout,
       showNav: true,
       showNavBorder: true,
       navBorderColor: AppColors.grey100,
@@ -33,19 +61,20 @@ class AboutPage extends StatelessWidget {
                           'assets/images/profile/logo.png',
                           width: 80,
                           height: 80,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD7FF00),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Icon(Icons.logo_dev, size: 50),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFD7FF00),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(Icons.logo_dev, size: 50),
+                              ),
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          AppLocalizations.of(context)!.profileProfileParacosm,
+                          l10n.profileProfileParacosm,
                           style: AppTextStyles.h1.copyWith(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
@@ -59,8 +88,8 @@ class AboutPage extends StatelessWidget {
                   // 列表项区域
                   _buildMenuItem(
                     icon: 'assets/images/profile/email.png',
-                    title: AppLocalizations.of(context)!.profileAboutEmail,
-                    subtitle: AppLocalizations.of(context)!.profileAboutLq84y0qf5woaskcom,
+                    title: l10n.profileAboutEmail,
+                    subtitle: l10n.profileAboutLq84y0qf5woaskcom,
                     onTap: () {
                       // TODO: 复制邮箱或打开邮件客户端
                     },
@@ -68,10 +97,10 @@ class AboutPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildMenuItem(
                     icon: 'assets/images/profile/update.png',
-                    title: AppLocalizations.of(context)!.profileAboutVersionUpdate,
-                    subtitle: AppLocalizations.of(context)!.profileAbout309,
+                    title: l10n.profileAboutVersionUpdate,
+                    subtitle: l10n.appUpdateVersionLabel(version),
                     onTap: () {
-                      // TODO: 检查更新逻辑
+                      AppUpdateService().checkManually(context);
                     },
                   ),
                 ],
@@ -84,7 +113,7 @@ class AboutPage extends StatelessWidget {
               bottom: 40,
               child: Center(
                 child: Text(
-                  '${AppLocalizations.of(context)!.profileAboutVersionUpdate} ${AppLocalizations.of(context)!.profileAbout309}',
+                  l10n.appUpdateVersionLabel(version),
                   style: AppTextStyles.body.copyWith(
                     fontSize: 14,
                     color: AppColors.grey400,
@@ -108,7 +137,7 @@ class AboutPage extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16,vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
@@ -118,15 +147,15 @@ class AboutPage extends StatelessWidget {
           children: [
             // 图标背景
             Image.asset(
-                  icon,
-                  width: 48,
-                  height: 48,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.mail_outline,
-                    size: 48,
-                    color: AppColors.grey400,
-                  ),
-                ),
+              icon,
+              width: 48,
+              height: 48,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.mail_outline,
+                size: 48,
+                color: AppColors.grey400,
+              ),
+            ),
             const SizedBox(width: 16),
             // 文字内容
             Expanded(
@@ -154,11 +183,7 @@ class AboutPage extends StatelessWidget {
               ),
             ),
             // 右侧箭头
-            const Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: AppColors.grey300,
-            ),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.grey300),
           ],
         ),
       ),

@@ -810,6 +810,15 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileAboutVersionUpdate =>
       translate('profile_about_version_update');
   String get profileAbout309 => translate('profile_about_309');
+  String appUpdateVersionLabel(String version) =>
+      translate('app_update_version_label', {'version': version});
+  String appUpdateNewVersion(String version) =>
+      translate('app_update_new_version', {'version': version});
+  String get appUpdateUpdateNow => translate('app_update_update_now');
+  String get appUpdateLater => translate('app_update_later');
+  String get appUpdateLatest => translate('app_update_latest');
+  String get appUpdateForceHint => translate('app_update_force_hint');
+  String get appUpdateDefaultContent => translate('app_update_default_content');
   String get profileLanguageSettingsChangeLanguage =>
       translate('profile_language_settings_change_language');
   String get profileNodeSettingsNodeSettings =>

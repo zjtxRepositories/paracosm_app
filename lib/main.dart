@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paracosm/modules/update/app_update_service.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:oktoast/oktoast.dart';
@@ -18,7 +21,7 @@ Future<void> main() async {
   await AppInit.init();
   // 加载持久化的语言设置
   final initialLocale = await SettingsNotifier.loadLocale();
-  
+
   // 使用 ProviderScope 包裹根组件以启用 Riverpod 状态管理
   runApp(
     ProviderScope(
@@ -29,6 +32,7 @@ Future<void> main() async {
     ),
   );
 
+  unawaited(AppUpdateService().checkOnStartup());
 }
 
 /// 根应用组件
@@ -39,7 +43,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 监听语言设置状态
     final settings = ref.watch(settingsProvider);
-    
+
     // 使用 ScreenUtilInit 初始化屏幕适配方案
     // 设计稿尺寸设为常见的 375x812
     return ScreenUtilInit(
@@ -82,10 +86,7 @@ class MyApp extends ConsumerWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('zh'),
-              Locale('en'),
-            ],
+            supportedLocales: const [Locale('zh'), Locale('en')],
             locale: settings.locale, // 使用 provider 中的语言设置
             // 全局点击空白处收起键盘
             builder: (context, child) {
@@ -95,7 +96,8 @@ class MyApp extends ConsumerWidget {
                   // 获取当前焦点节点
                   FocusScopeNode currentFocus = FocusScope.of(context);
                   // 如果当前有焦点且不是在主焦点上，则收起键盘
-                  if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+                  if (!currentFocus.hasPrimaryFocus &&
+                      currentFocus.focusedChild != null) {
                     FocusManager.instance.primaryFocus?.unfocus();
                   }
                 },

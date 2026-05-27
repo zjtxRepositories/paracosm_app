@@ -32,7 +32,7 @@ class TransactionModel {
     this.err,
   });
 
-  String get valueDisplay => formatTokenAdvanced(value, decimals);
+  String get valueDisplay => formatTokenAdvanced(value, decimals,fractionDigits: 10);
   String get feeDisplay => fee != null ? formatTokenAdvanced(fee!, 18) : "--";
   String get timeDisplay {
     if (time == null) return "Pending";

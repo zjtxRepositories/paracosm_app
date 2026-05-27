@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "paracosm",
-      "version": "1.0.0+1",
+      "version": "1.0.2026052702",
       "dependencies": [
         "audioplayers",
         "bdk_flutter",

@@ -124,6 +124,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     ),
                     if (controller.isMenuExpanded)
                       ChatMorePanel(
+                        showCallActions: !controller.isGroupSession,
                         onItemTap: (item) async {
                           switch (item.type) {
                             case ChatMoreAction.album:

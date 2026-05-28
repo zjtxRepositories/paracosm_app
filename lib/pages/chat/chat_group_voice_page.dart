@@ -3,20 +3,32 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/group_member_model.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_module.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../modules/im/listener/group_state_center.dart';
+import '../../modules/im/manager/im_engine_manager.dart';
 
 class ChatGroupVoicePage extends StatefulWidget {
   final String name;
+  final String targetId;
   final String status;
 
   const ChatGroupVoicePage({
     super.key,
     required this.name,
+    this.targetId = '',
     this.status = 'dialing',
   });
 
@@ -25,71 +37,82 @@ class ChatGroupVoicePage extends StatefulWidget {
 }
 
 class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
-  static const String _incomingDisplayName = 'Kristen';
-  static const String _localUserName = 'Wei Wei';
-  static const List<_VoiceParticipant> _inCallParticipants = [
-    _VoiceParticipant(
-      name: '_me',
-      micEnabled: true,
-      avatarColor: Color(0xFFB58C84),
-    ),
-    _VoiceParticipant(
-      name: 'Wilson',
-      micEnabled: false,
-      avatarColor: Color(0xFFB7DD46),
-    ),
-    _VoiceParticipant(
-      name: 'Kristen',
-      micEnabled: false,
-      avatarColor: Color(0xFFF1B4B0),
-    ),
-    _VoiceParticipant(
-      name: 'Robert',
-      micEnabled: false,
-      avatarColor: Color(0xFF8DE4C1),
-    ),
-    _VoiceParticipant(
-      name: 'Howard',
-      micEnabled: false,
-      avatarColor: Color(0xFF92D1FF),
-    ),
-    _VoiceParticipant(
-      name: '_others',
-      micEnabled: false,
-      avatarColor: Color(0xFF6A655F),
-      isOverflow: true,
-      hiddenCount: 1,
-    ),
-    _VoiceParticipant(
-      name: 'Olivia',
-      micEnabled: true,
-      avatarColor: Color(0xFFCBB4FF),
-    ),
-  ];
-
   late String _status;
+  late bool _micEnabled;
+  late bool _speakerEnabled;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
   Timer? _callTimer;
   int? _callStartedAtMs;
   int _callElapsedMs = 0;
+  bool _isClosing = false;
+  bool _summarySent = false;
 
-  String get name => widget.name;
+  String get name =>
+      _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
   String get status => _status;
   bool get _isIncoming => _status == 'incoming';
   bool get _isInCall => _status == 'in_call';
+  bool get _hasActiveCall => _callState.isActive;
   String get _callDurationText => formatDurationFromMs(_callElapsedMs);
+  String _incomingDisplayName = '';
+  List<UserDisplayModel> _inCallParticipants = [];
+
+  String get _localUserName {
+    final user = _inCallParticipants.firstOrNull;
+    if (user == null) return '';
+    return user.name;
+  }
 
   @override
   void initState() {
     super.initState();
     _status = widget.status;
-    if (_isInCall) {
-      _startCallTimer();
+    _micEnabled = true;
+    _speakerEnabled = true;
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    if (!_hasActiveCall && _isInCall) {
+      _startStaticCallTimer();
     }
+    _getGroupMembers();
+  }
+
+  Future<void> _getGroupMembers() async {
+    final users = _callState.session?.users ?? [];
+    List<UserDisplayModel> models = [];
+    for (final user in users){
+      final model = await UserDisplayStateCenter().getUser(user.userId);
+      if (model == null) continue;
+      models.add(model);
+    }
+    setState(() {
+      _inCallParticipants = models;
+    });
+    if (_isIncoming){
+      final userId = _callState.session?.inviter?.userId;
+      if (userId != null){
+        final inviter = await UserDisplayStateCenter().getUser(userId);
+        _incomingDisplayName = inviter?.name ?? '';
+      }
+    }
+  }
+
+  RCCallUserProfile? _callUserProfile(String userId) {
+    final users = _callState.session?.users ?? [];
+    for (final user in users) {
+      if (user.userId == userId) {
+        return user;
+      }
+    }
+    return null;
   }
 
   @override
   void dispose() {
     _stopCallTimer();
+    _callSub?.cancel();
     super.dispose();
   }
 
@@ -218,8 +241,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     _GroupVoiceMiniOverlayController.show(
       context: context,
       name: name,
+      targetId: widget.targetId,
       status: status,
-      connectedTimeMs: _callStartedAtMs ?? 0,
+      connectedTimeMs: _hasActiveCall
+          ? _callState.connectedTimeMs
+          : (_callStartedAtMs ?? 0),
     );
   }
 
@@ -235,14 +261,34 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       children: [
         _buildGroupAvatarRing(),
         const SizedBox(height: 56),
-        Text(
-          '$displayName(20)',
-          style: AppTextStyles.h1.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+        Padding(padding: EdgeInsets.symmetric(horizontal: 60),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.h1.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              _isInCall ? Text('(${_inCallParticipants.length + 1})',
+                style: AppTextStyles.h1.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ) : SizedBox(),
+            ],
           ),
-        ),
+        ),),
         const SizedBox(height: 8),
         _buildSubtitleWidget(),
       ],
@@ -253,47 +299,39 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     final visibleParticipants = _inCallParticipants
         .take(6)
         .toList(growable: false);
+    bool showMore = _inCallParticipants.length > 6;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 58),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildParticipantRow(
-                visibleParticipants.take(3).toList(growable: false),
-              ),
-              const SizedBox(height: 28),
-              _buildParticipantRow(
-                visibleParticipants.skip(3).take(3).toList(growable: false),
-              ),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 48),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: visibleParticipants.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 18,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.9,
         ),
-      ],
+        itemBuilder: (context, index) {
+          return _buildParticipantCell(
+            visibleParticipants[index],
+            showMore ? index == visibleParticipants.length - 1 : false,
+              _inCallParticipants.length - 6
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildParticipantRow(List<_VoiceParticipant> participants) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        for (var i = 0; i < participants.length; i++) ...[
-          _buildParticipantCell(participants[i]),
-        ],
-      ],
-    );
-  }
 
-  Widget _buildParticipantCell(_VoiceParticipant participant) {
+  Widget _buildParticipantCell(UserDisplayModel participant,bool isOverflow, int hiddenCount) {
     return SizedBox(
       width: 64,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildParticipantAvatar(participant),
+          _buildParticipantAvatar(participant,isOverflow,hiddenCount),
           const SizedBox(height: 12),
           Text(
             _participantName(participant.name),
@@ -321,7 +359,8 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     return name;
   }
 
-  Widget _buildParticipantAvatar(_VoiceParticipant participant) {
+  Widget _buildParticipantAvatar(UserDisplayModel participant, bool isOverflow, int hiddenCount) {
+    final callUser = _callUserProfile(participant.userId);
     return SizedBox(
       width: 60,
       height: 60,
@@ -329,25 +368,25 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
         clipBehavior: Clip.none,
         children: [
           ClipOval(
-            child: Container(
+            child: SizedBox(
               width: 60,
               height: 60,
-              color: participant.avatarColor,
-              child: participant.isOverflow
+              child: isOverflow
                   ? Stack(
                       fit: StackFit.expand,
                       children: [
                         ImageFiltered(
                           imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                          child: Image.asset(
-                            'assets/images/chat/avatar.png',
-                            fit: BoxFit.cover,
+                          child: UserAvatarWidget(
+                            userId: participant.userId,
+                            avatarUrl: participant.avatar,
+                            size: 60,
                           ),
                         ),
                         Container(color: Colors.black.withValues(alpha: 0.32)),
                         Center(
                           child: Text(
-                            '+${participant.hiddenCount}',
+                            '+$hiddenCount',
                             style: AppTextStyles.h1.copyWith(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -357,18 +396,19 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
                         ),
                       ],
                     )
-                  : Image.asset(
-                      'assets/images/chat/avatar.png',
-                      fit: BoxFit.cover,
-                    ),
+                  : UserAvatarWidget(
+                  userId: participant.userId,
+                avatarUrl: participant.avatar,
+                size: 60,
+              )
             ),
           ),
-          if (!participant.isOverflow)
+          if (!isOverflow)
             Positioned(
               right: -2,
               bottom: -2,
               child: Image.asset(
-                participant.micEnabled
+                callUser?.enableMicrophone ?? false
                     ? 'assets/images/chat/call/mic-active.png'
                     : 'assets/images/chat/call/mic-close.png',
                 width: 18,
@@ -737,6 +777,10 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
             const SizedBox(height: 108),
             _VoiceControlButtons(
               isInCall: _isInCall,
+              micEnabled: _micEnabled,
+              speakerEnabled: _speakerEnabled,
+              onMicTap: _toggleMicrophone,
+              onSpeakerTap: _toggleSpeaker,
               onHangup: () => _closeVoiceSession(context),
             ),
           ],
@@ -748,11 +792,15 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       padding: EdgeInsets.only(left: 48, right: 48, bottom: bottomPadding),
       child: _isIncoming
           ? _buildIncomingControls(
-              onAnswer: () => _enterInCall(context),
+              onAnswer: _answerVoiceSession,
               onHangup: () => _closeVoiceSession(context),
             )
           : _VoiceControlButtons(
               isInCall: _isInCall,
+              micEnabled: _micEnabled,
+              speakerEnabled: _speakerEnabled,
+              onMicTap: _toggleMicrophone,
+              onSpeakerTap: _toggleSpeaker,
               onHangup: () => _closeVoiceSession(context),
             ),
     );
@@ -810,28 +858,109 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     );
   }
 
-  void _closeVoiceSession(BuildContext context) {
+  Future<void> _closeVoiceSession(BuildContext context) async {
+    if (_isClosing) return;
+    _isClosing = true;
     _GroupVoiceMiniOverlayController.dismiss();
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().hangup();
+    } else {
+      await _sendGroupCallSummaryIfNeeded();
+    }
+    if (!context.mounted) return;
     Navigator.of(context).maybePop();
   }
 
-  void _enterInCall(BuildContext context) {
+  Future<void> _sendGroupCallSummaryIfNeeded() async {
+    if (_summarySent || widget.targetId.isEmpty) return;
+    _summarySent = true;
+    await RongCallManager().sendCallSummaryMessage(
+      conversationType: RCIMIWConversationType.group,
+      targetId: widget.targetId,
+      isVideo: false,
+      durationMs: _callElapsedMs,
+    );
+  }
+
+  Future<void> _answerVoiceSession() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().accept();
+      return;
+    }
     setState(() {
       _status = 'in_call';
     });
-    _startCallTimer();
+    _startStaticCallTimer();
   }
 
-  void _startCallTimer({int? connectedTimeMs}) {
-    _stopCallTimer();
-    _callStartedAtMs = connectedTimeMs ?? DateTime.now().millisecondsSinceEpoch;
-    _updateCallElapsed();
-    _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _updateCallElapsed();
+  Future<void> _toggleMicrophone() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().toggleMicrophone();
+      return;
+    }
+    setState(() {
+      _micEnabled = !_micEnabled;
     });
   }
 
-  void _updateCallElapsed() {
+  Future<void> _toggleSpeaker() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().toggleSpeaker();
+      return;
+    }
+    setState(() {
+      _speakerEnabled = !_speakerEnabled;
+    });
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    if (state.status == RongCallStatus.idle) {
+      _stopCallTimer();
+      return;
+    }
+    if (state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      if (_isClosing) return;
+      _isClosing = true;
+      _GroupVoiceMiniOverlayController.dismiss();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+      return;
+    }
+
+    setState(() {
+      _callState = state;
+      _status = _statusFromCallState(state.status);
+      _micEnabled = state.micEnabled;
+      _speakerEnabled = state.speakerEnabled;
+    });
+    _syncCallTimer(state);
+  }
+
+  void _syncCallTimer(RongCallState state) {
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsedFromState();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsedFromState();
+    });
+  }
+
+  void _startStaticCallTimer({int? connectedTimeMs}) {
+    _stopCallTimer();
+    _callStartedAtMs = connectedTimeMs ?? DateTime.now().millisecondsSinceEpoch;
+    _updateStaticCallElapsed();
+    _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateStaticCallElapsed();
+    });
+  }
+
+  void _updateStaticCallElapsed() {
     final startedAt = _callStartedAtMs;
     final elapsed = startedAt == null
         ? 0
@@ -842,34 +971,60 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     });
   }
 
+  void _updateCallElapsedFromState() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
   void _stopCallTimer() {
     _callTimer?.cancel();
     _callTimer = null;
+  }
+
+  String _statusFromCallState(RongCallStatus status) {
+    switch (status) {
+      case RongCallStatus.incoming:
+        return 'incoming';
+      case RongCallStatus.inCall:
+        return 'in_call';
+      case RongCallStatus.connecting:
+      case RongCallStatus.dialing:
+      case RongCallStatus.idle:
+      case RongCallStatus.ended:
+      case RongCallStatus.error:
+        return 'dialing';
+    }
   }
 }
 
 class _VoiceControlButtons extends StatefulWidget {
   final bool isInCall;
+  final bool micEnabled;
+  final bool speakerEnabled;
+  final VoidCallback onMicTap;
+  final VoidCallback onSpeakerTap;
   final VoidCallback onHangup;
 
-  const _VoiceControlButtons({required this.isInCall, required this.onHangup});
+  const _VoiceControlButtons({
+    required this.isInCall,
+    required this.micEnabled,
+    required this.speakerEnabled,
+    required this.onMicTap,
+    required this.onSpeakerTap,
+    required this.onHangup,
+  });
 
   @override
   State<_VoiceControlButtons> createState() => _VoiceControlButtonsState();
 }
 
 class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
-  late bool _micEnabled;
-  late bool _soundEnabled;
-
-  @override
-  void initState() {
-    super.initState();
-    // 进入通话中时，默认麦克风和扬声器都处于开启状态。
-    _micEnabled = true;
-    _soundEnabled = true;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -877,13 +1032,9 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _micEnabled = !_micEnabled;
-            });
-          },
+          onTap: widget.onMicTap,
           child: Image.asset(
-            _micEnabled
+            widget.micEnabled
                 ? 'assets/images/chat/call/mic-on.png'
                 : 'assets/images/chat/call/mic-off.png',
             width: 28,
@@ -900,13 +1051,9 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
           ),
         ),
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _soundEnabled = !_soundEnabled;
-            });
-          },
+          onTap: widget.onSpeakerTap,
           child: Image.asset(
-            _soundEnabled
+            widget.speakerEnabled
                 ? 'assets/images/chat/call/sound-on.png'
                 : 'assets/images/chat/call/sound-off.png',
             width: 28,
@@ -921,12 +1068,14 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
 class _GroupVoiceMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
+  static String _targetId = '';
   static String _status = 'dialing';
   static int _connectedTimeMs = 0;
 
   static void show({
     required BuildContext context,
     required String name,
+    String targetId = '',
     required String status,
     required int connectedTimeMs,
   }) {
@@ -934,6 +1083,7 @@ class _GroupVoiceMiniOverlayController {
     final overlay = Overlay.of(context, rootOverlay: true);
 
     _name = name;
+    _targetId = targetId;
     _status = status;
     _connectedTimeMs = connectedTimeMs;
     _entry = OverlayEntry(
@@ -948,7 +1098,10 @@ class _GroupVoiceMiniOverlayController {
             return;
           }
           dismiss();
-          rootContext.push('/chat-group-voice/$encodedName?status=$_status');
+          final encodedTargetId = Uri.encodeQueryComponent(_targetId);
+          rootContext.push(
+            '/chat-group-voice/$encodedName?status=$_status&targetId=$encodedTargetId',
+          );
         },
       ),
     );
@@ -984,23 +1137,29 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
 
   Offset? _position;
   bool _isDragging = false;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
   Timer? _callTimer;
   int _callElapsedMs = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.status == 'in_call') {
-      _updateCallElapsed();
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    if (!_callState.isActive && widget.status == 'in_call') {
+      _updateStaticCallElapsed();
       _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        _updateCallElapsed();
+        _updateStaticCallElapsed();
       });
     }
   }
 
   @override
   void dispose() {
-    _callTimer?.cancel();
+    _stopCallTimer();
+    _callSub?.cancel();
     super.dispose();
   }
 
@@ -1128,13 +1287,49 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
   }
 
   String _buildSubtitle() {
-    if (widget.status == 'in_call') {
+    if (_callState.status == RongCallStatus.inCall ||
+        widget.status == 'in_call') {
       return formatDurationFromMs(_callElapsedMs);
     }
     return AppLocalizations.currentText('call_waiting_short');
   }
 
-  void _updateCallElapsed() {
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    if (state.status == RongCallStatus.idle ||
+        state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _GroupVoiceMiniOverlayController.dismiss();
+      });
+      return;
+    }
+    setState(() {
+      _callState = state;
+    });
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsedFromState();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsedFromState();
+    });
+  }
+
+  void _updateCallElapsedFromState() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _updateStaticCallElapsed() {
     final connectedTime = widget.connectedTimeMs;
     final elapsed = connectedTime <= 0
         ? 0
@@ -1143,6 +1338,11 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     setState(() {
       _callElapsedMs = elapsed < 0 ? 0 : elapsed;
     });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
   }
 }
 

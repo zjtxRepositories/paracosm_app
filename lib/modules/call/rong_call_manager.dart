@@ -11,6 +11,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../router/app_router.dart';
 import '../../widgets/base/app_localizations.dart';
 import '../../widgets/common/app_toast.dart';
+import '../im/listener/group_state_center.dart';
 import '../im/manager/im_send_manager.dart';
 import '../im/manager/im_engine_manager.dart';
 import '../im/manager/im_user_manager.dart';
@@ -32,7 +33,9 @@ class RongCallState {
     this.targetId = '',
     this.displayName = '',
     this.avatar = '',
+    this.inviter = '',
     this.mediaType = RCCallMediaType.audio,
+    this.isGroupCall = false,
     this.isOutgoing = false,
     this.micEnabled = true,
     this.speakerEnabled = true,
@@ -53,7 +56,9 @@ class RongCallState {
   final String targetId;
   final String displayName;
   final String avatar;
+  final String inviter;
   final RCCallMediaType mediaType;
+  final bool isGroupCall;
   final bool isOutgoing;
   final bool micEnabled;
   final bool speakerEnabled;
@@ -78,7 +83,9 @@ class RongCallState {
     RongCallStatus? status,
     String? targetId,
     String? displayName,
+    String? inviter,
     RCCallMediaType? mediaType,
+    bool? isGroupCall,
     bool? isOutgoing,
     bool? micEnabled,
     bool? speakerEnabled,
@@ -96,7 +103,9 @@ class RongCallState {
       status: status ?? this.status,
       targetId: targetId ?? this.targetId,
       displayName: displayName ?? this.displayName,
+      inviter: inviter ?? this.inviter,
       mediaType: mediaType ?? this.mediaType,
+      isGroupCall: isGroupCall ?? this.isGroupCall,
       isOutgoing: isOutgoing ?? this.isOutgoing,
       micEnabled: micEnabled ?? this.micEnabled,
       speakerEnabled: speakerEnabled ?? this.speakerEnabled,
@@ -109,6 +118,7 @@ class RongCallState {
       localVideoView: localVideoView ?? this.localVideoView,
       remoteVideoView: remoteVideoView ?? this.remoteVideoView,
       connectedTimeMs: connectedTimeMs ?? this.connectedTimeMs,
+
     );
   }
 }
@@ -174,13 +184,13 @@ class RongCallManager {
       );
       return false;
     }
-
     _setState(
       RongCallState(
         status: RongCallStatus.dialing,
         targetId: targetId,
         displayName: displayName,
         mediaType: mediaType,
+        isGroupCall: false,
         isOutgoing: true,
         speakerEnabled: mediaType == RCCallMediaType.audio_video,
         cameraEnabled: mediaType == RCCallMediaType.audio_video,
@@ -208,6 +218,75 @@ class RongCallManager {
     }
   }
 
+  Future<bool> startGroupCall({
+    required String targetId,
+    required String displayName,
+    required RCCallMediaType mediaType,
+  }) async {
+    await init();
+    if (!IMEngineManager().connection.isConnected) {
+      AppToast.showInfo(AppLocalizations.currentText('call_im_not_connected'));
+      return false;
+    }
+    if (_state.isActive) {
+      AppToast.showInfo(AppLocalizations.currentText('call_in_progress'));
+      return false;
+    }
+    if (!await _ensurePermissions(mediaType)) {
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_permission_required'),
+      );
+      return false;
+    }
+    final members = await _groupCallMembers(targetId);
+    final userIds = members.map((item)=> item.userId ?? '').toList();
+    if (userIds.isEmpty) {
+      AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
+      return false;
+    }
+
+    _setState(
+      RongCallState(
+        status: RongCallStatus.dialing,
+        targetId: targetId,
+        displayName: displayName,
+        mediaType: mediaType,
+        isGroupCall: true,
+        isOutgoing: true,
+        speakerEnabled: mediaType == RCCallMediaType.audio_video,
+        cameraEnabled: mediaType == RCCallMediaType.audio_video,
+      ),
+    );
+
+    try {
+      final session = await _engine?.startCall(
+        targetId,
+        mediaType,
+        displayName,
+        RCCallCallType.group,
+        userIds,
+      );
+      if (session == null) {
+        _setState(_state.copyWith(status: RongCallStatus.error));
+        AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
+        return false;
+      }
+      await _disableNativeCallSummary();
+      _setState(
+        _state.copyWith(
+          session: session,
+          isGroupCall:
+              _state.isGroupCall || session.callType == RCCallCallType.group,
+        ),
+      );
+      return true;
+    } catch (_) {
+      _setState(_state.copyWith(status: RongCallStatus.error));
+      AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
+      return false;
+    }
+  }
+
   Future<bool> accept() async {
     await init();
     await _disableNativeCallSummary();
@@ -227,6 +306,13 @@ class RongCallManager {
     }
     return true;
   }
+
+  Future<List<RCIMIWGroupMemberInfo>> _groupCallMembers(String groupId) async {
+    final currentUserId = IMEngineManager().currentUserId;
+    final members = await GroupStateCenter().getGroupMembers(groupId);
+    return members.where((item) => item.userId != currentUserId).toList();
+  }
+
 
   Future<void> hangup() async {
     if (_engine == null) {
@@ -505,6 +591,7 @@ class RongCallManager {
         targetId: _state.targetId,
         displayName: _state.displayName,
         mediaType: _state.mediaType,
+        isGroupCall: _state.isGroupCall,
         isOutgoing: _state.isOutgoing,
         micEnabled: _state.micEnabled,
         speakerEnabled: _state.speakerEnabled,
@@ -528,6 +615,7 @@ class RongCallManager {
         targetId: _state.targetId,
         displayName: _state.displayName,
         mediaType: _state.mediaType,
+        isGroupCall: _state.isGroupCall,
         isOutgoing: _state.isOutgoing,
         micEnabled: _state.micEnabled,
         speakerEnabled: _state.speakerEnabled,
@@ -547,28 +635,101 @@ class RongCallManager {
     _setState(const RongCallState.idle());
   }
 
+  Future<void> sendCallSummaryMessage({
+    required RCIMIWConversationType conversationType,
+    required String targetId,
+    required bool isVideo,
+    required int durationMs,
+    String? channelId,
+    int reason = 0,
+    bool isOutgoing = true,
+  }) async {
+    final engine = IMEngineManager().engine;
+    if (engine == null || targetId.isEmpty) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final startedAt = durationMs > 0 ? now - durationMs : now;
+    final fields = <String, dynamic>{
+      'duration': durationMs > 0 ? durationMs : 0,
+      'mediaType': isVideo ? 2 : 1,
+      'hangupReason': reason,
+      'reason': reason,
+      'startTime': startedAt,
+      'connectedTime': durationMs > 0 ? startedAt : 0,
+      'endTime': now,
+      'isOutgoing': isOutgoing,
+    };
+
+    final key = [
+      conversationType.index,
+      targetId,
+      isVideo ? 2 : 1,
+      startedAt,
+      now,
+      reason,
+    ].join(':');
+    if (!_sentSummaryKeys.add(key)) return;
+
+    try {
+      final message = await engine.createNativeCustomMessage(
+        conversationType,
+        targetId,
+        channelId,
+        RongCallSummaryParser.objectName,
+        fields,
+      );
+      if (message == null) {
+        debugPrint('create call summary message failed: null');
+        return;
+      }
+      message.senderUserId = IMEngineManager().currentUserId;
+      message.sentTime = now;
+      final sent = await ImSendManager.instance.sendMessage(message);
+      if (!sent) {
+        debugPrint('send call summary message failed');
+      }
+    } catch (e) {
+      debugPrint('send call summary message failed: $e');
+    }
+  }
+
   void _bindListeners() {
     final engine = _engine;
     if (engine == null) return;
 
     engine.onReceiveCall = (session) {
       _disableNativeCallSummary();
-      final targetId = session.caller?.userId ?? session.targetId;
+      final isGroupCall = session.callType == RCCallCallType.group;
+      final targetId = isGroupCall
+          ? session.targetId
+          : (session.caller?.userId ?? session.targetId);
+      print('invite-----${session.inviter?.userId}---${session.caller?.userId}-${session.extra}-');
       final displayName = targetId;
       _setState(
         RongCallState(
           status: RongCallStatus.incoming,
           targetId: targetId,
           displayName: displayName,
+          inviter: session.inviter?.userId ?? '',
           mediaType: session.mediaType,
+          isGroupCall: isGroupCall,
           isOutgoing: false,
           session: session,
           cameraEnabled: session.mediaType == RCCallMediaType.audio_video,
           speakerEnabled: session.mediaType == RCCallMediaType.audio_video,
         ),
       );
-      _openIncomingCallPage(displayName, session.mediaType);
-      _resolveIncomingDisplayName(targetId);
+      _openIncomingCallPage(
+        displayName: displayName,
+        targetId: targetId,
+        mediaType: session.mediaType,
+        isGroupCall: isGroupCall,
+      );
+      if (isGroupCall) {
+        _resolveIncomingGroupName(targetId);
+      } else {
+        _resolveIncomingDisplayName(targetId);
+      }
     };
 
     engine.onCallDidMake = () {
@@ -710,8 +871,11 @@ class RongCallManager {
     }..removeWhere((_, value) => value == null);
 
     try {
+      final conversationType = state.isGroupCall
+          ? RCIMIWConversationType.group
+          : RCIMIWConversationType.private;
       final message = await engine.createNativeCustomMessage(
-        RCIMIWConversationType.private,
+        conversationType,
         targetId,
         null,
         RongCallSummaryParser.objectName,
@@ -823,13 +987,36 @@ class RongCallManager {
     }
   }
 
-  void _openIncomingCallPage(String displayName, RCCallMediaType mediaType) {
+  Future<void> _resolveIncomingGroupName(String targetId) async {
+    if (targetId.isEmpty) return;
+    try {
+      final group = await GroupStateCenter().getGroup(targetId);
+      final displayName = (group?.groupName ?? '').trim();
+      if (displayName.isEmpty) return;
+      if (_state.targetId != targetId || !_state.isActive) return;
+      _setState(_state.copyWith(displayName: displayName));
+    } catch (e) {
+      debugPrint('resolve call group failed: $e');
+    }
+  }
+
+  void _openIncomingCallPage({
+    required String displayName,
+    required String targetId,
+    required RCCallMediaType mediaType,
+    required bool isGroupCall,
+  }) {
     final rootContext = AppRouter.rootNavigatorKey.currentContext;
     if (rootContext == null) return;
     final encodedName = Uri.encodeComponent(displayName);
-    final path = mediaType == RCCallMediaType.audio_video
-        ? '/chat-private-video/$encodedName?status=incoming'
-        : '/chat-private-voice/$encodedName?status=incoming';
+    final encodedTargetId = Uri.encodeQueryComponent(targetId);
+    final path = isGroupCall
+        ? (mediaType == RCCallMediaType.audio_video
+              ? '/chat-group-video/$encodedName?status=incoming&targetId=$encodedTargetId'
+              : '/chat-group-voice/$encodedName?status=incoming&targetId=$encodedTargetId')
+        : (mediaType == RCCallMediaType.audio_video
+              ? '/chat-private-video/$encodedName?status=incoming'
+              : '/chat-private-voice/$encodedName?status=incoming');
     rootContext.push(path);
   }
 

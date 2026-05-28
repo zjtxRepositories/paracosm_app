@@ -2425,21 +2425,31 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> openCallPage({required bool isVideo}) async {
+    final media = isVideo ? 'video' : 'voice';
+    final displayName = sessionName.isNotEmpty ? sessionName : targetId;
+    final encoded = Uri.encodeComponent(displayName);
+    final encodedTargetId = Uri.encodeQueryComponent(targetId);
+
     if (args?.isGroup ?? false) {
-      AppToast.showInfo(_tr('chat_detail_group_call_unavailable'));
       isMenuExpanded = false;
       notifyListeners();
+      final started = await RongCallManager().startGroupCall(
+        targetId: targetId,
+        displayName: displayName,
+        mediaType: isVideo
+            ? RCCallMediaType.audio_video
+            : RCCallMediaType.audio,
+      );
+      if (!started) return;
+      context?.push('/chat-group-$media/$encoded?targetId=$encodedTargetId');
       return;
     }
-
-    final encoded = Uri.encodeComponent(sessionName);
-    final media = isVideo ? 'video' : 'voice';
 
     isMenuExpanded = false;
     notifyListeners();
     final started = await RongCallManager().startPrivateCall(
       targetId: targetId,
-      displayName: sessionName,
+      displayName: displayName,
       mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
     );
     if (!started) return;

@@ -400,7 +400,7 @@ class AppRouter {
         path: '/chat-private-voice/:name',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final name = state.pathParameters['name'] ?? '';
           final status = state.uri.queryParameters['status'] ?? 'dialing';
           return ChatPrivateVoicePage(name: name, status: status);
         },
@@ -409,7 +409,7 @@ class AppRouter {
         path: '/chat-private-video/:name',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final name = state.pathParameters['name'] ?? '';
           final status = state.uri.queryParameters['status'] ?? 'dialing';
           final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
           final remoteOnBackdrop =
@@ -426,20 +426,27 @@ class AppRouter {
         path: '/chat-group-voice/:name',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final name = state.pathParameters['name'] ?? '';
+          final targetId = state.uri.queryParameters['targetId'] ?? '';
           final status = state.uri.queryParameters['status'] ?? 'dialing';
-          return ChatGroupVoicePage(name: name, status: status);
+          return ChatGroupVoicePage(
+            name: name,
+            targetId: targetId,
+            status: status,
+          );
         },
       ),
       GoRoute(
         path: '/chat-group-video/:name',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          final name = state.pathParameters['name'] ?? '';
+          final targetId = state.uri.queryParameters['targetId'] ?? '';
           final status = state.uri.queryParameters['status'] ?? 'dialing';
           final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
           return ChatGroupVideoPage(
             name: name,
+            targetId: targetId,
             status: status,
             cameraEnabled: cameraEnabled,
           );

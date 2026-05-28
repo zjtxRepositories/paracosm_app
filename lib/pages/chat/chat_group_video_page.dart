@@ -1,19 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/user_display_model.dart';
+import 'package:paracosm/modules/call/rong_call_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class ChatGroupVideoPage extends StatefulWidget {
   final String name;
+  final String targetId;
   final String status;
   final bool cameraEnabled;
 
   const ChatGroupVideoPage({
     super.key,
     required this.name,
+    this.targetId = '',
     this.status = 'dialing',
     this.cameraEnabled = true,
   });
@@ -23,16 +34,43 @@ class ChatGroupVideoPage extends StatefulWidget {
 }
 
 class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
-  static const String _incomingDisplayName = 'Kristen';
-  static const String _localUserName = 'Wei Wei';
-
   late String _status;
   late bool _micEnabled;
   late bool _cameraEnabled;
+  late RongCallState _callState;
+  StreamSubscription<RongCallState>? _callSub;
+  Timer? _callTimer;
+  int _callElapsedMs = 0;
+  bool _isClosing = false;
+  bool _isMinimized = false;
+  bool _summarySent = false;
+  String? _miniOverlayName;
+  String _miniOverlayStatus = 'dialing';
+  bool _miniOverlayCameraEnabled = true;
+  RCCallView? _localVideoView;
+  RCCallView? _remoteVideoView;
+  bool _localVideoBound = false;
+  bool _remoteVideoBound = false;
+  bool _isPreparingLocalVideo = false;
+  bool _isPreparingRemoteVideo = false;
+  bool _localVideoRetryBlocked = false;
+  bool _remoteVideoRetryBlocked = false;
+  Timer? _localVideoRetryTimer;
+  Timer? _remoteVideoRetryTimer;
+  String _incomingDisplayName = '';
+  List<UserDisplayModel> _inCallParticipants = [];
 
-  String get name => widget.name;
+  String get name =>
+      _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
   bool get _isIncoming => _status == 'incoming';
   bool get _isInCall => _status == 'in_call';
+  bool get _hasActiveCall => _callState.isActive;
+  String get _callDurationText => formatDurationFromMs(_callElapsedMs);
+  String get _localUserName {
+    final user = _inCallParticipants.firstOrNull;
+    if (user == null) return '';
+    return user.name;
+  }
 
   @override
   void initState() {
@@ -40,6 +78,63 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     _status = widget.status;
     _micEnabled = true;
     _cameraEnabled = widget.cameraEnabled && !_isIncoming;
+    _callState = RongCallManager().state;
+    _syncCallState(_callState);
+    _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    if (!_hasActiveCall && _isInCall) {
+      _startStaticCallTimer();
+    }
+    _getGroupMembers();
+    unawaited(_prepareVideoViewsIfNeeded());
+  }
+
+  Future<void> _getGroupMembers() async {
+    final users = _callState.session?.users ?? [];
+    final models = <UserDisplayModel>[];
+    for (final user in users) {
+      final model = await UserDisplayStateCenter().getUser(user.userId);
+      if (model == null) continue;
+      models.add(model);
+    }
+    if (!mounted) return;
+    setState(() {
+      _inCallParticipants = models;
+    });
+    if (_isIncoming) {
+      final userId = _callState.session?.inviter?.userId;
+      if (userId != null) {
+        final inviter = await UserDisplayStateCenter().getUser(userId);
+        if (!mounted) return;
+        setState(() {
+          _incomingDisplayName = inviter?.name ?? '';
+        });
+      }
+    }
+  }
+
+  RCCallUserProfile? _callUserProfile(String userId) {
+    final users = _callState.session?.users ?? [];
+    for (final user in users) {
+      if (user.userId == userId) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _stopCallTimer();
+    _localVideoRetryTimer?.cancel();
+    _remoteVideoRetryTimer?.cancel();
+    _callSub?.cancel();
+    _localVideoView = null;
+    _remoteVideoView = null;
+    RongCallManager().clearVideoViews();
+    if (_isMinimized) {
+      _showMiniOverlayAfterDispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -53,6 +148,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       child: Stack(
         children: [
           _buildBackground(),
+          _buildVideoLayer(),
           _buildCloseButton(context),
           if (_isIncoming) _buildIncomingCenterContent(),
           if (!_isIncoming) _buildSessionHeader(),
@@ -98,6 +194,68 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVideoLayer() {
+    final featuredVideo = _featuredVideoView();
+    final previewVideo = _previewVideoView();
+
+    return Stack(
+      children: [
+        if (featuredVideo != null)
+          Positioned.fill(child: IgnorePointer(child: featuredVideo)),
+        if (featuredVideo != null) _buildVideoGradientOverlay(),
+        if (_isInCall && previewVideo != null) _buildLocalPreview(previewVideo),
+      ],
+    );
+  }
+
+  Widget _buildVideoGradientOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.26),
+                Colors.black.withValues(alpha: 0.12),
+                Colors.black.withValues(alpha: 0.38),
+              ],
+              stops: const [0.0, 0.52, 1.0],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalPreview(Widget videoView) {
+    final topPadding = MediaQuery.of(context).padding.top + 84;
+
+    return Positioned(
+      right: 20,
+      top: topPadding,
+      child: Container(
+        width: 92,
+        height: 160,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.grey600, width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: videoView,
+      ),
     );
   }
 
@@ -186,27 +344,47 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   Future<bool> _minimizeCallBeforeBack() async {
-    _showMiniOverlay(context);
+    _minimizeCallToOverlay();
     return true;
   }
 
   void _minimizeCall(BuildContext context) {
-    _showMiniOverlay(context);
+    _minimizeCallToOverlay();
     if (context.canPop()) {
       context.pop();
     }
   }
 
-  void _showMiniOverlay(BuildContext context) {
-    _GroupVideoMiniOverlayController.show(
-      context: context,
-      name: name,
-      status: _status,
-      cameraEnabled: _cameraEnabled,
-    );
+  void _minimizeCallToOverlay() {
+    _isMinimized = true;
+    _miniOverlayName = name;
+    _miniOverlayStatus = _status;
+    _miniOverlayCameraEnabled = _cameraEnabled;
+  }
+
+  void _showMiniOverlayAfterDispose() {
+    final overlayName = _miniOverlayName ?? name;
+    final overlayStatus = _miniOverlayStatus;
+    final overlayCameraEnabled = _miniOverlayCameraEnabled;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_hasActiveCall && !RongCallManager().state.isActive) return;
+      final rootContext = AppRouter.rootNavigatorKey.currentContext;
+      if (rootContext == null) return;
+      _GroupVideoMiniOverlayController.show(
+        context: rootContext,
+        name: overlayName,
+        targetId: widget.targetId,
+        status: overlayStatus,
+        cameraEnabled: overlayCameraEnabled,
+      );
+    });
   }
 
   Widget _buildIncomingCenterContent() {
+    final participantCount = _inCallParticipants.length;
+    final title = participantCount > 0 ? '$name($participantCount)' : name;
+
     return Align(
       alignment: const Alignment(0, -0.5),
       child: Column(
@@ -215,7 +393,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           _buildGroupAvatarGrid(),
           const SizedBox(height: 32),
           Text(
-            '$name(20)',
+            title,
             style: AppTextStyles.h1.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -230,6 +408,8 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   Widget _buildGroupAvatarGrid() {
+    final participants = _inCallParticipants.take(4).toList(growable: false);
+
     return Container(
       width: 64,
       height: 64,
@@ -247,6 +427,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         ),
         itemCount: 4,
         itemBuilder: (context, index) {
+          final participant = index < participants.length
+              ? participants[index]
+              : null;
           return Container(
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
@@ -255,10 +438,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(3),
-              child: Image.asset(
-                'assets/images/chat/avatar.png',
-                fit: BoxFit.cover,
-              ),
+              child: participant == null
+                  ? Image.asset(
+                      'assets/images/chat/avatar.png',
+                      fit: BoxFit.cover,
+                    )
+                  : UserAvatarWidget(
+                      userId: participant.userId,
+                      avatarUrl: participant.avatar,
+                      size: 28,
+                    ),
             ),
           );
         },
@@ -296,7 +485,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   Widget _buildSessionHeader() {
     final topPadding = MediaQuery.of(context).padding.top + 14;
     final titleText = _isInCall
-        ? '00:08:32'
+        ? _callDurationText
         : AppLocalizations.currentText('call_waiting_group_join', {
             'name': _localUserName,
           });
@@ -335,15 +524,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     if (_isIncoming) {
       return const SizedBox.shrink();
     }
-
-    final participants = <_ParticipantCard>[
-      _ParticipantCard(name: 'Padraic'),
-      _ParticipantCard(name: 'Wilson'),
-      _ParticipantCard(name: 'Kristen'),
-      _ParticipantCard(name: 'Howard'),
-      _ParticipantCard(name: 'Howard'),
-      _ParticipantCard(name: 'Howard'),
-    ];
+    if (_inCallParticipants.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     final media = MediaQuery.of(context);
     final stripWidth = media.size.width - 20;
@@ -358,13 +541,15 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: participants.length,
+            itemCount: _inCallParticipants.length,
             itemBuilder: (context, index) {
-              final participant = participants[index];
+              final participant = _inCallParticipants[index];
+              final callUser = _callUserProfile(participant.userId);
               return _GroupParticipantTile(
-                key: ValueKey(participant.name),
+                key: ValueKey(participant.userId),
                 participant: participant,
                 isInCall: _isInCall,
+                micEnabled: callUser?.enableMicrophone ?? false,
               );
             },
             separatorBuilder: (context, index) => const SizedBox(width: 8),
@@ -392,12 +577,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           _buildImageActionButton(
             assetPath: 'assets/images/chat/call/voice-answer.png',
             size: 72,
-            onTap: () {
-              setState(() {
-                _status = 'in_call';
-                _cameraEnabled = true;
-              });
-            },
+            onTap: _answerVideoSession,
           ),
         ],
       ),
@@ -433,11 +613,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () {
-              setState(() {
-                _micEnabled = !_micEnabled;
-              });
-            },
+            onTap: _toggleMicrophone,
             child: Image.asset(
               _micEnabled
                   ? 'assets/images/chat/call/mic-on.png'
@@ -456,7 +632,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
             ),
           ),
           GestureDetector(
-            onTap: () {},
+            onTap: _isInCall
+                ? () => RongCallManager().switchCamera()
+                : _toggleCamera,
             child: Image.asset(
               _cameraEnabled
                   ? 'assets/images/chat/call/camera.png'
@@ -481,26 +659,277 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     );
   }
 
-  void _closeVideoSession(BuildContext context) {
+  Future<void> _closeVideoSession(BuildContext context) async {
+    if (_isClosing) return;
+    _isClosing = true;
+    _isMinimized = false;
     _GroupVideoMiniOverlayController.dismiss();
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().hangup();
+    } else {
+      await _sendGroupCallSummaryIfNeeded();
+    }
+    if (!context.mounted) return;
     Navigator.of(context).maybePop();
+  }
+
+  Future<void> _sendGroupCallSummaryIfNeeded() async {
+    if (_summarySent || widget.targetId.isEmpty) return;
+    _summarySent = true;
+    await RongCallManager().sendCallSummaryMessage(
+      conversationType: RCIMIWConversationType.group,
+      targetId: widget.targetId,
+      isVideo: true,
+      durationMs: _callElapsedMs,
+    );
+  }
+
+  Future<void> _answerVideoSession() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().accept();
+      return;
+    }
+    setState(() {
+      _status = 'in_call';
+      _cameraEnabled = true;
+    });
+    _startStaticCallTimer();
+    unawaited(_prepareVideoViewsIfNeeded());
+  }
+
+  Future<void> _toggleMicrophone() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().toggleMicrophone();
+      return;
+    }
+    setState(() {
+      _micEnabled = !_micEnabled;
+    });
+  }
+
+  Future<void> _toggleCamera() async {
+    if (RongCallManager().state.isActive) {
+      await RongCallManager().toggleCamera();
+      return;
+    }
+    setState(() {
+      _cameraEnabled = !_cameraEnabled;
+      if (!_cameraEnabled) {
+        _localVideoView = null;
+        _localVideoBound = false;
+      }
+    });
+  }
+
+  void _syncCallState(RongCallState state) {
+    if (!mounted) return;
+    if (state.status == RongCallStatus.idle) {
+      return;
+    }
+    if (state.status == RongCallStatus.ended ||
+        state.status == RongCallStatus.error) {
+      _stopCallTimer();
+      if (_isClosing) return;
+      _isClosing = true;
+      _isMinimized = false;
+      _GroupVideoMiniOverlayController.dismiss();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+      return;
+    }
+
+    setState(() {
+      _callState = state;
+      _status = _statusFromCallState(state.status);
+      _micEnabled = state.micEnabled;
+      _cameraEnabled = state.cameraEnabled;
+      if (!_shouldShowLocalVideo(state)) {
+        _localVideoView = null;
+        _localVideoBound = false;
+      }
+      if (!_shouldShowRemoteVideo(state)) {
+        _remoteVideoView = null;
+        _remoteVideoBound = false;
+      }
+    });
+    _syncCallTimer(state);
+    unawaited(_getGroupMembers());
+    unawaited(_prepareVideoViewsIfNeeded());
+  }
+
+  Widget? _featuredVideoView() {
+    if (_isInCall && _remoteVideoView != null) {
+      return _remoteVideoView;
+    }
+    return _localVideoView;
+  }
+
+  Widget? _previewVideoView() {
+    if (_isInCall && _remoteVideoView != null) {
+      return _localVideoView;
+    }
+    return null;
+  }
+
+  bool _shouldShowLocalVideo(RongCallState state) {
+    return state.isVideo &&
+        state.isActive &&
+        state.cameraEnabled &&
+        !_isIncoming;
+  }
+
+  bool _shouldShowRemoteVideo(RongCallState state) {
+    return state.isVideo &&
+        state.status == RongCallStatus.inCall &&
+        state.remoteCameraEnabled;
+  }
+
+  Future<void> _prepareVideoViewsIfNeeded() async {
+    await _prepareLocalVideoViewIfNeeded();
+    await _prepareRemoteVideoViewIfNeeded();
+  }
+
+  Future<void> _prepareLocalVideoViewIfNeeded() async {
+    if (_localVideoBound) return;
+    if (_isPreparingLocalVideo || _localVideoView != null) return;
+    if (_localVideoRetryBlocked) return;
+    if (!_shouldShowLocalVideo(_callState)) return;
+
+    _isPreparingLocalVideo = true;
+    final view = await RongCallManager().createLocalVideoView();
+    if (!mounted) return;
+    setState(() {
+      _localVideoView = view;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    final isBound = view != null
+        ? await RongCallManager().bindLocalVideoView(view)
+        : false;
+    if (!mounted) return;
+    setState(() {
+      _localVideoBound = isBound;
+      if (!isBound) {
+        _localVideoView = null;
+        _blockLocalVideoRetry();
+      }
+      _isPreparingLocalVideo = false;
+    });
+  }
+
+  Future<void> _prepareRemoteVideoViewIfNeeded() async {
+    if (_remoteVideoBound) return;
+    if (_isPreparingRemoteVideo || _remoteVideoView != null) return;
+    if (_remoteVideoRetryBlocked) return;
+    if (!_shouldShowRemoteVideo(_callState)) return;
+
+    _isPreparingRemoteVideo = true;
+    final view = await RongCallManager().createRemoteVideoView();
+    if (!mounted) return;
+    setState(() {
+      _remoteVideoView = view;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    final isBound = view != null
+        ? await RongCallManager().bindRemoteVideoView(view)
+        : false;
+    if (!mounted) return;
+    setState(() {
+      _remoteVideoBound = isBound;
+      if (!isBound) {
+        _remoteVideoView = null;
+        _blockRemoteVideoRetry();
+      }
+      _isPreparingRemoteVideo = false;
+    });
+  }
+
+  void _blockLocalVideoRetry() {
+    _localVideoRetryBlocked = true;
+    _localVideoRetryTimer?.cancel();
+    _localVideoRetryTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      _localVideoRetryBlocked = false;
+      unawaited(_prepareLocalVideoViewIfNeeded());
+    });
+  }
+
+  void _blockRemoteVideoRetry() {
+    _remoteVideoRetryBlocked = true;
+    _remoteVideoRetryTimer?.cancel();
+    _remoteVideoRetryTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      _remoteVideoRetryBlocked = false;
+      unawaited(_prepareRemoteVideoViewIfNeeded());
+    });
+  }
+
+  void _syncCallTimer(RongCallState state) {
+    if (state.status != RongCallStatus.inCall) {
+      _stopCallTimer();
+      return;
+    }
+    _updateCallElapsedFromState();
+    _callTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCallElapsedFromState();
+    });
+  }
+
+  void _startStaticCallTimer() {
+    _stopCallTimer();
+    _callElapsedMs = 0;
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final elapsed = DateTime.now().millisecondsSinceEpoch - startedAt;
+      setState(() {
+        _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+      });
+    });
+  }
+
+  void _updateCallElapsedFromState() {
+    final connectedTime = _callState.connectedTimeMs;
+    final elapsed = connectedTime <= 0
+        ? 0
+        : DateTime.now().millisecondsSinceEpoch - connectedTime;
+    if (!mounted) return;
+    setState(() {
+      _callElapsedMs = elapsed < 0 ? 0 : elapsed;
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
+  }
+
+  String _statusFromCallState(RongCallStatus status) {
+    switch (status) {
+      case RongCallStatus.incoming:
+        return 'incoming';
+      case RongCallStatus.inCall:
+        return 'in_call';
+      case RongCallStatus.connecting:
+      case RongCallStatus.dialing:
+      case RongCallStatus.idle:
+      case RongCallStatus.ended:
+      case RongCallStatus.error:
+        return 'dialing';
+    }
   }
 }
 
-class _ParticipantCard {
-  final String name;
-
-  const _ParticipantCard({required this.name});
-}
-
 class _GroupParticipantTile extends StatefulWidget {
-  final _ParticipantCard participant;
+  final UserDisplayModel participant;
   final bool isInCall;
+  final bool micEnabled;
 
   const _GroupParticipantTile({
     super.key,
     required this.participant,
     required this.isInCall,
+    required this.micEnabled,
   });
 
   @override
@@ -509,19 +938,6 @@ class _GroupParticipantTile extends StatefulWidget {
 
 class _GroupParticipantTileState extends State<_GroupParticipantTile> {
   static const Color _avatarBaseColor = Color(0xFFB6B0FF);
-  late bool _micEnabled;
-
-  @override
-  void initState() {
-    super.initState();
-    _micEnabled = true;
-  }
-
-  void _toggleMic() {
-    setState(() {
-      _micEnabled = !_micEnabled;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -538,9 +954,10 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
               children: [
                 Container(
                   color: _avatarBaseColor,
-                  child: Image.asset(
-                    'assets/images/chat/avatar.png',
-                    fit: BoxFit.cover,
+                  child: UserAvatarWidget(
+                    userId: widget.participant.userId,
+                    avatarUrl: widget.participant.avatar,
+                    size: 90,
                   ),
                 ),
                 if (!widget.isInCall)
@@ -569,15 +986,12 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
             Positioned(
               left: 6,
               top: 6,
-              child: GestureDetector(
-                onTap: _toggleMic,
-                child: Image.asset(
-                  _micEnabled
-                      ? 'assets/images/chat/call/mic-active.png'
-                      : 'assets/images/chat/call/mic-close.png',
-                  width: 16,
-                  height: 16,
-                ),
+              child: Image.asset(
+                widget.micEnabled
+                    ? 'assets/images/chat/call/mic-active.png'
+                    : 'assets/images/chat/call/mic-close.png',
+                width: 16,
+                height: 16,
               ),
             ),
           Positioned(
@@ -585,7 +999,7 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
             right: 6,
             bottom: 4,
             child: Text(
-              widget.participant.name,
+              _participantName(widget.participant.name),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -599,6 +1013,16 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
         ],
       ),
     );
+  }
+
+  String _participantName(String name) {
+    if (name == '_me') {
+      return AppLocalizations.currentText('moments_me');
+    }
+    if (name == '_others') {
+      return AppLocalizations.currentText('chat_filter_others');
+    }
+    return name;
   }
 }
 
@@ -621,12 +1045,14 @@ class _ParticipantDot extends StatelessWidget {
 class _GroupVideoMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
+  static String _targetId = '';
   static String _status = 'dialing';
   static bool _cameraEnabled = true;
 
   static void show({
     required BuildContext context,
     required String name,
+    String targetId = '',
     required String status,
     required bool cameraEnabled,
   }) {
@@ -634,6 +1060,7 @@ class _GroupVideoMiniOverlayController {
     final overlay = Overlay.of(context, rootOverlay: true);
 
     _name = name;
+    _targetId = targetId;
     _status = status;
     _cameraEnabled = cameraEnabled;
     _entry = OverlayEntry(
@@ -645,8 +1072,10 @@ class _GroupVideoMiniOverlayController {
             return;
           }
           dismiss();
+          RongCallManager().clearVideoViews();
+          final encodedTargetId = Uri.encodeQueryComponent(_targetId);
           rootContext.push(
-            '/chat-group-video/$encodedName?status=$_status&camera=${_cameraEnabled ? 'on' : 'off'}',
+            '/chat-group-video/$encodedName?status=$_status&camera=${_cameraEnabled ? 'on' : 'off'}&targetId=$encodedTargetId',
           );
         },
       ),

@@ -8,59 +8,51 @@ class ChatMoreItem {
   final String label;
   final ChatMoreAction type;
 
-  ChatMoreItem({
-    required this.icon,
-    required this.label,
-    required this.type,
-  });
+  ChatMoreItem({required this.icon, required this.label, required this.type});
 }
-enum ChatMoreAction {
-  album,
-  camera,
-  videoCall,
-  audioCall,
-  redbag,
-  file,
-}
+
+enum ChatMoreAction { album, camera, videoCall, audioCall, redbag, file }
+
 class ChatMorePanel extends StatelessWidget {
   final Function(ChatMoreItem item)? onItemTap;
+  final bool showCallActions;
 
-  const ChatMorePanel({
-    super.key,
-    this.onItemTap,
-  });
+  const ChatMorePanel({super.key, this.onItemTap, this.showCallActions = true});
 
   @override
   Widget build(BuildContext context) {
-    final functions = [
+    final l10n = AppLocalizations.of(context)!;
+    final functions = <ChatMoreItem>[
       ChatMoreItem(
         icon: 'assets/images/common/photo.png',
-        label: AppLocalizations.of(context)!.chatDetailAlbum,
+        label: l10n.chatDetailAlbum,
         type: ChatMoreAction.album,
       ),
       ChatMoreItem(
         icon: 'assets/images/common/camera.png',
-        label: AppLocalizations.of(context)!.chatDetailCamera,
+        label: l10n.chatDetailCamera,
         type: ChatMoreAction.camera,
       ),
-      ChatMoreItem(
-        icon: 'assets/images/common/video.png',
-        label: AppLocalizations.of(context)!.chatDetailVideoCall,
-        type: ChatMoreAction.videoCall,
-      ),
-      ChatMoreItem(
-        icon: 'assets/images/common/voice.png',
-        label: AppLocalizations.of(context)!.chatDetailAudioCall,
-        type: ChatMoreAction.audioCall,
-      ),
+      if (showCallActions) ...[
+        ChatMoreItem(
+          icon: 'assets/images/common/video.png',
+          label: l10n.chatDetailVideoCall,
+          type: ChatMoreAction.videoCall,
+        ),
+        ChatMoreItem(
+          icon: 'assets/images/common/voice.png',
+          label: l10n.chatDetailAudioCall,
+          type: ChatMoreAction.audioCall,
+        ),
+      ],
       // ChatMoreItem(
       //   icon: 'assets/images/common/redbag.png',
-      //   label: AppLocalizations.of(context)!.chatDetailRedPacket,
+      //   label: l10n.chatDetailRedPacket,
       //   type: ChatMoreAction.redbag,
       // ),
       ChatMoreItem(
         icon: 'assets/images/common/file.png',
-        label: AppLocalizations.of(context)!.chatDetailFile,
+        label: l10n.chatDetailFile,
         type: ChatMoreAction.file,
       ),
     ];

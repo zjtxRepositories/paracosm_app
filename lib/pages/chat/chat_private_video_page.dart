@@ -12,6 +12,8 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
+import '../../widgets/chat/waiting_dots.dart';
+
 /// 单人视频通话静态页。
 ///
 /// 这页只做 UI 状态展示，不接真实通话逻辑。
@@ -206,6 +208,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   }
 
   Widget _buildVideoLayer() {
+    print('_isInCall------$_isInCall--$_previewVideoView---$_isRemoteOnBackdrop');
     return Stack(
       children: [
         if (_backdropVideoView != null)
@@ -248,13 +251,30 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
 
   Widget _buildPreviewBackground() {
     final rect = _previewRect(context);
+
     return Positioned.fromRect(
       rect: rect,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: const DecoratedBox(
-          decoration: BoxDecoration(color: Colors.black),
-        ),
+      child: Stack(
+        children: [
+          UserAvatarWidget(
+            userId: _callState.targetId,
+            avatarUrl: _callState.avatar,
+            borderRadius: BorderRadius.circular(8),
+            width: rect.width,
+            height: rect.height,
+          ),
+
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.35),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+
+          const Center(
+            child: WaitingDots(),
+          ),
+        ],
       ),
     );
   }

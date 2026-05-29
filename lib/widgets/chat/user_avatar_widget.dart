@@ -4,6 +4,8 @@ class UserAvatarWidget extends StatelessWidget {
   final String? userId;
   final String? avatarUrl;
   final double size;
+  final double? width;
+  final double? height;
   final BorderRadius? borderRadius;
 
   const UserAvatarWidget({
@@ -11,44 +13,53 @@ class UserAvatarWidget extends StatelessWidget {
     required this.userId,
     this.avatarUrl,
     this.size = 40,
+    this.width,
+    this.height,
     this.borderRadius,
   });
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? BorderRadius.circular(size / 2);
+    final effectiveWidth = width ?? size;
+    final effectiveHeight = height ?? size;
+    final radius =
+        borderRadius ??
+        BorderRadius.circular(
+          (effectiveWidth < effectiveHeight ? effectiveWidth : effectiveHeight) /
+              2,
+        );
 
     return ClipRRect(
       borderRadius: radius,
-      child: _buildImage(),
+      child: _buildImage(width: effectiveWidth, height: effectiveHeight),
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage({required double width, required double height}) {
     // ✅ 有网络头像
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
       return Image.network(
         avatarUrl!,
-        width: size,
-        height: size,
+        width: width,
+        height: height,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return _buildDefaultAvatar();
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultAvatar(width: width, height: height);
         },
       );
     }
 
     // ❌ 没头像 → 默认头像
-    return _buildDefaultAvatar();
+    return _buildDefaultAvatar(width: width, height: height);
   }
 
   /// 默认头像
-  Widget _buildDefaultAvatar() {
+  Widget _buildDefaultAvatar({required double width, required double height}) {
     final asset = _getDefaultAvatar(userId ?? '');
     return Image.asset(
       asset,
-      width: size,
-      height: size,
+      width: width,
+      height: height,
       fit: BoxFit.cover,
     );
   }

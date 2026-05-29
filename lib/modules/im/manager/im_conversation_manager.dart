@@ -489,10 +489,9 @@ class ImConversationManager {
         old.lastMessage = msg;
       }
 
-      if (msg.senderUserId != IMEngineManager().currentUserId) {
-        old.unreadCount = (old.unreadCount ?? 0) + 1;
+      if (msg.senderUserId != IMEngineManager().currentUserId  && event.type == MessageEventType.add && event.message?.messageType != RCIMIWMessageType.nativeCustom) {
+        old.unreadCount = (old.unreadCount ?? 0) + (!(event.message?.receivedStatusInfo?.read ?? false)? 1 : 0) ;
       }
-
       old.operationTime = newTime;
 
       _sortAllTabs();

@@ -137,8 +137,11 @@ class RongCallManager {
 
   RCCallEngine? _engine;
   RongCallState _state = const RongCallState.idle();
+  Timer? _groupCallSessionRefreshTimer;
+  Timer? _singleMemberGroupCallTimer;
   bool _isInitializing = false;
   bool _nativeCallSummaryDisabled = false;
+  bool _isRefreshingGroupCallSession = false;
   Future<void>? _videoViewsFuture;
   bool _localVideoViewBound = false;
   bool _remoteVideoViewBound = false;
@@ -862,6 +865,98 @@ class RongCallManager {
     }
   }
 
+  void _syncGroupCallSessionRefresh(RongCallState state) {
+    if (state.isGroupCall && state.status == RongCallStatus.inCall) {
+      _groupCallSessionRefreshTimer ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => unawaited(_refreshGroupCallSession()),
+      );
+      return;
+    }
+    _groupCallSessionRefreshTimer?.cancel();
+    _groupCallSessionRefreshTimer = null;
+    _cancelSingleMemberGroupCallTimer();
+  }
+
+  Future<void> _refreshGroupCallSession() async {
+    if (_isRefreshingGroupCallSession) return;
+    final engine = _engine;
+    if (engine == null ||
+        !_state.isGroupCall ||
+        _state.status != RongCallStatus.inCall) {
+      _syncGroupCallSessionRefresh(_state);
+      return;
+    }
+
+    _isRefreshingGroupCallSession = true;
+    try {
+      final session = await engine.getCurrentCallSession();
+      if (session == null) return;
+      if (!_state.isGroupCall || _state.status != RongCallStatus.inCall) {
+        return;
+      }
+
+      final activeRemoteUsers = session.users.where(_isActiveRemoteCallUser);
+      if (activeRemoteUsers.isEmpty) {
+        _startSingleMemberGroupCallTimer();
+      } else {
+        _cancelSingleMemberGroupCallTimer();
+      }
+
+      _setState(_state.copyWith(session: session));
+    } catch (e) {
+      debugPrint('refresh group call session failed: $e');
+    } finally {
+      _isRefreshingGroupCallSession = false;
+    }
+  }
+
+  void _startSingleMemberGroupCallTimer() {
+    if (_singleMemberGroupCallTimer != null) return;
+    _singleMemberGroupCallTimer = Timer(const Duration(seconds: 60), () {
+      unawaited(_hangupIfGroupCallStillSingleMember());
+    });
+  }
+
+  void _cancelSingleMemberGroupCallTimer() {
+    _singleMemberGroupCallTimer?.cancel();
+    _singleMemberGroupCallTimer = null;
+  }
+
+  Future<void> _hangupIfGroupCallStillSingleMember() async {
+    _singleMemberGroupCallTimer = null;
+    final engine = _engine;
+    if (engine == null ||
+        !_state.isGroupCall ||
+        _state.status != RongCallStatus.inCall) {
+      return;
+    }
+
+    try {
+      final session = await engine.getCurrentCallSession();
+      if (session == null ||
+          !_state.isGroupCall ||
+          _state.status != RongCallStatus.inCall) {
+        return;
+      }
+
+      _setState(_state.copyWith(session: session));
+      final activeRemoteUsers = session.users.where(_isActiveRemoteCallUser);
+      if (activeRemoteUsers.isEmpty) {
+        await hangup();
+      }
+    } catch (e) {
+      debugPrint('single member group call hangup check failed: $e');
+    }
+  }
+
+  bool _isActiveRemoteCallUser(RCCallUserProfile user) {
+    final currentUserId = IMEngineManager().currentUserId;
+    return user.userId.isNotEmpty &&
+        user.userId != currentUserId &&
+        (user.mediaId?.isNotEmpty ?? false);
+  }
+
   Future<bool> _ensurePermissions(RCCallMediaType mediaType) async {
     final microphone = await Permission.microphone.request();
     if (!microphone.isGranted) return false;
@@ -1113,6 +1208,7 @@ class RongCallManager {
 
   void _setState(RongCallState state) {
     _state = state;
+    _syncGroupCallSessionRefresh(_state);
     _stateController.add(_state);
   }
 }

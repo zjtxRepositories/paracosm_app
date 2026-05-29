@@ -65,6 +65,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   Timer? _localVideoRetryTimer;
   Timer? _remoteVideoRetryTimer;
   String _incomingDisplayName = '';
+  final Set<String> _joinedParticipantUserIds = {};
   List<UserDisplayModel> _inCallParticipants = [];
 
   String get name =>
@@ -96,7 +97,21 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   Future<void> _getGroupMembers() async {
-    final users = _callState.session?.users ?? [];
+    final sessionUsers = _callState.session?.users ?? [];
+    final activeUserIds = sessionUsers
+        .where(_isActiveRemoteParticipant)
+        .map((user) => user.userId)
+        .toSet();
+    if (_isInCall) {
+      _joinedParticipantUserIds.addAll(activeUserIds);
+    }
+    final users = _isInCall
+        ? sessionUsers
+              .where(
+                (user) => _shouldShowParticipantInStrip(user, activeUserIds),
+              )
+              .toList()
+        : sessionUsers;
     final models = <UserDisplayModel>[];
     for (final user in users) {
       final model = await UserDisplayStateCenter().getUser(user.userId);
@@ -117,6 +132,23 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         });
       }
     }
+  }
+
+  bool _isActiveRemoteParticipant(RCCallUserProfile user) {
+    return user.userId.isNotEmpty &&
+        user.userId != _callState.session?.mine.userId &&
+        (user.mediaId?.isNotEmpty ?? false);
+  }
+
+  bool _shouldShowParticipantInStrip(
+    RCCallUserProfile user,
+    Set<String> activeUserIds,
+  ) {
+    if (user.userId.isEmpty || user.userId == _callState.session?.mine.userId) {
+      return false;
+    }
+    if (activeUserIds.contains(user.userId)) return true;
+    return !_joinedParticipantUserIds.contains(user.userId);
   }
 
   RCCallUserProfile? _callUserProfile(String userId) {
@@ -454,7 +486,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   Widget _buildGroupAvatarGrid() {
     return GroupAvatarWidget(
-        groupId: widget.targetId,
+      groupId: widget.targetId,
       portraitUri: _callState.avatar,
       size: 64,
     );
@@ -1138,8 +1170,11 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
               ],
             ),
           ),
-          Container(
-            child: widget.videoView ?? SizedBox(),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox.expand(
+              child: widget.videoView ?? SizedBox(),
+            ),
           ),
           if (widget.isInCall)
             Positioned(
@@ -1253,12 +1288,12 @@ class _ParticipantDot extends StatelessWidget {
       child: Transform.scale(
         scale: scale,
         child: Container(
-      width: 4,
-      height: 4,
-      decoration: BoxDecoration(
-        color: AppColors.grey200,
-        shape: BoxShape.circle,
-      ),
+          width: 4,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.grey200,
+            shape: BoxShape.circle,
+          ),
         ),
       ),
     );

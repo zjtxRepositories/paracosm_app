@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/models/group_member_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
@@ -16,9 +15,6 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_module.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-
-import '../../modules/im/listener/group_state_center.dart';
-import '../../modules/im/manager/im_engine_manager.dart';
 
 class ChatGroupVoicePage extends StatefulWidget {
   final String name;
@@ -56,6 +52,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   bool get _hasActiveCall => _callState.isActive;
   String get _callDurationText => formatDurationFromMs(_callElapsedMs);
   String _incomingDisplayName = '';
+  final Set<String> _joinedParticipantUserIds = {};
   List<UserDisplayModel> _inCallParticipants = [];
 
   String get _localUserName {
@@ -80,23 +77,56 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   }
 
   Future<void> _getGroupMembers() async {
-    final users = _callState.session?.users ?? [];
+    final sessionUsers = _callState.session?.users ?? [];
+    final activeUserIds = sessionUsers
+        .where(_isActiveRemoteParticipant)
+        .map((user) => user.userId)
+        .toSet();
+    if (_isInCall) {
+      _joinedParticipantUserIds.addAll(activeUserIds);
+    }
+    final users = _isInCall
+        ? sessionUsers
+              .where(
+                (user) => _shouldShowParticipantInStrip(user, activeUserIds),
+              )
+              .toList()
+        : sessionUsers;
     List<UserDisplayModel> models = [];
-    for (final user in users){
+    for (final user in users) {
       final model = await UserDisplayStateCenter().getUser(user.userId);
       if (model == null) continue;
       models.add(model);
     }
+    if (!mounted) return;
     setState(() {
       _inCallParticipants = models;
     });
-    if (_isIncoming){
+    if (_isIncoming) {
       final userId = _callState.session?.inviter?.userId;
-      if (userId != null){
+      if (userId != null) {
         final inviter = await UserDisplayStateCenter().getUser(userId);
+        if (!mounted) return;
         _incomingDisplayName = inviter?.name ?? '';
       }
     }
+  }
+
+  bool _isActiveRemoteParticipant(RCCallUserProfile user) {
+    return user.userId.isNotEmpty &&
+        user.userId != _callState.session?.mine.userId &&
+        (user.mediaId?.isNotEmpty ?? false);
+  }
+
+  bool _shouldShowParticipantInStrip(
+    RCCallUserProfile user,
+    Set<String> activeUserIds,
+  ) {
+    if (user.userId.isEmpty || user.userId == _callState.session?.mine.userId) {
+      return false;
+    }
+    if (activeUserIds.contains(user.userId)) return true;
+    return !_joinedParticipantUserIds.contains(user.userId);
   }
 
   RCCallUserProfile? _callUserProfile(String userId) {
@@ -261,34 +291,39 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       children: [
         _buildGroupAvatarRing(),
         const SizedBox(height: 56),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 60),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h1.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 60),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.h1.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-              _isInCall ? Text('(${_inCallParticipants.length + 1})',
-                style: AppTextStyles.h1.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ) : SizedBox(),
-            ],
+                _isInCall
+                    ? Text(
+                        '(${_inCallParticipants.length + 1})',
+                        style: AppTextStyles.h1.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      )
+                    : SizedBox(),
+              ],
+            ),
           ),
-        ),),
+        ),
         const SizedBox(height: 8),
         _buildSubtitleWidget(),
       ],
@@ -317,21 +352,24 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
           return _buildParticipantCell(
             visibleParticipants[index],
             showMore ? index == visibleParticipants.length - 1 : false,
-              _inCallParticipants.length - 6
+            _inCallParticipants.length - 6,
           );
         },
       ),
     );
   }
 
-
-  Widget _buildParticipantCell(UserDisplayModel participant,bool isOverflow, int hiddenCount) {
+  Widget _buildParticipantCell(
+    UserDisplayModel participant,
+    bool isOverflow,
+    int hiddenCount,
+  ) {
     return SizedBox(
       width: 64,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildParticipantAvatar(participant,isOverflow,hiddenCount),
+          _buildParticipantAvatar(participant, isOverflow, hiddenCount),
           const SizedBox(height: 12),
           Text(
             _participantName(participant.name),
@@ -359,7 +397,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     return name;
   }
 
-  Widget _buildParticipantAvatar(UserDisplayModel participant, bool isOverflow, int hiddenCount) {
+  Widget _buildParticipantAvatar(
+    UserDisplayModel participant,
+    bool isOverflow,
+    int hiddenCount,
+  ) {
     final callUser = _callUserProfile(participant.userId);
     return SizedBox(
       width: 60,
@@ -397,10 +439,10 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
                       ],
                     )
                   : UserAvatarWidget(
-                  userId: participant.userId,
-                avatarUrl: participant.avatar,
-                size: 60,
-              )
+                      userId: participant.userId,
+                      avatarUrl: participant.avatar,
+                      size: 60,
+                    ),
             ),
           ),
           if (!isOverflow)
@@ -1361,21 +1403,5 @@ class _FloatingDotSpec {
     this.right,
     this.bottom,
     required this.color,
-  });
-}
-
-class _VoiceParticipant {
-  final String name;
-  final bool micEnabled;
-  final Color avatarColor;
-  final bool isOverflow;
-  final int hiddenCount;
-
-  const _VoiceParticipant({
-    required this.name,
-    required this.micEnabled,
-    required this.avatarColor,
-    this.isOverflow = false,
-    this.hiddenCount = 0,
   });
 }

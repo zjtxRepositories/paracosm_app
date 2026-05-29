@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/group_model.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -118,7 +119,6 @@ class RongCallState {
       localVideoView: localVideoView ?? this.localVideoView,
       remoteVideoView: remoteVideoView ?? this.remoteVideoView,
       connectedTimeMs: connectedTimeMs ?? this.connectedTimeMs,
-
     );
   }
 }
@@ -239,7 +239,7 @@ class RongCallManager {
       return false;
     }
     final members = await _groupCallMembers(targetId);
-    final userIds = members.map((item)=> item.userId ?? '').toList();
+    final userIds = members.map((item) => item.userId ?? '').toList();
     if (userIds.isEmpty) {
       AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
       return false;
@@ -312,7 +312,6 @@ class RongCallManager {
     final members = await GroupStateCenter().getGroupMembers(groupId);
     return members.where((item) => item.userId != currentUserId).toList();
   }
-
 
   Future<void> hangup() async {
     if (_engine == null) {
@@ -469,6 +468,56 @@ class RongCallManager {
     } catch (e) {
       debugPrint('bind remote video view failed: $e');
       return false;
+    }
+  }
+
+  Future<RCCallView?> createParticipantVideoView() async {
+    final engine = _engine;
+    if (engine == null || !_state.isVideo || !_state.isActive) {
+      return null;
+    }
+
+    try {
+      final view = await RCCallView.create(fit: BoxFit.cover);
+      if (!_state.isVideo || !_state.isActive) {
+        return null;
+      }
+      return view;
+    } catch (e) {
+      debugPrint('create participant video view failed: $e');
+      return null;
+    }
+  }
+
+  Future<bool> bindParticipantVideoView(String userId, RCCallView view) async {
+    final engine = _engine;
+    if (engine == null ||
+        userId.isEmpty ||
+        !_state.isVideo ||
+        _state.status != RongCallStatus.inCall) {
+      return false;
+    }
+
+    try {
+      final code = await engine.setVideoView(userId, view);
+      if (code != 0) {
+        debugPrint('bind participant video view failed: $code');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('bind participant video view failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> unbindParticipantVideoView(String userId) async {
+    final engine = _engine;
+    if (engine == null || userId.isEmpty) return;
+    try {
+      await engine.setVideoView(userId, null);
+    } catch (e) {
+      debugPrint('unbind participant video view failed: $e');
     }
   }
 
@@ -703,7 +752,6 @@ class RongCallManager {
       final targetId = isGroupCall
           ? session.targetId
           : (session.caller?.userId ?? session.targetId);
-      print('invite-----${session.inviter?.userId}---${session.caller?.userId}-${session.extra}-');
       final displayName = targetId;
       _setState(
         RongCallState(
@@ -738,6 +786,16 @@ class RongCallManager {
 
     engine.onRemoteUserDidRing = (_) {
       _setState(_state.copyWith(status: RongCallStatus.dialing));
+    };
+
+    engine.onRemoteUserDidChangeMediaType = (user, _) {
+      _upsertSessionUser(user);
+      _setState(
+        _state.copyWith(
+          remoteMicEnabled: user.enableMicrophone,
+          remoteCameraEnabled: user.enableCamera,
+        ),
+      );
     };
 
     engine.onConnect = () async {
@@ -779,14 +837,29 @@ class RongCallManager {
       _setState(_state.copyWith(cameraEnabled: enabled));
     };
 
-    engine.onRemoteUserDidChangeMicrophoneState = (_, enabled) {
+    engine.onRemoteUserDidChangeMicrophoneState = (user, enabled) {
+      _upsertSessionUser(user);
       _setState(_state.copyWith(remoteMicEnabled: enabled));
     };
 
-    engine.onRemoteUserDidChangeCameraState = (_, enabled) {
+    engine.onRemoteUserDidChangeCameraState = (user, enabled) {
+      _upsertSessionUser(user);
       _remoteVideoViewBound = false;
       _setState(_state.copyWith(remoteCameraEnabled: enabled));
     };
+  }
+
+  void _upsertSessionUser(RCCallUserProfile user) {
+    final session = _state.session;
+    if (session == null || user.userId.isEmpty) return;
+    final index = session.users.indexWhere(
+      (item) => item.userId == user.userId,
+    );
+    if (index >= 0) {
+      session.users[index] = user;
+    } else {
+      session.users.add(user);
+    }
   }
 
   Future<bool> _ensurePermissions(RCCallMediaType mediaType) async {
@@ -991,7 +1064,9 @@ class RongCallManager {
     if (targetId.isEmpty) return;
     try {
       final group = await GroupStateCenter().getGroup(targetId);
-      final displayName = (group?.groupName ?? '').trim();
+      if (group == null) return;
+      final model = GroupModel(info: group);
+      final displayName = await model.name;
       if (displayName.isEmpty) return;
       if (_state.targetId != targetId || !_state.isActive) return;
       _setState(_state.copyWith(displayName: displayName));

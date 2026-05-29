@@ -11,6 +11,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -49,8 +50,14 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   bool _miniOverlayCameraEnabled = true;
   RCCallView? _localVideoView;
   RCCallView? _remoteVideoView;
+  final Map<String, RCCallView> _participantVideoViews = {};
+  final Set<String> _participantVideoBound = {};
+  final Set<String> _preparingParticipantVideos = {};
+  final Set<String> _participantVideoRetryBlocked = {};
+  final Map<String, Timer> _participantVideoRetryTimers = {};
   bool _localVideoBound = false;
   bool _remoteVideoBound = false;
+  bool _localVideoInPreviewSlot = false;
   bool _isPreparingLocalVideo = false;
   bool _isPreparingRemoteVideo = false;
   bool _localVideoRetryBlocked = false;
@@ -127,9 +134,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     _stopCallTimer();
     _localVideoRetryTimer?.cancel();
     _remoteVideoRetryTimer?.cancel();
+    for (final timer in _participantVideoRetryTimers.values) {
+      timer.cancel();
+    }
     _callSub?.cancel();
     _localVideoView = null;
     _remoteVideoView = null;
+    for (final userId in _participantVideoViews.keys) {
+      unawaited(RongCallManager().unbindParticipantVideoView(userId));
+    }
+    _participantVideoViews.clear();
     RongCallManager().clearVideoViews();
     if (_isMinimized) {
       _showMiniOverlayAfterDispose();
@@ -392,12 +406,43 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         children: [
           _buildGroupAvatarGrid(),
           const SizedBox(height: 32),
-          Text(
-            title,
-            style: AppTextStyles.h1.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+          // Text(
+          //   title,
+          //   style: AppTextStyles.h1.copyWith(
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.w600,
+          //     color: Colors.white,
+          //   ),
+          // ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 60),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h1.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '(${_inCallParticipants.length + 1})',
+                    style: AppTextStyles.h1.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -408,50 +453,10 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   Widget _buildGroupAvatarGrid() {
-    final participants = _inCallParticipants.take(4).toList(growable: false);
-
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemCount: 4,
-        itemBuilder: (context, index) {
-          final participant = index < participants.length
-              ? participants[index]
-              : null;
-          return Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: participant == null
-                  ? Image.asset(
-                      'assets/images/chat/avatar.png',
-                      fit: BoxFit.cover,
-                    )
-                  : UserAvatarWidget(
-                      userId: participant.userId,
-                      avatarUrl: participant.avatar,
-                      size: 28,
-                    ),
-            ),
-          );
-        },
-      ),
+    return GroupAvatarWidget(
+        groupId: widget.targetId,
+      portraitUri: _callState.avatar,
+      size: 64,
     );
   }
 
@@ -507,7 +512,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       right: 0,
       child: Center(
         child: SizedBox(
-          width: 116,
+          width: 180,
           child: Text(
             titleText,
             maxLines: 1,
@@ -549,6 +554,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
                 key: ValueKey(participant.userId),
                 participant: participant,
                 isInCall: _isInCall,
+                videoView: _participantVideoViews[participant.userId],
                 micEnabled: callUser?.enableMicrophone ?? false,
               );
             },
@@ -717,6 +723,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       if (!_cameraEnabled) {
         _localVideoView = null;
         _localVideoBound = false;
+        _localVideoInPreviewSlot = false;
       }
     });
   }
@@ -747,10 +754,17 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       if (!_shouldShowLocalVideo(state)) {
         _localVideoView = null;
         _localVideoBound = false;
+        _localVideoInPreviewSlot = false;
       }
       if (!_shouldShowRemoteVideo(state)) {
         _remoteVideoView = null;
         _remoteVideoBound = false;
+        if (_localVideoView != null && _localVideoInPreviewSlot) {
+          _localVideoView = null;
+          _localVideoBound = false;
+          _localVideoInPreviewSlot = false;
+          _scheduleLocalVideoPrepare();
+        }
       }
     });
     _syncCallTimer(state);
@@ -781,6 +795,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   bool _shouldShowRemoteVideo(RongCallState state) {
     return state.isVideo &&
+        !state.isGroupCall &&
         state.status == RongCallStatus.inCall &&
         state.remoteCameraEnabled;
   }
@@ -788,6 +803,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   Future<void> _prepareVideoViewsIfNeeded() async {
     await _prepareLocalVideoViewIfNeeded();
     await _prepareRemoteVideoViewIfNeeded();
+    await _prepareParticipantVideoViewsIfNeeded();
   }
 
   Future<void> _prepareLocalVideoViewIfNeeded() async {
@@ -801,6 +817,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     if (!mounted) return;
     setState(() {
       _localVideoView = view;
+      if (view != null) {
+        _localVideoInPreviewSlot = _shouldUseLocalPreviewSlot();
+      }
     });
     await WidgetsBinding.instance.endOfFrame;
     final isBound = view != null
@@ -827,6 +846,12 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     final view = await RongCallManager().createRemoteVideoView();
     if (!mounted) return;
     setState(() {
+      if (view != null &&
+          _localVideoView != null &&
+          !_localVideoInPreviewSlot) {
+        _localVideoView = null;
+        _localVideoBound = false;
+      }
       _remoteVideoView = view;
     });
     await WidgetsBinding.instance.endOfFrame;
@@ -841,6 +866,18 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         _blockRemoteVideoRetry();
       }
       _isPreparingRemoteVideo = false;
+    });
+    _scheduleLocalVideoPrepare();
+  }
+
+  bool _shouldUseLocalPreviewSlot() {
+    return _isInCall && _remoteVideoView != null;
+  }
+
+  void _scheduleLocalVideoPrepare() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_prepareLocalVideoViewIfNeeded());
     });
   }
 
@@ -862,6 +899,138 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       _remoteVideoRetryBlocked = false;
       unawaited(_prepareRemoteVideoViewIfNeeded());
     });
+  }
+
+  Future<void> _prepareParticipantVideoViewsIfNeeded() async {
+    if (!_callState.isGroupCall || !_callState.isVideo || !_isInCall) {
+      _clearParticipantVideoViews();
+      return;
+    }
+
+    final targetUserIds =
+        _callState.session?.users
+            .where(_shouldShowParticipantVideo)
+            .map((user) => user.userId)
+            .toSet() ??
+        <String>{};
+
+    final staleUserIds = _participantVideoViews.keys
+        .where((userId) => !targetUserIds.contains(userId))
+        .toList(growable: false);
+    if (staleUserIds.isNotEmpty && mounted) {
+      setState(() {
+        for (final userId in staleUserIds) {
+          _participantVideoViews.remove(userId);
+          _participantVideoBound.remove(userId);
+        }
+      });
+      for (final userId in staleUserIds) {
+        _cancelParticipantVideoRetry(userId);
+        unawaited(RongCallManager().unbindParticipantVideoView(userId));
+      }
+    }
+
+    for (final userId in targetUserIds) {
+      await _prepareParticipantVideoViewIfNeeded(userId);
+    }
+  }
+
+  bool _shouldShowParticipantVideo(RCCallUserProfile user) {
+    return user.userId.isNotEmpty &&
+        !_isLocalCallUser(user) &&
+        (user.mediaId?.isNotEmpty ?? false) &&
+        user.enableCamera &&
+        user.mediaType == RCCallMediaType.audio_video;
+  }
+
+  bool _isLocalCallUser(RCCallUserProfile user) {
+    return user.userId == _callState.session?.mine.userId;
+  }
+
+  Future<void> _prepareParticipantVideoViewIfNeeded(String userId) async {
+    if (!_shouldShowParticipantVideoById(userId)) return;
+    if (_participantVideoBound.contains(userId)) return;
+    if (_participantVideoViews.containsKey(userId)) return;
+    if (_preparingParticipantVideos.contains(userId)) return;
+    if (_participantVideoRetryBlocked.contains(userId)) return;
+
+    _preparingParticipantVideos.add(userId);
+    final view = await RongCallManager().createParticipantVideoView();
+    if (!mounted) return;
+    if (view == null) {
+      _preparingParticipantVideos.remove(userId);
+      _blockParticipantVideoRetry(userId);
+      return;
+    }
+
+    setState(() {
+      _participantVideoViews[userId] = view;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    final isBound = await RongCallManager().bindParticipantVideoView(
+      userId,
+      view,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (isBound) {
+        _participantVideoBound.add(userId);
+      } else {
+        _participantVideoViews.remove(userId);
+        _participantVideoBound.remove(userId);
+        _blockParticipantVideoRetry(userId);
+      }
+      _preparingParticipantVideos.remove(userId);
+    });
+  }
+
+  void _clearParticipantVideoViews() {
+    if (_participantVideoViews.isEmpty) {
+      for (final timer in _participantVideoRetryTimers.values) {
+        timer.cancel();
+      }
+      _participantVideoRetryTimers.clear();
+      _participantVideoRetryBlocked.clear();
+      _preparingParticipantVideos.clear();
+      return;
+    }
+    final userIds = _participantVideoViews.keys.toList(growable: false);
+    setState(() {
+      _participantVideoViews.clear();
+      _participantVideoBound.clear();
+      _preparingParticipantVideos.clear();
+    });
+    for (final userId in userIds) {
+      _cancelParticipantVideoRetry(userId);
+      unawaited(RongCallManager().unbindParticipantVideoView(userId));
+    }
+  }
+
+  bool _shouldShowParticipantVideoById(String userId) {
+    final user = _callUserProfile(userId);
+    if (user == null) return false;
+    return _callState.isGroupCall &&
+        _callState.isVideo &&
+        _isInCall &&
+        _shouldShowParticipantVideo(user);
+  }
+
+  void _blockParticipantVideoRetry(String userId) {
+    _participantVideoRetryBlocked.add(userId);
+    _participantVideoRetryTimers[userId]?.cancel();
+    _participantVideoRetryTimers[userId] = Timer(
+      const Duration(seconds: 1),
+      () {
+        if (!mounted) return;
+        _participantVideoRetryBlocked.remove(userId);
+        unawaited(_prepareParticipantVideoViewIfNeeded(userId));
+      },
+    );
+  }
+
+  void _cancelParticipantVideoRetry(String userId) {
+    _participantVideoRetryTimers.remove(userId)?.cancel();
+    _participantVideoRetryBlocked.remove(userId);
   }
 
   void _syncCallTimer(RongCallState state) {
@@ -924,12 +1093,14 @@ class _GroupParticipantTile extends StatefulWidget {
   final UserDisplayModel participant;
   final bool isInCall;
   final bool micEnabled;
+  final Widget? videoView;
 
   const _GroupParticipantTile({
     super.key,
     required this.participant,
     required this.isInCall,
     required this.micEnabled,
+    this.videoView,
   });
 
   @override
@@ -937,8 +1108,6 @@ class _GroupParticipantTile extends StatefulWidget {
 }
 
 class _GroupParticipantTileState extends State<_GroupParticipantTile> {
-  static const Color _avatarBaseColor = Color(0xFFB6B0FF);
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -948,39 +1117,29 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
         clipBehavior: Clip.none,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Container(
-                  color: _avatarBaseColor,
-                  child: UserAvatarWidget(
-                    userId: widget.participant.userId,
-                    avatarUrl: widget.participant.avatar,
-                    size: 90,
-                  ),
+                UserAvatarWidget(
+                  userId: widget.participant.userId,
+                  avatarUrl: widget.participant.avatar,
+                  width: 90,
+                  height: 90,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                if (!widget.isInCall)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.40),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _ParticipantDot(),
-                          SizedBox(width: 8),
-                          _ParticipantDot(),
-                          SizedBox(width: 8),
-                          _ParticipantDot(),
-                        ],
-                      ),
-                    ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.40),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Center(child: _ParticipantWaitingDots()),
+                ),
               ],
             ),
+          ),
+          Container(
+            child: widget.videoView ?? SizedBox(),
           ),
           if (widget.isInCall)
             Positioned(
@@ -1026,17 +1185,81 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
   }
 }
 
-class _ParticipantDot extends StatelessWidget {
-  const _ParticipantDot();
+class _ParticipantWaitingDots extends StatefulWidget {
+  const _ParticipantWaitingDots();
+
+  @override
+  State<_ParticipantWaitingDots> createState() =>
+      _ParticipantWaitingDotsState();
+}
+
+class _ParticipantWaitingDotsState extends State<_ParticipantWaitingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ParticipantDot(progress: _dotProgress(0)),
+            const SizedBox(width: 8),
+            _ParticipantDot(progress: _dotProgress(1)),
+            const SizedBox(width: 8),
+            _ParticipantDot(progress: _dotProgress(2)),
+          ],
+        );
+      },
+    );
+  }
+
+  double _dotProgress(int index) {
+    final value = (_controller.value - index * 0.22) % 1.0;
+    if (value < 0.5) return value * 2;
+    return (1 - value) * 2;
+  }
+}
+
+class _ParticipantDot extends StatelessWidget {
+  final double progress;
+
+  const _ParticipantDot({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final opacity = 0.35 + progress * 0.65;
+    final scale = 0.78 + progress * 0.28;
+
+    return Opacity(
+      opacity: opacity,
+      child: Transform.scale(
+        scale: scale,
+        child: Container(
       width: 4,
       height: 4,
       decoration: BoxDecoration(
         color: AppColors.grey200,
         shape: BoxShape.circle,
+      ),
+        ),
       ),
     );
   }

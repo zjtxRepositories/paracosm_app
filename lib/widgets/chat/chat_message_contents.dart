@@ -58,9 +58,9 @@ class _ChatQuotePreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(6),
-        border: const Border(
-          left: BorderSide(color: AppColors.grey400, width: 3),
-        ),
+        // border: const Border(
+        //   left: BorderSide(color: AppColors.grey400, width: 3),
+        // ),
       ),
       child: Text(
         text,

@@ -16,6 +16,7 @@ class ChatMessageItem extends StatelessWidget {
     this.showBubble = true,
     this.isFlashing = false,
     this.readReceiptText,
+    this.bottom,
   });
 
   final bool isMe;
@@ -26,6 +27,7 @@ class ChatMessageItem extends StatelessWidget {
   final String? senderUserId;
   final String? avatarUrl;
   final String? readReceiptText;
+  final Widget? bottom;
   final GestureLongPressStartCallback onLongPressStart;
 
   @override
@@ -40,7 +42,11 @@ class ChatMessageItem extends StatelessWidget {
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          if (!isMe) _ChatMessageAvatar(userId: senderUserId ?? '',avatarUrl: avatarUrl),
+          if (!isMe)
+            _ChatMessageAvatar(
+              userId: senderUserId ?? '',
+              avatarUrl: avatarUrl,
+            ),
           if (!isMe) const SizedBox(width: 12),
           Flexible(
             child: Column(
@@ -78,6 +84,7 @@ class ChatMessageItem extends StatelessWidget {
                     ],
                   ],
                 ),
+                if (bottom != null) ...[const SizedBox(height: 4), bottom!],
                 if (isMe && readReceiptText != null) ...[
                   const SizedBox(height: 4),
                   Text(
@@ -135,11 +142,7 @@ class _ChatMessageAvatar extends StatelessWidget {
   final String userId;
   final String? avatarUrl;
 
-  const _ChatMessageAvatar({
-    super.key,
-    required this.userId,
-    this.avatarUrl,
-  });
+  const _ChatMessageAvatar({required this.userId, this.avatarUrl});
 
   @override
   Widget build(BuildContext context) {

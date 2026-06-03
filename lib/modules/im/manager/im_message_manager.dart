@@ -1161,6 +1161,15 @@ class ImMessageManager {
     unawaited(_burnAfterReadingManager.clearMessageExpireTime(key));
   }
 
+  Future<int?> getBurnAfterReadingExpireTime(RCIMIWMessage message) async {
+    final key = _burnAfterReadingMessageKey(message);
+    if (key == null) {
+      return null;
+    }
+
+    return _burnAfterReadingManager.getMessageExpireTime(key);
+  }
+
   bool _isSameChannel(String? left, String? right) {
     return (left ?? '').trim() == (right ?? '').trim();
   }

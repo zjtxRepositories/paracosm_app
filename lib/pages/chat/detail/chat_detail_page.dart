@@ -14,6 +14,7 @@ import '../../../widgets/base/app_page.dart';
 import '../../../widgets/chat/chat_detail_header.dart';
 import '../../../widgets/chat/chat_emoji_panel.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
+import '../../../widgets/chat/burn_after_reading_countdown.dart';
 import '../../../widgets/chat/chat_input_bar.dart';
 import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/chat/chat_message_context_menu.dart';
@@ -466,6 +467,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _jumpToQuotedMessage(ChatDetailMessage message) async {
+    final messageNotFoundText = AppLocalizations.of(
+      context,
+    )!.chatDetailMessageNotFound;
     var target = _findQuotedMessage(message);
     if (target != null && await _scrollToMessage(target.messageId)) {
       return;
@@ -473,13 +477,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     final quoteSentTime = message.quoteSentTime;
     if (quoteSentTime == null || quoteSentTime <= 0) {
-      AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
+      AppToast.show(messageNotFoundText);
       return;
     }
 
     final loaded = await controller.loadMessagesAroundTime(quoteSentTime);
     if (!loaded) {
-      AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
+      AppToast.show(messageNotFoundText);
       return;
     }
 
@@ -497,7 +501,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return;
     }
 
-    AppToast.show(AppLocalizations.of(context)!.chatDetailMessageNotFound);
+    AppToast.show(messageNotFoundText);
   }
 
   ChatDetailMessage? _findQuotedMessage(ChatDetailMessage quoteMessage) {
@@ -702,6 +706,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           showBubble: message.showBubble,
           isFlashing: _flashMessageId == message.messageId,
           readReceiptText: _readReceiptText(message),
+          bottom: _buildBurnAfterReadingCountdown(message),
           onLongPressStart: (d) =>
               _showContextMenu(context, d.globalPosition, message),
           child: _buildMessageContent(message),
@@ -725,6 +730,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return message.isRead
         ? localizations.chatDetailRead
         : localizations.chatDetailUnread;
+  }
+
+  Widget? _buildBurnAfterReadingCountdown(ChatDetailMessage message) {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage || (raw.destructDuration ?? 0) <= 0) {
+      return null;
+    }
+
+    return BurnAfterReadingCountdown(message: raw);
   }
 
   Widget _buildCenterTextMessage(ChatDetailMessage message) {

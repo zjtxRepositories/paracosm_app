@@ -1,4 +1,5 @@
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+
 enum ChainType { evm, solana, bitcoin }
 
 /// 字符串转 ChainType
@@ -17,6 +18,7 @@ ChainType chainTypeFromString(String? type) {
       return ChainType.evm;
   }
 }
+
 class ChainAccount {
   String name;
   String address;

@@ -6,16 +6,16 @@ import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import '../../../util/string_util.dart';
 
 class TokenModel {
-
-  String symbol;        // ETH / USDT
-  String name;          // Ethereum
-  String address;       // 合约地址（主链为空）
-  BigInt balance;       // 余额（字符串防精度丢失）
-  int decimals;         // 精度
+  String symbol; // ETH / USDT
+  String name; // Ethereum
+  String address; // 合约地址（主链为空）
+  BigInt balance; // 余额（字符串防精度丢失）
+  int decimals; // 精度
   String logo;
   String coinId;
   int chainId;
   bool? isAdded;
+  bool isNative;
   CoinMarketModel? market;
   double price;
   String? protocol;
@@ -30,6 +30,7 @@ class TokenModel {
     required this.coinId,
     required this.chainId,
     this.isAdded,
+    this.isNative = false,
     this.market,
     this.price = 0,
     this.protocol,
@@ -40,18 +41,23 @@ class TokenModel {
       symbol: json["symbol"] ?? "",
       name: json["name"] ?? "",
       address: json["address"] ?? "",
-        balance: json["balance"] != null
-            ? BigInt.parse(json["balance"].toString())
-            : BigInt.zero,
+      balance: json["balance"] != null
+          ? BigInt.parse(json["balance"].toString())
+          : BigInt.zero,
       decimals: json["decimals"] ?? 18,
       logo: json["logo"] ?? "",
       coinId: json["coinId"] ?? "",
       chainId: json["chainId"] ?? 1,
       isAdded: json["isAdded"],
-      market:json["market"] != null ? CoinMarketModel.fromJson(json["market"]) : null,
-      price:json["price"],
+      isNative:
+          json["isNative"] == true ||
+          json["native"] == 1 ||
+          (json["address"] ?? "").toString().isEmpty,
+      market: json["market"] != null
+          ? CoinMarketModel.fromJson(json["market"])
+          : null,
+      price: json["price"],
       protocol: json["protocol"],
-
     );
   }
 
@@ -66,21 +72,19 @@ class TokenModel {
       "coinId": coinId,
       "chainId": chainId,
       "isAdded": isAdded,
+      "isNative": isNative,
       "market": market?.toJson(),
       "price": price,
       "protocol": protocol,
     };
   }
 
-  ChainAccount? getChain(){
+  ChainAccount? getChain() {
     final chains = AccountManager().currentWallet?.chains ?? [];
     if (chains.isEmpty) return null;
-    final chain = chains.firstWhereOrNull(
-          (c) => c.chainId == chainId,
-    );
+    final chain = chains.firstWhereOrNull((c) => c.chainId == chainId);
     return chain;
   }
-
 
   String get showBalance => displayBalance;
   String get showUsdValue => truncateDouble(usdValue);
@@ -114,5 +118,4 @@ class TokenModel {
     if (address.isNotEmpty) return address;
     return getChain()?.address ?? '';
   }
-
 }

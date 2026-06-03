@@ -845,6 +845,7 @@ class DAppWeb3Service implements EthWeb3Handler {
             logo: faviconUrl,
             coinId: symbol.toLowerCase(),
             chainId: chainId,
+            isNative: true,
           ),
         ],
       );

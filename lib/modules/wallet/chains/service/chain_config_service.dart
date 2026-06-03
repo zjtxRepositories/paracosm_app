@@ -9,7 +9,6 @@ import '../model/chain_config_model.dart';
 import '../sol/solana_service.dart';
 
 class ChainConfigService {
-
   static Future<List<ChainConfigModel>> loadConfigs() async {
     final jsonStr = await rootBundle.loadString("assets/chains.json");
     final List list = json.decode(jsonStr);
@@ -18,57 +17,57 @@ class ChainConfigService {
   }
 
   static Future<List<ChainAccount>> buildChainsFromConfig(
-      List<ChainConfigModel> configs,
-      String mnemonic,
-      ) async{
-    return await Future.wait( configs.map((config) async {
-
-      /// 1. 生成地址（根据链类型）
-      final address = await _generateAddress(
-        mnemonic,
-        config.chainType,
-        config.coinIndex,
-      );
-      /// 2. 转 Token
-      final tokens = config.tokens.map((t) {
-        return TokenModel(
-          symbol: t.symbol,
-          name: t.name,
-          address: t.address,
-          decimals: t.decimals,
-          balance: BigInt.zero,
-          logo: t.icon,
-          coinId: t.coinId,
-          chainId: config.chainId,
-          isAdded: t.isAdded == true,
+    List<ChainConfigModel> configs,
+    String mnemonic,
+  ) async {
+    return await Future.wait(
+      configs.map((config) async {
+        /// 1. 生成地址（根据链类型）
+        final address = await _generateAddress(
+          mnemonic,
+          config.chainType,
+          config.coinIndex,
         );
-      }).toList();
 
-      return ChainAccount(
-        name: config.name,
-        address: address,
-        chainId: config.chainId,
-        tokens: tokens,
-        logo: config.icon,
-        chainType:chainTypeFromString(config.chainType),
-        symbol: config.symbol,
-        nodes: config.nodes,
-        txApiUrl: config.txApiUrl,
-        apiKey: config.apiKey,
-      );
+        /// 2. 转 Token
+        final tokens = config.tokens.map((t) {
+          return TokenModel(
+            symbol: t.symbol,
+            name: t.name,
+            address: t.address,
+            decimals: t.decimals,
+            balance: BigInt.zero,
+            logo: t.icon,
+            coinId: t.coinId,
+            chainId: config.chainId,
+            isAdded: t.isAdded == true,
+            isNative: t.native == 1,
+          );
+        }).toList();
 
-    }).toList());
+        return ChainAccount(
+          name: config.name,
+          address: address,
+          chainId: config.chainId,
+          tokens: tokens,
+          logo: config.icon,
+          chainType: chainTypeFromString(config.chainType),
+          symbol: config.symbol,
+          nodes: config.nodes,
+          txApiUrl: config.txApiUrl,
+          apiKey: config.apiKey,
+        );
+      }).toList(),
+    );
   }
 
   static Future<List<ChainAccount>> buildChainsFromPrivateKey(
-      List<ChainConfigModel> configs,
-      String privateKey,
-  {    ChainType chainType = ChainType.evm,
-  }
-      ) async {
+    List<ChainConfigModel> configs,
+    String privateKey, {
+    ChainType chainType = ChainType.evm,
+  }) async {
     return await Future.wait(
       configs.map((config) async {
-
         String address = "";
 
         /// =========================
@@ -76,11 +75,11 @@ class ChainConfigService {
         /// =========================
         final type = chainTypeFromString(config.chainType);
         if (type == chainType) {
-          if (type == ChainType.evm){
+          if (type == ChainType.evm) {
             address = EvmService.privateKeyToAddress(privateKey);
-          }else if (type == ChainType.bitcoin){
+          } else if (type == ChainType.bitcoin) {
             address = await BitcoinService.privateKeyToAddress(privateKey);
-          }else {
+          } else {
             address = await SolanaService.privateKeyToAddress(privateKey);
           }
         } else {
@@ -103,6 +102,7 @@ class ChainConfigService {
             coinId: t.coinId,
             chainId: config.chainId,
             isAdded: t.isAdded == true,
+            isNative: t.native == 1,
           );
         }).toList();
 
@@ -121,20 +121,17 @@ class ChainConfigService {
           txApiUrl: config.txApiUrl,
           apiKey: config.apiKey,
         );
-
       }).toList(),
     );
   }
 
   /// 生成地址（多链支持）
   static Future<String> _generateAddress(
-      String mnemonic,
-      String chainType,
-      int coinIndex,
-      ) async {
-
+    String mnemonic,
+    String chainType,
+    int coinIndex,
+  ) async {
     switch (chainType) {
-
       case "evm":
         return EvmService.deriveAddress(mnemonic);
 

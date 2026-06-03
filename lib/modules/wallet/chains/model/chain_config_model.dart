@@ -1,7 +1,6 @@
 import 'package:paracosm/modules/wallet/chains/model/token_config_model.dart';
 
 class ChainConfigModel {
-
   String name;
   String chainName;
   int chainId;

@@ -45,6 +45,16 @@ String formatIMTime(int timestamp) {
 
   final diff = now.difference(dateTime);
 
+  if (diff.isNegative) {
+    if (_isSameDay(now, dateTime)) {
+      return _formatTime(dateTime);
+    }
+    if (now.year == dateTime.year) {
+      return '${_two(dateTime.month)}-${_two(dateTime.day)}';
+    }
+    return '${dateTime.year}-${_two(dateTime.month)}-${_two(dateTime.day)}';
+  }
+
   /// 今天
   if (_isSameDay(now, dateTime)) {
     if (diff.inMinutes < 1) {
@@ -78,6 +88,15 @@ String formatIMTime(int timestamp) {
 
   /// 跨年
   return '${dateTime.year}-${_two(dateTime.month)}-${_two(dateTime.day)}';
+}
+
+String formatTransactionTime(int timestamp) {
+  final dateTime = timestamp < 1000000000000
+      ? DateTime.fromMillisecondsSinceEpoch(timestamp * 1000)
+      : DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+  return '${dateTime.year}-${_two(dateTime.month)}-${_two(dateTime.day)} '
+      '${_formatTime(dateTime)}';
 }
 
 bool _isSameDay(DateTime a, DateTime b) {

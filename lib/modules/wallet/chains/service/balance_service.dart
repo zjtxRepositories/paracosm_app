@@ -1,11 +1,10 @@
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
-import 'package:paracosm/modules/wallet/chains/evm/evm_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
 
 import '../../model/chain_account.dart';
 import '../../model/token_model.dart';
 import '../evm/evm_facade.dart';
-
 
 class BalanceService {
   static final BalanceService _instance = BalanceService._internal();
@@ -47,6 +46,19 @@ class BalanceService {
         }
         token.balance = await BitcoinChainService().getBalance(chain.address);
         break;
+      case ChainType.tron:
+        if (chain.address.isEmpty) {
+          token.balance = BigInt.zero;
+          break;
+        }
+        token.balance = await TronChainService().getBalance(
+          chain.address,
+          contractAddress: token.address,
+          node: chain.nodes.isNotEmpty
+              ? chain.nodes.first
+              : 'https://api.trongrid.io',
+        );
+        break;
     }
 
     return token;
@@ -60,5 +72,4 @@ class BalanceService {
     final results = await Future.wait(futures);
     return results;
   }
-
 }

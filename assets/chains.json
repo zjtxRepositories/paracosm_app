@@ -532,6 +532,43 @@
     ]
   },
   {
+    "name": "TRON",
+    "chainName": "TRON Mainnet",
+    "chainId": 728126428,
+    "symbol": "TRX",
+    "coinName": "TRON",
+    "decimals": 6,
+    "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/info/logo.png",
+    "coinIndex": 195,
+    "coinId": "tron",
+    "chainType": "tron",
+    "nodes": [
+      "https://api.trongrid.io"
+    ],
+    "explorer": "https://tronscan.org",
+    "explorerTxUrl": "https://tronscan.org/#/transaction/",
+    "explorerAddressUrl": "https://tronscan.org/#/address/",
+    "tokens": [
+      {
+        "symbol": "TRX",
+        "address": "",
+        "decimals": 6,
+        "name": "TRON",
+        "coinId": "tron",
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/info/logo.png",
+        "native": 1
+      },
+      {
+        "symbol": "USDT",
+        "address": "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj",
+        "decimals": 6,
+        "name": "Tether USD",
+        "coinId": "tether",
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/assets/TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj/logo.png"
+      }
+    ]
+  },
+  {
     "name": "Bitcoin",
     "chainName": "Bitcoin Mainnet",
     "chainId": 0,

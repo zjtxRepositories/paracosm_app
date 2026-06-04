@@ -2,29 +2,22 @@ import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_transaction_service.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_tx_detail.dart';
 import 'package:solana/dto.dart';
-import 'package:web3dart/web3dart.dart';
-import '../chains/evm/evm_chain_service.dart';
 import '../model/chain_account.dart';
 import '../model/token_model.dart';
 import '../model/transaction_model.dart';
 
 /// 转账状态
-enum TransferStatus {
-  waiting,
-  success,
-  fail,
-}
+enum TransferStatus { waiting, success, fail }
 
 /// 统一返回
 class TransactionResult {
   final TransactionModel model;
   final TransferStatus status;
 
-  TransactionResult({
-    required this.model,
-    required this.status,
-  });
+  TransactionResult({required this.model, required this.status});
 }
 
 class TransactionService {
@@ -56,6 +49,13 @@ class TransactionService {
 
       case ChainType.bitcoin:
         return _fetchBitcoin(
+          chain: chain,
+          token: token,
+          txHash: txHash,
+          onPending: onPending,
+        );
+      case ChainType.tron:
+        return _fetchTron(
           chain: chain,
           token: token,
           txHash: txHash,
@@ -178,12 +178,9 @@ class TransactionService {
 
     return TransactionResult(
       model: finalModel,
-      status: _mapStatus(
-        evmStatus: receipt.status,
-      ),
+      status: _mapStatus(evmStatus: receipt.status),
     );
   }
-
 
   /// =========================
   /// BTC
@@ -194,8 +191,10 @@ class TransactionService {
     required String txHash,
     void Function(TransactionModel model)? onPending,
   }) async {
-    final tx = await BitcoinChainService()
-        .getTransactionDetail(chain.address, txHash);
+    final tx = await BitcoinChainService().getTransactionDetail(
+      chain.address,
+      txHash,
+    );
 
     if (tx == null) return null;
 
@@ -215,9 +214,7 @@ class TransactionService {
 
     return TransactionResult(
       model: pendingModel,
-      status: _mapStatus(
-        btcConfirmations: tx.confirmations,
-      ),
+      status: _mapStatus(btcConfirmations: tx.confirmations),
     );
   }
 
@@ -230,8 +227,10 @@ class TransactionService {
     required String txHash,
     void Function(TransactionModel model)? onPending,
   }) async {
-    final tx = await SolanaChainService()
-        .getTransactionDetail(chain.address, txHash);
+    final tx = await SolanaChainService().getTransactionDetail(
+      chain.address,
+      txHash,
+    );
 
     if (tx == null) return null;
 
@@ -250,8 +249,9 @@ class TransactionService {
     onPending?.call(pendingModel);
 
     /// ✅ 获取确认状态
-    final confirmation =
-    await SolanaChainService().getConfirmationStatus(txHash);
+    final confirmation = await SolanaChainService().getConfirmationStatus(
+      txHash,
+    );
 
     final finalModel = TransactionModel(
       hash: tx.hash,
@@ -267,10 +267,89 @@ class TransactionService {
 
     return TransactionResult(
       model: finalModel,
-      status: _mapStatus(
-        solErr: tx.err,
-        solConfirmation: confirmation,
-      ),
+      status: _mapStatus(solErr: tx.err, solConfirmation: confirmation),
+    );
+  }
+
+  static Future<TransactionResult?> _fetchTron({
+    required ChainAccount chain,
+    required TokenModel token,
+    required String txHash,
+    void Function(TransactionModel model)? onPending,
+  }) async {
+    final service = TronChainService();
+    final node = chain.nodes.isNotEmpty
+        ? chain.nodes.first
+        : 'https://api.trongrid.io';
+    var tx = await service.getTransactionDetail(
+      txHash,
+      contractAddress: token.address,
+      node: node,
+    );
+    if (tx == null) {
+      onPending?.call(
+        TransactionModel(
+          hash: txHash,
+          from: chain.address,
+          to: '',
+          value: BigInt.zero,
+          logo: token.logo,
+          decimals: token.decimals,
+          symbol: token.symbol,
+        ),
+      );
+    }
+
+    for (var attempt = 0; attempt < 15; attempt++) {
+      if (tx != null) {
+        final model = _buildTronTransactionModel(tx, chain, token);
+        onPending?.call(model);
+        if (tx.success != null) {
+          return TransactionResult(
+            model: model,
+            status: tx.success! ? TransferStatus.success : TransferStatus.fail,
+          );
+        }
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+      tx = await service.getTransactionDetail(
+        txHash,
+        contractAddress: token.address,
+        node: node,
+      );
+    }
+
+    final model = tx == null
+        ? TransactionModel(
+            hash: txHash,
+            from: chain.address,
+            to: '',
+            value: BigInt.zero,
+            logo: token.logo,
+            decimals: token.decimals,
+            symbol: token.symbol,
+          )
+        : _buildTronTransactionModel(tx, chain, token);
+    return TransactionResult(model: model, status: TransferStatus.waiting);
+  }
+
+  static TransactionModel _buildTronTransactionModel(
+    TronTxDetail tx,
+    ChainAccount chain,
+    TokenModel token,
+  ) {
+    return TransactionModel(
+      hash: tx.txid,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      fee: tx.fee,
+      logo: token.logo,
+      time: tx.time,
+      decimals: token.decimals,
+      symbol: token.symbol,
+      feeSymbol: chain.symbol,
+      feeDecimals: 6,
     );
   }
 }

@@ -13,7 +13,6 @@ import '../../modules/wallet/model/transaction_model.dart';
 import '../../modules/wallet/service/transaction_service.dart';
 import '../../widgets/common/app_network_image.dart';
 
-
 /// 转账详情页面
 class TransferDetailsPage extends StatefulWidget {
   final TokenModel token;
@@ -29,7 +28,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
   TransferStatus _status = TransferStatus.waiting;
   TransactionModel? _model;
 
-  late Timer _timer;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -69,7 +68,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -88,7 +87,9 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: AppLocalizations.of(context)!.profileTransferDetailsTransferDetails,
+      title: AppLocalizations.of(
+        context,
+      )!.profileTransferDetailsTransferDetails,
       backgroundColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -128,7 +129,9 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
             const Spacer(),
             // 底部按钮
             AppButton(
-              text: AppLocalizations.of(context)!.profileTransferDetailsContinueToTransfer,
+              text: AppLocalizations.of(
+                context,
+              )!.profileTransferDetailsContinueToTransfer,
               onPressed: () => context.pop(),
               backgroundColor: AppColors.grey900,
               textColor: Colors.white,
@@ -153,11 +156,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
         iconPath = 'assets/images/profile/transfer-fail.png';
         break;
     }
-    return Image.asset(
-      iconPath,
-      width: 160,
-      height: 160,
-    );
+    return Image.asset(iconPath, width: 160, height: 160);
   }
 
   /// 构建状态文本
@@ -166,11 +165,15 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
     Color color;
     switch (_status) {
       case TransferStatus.waiting:
-        text = AppLocalizations.of(context)!.profileTransferDetailsTransferWaiting;
+        text = AppLocalizations.of(
+          context,
+        )!.profileTransferDetailsTransferWaiting;
         color = AppColors.grey500;
         break;
       case TransferStatus.success:
-        text = AppLocalizations.of(context)!.profileTransferDetailsTransferSuccess;
+        text = AppLocalizations.of(
+          context,
+        )!.profileTransferDetailsTransferSuccess;
         color = AppColors.primary;
         break;
       case TransferStatus.fail:
@@ -212,7 +215,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
           const Divider(height: 32, color: AppColors.grey200),
           _buildInfoRow(
             AppLocalizations.of(context)!.profileTransferDetailsTransactionFee,
-            '${_model?.feeDisplay} ${_model?.symbol}',
+            '${_model?.feeDisplay} ${_model?.displayFeeSymbol ?? ''}',
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
@@ -231,11 +234,11 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
   }
 
   Widget _buildInfoRow(
-      String label,
-      String value, {
-        bool isCopyable = false,
-        bool hasInfoIcon = false,
-      }) {
+    String label,
+    String value, {
+    bool isCopyable = false,
+    bool hasInfoIcon = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -267,9 +270,14 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                 const SizedBox(width: 2),
               ],
               if (hasInfoIcon) ...[
-                const Icon(Icons.info_outline, size: 12, color: AppColors.grey400),
+                const Icon(
+                  Icons.info_outline,
+                  size: 12,
+                  color: AppColors.grey400,
+                ),
                 const SizedBox(width: 2),
               ],
+
               /// 👇 关键：文本必须再 Expanded
               Expanded(
                 child: Text(

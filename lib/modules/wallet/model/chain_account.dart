@@ -1,6 +1,6 @@
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 
-enum ChainType { evm, solana, bitcoin }
+enum ChainType { evm, solana, bitcoin, tron }
 
 /// 字符串转 ChainType
 ChainType chainTypeFromString(String? type) {
@@ -14,6 +14,9 @@ ChainType chainTypeFromString(String? type) {
     case 'bitcoin':
     case 'btc':
       return ChainType.bitcoin;
+    case 'tron':
+    case 'trx':
+      return ChainType.tron;
     default:
       return ChainType.evm;
   }

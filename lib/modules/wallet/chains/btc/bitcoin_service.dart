@@ -4,10 +4,19 @@ import 'package:crypto/crypto.dart';
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:bdk_flutter/bdk_flutter.dart';
+// ignore: implementation_imports
+import 'package:bdk_flutter/src/generated/frb_generated.dart' as bdk_generated;
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'electrum_node_manager.dart';
 
 class BitcoinService {
+  static Future<void>? _initialization;
+
+  static Future<void> _ensureInitialized() => _initialization ??= bdk_generated
+      .core
+      .init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true));
+
   /// =========================
   /// 网络
   /// =========================
@@ -61,6 +70,8 @@ class BitcoinService {
   /// 创建 Wallet
   /// =========================
   static Future<Wallet> _createWallet(String descriptorStr) async {
+    await _ensureInitialized();
+
     final descriptor = await Descriptor.create(
       descriptor: descriptorStr,
       network: _network,

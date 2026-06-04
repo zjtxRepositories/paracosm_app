@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +14,12 @@ class WalletCreatingPage extends StatefulWidget {
   final List<String>? mnemonics;
   final String? password;
   final String? privateKey;
-  const WalletCreatingPage({super.key, this.mnemonics, this.password, this.privateKey});
+  const WalletCreatingPage({
+    super.key,
+    this.mnemonics,
+    this.password,
+    this.privateKey,
+  });
 
   @override
   State<WalletCreatingPage> createState() => _WalletCreatingPageState();
@@ -29,8 +33,9 @@ class _WalletCreatingPageState extends State<WalletCreatingPage> {
       _creating();
     });
   }
+
   Future _creating() async {
-    if (widget.mnemonics != null || widget.privateKey != null){
+    if (widget.mnemonics != null || widget.privateKey != null) {
       try {
         await Future.delayed(Duration(seconds: 2));
         await AccountService.creating(
@@ -45,8 +50,11 @@ class _WalletCreatingPageState extends State<WalletCreatingPage> {
             context.go('/chat');
           }
         });
-      }catch(e){
-        print('创建钱包错误：$e');
+      } catch (e, stackTrace) {
+        debugPrint('创建钱包错误：$e\n$stackTrace');
+        if (mounted) {
+          AppToast.show(AppLocalizations.of(context)!.walletImportError(e));
+        }
       }
     }
   }
@@ -68,11 +76,8 @@ class _WalletCreatingPageState extends State<WalletCreatingPage> {
               width: 240.w, // 使用适配尺寸
               height: 240.w,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.cloud_sync,
-                size: 100.w,
-                color: AppColors.primary,
-              ),
+              errorBuilder: (context, error, stackTrace) =>
+                  Icon(Icons.cloud_sync, size: 100.w, color: AppColors.primary),
             ),
             SizedBox(height: 24.h),
             // 正在创建钱包...

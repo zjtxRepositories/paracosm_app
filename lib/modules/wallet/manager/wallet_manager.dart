@@ -5,7 +5,9 @@ import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/service/wallet_service.dart';
 import '../chains/btc/bitcoin_service.dart';
 import '../chains/evm/evm_service.dart';
+import '../chains/service/chain_config_service.dart';
 import '../chains/sol/solana_service.dart';
+import '../chains/tron/tron_service.dart';
 import '../model/wallet_model.dart';
 import '../security/wallet_security.dart';
 
@@ -66,11 +68,25 @@ class WalletManager {
 
     /// BTC
     await BitcoinService.getOrCreateWallet(mnemonic);
+    TronService.createWalletFromMnemonic(mnemonic);
     if (wallet != null) {
       for (final chain in wallet.chains) {
         if (chain.chainType == ChainType.bitcoin && chain.address.isNotEmpty) {
           await BitcoinService.restoreAddressIndex(mnemonic, chain.address);
         }
+      }
+      if (!wallet.chains.any((chain) => chain.chainType == ChainType.tron)) {
+        final configs = await ChainConfigService.loadConfigs();
+        final tronConfigs = configs
+            .where(
+              (config) =>
+                  chainTypeFromString(config.chainType) == ChainType.tron,
+            )
+            .toList();
+        wallet.chains.addAll(
+          await ChainConfigService.buildChainsFromConfig(tronConfigs, mnemonic),
+        );
+        await WalletDao().updateWallet(wallet);
       }
     }
 
@@ -93,6 +109,8 @@ class WalletManager {
 
       case ChainType.bitcoin:
         return BitcoinService.getPrivateKeyByAddress(chain.address);
+      case ChainType.tron:
+        return TronService.getPrivateKeyByAddress(chain.address);
     }
   }
 

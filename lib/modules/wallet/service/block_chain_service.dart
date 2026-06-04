@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_erc20_rpc_scan_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 
 import '../model/trade_model.dart';
@@ -58,6 +60,21 @@ class BlockChainService {
           limit: limit,
         );
         return _parseEvmTxsToTradeModel(rawTxs, address, chain: chain);
+      case ChainType.tron:
+        final txs = await TronChainService().getTransactions(
+          address,
+          contractAddress: contractAddress ?? '',
+          node: chain.nodes.isNotEmpty
+              ? chain.nodes.first
+              : 'https://api.trongrid.io',
+          limit: limit,
+        );
+        return _parseTronTxsToTradeModel(
+          txs,
+          address,
+          chain: chain,
+          contractAddress: contractAddress,
+        );
     }
   }
 
@@ -412,6 +429,77 @@ class BlockChainService {
     return trades;
   }
 
+  List<TradeModel> _parseTronTxsToTradeModel(
+    List<Map<String, dynamic>> txs,
+    String userAddress, {
+    required ChainAccount chain,
+    String? contractAddress,
+  }) {
+    if (_hasValue(contractAddress)) {
+      return txs.map((tx) {
+        final tokenInfo = tx['token_info'];
+        final decimals = tokenInfo is Map
+            ? int.tryParse(tokenInfo['decimals']?.toString() ?? '6') ?? 6
+            : 6;
+        final from = _normalizeTronAddress(tx['from']);
+        final to = _normalizeTronAddress(tx['to']);
+        final rawValue =
+            BigInt.tryParse(tx['value']?.toString() ?? '') ?? BigInt.zero;
+        return TradeModel(
+          symbol: tokenInfo is Map
+              ? tokenInfo['symbol']?.toString() ?? chain.symbol
+              : chain.symbol,
+          price: 0,
+          amount: _formatBigIntAmount(rawValue, decimals),
+          buyTurnover: 0,
+          direction: from == userAddress
+              ? TradeDirection.sell
+              : TradeDirection.buy,
+          time:
+              (int.tryParse(tx['block_timestamp']?.toString() ?? '') ?? 0) ~/
+              1000,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          from: from,
+          to: to,
+          contractAddress: contractAddress,
+          tokenName: tokenInfo is Map ? tokenInfo['name']?.toString() : null,
+        );
+      }).toList();
+    }
+
+    final trades = <TradeModel>[];
+    for (final tx in txs) {
+      final contracts = tx['raw_data']?['contract'];
+      if (contracts is! List || contracts.isEmpty) continue;
+      final contract = contracts.first;
+      if (contract is! Map || contract['type'] != 'TransferContract') continue;
+      final value = contract['parameter']?['value'];
+      if (value is! Map) continue;
+      final from = _normalizeTronAddress(value['owner_address']);
+      final to = _normalizeTronAddress(value['to_address']);
+      final amount =
+          BigInt.tryParse(value['amount']?.toString() ?? '') ?? BigInt.zero;
+      trades.add(
+        TradeModel(
+          symbol: chain.symbol,
+          price: 0,
+          amount: _formatBigIntAmount(amount, 6),
+          buyTurnover: 0,
+          direction: from == userAddress
+              ? TradeDirection.sell
+              : TradeDirection.buy,
+          time:
+              (int.tryParse(tx['block_timestamp']?.toString() ?? '') ?? 0) ~/
+              1000,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          from: from,
+          to: to,
+        ),
+      );
+    }
+    return trades;
+  }
+
   double _findSolanaTokenAmount(
     List balances, {
     required String mint,
@@ -442,6 +530,14 @@ class BlockChainService {
     }
 
     return 0;
+  }
+
+  String _normalizeTronAddress(dynamic address) {
+    final value = address?.toString() ?? '';
+    if (RegExp(r'^41[0-9a-fA-F]{40}$').hasMatch(value)) {
+      return TronService.hexToAddress(value);
+    }
+    return value;
   }
 
   double _formatBigIntAmount(BigInt value, int decimals) {

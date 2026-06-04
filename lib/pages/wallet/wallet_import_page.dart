@@ -450,12 +450,13 @@ class _WalletImportPageState extends State<WalletImportPage>
                                                   password: widget.password!,
                                                 );
                                                 await AccountManager().init();
-                                                AppLoading.dismiss();
                                                 context.go('/chat');
                                               } catch (e) {
                                                 AppToast.show(
                                                   loc.walletImportError(e),
                                                 );
+                                              } finally {
+                                                AppLoading.dismiss();
                                               }
                                               return;
                                             }

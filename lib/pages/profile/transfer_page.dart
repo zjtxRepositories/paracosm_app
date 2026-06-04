@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
+import 'package:paracosm/modules/wallet/chains/tron/tron_service.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/pages/profile/transfer_scan_address.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
@@ -261,6 +263,22 @@ class _TransferPageState extends State<TransferPage> {
           amount: double.parse(trimmedAmount),
         );
       }
+      if (_selectedNetwork?.chainType == ChainType.tron) {
+        final privateKey = TronService.getPrivateKeyByAddress(
+          _selectedNetwork!.address,
+        );
+        if (privateKey == null) throw Exception('波场钱包未解锁');
+        tx = await TronChainService().send(
+          fromAddress: _selectedNetwork!.address,
+          toAddress: trimmedAddress,
+          amount: _parseAmountToBigInt(trimmedAmount, _token!.decimals)!,
+          privateKey: privateKey,
+          contractAddress: _token!.address,
+          node: _selectedNetwork!.nodes.isNotEmpty
+              ? _selectedNetwork!.nodes.first
+              : 'https://api.trongrid.io',
+        );
+      }
       AppLoading.dismiss();
       _amountController.text = '';
       _addressController.text = '';
@@ -378,6 +396,13 @@ class _TransferPageState extends State<TransferPage> {
       );
       return false;
     }
+    if (network.chainType == ChainType.tron &&
+        !TronService.isValidAddress(network.address)) {
+      AppToast.show(
+        AppLocalizations.of(context)!.translate('wallet_invalid_address'),
+      );
+      return false;
+    }
 
     return true;
   }
@@ -397,6 +422,12 @@ class _TransferPageState extends State<TransferPage> {
     }
     if (chainType == ChainType.solana &&
         !SolanaChainService().isValidAddress(address)) {
+      AppToast.show(
+        AppLocalizations.of(context)!.translate('wallet_invalid_address'),
+      );
+      return false;
+    }
+    if (chainType == ChainType.tron && !TronService.isValidAddress(address)) {
       AppToast.show(
         AppLocalizations.of(context)!.translate('wallet_invalid_address'),
       );
@@ -455,6 +486,7 @@ class _TransferPageState extends State<TransferPage> {
           l10n.profileTransferGasLimit: '21000',
         };
       case ChainType.solana:
+      case ChainType.tron:
       case null:
         return {};
     }

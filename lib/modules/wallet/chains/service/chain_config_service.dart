@@ -7,6 +7,7 @@ import '../../model/token_model.dart';
 import '../btc/bitcoin_service.dart';
 import '../model/chain_config_model.dart';
 import '../sol/solana_service.dart';
+import '../tron/tron_service.dart';
 
 class ChainConfigService {
   static Future<List<ChainConfigModel>> loadConfigs() async {
@@ -79,6 +80,8 @@ class ChainConfigService {
             address = EvmService.privateKeyToAddress(privateKey);
           } else if (type == ChainType.bitcoin) {
             address = await BitcoinService.privateKeyToAddress(privateKey);
+          } else if (type == ChainType.tron) {
+            address = TronService.privateKeyToAddress(privateKey);
           } else {
             address = await SolanaService.privateKeyToAddress(privateKey);
           }
@@ -140,6 +143,9 @@ class ChainConfigService {
 
       case "bitcoin":
         return await BitcoinService.deriveAddress(mnemonic);
+
+      case "tron":
+        return TronService.deriveAddress(mnemonic);
 
       default:
         return '';

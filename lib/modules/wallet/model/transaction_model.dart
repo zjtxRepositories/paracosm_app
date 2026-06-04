@@ -9,6 +9,7 @@ class TransactionModel {
   final String to;
   final String logo;
   final String symbol;
+  final String? feeSymbol;
 
   /// 金额（单位：wei）
   final BigInt value;
@@ -18,6 +19,7 @@ class TransactionModel {
   final DateTime? time;
 
   final int decimals;
+  final int feeDecimals;
   dynamic err;
   TransactionModel({
     required this.hash,
@@ -29,11 +31,16 @@ class TransactionModel {
     this.time,
     required this.decimals,
     required this.symbol,
+    this.feeSymbol,
+    this.feeDecimals = 18,
     this.err,
   });
 
-  String get valueDisplay => formatTokenAdvanced(value, decimals,fractionDigits: 10);
-  String get feeDisplay => fee != null ? formatTokenAdvanced(fee!, 18) : "--";
+  String get valueDisplay =>
+      formatTokenAdvanced(value, decimals, fractionDigits: 10);
+  String get feeDisplay =>
+      fee != null ? formatTokenAdvanced(fee!, feeDecimals) : "--";
+  String get displayFeeSymbol => feeSymbol ?? symbol;
   String get timeDisplay {
     if (time == null) return "Pending";
 

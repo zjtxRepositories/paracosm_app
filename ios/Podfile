@@ -3,7 +3,6 @@ source 'https://github.com/CocoaPods/Specs.git'
 
 platform :ios, '13.0'
 
-
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -30,12 +29,22 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   target 'RunnerTests' do
     inherit! :search_paths
+  end
+end
+
+def strip_bitcode(binary_path)
+  return unless File.exist?(binary_path)
+
+  bitcode_strip = `xcrun --find bitcode_strip`.strip
+  Pod::UI.puts "Stripping bitcode from #{binary_path}"
+  unless system(bitcode_strip, binary_path, '-r', '-o', binary_path)
+    raise "Failed to strip bitcode from #{binary_path}"
   end
 end
 
@@ -50,7 +59,13 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
+      # iOS 最低版本
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # ⚠️ 关闭 Bitcode，解决 RongWrapperLog.framework incomplete bitcode
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+      # 预处理宏
       definitions = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
       definitions = [definitions] unless definitions.is_a?(Array)
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = definitions | [
@@ -58,9 +73,32 @@ post_install do |installer|
         'PERMISSION_CAMERA=1',
         'PERMISSION_MICROPHONE=1',
       ]
+
+      # 排除模拟器架构
       if x86_only_simulator_targets.include?(target.name)
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64 i386'
       end
+
+      # libwebp 警告处理
+      if target.name == 'libwebp'
+        config.build_settings['GCC_WARN_UNINITIALIZED_AUTOS'] = 'NO'
+        cflags = config.build_settings['OTHER_CFLAGS'] || ['$(inherited)']
+        cflags = [cflags] unless cflags.is_a?(Array)
+        config.build_settings['OTHER_CFLAGS'] = cflags | ['-Wno-conditional-uninitialized']
+      end
+    end
+
+    # bdk_flutter 特殊路径处理
+    if target.name == 'bdk_flutter'
+      target.shell_script_build_phases.each do |phase|
+        next if phase.shell_script.include?('$HOME/.cargo/bin')
+        phase.shell_script = "export PATH=\"$HOME/.cargo/bin:$PATH\"\n#{phase.shell_script}"
+      end
     end
   end
+
+  strip_bitcode(File.join(
+    installer.sandbox.root.to_s,
+    'RongWrapperLog/RongWrapperLog/RongWrapperLog.xcframework/ios-arm64_armv7/RongWrapperLog.framework/RongWrapperLog'
+  ))
 end

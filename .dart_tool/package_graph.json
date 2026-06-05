@@ -43,6 +43,7 @@
         "path",
         "permission_handler",
         "photo_manager",
+        "pointycastle",
         "pretty_qr_code",
         "record",
         "rongcloud_call_wrapper_plugin",
@@ -104,6 +105,15 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "pointycastle",
+      "version": "3.9.1",
+      "dependencies": [
+        "collection",
+        "convert",
+        "js"
       ]
     },
     {
@@ -799,6 +809,20 @@
       ]
     },
     {
+      "name": "js",
+      "version": "0.6.7",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
+      "name": "convert",
+      "version": "3.1.2",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
       "name": "qr",
       "version": "3.0.2",
       "dependencies": [
@@ -1118,13 +1142,6 @@
       ]
     },
     {
-      "name": "convert",
-      "version": "3.1.2",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
       "name": "buffer",
       "version": "1.2.3",
       "dependencies": []
@@ -1135,15 +1152,6 @@
       "dependencies": [
         "collection",
         "meta"
-      ]
-    },
-    {
-      "name": "pointycastle",
-      "version": "3.9.1",
-      "dependencies": [
-        "collection",
-        "convert",
-        "js"
       ]
     },
     {
@@ -1477,13 +1485,6 @@
       "dependencies": [
         "flutter",
         "flutter_cache_manager"
-      ]
-    },
-    {
-      "name": "js",
-      "version": "0.6.7",
-      "dependencies": [
-        "meta"
       ]
     },
     {

@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:bdk_flutter/bdk_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pointycastle/digests/ripemd160.dart';
+import 'package:web3dart/crypto.dart' as web3_crypto;
 // ignore: implementation_imports
 import 'package:bdk_flutter/src/generated/frb_generated.dart' as bdk_generated;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -15,11 +18,37 @@ class BitcoinService {
   static Future<void>? _initialization;
 
   static Future<void> _ensureInitialized() =>
-      _initialization ??= (_isAppleDesktopOrMobile
-      ? bdk_generated.core.init(
-          externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
-        )
-      : bdk_generated.core.init());
+      _initialization ??= _initializeBdk();
+
+  static Future<void> _initializeBdk() async {
+    if (!_isAppleDesktopOrMobile) {
+      await bdk_generated.core.init();
+      return;
+    }
+
+    final executablePath = Platform.resolvedExecutable;
+    if (executablePath.isNotEmpty) {
+      try {
+        await bdk_generated.core.init(
+          externalLibrary: ExternalLibrary.open(
+            executablePath,
+            debugInfo: ' from Platform.resolvedExecutable',
+          ),
+        );
+        return;
+      } on ArgumentError {
+        // Some iOS builds reject dlopen on the app executable; fall back to
+        // RTLD_DEFAULT for those environments.
+      }
+    }
+
+    await bdk_generated.core.init(
+      externalLibrary: ExternalLibrary.process(
+        iKnowHowToUseIt: true,
+        debugInfo: ' fallback after executable open failed',
+      ),
+    );
+  }
 
   static bool get _isAppleDesktopOrMobile =>
       defaultTargetPlatform == TargetPlatform.iOS ||
@@ -29,6 +58,9 @@ class BitcoinService {
   /// 网络
   /// =========================
   static const Network _network = Network.bitcoin;
+  static const String _bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+  static const String _base58Alphabet =
+      '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   Network get network => _network;
 
   /// =========================
@@ -61,6 +93,47 @@ class BitcoinService {
     return sha256.convert(utf8.encode(input)).toString();
   }
 
+  static List<int> _checksum(List<int> payload) {
+    final first = sha256.convert(payload).bytes;
+    return sha256.convert(first).bytes.sublist(0, 4);
+  }
+
+  static Uint8List _base58Decode(String value) {
+    var number = BigInt.zero;
+    for (final character in value.codeUnits) {
+      final index = _base58Alphabet.indexOf(String.fromCharCode(character));
+      if (index < 0) throw const FormatException('Invalid Base58 character');
+      number = number * BigInt.from(58) + BigInt.from(index);
+    }
+
+    final decoded = <int>[];
+    while (number > BigInt.zero) {
+      decoded.insert(0, (number & BigInt.from(0xff)).toInt());
+      number >>= 8;
+    }
+    for (final character in value.codeUnits) {
+      if (character != 49) break;
+      decoded.insert(0, 0);
+    }
+    return Uint8List.fromList(decoded);
+  }
+
+  static Uint8List _base58CheckDecode(String value) {
+    final decoded = _base58Decode(value);
+    if (decoded.length < 5) {
+      throw const FormatException('Invalid Base58Check value');
+    }
+    final payload = decoded.sublist(0, decoded.length - 4);
+    final checksum = decoded.sublist(decoded.length - 4);
+    final expected = _checksum(payload);
+    for (var i = 0; i < 4; i++) {
+      if (checksum[i] != expected[i]) {
+        throw const FormatException('Invalid Base58Check checksum');
+      }
+    }
+    return Uint8List.fromList(payload);
+  }
+
   /// =========================
   /// Descriptor（BIP84）
   /// =========================
@@ -72,6 +145,145 @@ class BitcoinService {
     final xprv = child.toBase58();
 
     return "wpkh($xprv/0/*)";
+  }
+
+  static Uint8List _hash160(List<int> input) {
+    final sha = sha256.convert(input).bytes;
+    final digest = RIPEMD160Digest().process(Uint8List.fromList(sha));
+    return Uint8List.fromList(digest);
+  }
+
+  static int _bech32Polymod(List<int> values) {
+    var chk = 1;
+    const generators = [
+      0x3b6a57b2,
+      0x26508e6d,
+      0x1ea119fa,
+      0x3d4233dd,
+      0x2a1462b3,
+    ];
+    for (final value in values) {
+      final top = chk >> 25;
+      chk = ((chk & 0x1ffffff) << 5) ^ value;
+      for (var i = 0; i < generators.length; i++) {
+        if (((top >> i) & 1) == 1) {
+          chk ^= generators[i];
+        }
+      }
+    }
+    return chk;
+  }
+
+  static List<int> _bech32HrpExpand(String hrp) {
+    return [
+      ...hrp.codeUnits.map((value) => value >> 5),
+      0,
+      ...hrp.codeUnits.map((value) => value & 31),
+    ];
+  }
+
+  static List<int> _bech32CreateChecksum(String hrp, List<int> data) {
+    final values = [..._bech32HrpExpand(hrp), ...data, 0, 0, 0, 0, 0, 0];
+    var polymod = _bech32Polymod(values) ^ 1;
+    return List.generate(6, (index) => (polymod >> (5 * (5 - index))) & 31);
+  }
+
+  static String _bech32Encode(String hrp, List<int> data) {
+    final combined = [...data, ..._bech32CreateChecksum(hrp, data)];
+    return '${hrp}1${combined.map((value) => _bech32Alphabet[value]).join()}';
+  }
+
+  static List<int> _convertBits(
+    List<int> data,
+    int fromBits,
+    int toBits, {
+    bool pad = true,
+  }) {
+    var acc = 0;
+    var bits = 0;
+    final result = <int>[];
+    final maxv = (1 << toBits) - 1;
+    for (final value in data) {
+      if (value < 0 || (value >> fromBits) != 0) {
+        throw const FormatException('Invalid bech32 data');
+      }
+      acc = (acc << fromBits) | value;
+      bits += fromBits;
+      while (bits >= toBits) {
+        bits -= toBits;
+        result.add((acc >> bits) & maxv);
+      }
+    }
+    if (pad) {
+      if (bits > 0) {
+        result.add((acc << (toBits - bits)) & maxv);
+      }
+    } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv) != 0) {
+      throw const FormatException('Invalid bech32 padding');
+    }
+    return result;
+  }
+
+  static String _p2wpkhAddressFromPublicKey(Uint8List compressedPublicKey) {
+    final witnessProgram = _hash160(compressedPublicKey);
+    final data = [0, ..._convertBits(witnessProgram, 8, 5)];
+    return _bech32Encode('bc', data);
+  }
+
+  static Uint8List _compressPublicKey(Uint8List publicKey) {
+    if (publicKey.length == 33) return publicKey;
+    if (publicKey.length == 65 && publicKey.first == 0x04) {
+      final x = publicKey.sublist(1, 33);
+      final y = publicKey.sublist(33, 65);
+      return Uint8List.fromList([(y.last & 1) == 0 ? 0x02 : 0x03, ...x]);
+    }
+    if (publicKey.length == 64) {
+      final x = publicKey.sublist(0, 32);
+      final y = publicKey.sublist(32, 64);
+      return Uint8List.fromList([(y.last & 1) == 0 ? 0x02 : 0x03, ...x]);
+    }
+    throw const FormatException('Invalid secp256k1 public key');
+  }
+
+  static Uint8List _publicKeyFromPrivateKey(Uint8List privateKey) {
+    final uncompressed = web3_crypto.privateKeyToPublic(
+      web3_crypto.bytesToUnsignedInt(privateKey),
+    );
+    return _compressPublicKey(uncompressed);
+  }
+
+  static Uint8List _privateKeyBytesFromWifOrHex(String value) {
+    final normalized = value.trim();
+    final hex = normalized.startsWith('0x')
+        ? normalized.substring(2)
+        : normalized;
+    if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(hex)) {
+      return Uint8List.fromList(web3_crypto.hexToBytes(hex));
+    }
+
+    final payload = _base58CheckDecode(normalized);
+    if (payload.length == 34 && payload.first == 0x80 && payload.last == 0x01) {
+      return Uint8List.fromList(payload.sublist(1, 33));
+    }
+    if (payload.length == 33 && payload.first == 0x80) {
+      return Uint8List.fromList(payload.sublist(1, 33));
+    }
+    throw const FormatException('Invalid Bitcoin private key');
+  }
+
+  static String _deriveAddressByIndex(
+    String mnemonic, {
+    int account = 0,
+    int index = 0,
+  }) {
+    if (!bip39.validateMnemonic(mnemonic)) {
+      throw Exception("Invalid mnemonic");
+    }
+    final seed = bip39.mnemonicToSeed(mnemonic);
+    final child = bip32.BIP32
+        .fromSeed(seed)
+        .derivePath("m/84'/0'/$account'/0/$index");
+    return _p2wpkhAddressFromPublicKey(child.publicKey);
   }
 
   /// =========================
@@ -252,17 +464,16 @@ class BitcoinService {
   }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
-
-    final wallet = await getOrCreateWallet(mnemonic, account: account);
-
-    final addressInfo = wallet.getAddress(
-      addressIndex: AddressIndex.lastUnused(),
+    final index = 0;
+    final address = _deriveAddressByIndex(
+      mnemonic,
+      account: account,
+      index: index,
     );
 
-    final address = addressInfo.address.toString();
-    final index = addressInfo.index;
-
     _cacheAddress(address, walletId, index, account, change: 0);
+    _mnemonics[walletId] = mnemonic;
+    _descriptors[walletId] = descriptor;
 
     return address;
   }
@@ -274,32 +485,12 @@ class BitcoinService {
     final descriptorStr = "wpkh($wif)";
     final walletId = _hash(descriptorStr);
 
-    if (_wallets.containsKey(walletId)) {
-      final wallet = _wallets[walletId]!;
-      final addr = wallet.getAddress(addressIndex: AddressIndex.lastUnused());
-      return addr.address.toString();
-    }
-
-    final descriptor = await Descriptor.create(
-      descriptor: descriptorStr,
-      network: _network,
+    final privateKey = _privateKeyBytesFromWifOrHex(wif);
+    final address = _p2wpkhAddressFromPublicKey(
+      _publicKeyFromPrivateKey(privateKey),
     );
-
-    final wallet = await Wallet.create(
-      descriptor: descriptor,
-      network: _network,
-      databaseConfig: const DatabaseConfig.memory(),
-    );
-
-    _wallets[walletId] = wallet;
     _privateKeys[walletId] = wif;
     _descriptors[walletId] = descriptorStr;
-
-    final addressInfo = wallet.getAddress(
-      addressIndex: AddressIndex.lastUnused(),
-    );
-
-    final address = addressInfo.address.toString();
 
     _cacheAddress(address, walletId, 0, 0, change: 0);
 
@@ -315,17 +506,16 @@ class BitcoinService {
   }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
-
-    final wallet = await getOrCreateWallet(mnemonic, account: account);
-
-    final addressInfo = wallet.getAddress(
-      addressIndex: AddressIndex.increase(),
+    final nextIndex = _addressIndex.values.where((id) => id == walletId).length;
+    final address = _deriveAddressByIndex(
+      mnemonic,
+      account: account,
+      index: nextIndex,
     );
 
-    final address = addressInfo.address.toString();
-    final index = addressInfo.index;
-
-    _cacheAddress(address, walletId, index, account, change: 0);
+    _cacheAddress(address, walletId, nextIndex, account, change: 0);
+    _mnemonics[walletId] = mnemonic;
+    _descriptors[walletId] = descriptor;
 
     return address;
   }
@@ -340,16 +530,15 @@ class BitcoinService {
   }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
-
-    final wallet = await getOrCreateWallet(mnemonic, account: account);
-
-    final addressInfo = wallet.getAddress(
-      addressIndex: AddressIndex.peek(index: index),
+    final address = _deriveAddressByIndex(
+      mnemonic,
+      account: account,
+      index: index,
     );
 
-    final address = addressInfo.address.toString();
-
     _cacheAddress(address, walletId, index, account, change: 0);
+    _mnemonics[walletId] = mnemonic;
+    _descriptors[walletId] = descriptor;
 
     return address;
   }
@@ -365,8 +554,8 @@ class BitcoinService {
   }) async {
     final descriptor = _buildDescriptor(mnemonic, account: account);
     final walletId = _hash(descriptor);
-
-    await getOrCreateWallet(mnemonic, account: account);
+    _mnemonics[walletId] = mnemonic;
+    _descriptors[walletId] = descriptor;
 
     for (var index = 0; index <= maxIndex; index++) {
       final candidate = await getAddressByIndex(

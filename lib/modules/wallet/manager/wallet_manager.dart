@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
@@ -66,8 +67,6 @@ class WalletManager {
     /// SOL
     await SolanaService.createWalletFromMnemonic(mnemonic);
 
-    /// BTC
-    await BitcoinService.getOrCreateWallet(mnemonic);
     TronService.createWalletFromMnemonic(mnemonic);
     if (wallet != null) {
       for (final chain in wallet.chains) {
@@ -90,8 +89,10 @@ class WalletManager {
       }
     }
 
-    /// 3. BTC 同步（重要）
-    BitcoinService.sync(mnemonic);
+    /// 3. BTC 同步
+    BitcoinService.sync(mnemonic).catchError((error) {
+      debugPrint('BTC sync failed: $error');
+    });
 
     _initialized = true;
   }

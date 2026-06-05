@@ -504,10 +504,16 @@
 					"$(inherited)",
 					"-force_load",
 					"$(BUILT_PRODUCTS_DIR)/bdk_flutter/libbdk_flutter.a",
+					"-Wl,-u,_frb_init_frb_dart_api_dl",
 					"-Wl,-export_dynamic",
+					"-Wl,-exported_symbol,_frb_get_rust_content_hash",
+					"-Wl,-exported_symbol,_frb_init_frb_dart_api_dl",
+					"-Wl,-exported_symbol,_frbgen_bdk_flutter_*",
+					"-Wl,-exported_symbol,_store_dart_post_cobject",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mak.io;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -694,10 +700,16 @@
 					"$(inherited)",
 					"-force_load",
 					"$(BUILT_PRODUCTS_DIR)/bdk_flutter/libbdk_flutter.a",
+					"-Wl,-u,_frb_init_frb_dart_api_dl",
 					"-Wl,-export_dynamic",
+					"-Wl,-exported_symbol,_frb_get_rust_content_hash",
+					"-Wl,-exported_symbol,_frb_init_frb_dart_api_dl",
+					"-Wl,-exported_symbol,_frbgen_bdk_flutter_*",
+					"-Wl,-exported_symbol,_store_dart_post_cobject",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mak.io;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -724,10 +736,16 @@
 					"$(inherited)",
 					"-force_load",
 					"$(BUILT_PRODUCTS_DIR)/bdk_flutter/libbdk_flutter.a",
+					"-Wl,-u,_frb_init_frb_dart_api_dl",
 					"-Wl,-export_dynamic",
+					"-Wl,-exported_symbol,_frb_get_rust_content_hash",
+					"-Wl,-exported_symbol,_frb_init_frb_dart_api_dl",
+					"-Wl,-exported_symbol,_frbgen_bdk_flutter_*",
+					"-Wl,-exported_symbol,_store_dart_post_cobject",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mak.io;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

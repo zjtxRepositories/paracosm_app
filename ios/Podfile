@@ -91,8 +91,13 @@ post_install do |installer|
     # bdk_flutter 特殊路径处理
     if target.name == 'bdk_flutter'
       target.shell_script_build_phases.each do |phase|
-        next if phase.shell_script.include?('$HOME/.cargo/bin')
-        phase.shell_script = "export PATH=\"$HOME/.cargo/bin:$PATH\"\n#{phase.shell_script}"
+        script_prefix = <<~SCRIPT
+          export PATH="$HOME/.cargo/bin:$PATH"
+          export CARGO_PROFILE_RELEASE_STRIP=false
+          export CARGO_PROFILE_RELEASE_LTO=false
+        SCRIPT
+        next if phase.shell_script.include?('CARGO_PROFILE_RELEASE_STRIP=false')
+        phase.shell_script = "#{script_prefix}#{phase.shell_script}"
       end
     end
   end

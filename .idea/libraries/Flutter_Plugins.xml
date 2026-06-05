@@ -70,6 +70,9 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_call_wrapper_plugin-5.32.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_app_update-3.2.3" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/package_info_plus-8.3.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/firebase_core-4.10.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/firebase_core_web-3.8.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/firebase_crashlytics-5.2.3" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

@@ -6,4 +6,7 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">dl.zjtx9.top</domain>
     </domain-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain>192.168.0.111</domain>
+    </domain-config>
 </network-security-config>

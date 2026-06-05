@@ -5,11 +5,17 @@ import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../manager/im_engine_manager.dart';
+import '../manager/im_token_manager.dart';
 import '../manager/im_user_manager.dart';
 import '../service/im_service.dart';
 
 class ImInit {
   Future<void> init() async {
+    final account = AccountManager().currentAccount;
+    if (account != null) {
+      await ImTokenManager.restoreAppKey(account.accountId);
+    }
+
     /// 1. 初始化 SDK
     await IMEngineManager().init();
     await _registerNativeMessages();
@@ -26,8 +32,6 @@ class ImInit {
     await RongCallManager().init();
 
     /// 3. 自动登录
-    final account = AccountManager().currentAccount;
-
     if (account != null) {
       await ImService.loginIm(account.accountId);
       getUserInfo();

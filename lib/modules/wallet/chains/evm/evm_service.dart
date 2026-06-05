@@ -80,8 +80,16 @@ class EvmService {
   /// 地址 → 私钥（从缓存获取）
   /// =========================
   static String? getPrivateKeyByAddress(String address) {
-    final wallet = _wallets[address];
+    final wallet = _wallets[address] ?? _wallets[_findStoredAddress(address)];
     return wallet?['privateKey'];
+  }
+
+  static String? _findStoredAddress(String address) {
+    final normalized = address.toLowerCase();
+    for (final storedAddress in _wallets.keys) {
+      if (storedAddress.toLowerCase() == normalized) return storedAddress;
+    }
+    return null;
   }
 
   /// =========================
@@ -139,7 +147,7 @@ class EvmService {
   /// 获取钱包信息（通过地址）
   /// =========================
   static Map<String, String>? getWallet(String address) {
-    return _wallets[address];
+    return _wallets[address] ?? _wallets[_findStoredAddress(address)];
   }
 
   static bool isValidAddress(String address) {
@@ -153,9 +161,9 @@ class EvmService {
   }
 
   static Future<bool> isContractAddress(
-      Web3Client client,
-      String address,
-      ) async {
+    Web3Client client,
+    String address,
+  ) async {
     try {
       final ethAddress = EthereumAddress.fromHex(address);
       final code = await client.getCode(ethAddress);

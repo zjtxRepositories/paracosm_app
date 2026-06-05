@@ -94,7 +94,7 @@
 					<key>NSExceptionAllowsInsecureHTTPLoads</key>
 					<true/>
 				</dict>
-				<key>192.168.0.111</key>
+				<key>8.210.9.90</key>
 				<dict>
 					<key>NSExceptionAllowsInsecureHTTPLoads</key>
 					<true/>

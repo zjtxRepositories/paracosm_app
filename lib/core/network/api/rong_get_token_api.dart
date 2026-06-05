@@ -18,7 +18,7 @@ class RongTokenResult {
 
 class RongGetTokenApi {
   static const String _path = '/user/getToken.json';
-  static const String _baseUrl = 'http://192.168.0.111:8080';
+  static const String _baseUrl = 'http://8.210.9.90:9000';
 
   static final Dio _dio = Dio(
     BaseOptions(

@@ -12,6 +12,7 @@ import 'package:paracosm/widgets/modals/wallet_modals.dart';
 
 import '../../modules/wallet/manager/wallet_manager.dart';
 import '../../modules/wallet/security/wallet_security.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
 import '../../widgets/common/app_loading.dart';
 import '../../widgets/common/app_toast.dart';
 
@@ -27,6 +28,7 @@ class WalletEditPage extends StatefulWidget {
 
 class _WalletEditPageState extends State<WalletEditPage> {
   String _currentWalletName = '';
+  String _currentWalletAvatar = '';
 
   @override
   void initState() {
@@ -34,7 +36,13 @@ class _WalletEditPageState extends State<WalletEditPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final l10n = AppLocalizations.of(context)!;
-
+      final walletId = widget.wallet.id;
+      for (final account in AccountManager().accounts) {
+        if (account.id == walletId) {
+          _currentWalletAvatar = account.avatar;
+          break;
+        }
+      }
       setState(() {
         _currentWalletName =
             widget.wallet.name ??
@@ -42,6 +50,7 @@ class _WalletEditPageState extends State<WalletEditPage> {
       });
     });
   }
+
 
   ///备份
   void _backupMnemonic(String type) {
@@ -278,13 +287,9 @@ class _WalletEditPageState extends State<WalletEditPage> {
     return Row(
       children: [
         // 钱包头像
-        ClipOval(
-          child: Image.asset(
-            'assets/images/chat/avatar.png',
-            width: 44,
-            height: 44,
-            fit: BoxFit.cover,
-          ),
+        UserAvatarWidget(
+          userId: widget.wallet.id.toLowerCase(),
+          avatarUrl: _currentWalletAvatar,
         ),
         const SizedBox(width: 12),
         // 钱包信息

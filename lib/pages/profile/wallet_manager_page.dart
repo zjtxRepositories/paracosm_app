@@ -8,6 +8,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
@@ -125,7 +126,6 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
         _walletModel?.name ??
         '${l10n.profileProfileDetailsWallet} ${(_walletModel?.aIndex ?? 0) + 1}';
     final currentChain = _walletModel?.currentChain;
-    print('currentChain----$showName');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -243,13 +243,9 @@ class _WalletManagerPageState extends State<WalletManagerPage> {
           child: Row(
             children: [
               // 钱包头像
-              ClipOval(
-                child: Image.asset(
-                  'assets/images/chat/avatar.png',
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                ),
+              UserAvatarWidget(
+                userId: address.toLowerCase(),
+                avatarUrl: avatarPath,
               ),
               const SizedBox(width: 12),
               // 钱包信息

@@ -116,6 +116,7 @@ class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
             child: WalletItemWidget(
               wallet: wallet,
               address: account.id,
+              avatarUrl: account.avatar,
               isSelected: account.id == widget.currentWalletId,
               onTap: _isSwitching
                   ? null

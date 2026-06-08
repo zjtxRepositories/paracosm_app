@@ -1789,11 +1789,13 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> voicePlay(String id, {String? path, String? url}) async {
-    if (path == null) {
+    final localPath = path?.trim() ?? '';
+    final remoteUrl = url?.trim() ?? '';
+    if (localPath.isEmpty && remoteUrl.isEmpty) {
       return;
     }
 
-    voicePlayerManager.play(id: id, path: path, url: url);
+    await voicePlayerManager.play(id: id, path: localPath, url: remoteUrl);
   }
 
   /// =========================

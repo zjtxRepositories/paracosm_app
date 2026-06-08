@@ -1,22 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
-enum VoicePlayState {
-  idle,
-  loading,
-  playing,
-  paused,
-  stopped,
-  completed,
-}
+enum VoicePlayState { idle, loading, playing, paused, stopped, completed }
 
 class VoicePlayerManager {
   /// =========================
   /// 单例
   /// =========================
-  static final VoicePlayerManager _instance =
-  VoicePlayerManager._internal();
+  static final VoicePlayerManager _instance = VoicePlayerManager._internal();
 
   factory VoicePlayerManager() => _instance;
 
@@ -92,11 +85,7 @@ class VoicePlayerManager {
   /// =========================
   /// 播放入口（核心）
   /// =========================
-  Future<void> play({
-    required String id,
-    required String path,
-    String? url
-  }) async {
+  Future<void> play({required String id, String path = '', String? url}) async {
     /// 同一个 => 切换暂停/继续
     if (_currentId == id) {
       if (_state == VoicePlayState.playing) {
@@ -107,10 +96,12 @@ class VoicePlayerManager {
         return;
       }
     }
+
     /// =========================
     /// 判断本地文件是否可用
     /// =========================
     bool isAsset = false;
+    var source = path.trim();
     if (path.isNotEmpty) {
       try {
         final file = File(path);
@@ -124,13 +115,16 @@ class VoicePlayerManager {
           }
         }
       } catch (e) {
-        print("本地文件检测失败: $e");
+        debugPrint("本地文件检测失败: $e");
       }
     }
+    if (!isAsset) {
+      source = url?.trim() ?? source;
+    }
+    if (source.isEmpty) return;
+
     /// 播放新音频（自动停止旧的）
-    await _startNew(
-      _VoiceTask(id: id, path: path, isAsset: isAsset),
-    );
+    await _startNew(_VoiceTask(id: id, path: source, isAsset: isAsset));
   }
 
   /// =========================
@@ -256,9 +250,5 @@ class _VoiceTask {
   final String path;
   final bool isAsset;
 
-  _VoiceTask({
-    required this.id,
-    required this.path,
-    required this.isAsset,
-  });
+  _VoiceTask({required this.id, required this.path, required this.isAsset});
 }

@@ -8,6 +8,7 @@ import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_friend_manager.dart';
+import 'package:paracosm/modules/im/result/im_error_mapper.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -150,6 +151,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final started = await RongCallManager().startPrivateCall(
       targetId: user.userId,
       displayName: user.name,
+      avatar: user.avatar,
       mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
     );
     if (!started || !mounted) {
@@ -178,12 +180,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result.success) {
-          AppToast.show(
-            AppLocalizations.of(context)!.chatFriendApplySendFailed,
-          );
+          AppToast.show(result.message);
           return;
         }
-        AppToast.show(AppLocalizations.of(context)!.chatFriendApplySendSuccess);
+        AppToast.show(_addFriendSuccessMessage(result.data ?? 0));
         if (!mounted) return;
         context.pop();
       },
@@ -192,6 +192,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
         controller: controller,
       ),
     );
+  }
+
+  String _addFriendSuccessMessage(int processCode) {
+    if (processCode == 0) {
+      return AppLocalizations.of(context)!.chatFriendApplySendSuccess;
+    }
+
+    return ImErrorMapper.message(processCode);
   }
 
   /// 显示设置备注弹窗

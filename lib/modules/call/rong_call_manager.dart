@@ -84,6 +84,7 @@ class RongCallState {
     RongCallStatus? status,
     String? targetId,
     String? displayName,
+    String? avatar,
     String? inviter,
     RCCallMediaType? mediaType,
     bool? isGroupCall,
@@ -104,6 +105,7 @@ class RongCallState {
       status: status ?? this.status,
       targetId: targetId ?? this.targetId,
       displayName: displayName ?? this.displayName,
+      avatar: avatar ?? this.avatar,
       inviter: inviter ?? this.inviter,
       mediaType: mediaType ?? this.mediaType,
       isGroupCall: isGroupCall ?? this.isGroupCall,
@@ -171,6 +173,7 @@ class RongCallManager {
     required String targetId,
     required String displayName,
     required RCCallMediaType mediaType,
+    String avatar = '',
   }) async {
     await init();
     if (!IMEngineManager().connection.isConnected) {
@@ -192,6 +195,7 @@ class RongCallManager {
         status: RongCallStatus.dialing,
         targetId: targetId,
         displayName: displayName,
+        avatar: avatar,
         mediaType: mediaType,
         isGroupCall: false,
         isOutgoing: true,
@@ -1147,9 +1151,15 @@ class RongCallManager {
       if (users == null || users.isEmpty) return;
       final profile = users.first;
       final displayName = (profile.name ?? '').trim();
-      if (displayName.isEmpty) return;
+      final avatar = (profile.portraitUri ?? '').trim();
+      if (displayName.isEmpty && avatar.isEmpty) return;
       if (_state.targetId != targetId || !_state.isActive) return;
-      _setState(_state.copyWith(displayName: displayName));
+      _setState(
+        _state.copyWith(
+          displayName: displayName.isEmpty ? null : displayName,
+          avatar: avatar.isEmpty ? null : avatar,
+        ),
+      );
     } catch (e) {
       debugPrint('resolve call user failed: $e');
     }

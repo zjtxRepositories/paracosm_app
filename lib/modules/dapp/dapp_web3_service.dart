@@ -30,6 +30,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   final BuildContext context;
   final bool Function(String host) isSessionHostAuthorized;
   final void Function(String host) authorizeSessionHost;
+  Future<List<String>>? _pendingRequestAccounts;
 
   DAppWeb3Service(
     this.controller,
@@ -488,6 +489,23 @@ class DAppWeb3Service implements EthWeb3Handler {
 
   @override
   Future<List<String>> ethRequestAccounts() async {
+    final pending = _pendingRequestAccounts;
+    if (pending != null) {
+      return pending;
+    }
+
+    final request = _requestAccountsInternal();
+    _pendingRequestAccounts = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_pendingRequestAccounts, request)) {
+        _pendingRequestAccounts = null;
+      }
+    }
+  }
+
+  Future<List<String>> _requestAccountsInternal() async {
     final String faviconUrl = await _favicon;
     final uri = (await controller.getUrl())!;
     final title = (await controller.getTitle()) ?? '';

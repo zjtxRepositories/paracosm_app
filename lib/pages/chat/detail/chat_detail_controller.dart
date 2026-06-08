@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
@@ -19,6 +21,7 @@ import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:video_compress/video_compress.dart';
@@ -40,6 +43,8 @@ import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
+import 'file_download_state.dart';
+import 'file_send_progress.dart';
 import 'video_send_progress.dart';
 
 class ChatDetailController extends ChangeNotifier {
@@ -63,6 +68,16 @@ class ChatDetailController extends ChangeNotifier {
   _pendingVideoMessageNotifiers = {};
 
   final Map<String, String> _pendingVideoMessageIdsByRemote = {};
+
+  final Map<String, ValueNotifier<ChatDetailMessage>>
+  _pendingFileMessageNotifiers = {};
+
+  final Map<String, String> _pendingFileMessageIdsByRemote = {};
+
+  final Map<String, ValueNotifier<FileDownloadState>> _fileDownloadNotifiers =
+      {};
+
+  final Dio _downloadDio = Dio();
 
   final inputController = TextEditingController();
   int _readTimestamp = 0;
@@ -165,6 +180,15 @@ class ChatDetailController extends ChangeNotifier {
     }
     _pendingVideoMessageNotifiers.clear();
     _pendingVideoMessageIdsByRemote.clear();
+    for (final notifier in _pendingFileMessageNotifiers.values) {
+      notifier.dispose();
+    }
+    _pendingFileMessageNotifiers.clear();
+    _pendingFileMessageIdsByRemote.clear();
+    for (final notifier in _fileDownloadNotifiers.values) {
+      notifier.dispose();
+    }
+    _fileDownloadNotifiers.clear();
 
     final targetId = args?.targetId;
     if (targetId != null) {
@@ -212,6 +236,16 @@ class ChatDetailController extends ChangeNotifier {
     String messageId,
   ) {
     return _pendingVideoMessageNotifiers[messageId];
+  }
+
+  ValueListenable<ChatDetailMessage>? pendingFileMessageListenable(
+    String messageId,
+  ) {
+    return _pendingFileMessageNotifiers[messageId];
+  }
+
+  ValueListenable<FileDownloadState> fileDownloadListenable(String messageId) {
+    return _fileDownloadNotifier(messageId);
   }
 
   bool get hasAnchor => args?.anchorSentTime != null;
@@ -1633,22 +1667,49 @@ class ChatDetailController extends ChangeNotifier {
     return sent;
   }
 
-  Future<void> sendFile(String path, int size, String name) async {
+  Future<bool> sendFile(
+    String path,
+    int size,
+    String name, {
+    String? remoteUrl,
+    void Function(int progress)? onProgress,
+    bool pushSavedMessage = true,
+  }) async {
     final session = args;
-    if (session == null) return;
+    final filePath = path.trim();
+    final trimmedRemoteUrl = remoteUrl?.trim();
+
+    if (session == null || filePath.isEmpty || !File(filePath).existsSync()) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+      return false;
+    }
 
     final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
-    await ImSender.instance.send(
-      message: FileMessage(
-        conversationType: session.conversationType,
-        targetId: session.targetId,
-        channelId: session.channelId,
-        path: path,
-        size: size,
-        name: name,
-        destructDuration: burnSeconds,
-      ),
+
+    final message = FileMessage(
+      conversationType: session.conversationType,
+      targetId: session.targetId,
+      channelId: session.channelId,
+      path: filePath,
+      size: size,
+      name: name,
+      remoteUrl: trimmedRemoteUrl,
+      destructDuration: burnSeconds,
     );
+
+    final sent = onProgress == null && pushSavedMessage
+        ? await ImSender.instance.send(message: message)
+        : await ImSender.instance.sendAndWait(
+            message: message,
+            onProgress: onProgress,
+            pushSavedMessage: pushSavedMessage,
+          );
+
+    if (!sent) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+    }
+
+    return sent;
   }
 
   Future<void> sendVoice(String path, int duration) async {
@@ -2164,7 +2225,189 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   Future<void> _handleFile(File file, String name, int size) async {
-    sendFile(file.path, size, name);
+    final pendingId = 'pending-file-${DateTime.now().microsecondsSinceEpoch}';
+    final filePath = file.path;
+
+    final initialMessage = _pendingFileMessage(
+      messageId: pendingId,
+      path: filePath,
+      name: name,
+      size: size,
+      status: MediaSendStatus.sending,
+      progress: 0,
+    );
+    _pendingFileMessageNotifiers[pendingId] = ValueNotifier(initialMessage);
+
+    engine.append(initialMessage);
+    unawaited(engine.scrollToBottom());
+
+    try {
+      final remoteUrl = await UploadFileApi.uploadFileByPath(
+        filePath,
+        onSendProgress: (sent, total) {
+          _updatePendingFileMessage(
+            messageId: pendingId,
+            path: filePath,
+            name: name,
+            size: size,
+            status: MediaSendStatus.sending,
+            progress: mapFileUploadProgress(sent: sent, total: total),
+          );
+        },
+      );
+
+      if (remoteUrl == null || remoteUrl.trim().isEmpty) {
+        _markPendingFileFailed(
+          messageId: pendingId,
+          path: filePath,
+          name: name,
+          size: size,
+        );
+        AppToast.show(_tr('common_upload_failed'));
+        return;
+      }
+
+      _registerPendingFileRemote(messageId: pendingId, remote: remoteUrl);
+
+      _updatePendingFileMessage(
+        messageId: pendingId,
+        path: filePath,
+        remote: remoteUrl,
+        name: name,
+        size: size,
+        status: MediaSendStatus.sending,
+        progress: 90,
+        replaceInEngine: true,
+      );
+
+      final sent = await sendFile(
+        filePath,
+        size,
+        name,
+        remoteUrl: remoteUrl,
+        onProgress: (progress) {
+          _updatePendingFileMessage(
+            messageId: pendingId,
+            path: filePath,
+            remote: remoteUrl,
+            name: name,
+            size: size,
+            status: MediaSendStatus.sending,
+            progress: mapFileImSendProgress(progress),
+          );
+        },
+        pushSavedMessage: false,
+      );
+
+      if (!sent) {
+        _markPendingFileFailed(
+          messageId: pendingId,
+          path: filePath,
+          name: name,
+          size: size,
+        );
+      }
+    } catch (_) {
+      _markPendingFileFailed(
+        messageId: pendingId,
+        path: filePath,
+        name: name,
+        size: size,
+      );
+      AppToast.show(_tr('chat_detail_send_failed'));
+    }
+  }
+
+  ChatDetailMessage _pendingFileMessage({
+    required String messageId,
+    required String path,
+    required String name,
+    required int size,
+    required MediaSendStatus status,
+    required int progress,
+    String? remote,
+  }) {
+    return ChatDetailMessage(
+      messageId: messageId,
+      kind: ChatDetailMessageKind.file,
+      isMe: true,
+      sentTime: DateTime.now().millisecondsSinceEpoch,
+      fileName: name,
+      fileSize: formatFileSize(size),
+      path: path,
+      remote: remote,
+      mediaSendStatus: status,
+      mediaSendProgress: progress.clamp(0, 100).toInt(),
+    );
+  }
+
+  void _updatePendingFileMessage({
+    required String messageId,
+    required String path,
+    required String name,
+    required int size,
+    required MediaSendStatus status,
+    required int progress,
+    String? remote,
+    bool replaceInEngine = false,
+  }) {
+    if (!engine.containsId(messageId)) {
+      return;
+    }
+
+    final next = _pendingFileMessage(
+      messageId: messageId,
+      path: path,
+      remote: remote,
+      name: name,
+      size: size,
+      status: status,
+      progress: progress,
+    );
+
+    final notifier = _pendingFileMessageNotifiers[messageId];
+    if (notifier == null) {
+      _pendingFileMessageNotifiers[messageId] = ValueNotifier(next);
+    } else if (_shouldPublishPendingFileMessage(notifier.value, next)) {
+      notifier.value = next;
+    }
+
+    if (replaceInEngine) {
+      engine.replace(next);
+    }
+  }
+
+  bool _shouldPublishPendingFileMessage(
+    ChatDetailMessage previous,
+    ChatDetailMessage next,
+  ) {
+    return shouldNotifyFileSendProgress(
+          previousProgress: previous.mediaSendProgress,
+          nextProgress: next.mediaSendProgress,
+          statusChanged: previous.mediaSendStatus != next.mediaSendStatus,
+        ) ||
+        previous.path != next.path ||
+        previous.remote != next.remote ||
+        previous.fileName != next.fileName ||
+        previous.fileSize != next.fileSize;
+  }
+
+  void _markPendingFileFailed({
+    required String messageId,
+    required String path,
+    required String name,
+    required int size,
+  }) {
+    _removePendingFileRemoteMappings(messageId);
+    _updatePendingFileMessage(
+      messageId: messageId,
+      path: path,
+      name: name,
+      size: size,
+      status: MediaSendStatus.failed,
+      progress: 0,
+      replaceInEngine: true,
+    );
   }
 
   void openMediaViewer({required List<MediaItem> list, required int index}) {
@@ -2178,9 +2421,176 @@ class ChatDetailController extends ChangeNotifier {
     );
   }
 
+  Future<void> handleFileTap(ChatDetailMessage message) async {
+    if (message.kind != ChatDetailMessageKind.file ||
+        message.mediaSendStatus != MediaSendStatus.sent) {
+      return;
+    }
+
+    final messageId = message.messageId;
+    final currentState = _fileDownloadNotifier(messageId).value;
+    if (currentState.status == FileDownloadStatus.downloading) {
+      return;
+    }
+
+    final existingPath =
+        _existingLocalFilePath(currentState.localPath) ??
+        _existingLocalFilePath(message.path);
+    if (existingPath != null) {
+      _setFileDownloadState(
+        messageId,
+        FileDownloadState(
+          status: FileDownloadStatus.downloaded,
+          progress: 100,
+          localPath: existingPath,
+        ),
+      );
+      await _openLocalFile(existingPath);
+      return;
+    }
+
+    final remoteUrl = message.remote?.trim();
+    if (remoteUrl == null || remoteUrl.isEmpty) {
+      _markFileDownloadFailed(messageId);
+      AppToast.show(_tr('common_download_failed'));
+      return;
+    }
+
+    final targetPath = await _downloadPathForMessage(message);
+    final downloadedPath = _existingLocalFilePath(targetPath);
+    if (downloadedPath != null) {
+      _setFileDownloadState(
+        messageId,
+        FileDownloadState(
+          status: FileDownloadStatus.downloaded,
+          progress: 100,
+          localPath: downloadedPath,
+        ),
+      );
+      await _openLocalFile(downloadedPath);
+      return;
+    }
+
+    await _downloadFileMessage(
+      message: message,
+      remoteUrl: remoteUrl,
+      targetPath: targetPath,
+    );
+  }
+
+  ValueNotifier<FileDownloadState> _fileDownloadNotifier(String messageId) {
+    return _fileDownloadNotifiers.putIfAbsent(
+      messageId,
+      () => ValueNotifier(const FileDownloadState()),
+    );
+  }
+
+  void _setFileDownloadState(String messageId, FileDownloadState state) {
+    _fileDownloadNotifier(messageId).value = state;
+  }
+
+  Future<void> _downloadFileMessage({
+    required ChatDetailMessage message,
+    required String remoteUrl,
+    required String targetPath,
+  }) async {
+    final messageId = message.messageId;
+    _setFileDownloadState(
+      messageId,
+      const FileDownloadState(status: FileDownloadStatus.downloading),
+    );
+
+    try {
+      await File(targetPath).parent.create(recursive: true);
+      await _downloadDio.download(
+        remoteUrl,
+        targetPath,
+        onReceiveProgress: (received, total) {
+          _setFileDownloadState(
+            messageId,
+            FileDownloadState(
+              status: FileDownloadStatus.downloading,
+              progress: mapFileDownloadProgress(
+                received: received,
+                total: total,
+              ),
+              localPath: targetPath,
+            ),
+          );
+        },
+      );
+
+      if (!File(targetPath).existsSync()) {
+        _markFileDownloadFailed(messageId);
+        AppToast.show(_tr('common_download_failed'));
+        return;
+      }
+
+      _setFileDownloadState(
+        messageId,
+        FileDownloadState(
+          status: FileDownloadStatus.downloaded,
+          progress: 100,
+          localPath: targetPath,
+        ),
+      );
+      await _openLocalFile(targetPath);
+    } catch (e) {
+      debugPrint('file download failed: $e');
+      _markFileDownloadFailed(messageId);
+      AppToast.show(_tr('common_download_failed'));
+    }
+  }
+
+  Future<String> _downloadPathForMessage(ChatDetailMessage message) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return buildChatFileDownloadPath(
+      directoryPath: '${dir.path}/chat_files',
+      messageId: message.messageId,
+      remoteUrl: message.remote,
+      fileName: message.fileName,
+    );
+  }
+
+  String? _existingLocalFilePath(String? path) {
+    if (!isUsableLocalFilePath(path)) {
+      return null;
+    }
+
+    try {
+      final uri = Uri.tryParse(path!.trim());
+      final filePath = uri != null && uri.scheme == 'file'
+          ? uri.toFilePath()
+          : path.trim();
+      return File(filePath).existsSync() ? filePath : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _markFileDownloadFailed(String messageId) {
+    _setFileDownloadState(
+      messageId,
+      const FileDownloadState(status: FileDownloadStatus.failed),
+    );
+  }
+
+  Future<void> _openLocalFile(String path) async {
+    try {
+      final result = await OpenFilex.open(path);
+      if (result.type != ResultType.done) {
+        AppToast.show(_tr('common_download_failed'));
+      }
+    } catch (e) {
+      debugPrint('open file failed: $e');
+      AppToast.show(_tr('common_download_failed'));
+    }
+  }
+
   bool _replaceExistingMediaMessage(ChatDetailMessage incoming) {
     if (incoming.kind != ChatDetailMessageKind.image &&
-        incoming.kind != ChatDetailMessageKind.video) {
+        incoming.kind != ChatDetailMessageKind.video &&
+        incoming.kind != ChatDetailMessageKind.file) {
       return false;
     }
 
@@ -2200,6 +2610,18 @@ class ChatDetailController extends ChangeNotifier {
       }
     }
 
+    if (incoming.kind == ChatDetailMessageKind.file) {
+      final pendingId = _pendingFileMessageIdForRemote(incoming.remote);
+      if (pendingId != null && engine.containsId(pendingId)) {
+        _clearPendingFileMessageState(pendingId);
+        engine.replaceWhere(
+          (existing) => existing.messageId == pendingId,
+          incoming,
+        );
+        return true;
+      }
+    }
+
     final match = _firstMessageWhere(
       (existing) => _isSameMediaMessage(existing, incoming),
     );
@@ -2208,6 +2630,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     _clearPendingVideoMessageState(match.messageId);
+    _clearPendingFileMessageState(match.messageId);
 
     engine.replaceWhere(
       (existing) => _isSameMediaMessage(existing, incoming),
@@ -2261,6 +2684,39 @@ class ChatDetailController extends ChangeNotifier {
     });
   }
 
+  void _registerPendingFileRemote({
+    required String messageId,
+    required String? remote,
+  }) {
+    final key = normalizeFileRemoteUrl(remote);
+    if (key == null) {
+      return;
+    }
+
+    _pendingFileMessageIdsByRemote[key] = messageId;
+  }
+
+  String? _pendingFileMessageIdForRemote(String? remote) {
+    final key = normalizeFileRemoteUrl(remote);
+    if (key == null) {
+      return null;
+    }
+
+    return _pendingFileMessageIdsByRemote[key];
+  }
+
+  void _clearPendingFileMessageState(String messageId) {
+    final notifier = _pendingFileMessageNotifiers.remove(messageId);
+    notifier?.dispose();
+    _removePendingFileRemoteMappings(messageId);
+  }
+
+  void _removePendingFileRemoteMappings(String messageId) {
+    _pendingFileMessageIdsByRemote.removeWhere((key, value) {
+      return value == messageId;
+    });
+  }
+
   bool _replaceExistingMessage(ChatDetailMessage incoming) {
     if (engine.containsId(incoming.messageId)) {
       engine.replace(incoming);
@@ -2279,7 +2735,8 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (incoming.kind == ChatDetailMessageKind.image ||
-        incoming.kind == ChatDetailMessageKind.video) {
+        incoming.kind == ChatDetailMessageKind.video ||
+        incoming.kind == ChatDetailMessageKind.file) {
       return _replaceExistingMediaMessage(incoming);
     }
 
@@ -2332,10 +2789,16 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (existing.mediaSendStatus != MediaSendStatus.sent) {
-      if (isSamePendingVideoRemote(
-        pendingRemote: existing.remote,
-        incomingRemote: incoming.remote,
-      )) {
+      final remoteMatches = incoming.kind == ChatDetailMessageKind.file
+          ? isSamePendingFileRemote(
+              pendingRemote: existing.remote,
+              incomingRemote: incoming.remote,
+            )
+          : isSamePendingVideoRemote(
+              pendingRemote: existing.remote,
+              incomingRemote: incoming.remote,
+            );
+      if (remoteMatches) {
         return true;
       }
 
@@ -2450,6 +2913,7 @@ class ChatDetailController extends ChangeNotifier {
     final started = await RongCallManager().startPrivateCall(
       targetId: targetId,
       displayName: displayName,
+      avatar: headerAvatar,
       mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
     );
     if (!started) return;

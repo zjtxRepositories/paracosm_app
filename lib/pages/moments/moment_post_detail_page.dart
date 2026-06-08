@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import '../../core/models/user_display_model.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../util/string_util.dart';
 import '../../widgets/base/app_localizations.dart';
+import '../../widgets/chat/user_avatar_widget.dart';
 import 'comment_composer_bar.dart';
 import 'home/moments_controller.dart';
 import 'moment_comments_section.dart';
@@ -13,12 +15,14 @@ import 'moment_post_card.dart';
 
 class MomentPostDetailPage extends StatefulWidget {
   final SocialInvitationModel item;
+  final UserDisplayModel? user;
   final bool isFollowing;
   final bool isBlock;
 
   const MomentPostDetailPage({
     super.key,
     required this.item,
+    this.user,
     required this.isFollowing,
     required this.isBlock,
   });
@@ -102,6 +106,7 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
               children: [
                 _MomentDetailHeader(
                   model: model,
+                  user: widget.user,
                   isFollowing: isFollowing,
                   onFollow: () => controller.toggleFollow(model),
                 ),
@@ -177,14 +182,33 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
 
 class _MomentDetailHeader extends StatelessWidget {
   final SocialInvitationModel model;
+  final UserDisplayModel? user;
   final bool isFollowing;
   final VoidCallback? onFollow;
 
   const _MomentDetailHeader({
     required this.model,
+    this.user,
     required this.isFollowing,
     this.onFollow,
   });
+
+  String get _avatarUrl {
+    final userAvatar = user?.avatar.trim();
+    if (userAvatar != null && userAvatar.isNotEmpty) return userAvatar;
+    return model.userInfoModel?.avatar.trim() ?? '';
+  }
+
+  String get _displayName {
+    final userName = user?.name.trim();
+    if (userName != null && userName.isNotEmpty) return userName;
+
+    final nickname = model.userInfoModel?.nickname.trim();
+    if (nickname != null && nickname.isNotEmpty) return nickname;
+
+    if (model.userId.length <= 8) return model.userId;
+    return model.userId.substring(model.userId.length - 8);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -195,16 +219,32 @@ class _MomentDetailHeader extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: () {
-                context.push('/moment-user-profile', extra: model.userId);
+                context.push(
+                  '/moment-user-profile',
+                  extra: {
+                    'userId': model.userId,
+                    'nickname': _displayName,
+                    'avatar': _avatarUrl,
+                    'account':
+                        user?.userId ??
+                        model.userInfoModel?.account ??
+                        model.userId,
+                  },
+                );
               },
-              child: Avatar(url: model.userInfoModel?.avatar ?? ''),
+              child: UserAvatarWidget(
+                userId: model.userId,
+                avatarUrl: _avatarUrl,
+                size: 36,
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  model.userInfoModel?.nickname ?? '',
+                  _displayName,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

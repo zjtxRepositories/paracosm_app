@@ -9,6 +9,7 @@ import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 /// 私聊语音通话静态页
 ///
@@ -266,9 +267,10 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
             color: Color(0xFF61D3B0),
           ),
           child: ClipOval(
-            child: Image.asset(
-              'assets/images/chat/avatar.png',
-              fit: BoxFit.cover,
+            child: UserAvatarWidget(
+              userId: _callState.targetId,
+              avatarUrl: _callState.avatar,
+              size: 108,
             ),
           ),
         ),

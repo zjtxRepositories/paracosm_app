@@ -10,8 +10,7 @@ import 'im_engine_manager.dart';
 class ImFriendManager {
   ImFriendManager._internal();
 
-  static final ImFriendManager _instance =
-  ImFriendManager._internal();
+  static final ImFriendManager _instance = ImFriendManager._internal();
 
   factory ImFriendManager() => _instance;
 
@@ -42,20 +41,8 @@ class ImFriendManager {
     // =========================
     // 新增好友
     // =========================
-    engine.onFriendAdded = (
-        type,
-        userId,
-        name,
-        portrait,
-        time,
-        ) async {
+    engine.onFriendAdded = (type, userId, name, portrait, time) async {
       if (!mounted || userId == null) return;
-
-      final friend = RCIMIWFriendInfo.create(
-        userId: userId,
-        name: name,
-        portrait: portrait,
-      );
 
       // 可选：延迟刷新完整信息
       await Future.delayed(const Duration(milliseconds: 300));
@@ -66,11 +53,7 @@ class ImFriendManager {
     // =========================
     // 删除好友
     // =========================
-    engine.onFriendDeleted = (
-        type,
-        userIds,
-        time,
-        ) {
+    engine.onFriendDeleted = (type, userIds, time) {
       if (!mounted) return;
 
       if (userIds == null || userIds.isEmpty) return;
@@ -83,12 +66,7 @@ class ImFriendManager {
     // =========================
     // 好友信息变更
     // =========================
-    engine.onFriendInfoChangedSync = (
-        userId,
-        remark,
-        ext,
-        time,
-        ) async {
+    engine.onFriendInfoChangedSync = (userId, remark, ext, time) async {
       if (!mounted || userId == null) return;
 
       await _refreshFriend(userId);
@@ -171,9 +149,7 @@ class ImFriendManager {
   // SDK API
   // ======================================================
 
-  Future<List<RCIMIWFriendInfo>?> getFriendsInfo(
-      List<String> userIds,
-      ) async {
+  Future<List<RCIMIWFriendInfo>?> getFriendsInfo(List<String> userIds) async {
     final completer = Completer<List<RCIMIWFriendInfo>?>();
 
     final ret = await IMEngineManager().engine?.getFriendsInfo(
@@ -193,14 +169,10 @@ class ImFriendManager {
     return completer.future;
   }
 
-  Future<List<RCIMIWFriendInfo>?> searchFriendsInfo(
-      String keyword,
-      ) async {
+  Future<List<RCIMIWFriendInfo>?> searchFriendsInfo(String keyword) async {
     final completer = Completer<List<RCIMIWFriendInfo>?>();
 
-    final ret = await IMEngineManager()
-        .engine
-        ?.searchFriendsInfo(
+    final ret = await IMEngineManager().engine?.searchFriendsInfo(
       keyword,
       callback: IRCIMIWSearchFriendsInfoCallback(
         onSuccess: (infos) {
@@ -223,10 +195,7 @@ class ImFriendManager {
   }) async {
     final completer = Completer<bool>();
 
-    final friendInfo = RCIMIWFriendInfo.create(
-      userId: userId,
-      remark: remark,
-    );
+    final friendInfo = RCIMIWFriendInfo.create(userId: userId, remark: remark);
 
     final ret = await IMEngineManager().engine?.setFriendInfo(
       friendInfo,
@@ -246,7 +215,7 @@ class ImFriendManager {
     return completer.future;
   }
 
-  Future<ImResult<void>> addFriend({
+  Future<ImResult<int>> addFriend({
     required String userId,
     String extra = "",
   }) async {
@@ -282,11 +251,13 @@ class ImFriendManager {
     final result = await ImCallbackWrapper.wrapAddBlock((callback) {
       return IMEngineManager().engine!.addToBlacklist(
         userId,
-        callback: IRCIMIWAddToBlacklistCallback(onBlacklistAdded: (int? code, String? uid){
-          if (uid != null && code == 0) {
-            ImDataCenter().removeFriend(userId,deletedMessage: false);
-          }
-        }),
+        callback: IRCIMIWAddToBlacklistCallback(
+          onBlacklistAdded: (int? code, String? uid) {
+            if (uid != null && code == 0) {
+              ImDataCenter().removeFriend(userId, deletedMessage: false);
+            }
+          },
+        ),
       );
     });
 

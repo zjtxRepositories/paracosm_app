@@ -215,6 +215,7 @@ class ChatDetailMessageMapper {
         fileName: message.name,
         fileSize: formatFileSize(message.size ?? 0),
         path: message.local,
+        remote: message.remote,
         extra: message,
         showReadReceipt: _shouldShowReadReceipt(message, isMe),
         isRead: _isReadReceiptRead(message),

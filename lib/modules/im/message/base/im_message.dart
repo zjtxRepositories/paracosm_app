@@ -301,12 +301,14 @@ class FileMessage extends ImMessage {
   final String path;
   final int size;
   final String name;
+  final String? remoteUrl;
   FileMessage({
     required this.conversationType,
     required this.targetId,
     required this.path,
     required this.size,
     required this.name,
+    this.remoteUrl,
     this.channelId,
     super.destructDuration,
   });
@@ -316,16 +318,17 @@ class FileMessage extends ImMessage {
 
   @override
   Future<RCIMIWMessage?> toRCMessage() async {
-    final videoMsg = await IMEngineManager().engine?.createFileMessage(
+    final fileMsg = await IMEngineManager().engine?.createFileMessage(
       conversationType,
       targetId,
       channelId,
       path,
     );
-    videoMsg?.senderUserId = IMEngineManager().currentUserId;
-    videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
-    applyMessageOptions(videoMsg);
-    return videoMsg;
+    fileMsg?.remote = remoteUrl;
+    fileMsg?.senderUserId = IMEngineManager().currentUserId;
+    fileMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(fileMsg);
+    return fileMsg;
   }
 }
 

@@ -644,6 +644,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatSystemNotification => translate('chat_system_notification');
   String get chatRecalledMessage => translate('chat_recalled_message');
   String get chatFriendAddedMessage => translate('chat_friend_added_message');
+  String get imErrorFriendWaitingApproval =>
+      translate('im_error_friend_waiting_approval');
   String chatInvitedMembersMessage(String user, String members) => translate(
     'chat_invited_members_message',
     {'user': user, 'members': members},

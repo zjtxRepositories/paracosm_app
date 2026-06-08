@@ -337,6 +337,7 @@ class VoiceMessage extends ImMessage {
   final String targetId;
   final String? channelId;
   final String path;
+  final String? remoteUrl;
   final int duration;
 
   VoiceMessage({
@@ -344,6 +345,7 @@ class VoiceMessage extends ImMessage {
     required this.targetId,
     required this.path,
     required this.duration,
+    this.remoteUrl,
     this.channelId,
     super.destructDuration,
   });
@@ -360,6 +362,7 @@ class VoiceMessage extends ImMessage {
       path,
       duration,
     );
+    videoMsg?.remote = remoteUrl;
     videoMsg?.senderUserId = IMEngineManager().currentUserId;
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
     applyMessageOptions(videoMsg);

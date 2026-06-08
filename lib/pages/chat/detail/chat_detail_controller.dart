@@ -1714,19 +1714,33 @@ class ChatDetailController extends ChangeNotifier {
 
   Future<void> sendVoice(String path, int duration) async {
     final session = args;
-    if (session == null) return;
+    final voicePath = path.trim();
+    if (session == null || voicePath.isEmpty || !File(voicePath).existsSync()) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+      return;
+    }
 
     final burnSeconds = await _burnAfterReadingSecondsForCurrentSession();
-    await ImSender.instance.send(
+    final remoteUrl = await UploadFileApi.uploadFileByPath(voicePath);
+    if (remoteUrl == null || remoteUrl.trim().isEmpty) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+      return;
+    }
+
+    final sent = await ImSender.instance.send(
       message: VoiceMessage(
         conversationType: session.conversationType,
         targetId: session.targetId,
         channelId: session.channelId,
-        path: path,
+        path: voicePath,
+        remoteUrl: remoteUrl,
         duration: duration,
         destructDuration: burnSeconds,
       ),
     );
+    if (!sent) {
+      AppToast.show(_tr('chat_detail_send_failed'));
+    }
   }
 
   Future<void> handleAssetEntity(AssetEntity entity) async {

@@ -22,6 +22,7 @@ import '../../modules/im/manager/im_group_manager.dart';
 import '../../modules/im/message/base/im_message.dart';
 import '../../modules/im/message/send/im_sender.dart';
 import '../../widgets/common/app_loading.dart';
+import '../../widgets/common/app_network_image.dart';
 import '../../widgets/common/app_toast.dart';
 
 /// 创建 DAO 页面
@@ -87,11 +88,12 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
       return;
     }
     final groupInfo = RCIMIWGroupInfo.create(
-      groupId: groupId,
-      groupName: name,
-      portraitUri: avatarUrl,
-      introduction: desc,
-      invitePermission: RCIMIWGroupOperationPermission.everyone
+        groupId: groupId,
+        groupName: name,
+        portraitUri: avatarUrl,
+        introduction: desc,
+        invitePermission: RCIMIWGroupOperationPermission.everyone,
+        joinPermission: RCIMIWGroupJoinPermission.free
     );
     final result = await ImGroupManager().createByGroupInfo(groupInfo, []);
     if (result == null) {
@@ -143,24 +145,21 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                           height: 68,
                           decoration: BoxDecoration(
                             color: const Color(0xFFECEFF0),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(34),
                           ),
                           child: Center(
-                            child: Image.asset(
-                              'assets/images/chat/avatar.png',
+                            child:AppNetworkImage(
+                              url: widget.token.logo,
+                              width: 65,
+                              height: 65,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.token,
-                                    size: 60,
-                                    color: AppColors.grey400,
-                                  ),
+
                             ),
                           ),
                         ),
                         Positioned(
-                          right: -10, // 调整偏移量，确保不被遮挡
-                          bottom: -10,
+                          right: -6, // 调整偏移量，确保不被遮挡
+                          bottom: -6,
                           child: Image.asset(
                             'assets/images/community/photo.png',
                             width: 24,

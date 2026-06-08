@@ -129,7 +129,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       walletMap: _walletMap!,
       currentWalletId: _walletModel!.id,
       onSwitch: (address) async {
-        await AccountManager().switchAccount(address);
+        AccountManager().switchAccount(address);
       },
       onAddWallet: () {
         context.push('/wallet-manager'); // 跳转到钱包管理页

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
+import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
-import 'package:paracosm/modules/wallet/service/mnemonic_service.dart';
-import 'package:paracosm/modules/wallet/service/wallet_service.dart';
 import 'package:paracosm/pages/wallet/wallet_import_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -232,7 +231,7 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
                                     onPressed: (_isPrivateKeyInvalid)
                                         ? () async {
                                             try {
-                                              await WalletService.importPrivateKeyByChainType(
+                                              await WalletManager.importWalletByPrivateKey(
                                                 privateKey:
                                                     _privateKeyController.text,
                                                 password: widget.password,

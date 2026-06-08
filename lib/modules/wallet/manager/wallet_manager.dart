@@ -19,6 +19,8 @@ class WalletManager {
 
   WalletManager._();
 
+  static final Set<String> _unlockedWalletIds = {};
+
   /// 创建账号（自动生成钱包）
   static Future<WalletModel> createWallet({
     String? mnemonic,
@@ -47,13 +49,15 @@ class WalletManager {
       chainType: chainType,
     );
     await WalletDao().updateWallet(wallet);
-    await AccountManager().init();
+    await AccountManager().refreshWallet(wallet: wallet);
     return wallet;
   }
 
   static bool _initialized = false;
 
   static Future<void> unlock({required String walletId}) async {
+    if (_unlockedWalletIds.contains(walletId)) return;
+
     final mnemonic = await WalletSecurity.tryAutoUnlock(walletId);
     if (mnemonic == null) return;
     final wallet = await WalletDao().getWalletById(walletId);
@@ -69,6 +73,7 @@ class WalletManager {
 
     TronService.createWalletFromMnemonic(mnemonic);
     if (wallet != null) {
+      var shouldUpdateWallet = false;
       for (final chain in wallet.chains) {
         if (chain.chainType == ChainType.bitcoin && chain.address.isNotEmpty) {
           await BitcoinService.restoreAddressIndex(mnemonic, chain.address);
@@ -85,6 +90,9 @@ class WalletManager {
         wallet.chains.addAll(
           await ChainConfigService.buildChainsFromConfig(tronConfigs, mnemonic),
         );
+        shouldUpdateWallet = true;
+      }
+      if (shouldUpdateWallet) {
         await WalletDao().updateWallet(wallet);
       }
     }
@@ -94,6 +102,7 @@ class WalletManager {
       debugPrint('BTC sync failed: $error');
     });
 
+    _unlockedWalletIds.add(walletId);
     _initialized = true;
   }
 

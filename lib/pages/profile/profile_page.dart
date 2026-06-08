@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:paracosm/core/network/api/coin_overview_api.dart';
 import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
@@ -36,6 +35,9 @@ class _ProfilePageState extends State<ProfilePage> {
   ChainAccount? _selectedNetwork;
   List<CoinMarketModel> _coinMarkets = [];
   List<TokenModel> _tokens = [];
+  Timer? _accountChangedRefreshTimer;
+  int _loadGeneration = 0;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -43,44 +45,69 @@ class _ProfilePageState extends State<ProfilePage> {
     accountManager = AccountManager();
     accountManager.addListener(_onAccountChanged);
 
-    _init();
+    _init(++_loadGeneration);
   }
 
-  Future<void> _init() async {
-    await fetchData();
-    await fetchTokenList();
-    await fetchMarketData(); // 内部再调 fetchTokenList
+  Future<void> _init(int generation) async {
+    await fetchData(generation: generation);
+    if (!_isCurrentLoad(generation)) return;
+    await fetchTokenList(generation: generation);
+    if (!_isCurrentLoad(generation)) return;
+    await fetchMarketData(generation: generation); // 内部再调 fetchTokenList
+  }
+
+  bool _isCurrentLoad(int generation, {String? walletId}) {
+    if (!mounted) return false;
+    if (generation != _loadGeneration) return false;
+    if (walletId != null && accountManager.currentWallet?.id != walletId) {
+      return false;
+    }
+    return true;
   }
 
   void _onAccountChanged() {
+    final generation = ++_loadGeneration;
+    _accountChangedRefreshTimer?.cancel();
     PortfolioService().clean();
-    _init();
+    fetchData(generation: generation);
+    _accountChangedRefreshTimer = Timer(const Duration(milliseconds: 350), () {
+      if (!_isCurrentLoad(generation)) return;
+      _init(generation);
+    });
   }
 
   @override
   void dispose() {
+    _accountChangedRefreshTimer?.cancel();
     accountManager.removeListener(_onAccountChanged);
     super.dispose();
   }
 
-  Future<void> fetchData() async {
+  Future<void> fetchData({int? generation}) async {
     final manager = AccountManager();
+    if (generation != null && !_isCurrentLoad(generation)) return;
     _walletModel = manager.currentWallet;
     _selectedNetwork = _walletModel?.currentChain;
     setState(() {});
   }
 
-  Future<void> fetchMarketData() async {
+  Future<void> fetchMarketData({int? generation}) async {
     final list = await CoinOverviewApi.getCoins();
+    if (generation != null && !_isCurrentLoad(generation)) return;
     setState(() {
       _coinMarkets = list;
     });
-    await fetchTokenList();
+    await fetchTokenList(generation: generation);
   }
 
-  Future<void> fetchTokenList() async {
-    if (_walletModel == null) return;
-    List<ChainAccount> chains = _walletModel?.chains ?? [];
+  Future<void> fetchTokenList({int? generation}) async {
+    final wallet = _walletModel;
+    if (wallet == null) return;
+    if (generation != null &&
+        !_isCurrentLoad(generation, walletId: wallet.id)) {
+      return;
+    }
+    List<ChainAccount> chains = wallet.chains;
     final coins = _coinMarkets;
     List<TokenModel> tokenList = [];
     for (final chain in chains) {
@@ -101,11 +128,14 @@ class _ProfilePageState extends State<ProfilePage> {
         tokenList.add(token);
       }
     }
+    if (generation != null &&
+        !_isCurrentLoad(generation, walletId: wallet.id)) {
+      return;
+    }
     setState(() {
       _tokens = tokenList;
     });
-    WalletDao().updateWallet(_walletModel!);
-    PortfolioService().start(_tokens);
+    PortfolioService().start(_tokens, ownerId: wallet.id);
   }
 
   /// 显示网络选择弹窗

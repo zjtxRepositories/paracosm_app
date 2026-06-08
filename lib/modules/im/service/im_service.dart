@@ -20,7 +20,7 @@ class ImService {
         : accountId;
     final token = await ImTokenManager.getToken(userId: accountId, name: name);
     if (token == null) return;
-    print('userid-----$accountId---$token---$name');
+    print('loginIm-----$accountId---$token---$name');
     await IMEngineManager().connect(token, accountId);
   }
 

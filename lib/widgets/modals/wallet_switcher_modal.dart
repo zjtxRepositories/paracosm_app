@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
@@ -29,6 +31,7 @@ class WalletSwitcherModal extends StatefulWidget {
   @override
   State<WalletSwitcherModal> createState() => _WalletSwitcherModalState();
 }
+
 class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
   bool _isSwitching = false;
   bool _isBalanceVisible = true;
@@ -52,7 +55,9 @@ class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
   String _currentWalletName() {
     final wallet = widget.walletMap[widget.currentWalletId];
     final l10n = AppLocalizations.of(context)!;
-    String showName = wallet?.name ?? '${l10n.profileProfileDetailsWallet} ${(wallet?.aIndex ?? 0) + 1}';
+    String showName =
+        wallet?.name ??
+        '${l10n.profileProfileDetailsWallet} ${(wallet?.aIndex ?? 0) + 1}';
     return showName;
   }
 
@@ -66,13 +71,14 @@ class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
 
   void _onNetworkTap() {
     WalletModals.showNetworkSelector(
-        context: context,
-        wallet: _walletModel!,
-        onSelected: (chain){
-          setState(() {
-            _selectedNetwork = chain;
-          });
+      context: context,
+      wallet: _walletModel!,
+      onSelected: (chain) {
+        setState(() {
+          _selectedNetwork = chain;
         });
+      },
+    );
   }
 
   @override
@@ -114,14 +120,16 @@ class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
               onTap: _isSwitching
                   ? null
                   : () async {
-                setState(() => _isSwitching = true);
+                      setState(() => _isSwitching = true);
 
-                await widget.onSwitch(account.id);
+                      Navigator.of(context).pop();
 
-                if (mounted) {
-                  Navigator.of(context).pop(); // 关闭弹窗
-                }
-              },
+                      unawaited(
+                        widget.onSwitch(account.id).catchError((error) {
+                          debugPrint('Switch wallet failed: $error');
+                        }),
+                      );
+                    },
             ),
           );
         }),
@@ -129,13 +137,14 @@ class _WalletSwitcherModalState extends State<WalletSwitcherModal> {
         const SizedBox(height: 24),
 
         /// 添加钱包
-
-    AppButton( text: AppLocalizations.of(context)! .profileProfileDetailsAddWallet,
-    onPressed:() {
-      Navigator.of(context).pop();
-      widget.onAddWallet();
-    },
-    )
+        AppButton(
+          text: AppLocalizations.of(context)!.profileProfileDetailsAddWallet,
+          onPressed: () {
+            Navigator.of(context).pop();
+            widget.onAddWallet();
+          },
+        ),
       ],
     );
-  }}
+  }
+}

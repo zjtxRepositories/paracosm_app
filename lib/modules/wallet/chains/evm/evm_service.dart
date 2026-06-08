@@ -73,7 +73,12 @@ class EvmService {
   /// =========================
   static String privateKeyToAddress(String privateKeyHex) {
     final credentials = EthPrivateKey.fromHex(privateKeyHex);
-    return credentials.address.hexEip55;
+    final address = credentials.address.hexEip55;
+    _wallets.putIfAbsent(
+      address,
+      () => {'address': address, 'privateKey': privateKeyHex},
+    );
+    return address;
   }
 
   /// =========================

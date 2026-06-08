@@ -6,6 +6,7 @@ class WalletType {
   static const String mnemonic = "mnemonic";
   static const String privateKey = "privateKey";
 }
+
 class WalletModel {
   String id;
   String? name;
@@ -18,14 +19,23 @@ class WalletModel {
   /// 多链账户
   List<ChainAccount> chains;
 
-  ChainAccount? get currentChain =>
-      chains.firstWhere((item) => item.chainId == currentChainId);
+  ChainAccount? get currentChain {
+    if (chains.isEmpty) return null;
+    for (final item in chains) {
+      if (item.chainId == currentChainId) return item;
+    }
+    return chains.first;
+  }
 
   bool get isPrivateKey => type == WalletType.privateKey;
   bool get isMnemonic => type == WalletType.mnemonic;
 
-  ChainAccount? get evmChain =>
-      chains.firstWhere((item) => item.chainType == ChainType.evm);
+  ChainAccount? get evmChain {
+    for (final item in chains) {
+      if (item.chainType == ChainType.evm) return item;
+    }
+    return null;
+  }
 
   /// 判断链
   bool hasChain(int chainId) {
@@ -48,9 +58,7 @@ class WalletModel {
       'aIndex': aIndex,
       'currentChainId': currentChainId,
       'type': type, // ⭐ 存进去
-      'chains': jsonEncode(
-        chains.map((e) => e.toJson()).toList(),
-      ),
+      'chains': jsonEncode(chains.map((e) => e.toJson()).toList()),
     };
   }
 

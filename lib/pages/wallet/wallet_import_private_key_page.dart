@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/pages/wallet/wallet_import_page.dart';
@@ -36,6 +35,7 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
   // 错误状态
   String? _privateKeyError;
   bool _isPrivateKeyInvalid = false;
+  int _validateSeq = 0;
 
   @override
   void initState() {
@@ -50,19 +50,20 @@ class _WalletImportPrivateKeyPageState extends State<WalletImportPrivateKeyPage>
     _privateKeyController.addListener(_validatePrivateKey);
   }
 
-  void _validatePrivateKey() {
+  Future<void> _validatePrivateKey() async {
     if (!mounted) return;
+    final seq = ++_validateSeq;
+    final text = _privateKeyController.text.trim();
+    final isPrivateKey = await WalletManager.isValidPrivateKeyForChain(
+      widget.chainType,
+      text,
+    );
+    if (!mounted || seq != _validateSeq) return;
     setState(() {
-      final isPrivateKey = EvmService.isValidPrivateKey(
-        _privateKeyController.text,
-      );
-      setState(() {
-        _privateKeyError = !isPrivateKey
-            ? AppLocalizations.currentText('wallet_invalid_private_key')
-            : null;
-        _isPrivateKeyInvalid =
-            _privateKeyController.text.isNotEmpty && isPrivateKey;
-      });
+      _privateKeyError = !isPrivateKey
+          ? AppLocalizations.currentText('wallet_invalid_private_key')
+          : null;
+      _isPrivateKeyInvalid = text.isNotEmpty && isPrivateKey;
     });
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -10,8 +11,9 @@ import 'app_network_image.dart';
 class AppChainSelector extends StatefulWidget {
   /// 选择回调
   final ValueChanged<ChainAccount> onSelected;
+  final WalletModel? wallet;
 
-  const AppChainSelector({super.key, required this.onSelected});
+  const AppChainSelector({super.key, required this.onSelected, this.wallet});
 
   @override
   State<AppChainSelector> createState() => _AppChainSelectorState();
@@ -30,8 +32,11 @@ class _AppChainSelectorState extends State<AppChainSelector> {
 
   Future<void> fetchData() async {
     final manager = AccountManager();
-    final wallet = manager.currentWallet;
-    _chains = wallet?.chains ?? [];
+    final wallet = widget.wallet ?? manager.currentWallet;
+    final chains = wallet?.chains ?? [];
+    _chains = wallet?.isPrivateKey == true
+        ? chains.where((chain) => chain.address.isNotEmpty).toList()
+        : chains;
     setState(() {});
   }
 

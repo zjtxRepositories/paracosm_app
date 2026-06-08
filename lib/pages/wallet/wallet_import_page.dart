@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:paracosm/modules/account/manager/account_manager.dart';
-import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
+import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/service/mnemonic_service.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -14,7 +13,6 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../modules/account/service/account_service.dart';
-import '../../modules/wallet/security/wallet_security.dart';
 
 /// 导入钱包页
 ///
@@ -121,7 +119,6 @@ class WalletImportInput extends StatelessWidget {
         borderColor = AppColors.error;
         break;
       case ImportInputState.none:
-      default:
         borderColor = AppColors.grey200;
         break;
     }
@@ -218,6 +215,7 @@ class _WalletImportPageState extends State<WalletImportPage>
   String? _privateKeyError;
   bool _isMnemonicInvalid = false;
   bool _isPrivateKeyInvalid = false;
+  int _validatePrivateKeySeq = 0;
 
   @override
   void initState() {
@@ -246,20 +244,27 @@ class _WalletImportPageState extends State<WalletImportPage>
     });
   }
 
-  void _validatePrivateKey() {
+  Future<void> _validatePrivateKey() async {
     if (!mounted) return;
+    final seq = ++_validatePrivateKeySeq;
+    final text = _privateKeyController.text.trim();
+    final isPrivateKey = await WalletManager.isValidPrivateKeyForChain(
+      ChainType.evm,
+      text,
+    );
+    if (!mounted || seq != _validatePrivateKeySeq) return;
     setState(() {
-      final isPrivateKey = EvmService.isValidPrivateKey(
-        _privateKeyController.text,
-      );
-      setState(() {
-        _privateKeyError = !isPrivateKey
-            ? AppLocalizations.currentText('wallet_invalid_private_key')
-            : null;
-        _isPrivateKeyInvalid =
-            _privateKeyController.text.isNotEmpty && isPrivateKey;
-      });
+      _privateKeyError = !isPrivateKey
+          ? AppLocalizations.currentText('wallet_invalid_private_key')
+          : null;
+      _isPrivateKeyInvalid = text.isNotEmpty && isPrivateKey;
     });
+  }
+
+  Future<bool> _ensurePrivateKeyValid() async {
+    if (_tabController.index != 1) return true;
+    await _validatePrivateKey();
+    return _isPrivateKeyInvalid;
   }
 
   @override
@@ -434,6 +439,10 @@ class _WalletImportPageState extends State<WalletImportPage>
                                             ? _isMnemonicInvalid
                                             : _isPrivateKeyInvalid)
                                         ? () async {
+                                            final isPrivateKeyValid =
+                                                await _ensurePrivateKeyValid();
+                                            if (!isPrivateKeyValid) return;
+                                            if (!context.mounted) return;
                                             if (widget.password != null) {
                                               try {
                                                 AppLoading.show();
@@ -449,8 +458,9 @@ class _WalletImportPageState extends State<WalletImportPage>
                                                       : null,
                                                   password: widget.password!,
                                                 );
-                                                await AccountManager().init();
-                                                context.go('/chat');
+                                                if (context.mounted) {
+                                                  context.go('/chat');
+                                                }
                                               } catch (e) {
                                                 AppToast.show(
                                                   loc.walletImportError(e),
@@ -460,6 +470,7 @@ class _WalletImportPageState extends State<WalletImportPage>
                                               }
                                               return;
                                             }
+
                                             context.push(
                                               '/wallet-import-password',
                                               extra: {

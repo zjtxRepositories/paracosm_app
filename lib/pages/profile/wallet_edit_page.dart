@@ -26,7 +26,7 @@ class WalletEditPage extends StatefulWidget {
 }
 
 class _WalletEditPageState extends State<WalletEditPage> {
-  late String _currentWalletName;
+  String _currentWalletName = '';
 
   @override
   void initState() {

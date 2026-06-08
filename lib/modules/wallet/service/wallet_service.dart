@@ -107,16 +107,20 @@ class WalletService {
     required String password,
     ChainType chainType = ChainType.evm,
   }) async {
-    /// 1. 构建链（只支持 EVM）
     final configs = await ChainConfigService.loadConfigs();
+    final relatedConfigs = configs
+        .where((config) => chainTypeFromString(config.chainType) == chainType)
+        .toList();
+
     final chains = await ChainConfigService.buildChainsFromPrivateKey(
-      configs,
+      relatedConfigs,
       privateKey,
+      chainType: chainType,
     );
 
-    final evmChain = chains.firstWhere((e) => e.chainType == chainType);
+    final primaryChain = chains.firstWhere((e) => e.chainType == chainType);
 
-    final walletId = evmChain.address;
+    final walletId = primaryChain.address;
 
     /// 2. 保存
     await WalletSecurity.saveWallet(
@@ -133,7 +137,9 @@ class WalletService {
         oldWallet != null &&
             chains.any((chain) => chain.chainId == oldWallet.currentChainId)
         ? oldWallet.currentChainId
-        : 56;
+        : chains.any((chain) => chain.chainId == 56)
+        ? 56
+        : primaryChain.chainId;
     return WalletModel(
       id: walletId,
       name: oldWallet?.name,
@@ -163,11 +169,27 @@ class WalletService {
       chainType: chainType,
     );
     final wallet = await WalletDao().getWalletById(walletId);
-    final oldChains = wallet?.chains ?? [];
+    if (wallet == null) {
+      throw Exception('Wallet not found');
+    }
+    final securityData = await WalletSecurity.getWallet(
+      walletId: walletId,
+      password: password,
+    );
+    await WalletSecurity.saveWallet(
+      walletId: walletId,
+      mnemonic: securityData?['mnemonic'] ?? '',
+      privateKey: privateKey,
+      password: password,
+    );
+    final oldChains = wallet.chains;
     final filteredOldChains = oldChains
         .where((c) => c.chainType != chainType)
         .toList();
-    wallet?.chains = [...filteredOldChains, ...chains];
-    return wallet!;
+    wallet.chains = [...filteredOldChains, ...chains];
+    if (!wallet.chains.any((chain) => chain.chainId == wallet.currentChainId)) {
+      wallet.currentChainId = chains.first.chainId;
+    }
+    return wallet;
   }
 }

@@ -59,6 +59,7 @@ class WalletModals {
       confirmText: null,
       onConfirm: () {},
       child: AppChainSelector(
+        wallet: wallet,
         onSelected: (chain) async {
           onSelected(chain);
           context.pop();

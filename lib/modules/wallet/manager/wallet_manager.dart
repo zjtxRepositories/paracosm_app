@@ -29,9 +29,9 @@ class WalletManager {
   }) async {
     final wallet = mnemonic == null && privateKey == null
         ? await WalletService.createWallet(password)
-        : mnemonic != null
-        ? await WalletService.importWalletByMnemonic(mnemonic, password)
-        : await WalletService.importWalletByPrivateKey(privateKey!, password);
+        : privateKey != null
+        ? await WalletService.importWalletByPrivateKey(privateKey, password)
+        : await WalletService.importWalletByMnemonic(mnemonic!, password);
     return wallet;
   }
 
@@ -49,6 +49,7 @@ class WalletManager {
       chainType: chainType,
     );
     await WalletDao().updateWallet(wallet);
+    await _restorePrivateKeyWallet(wallet, privateKey);
     await AccountManager().refreshWallet(wallet: wallet);
     return wallet;
   }
@@ -58,9 +59,23 @@ class WalletManager {
   static Future<void> unlock({required String walletId}) async {
     if (_unlockedWalletIds.contains(walletId)) return;
 
-    final mnemonic = await WalletSecurity.tryAutoUnlock(walletId);
-    if (mnemonic == null) return;
     final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+
+    final securityData = await WalletSecurity.tryAutoUnlockData(walletId);
+    if (securityData == null) return;
+
+    if (wallet.isPrivateKey) {
+      final privateKey = securityData['privateKey'] ?? '';
+      if (privateKey.isEmpty) return;
+      await _restorePrivateKeyWallet(wallet, privateKey);
+      _unlockedWalletIds.add(walletId);
+      _initialized = true;
+      return;
+    }
+
+    final mnemonic = securityData['mnemonic'];
+    if (mnemonic == null || mnemonic.isEmpty) return;
 
     print('恢复----$mnemonic');
 
@@ -72,29 +87,31 @@ class WalletManager {
     await SolanaService.createWalletFromMnemonic(mnemonic);
 
     TronService.createWalletFromMnemonic(mnemonic);
-    if (wallet != null) {
-      var shouldUpdateWallet = false;
-      for (final chain in wallet.chains) {
-        if (chain.chainType == ChainType.bitcoin && chain.address.isNotEmpty) {
-          await BitcoinService.restoreAddressIndex(mnemonic, chain.address);
-        }
+    var shouldUpdateWallet = false;
+    for (final chain in wallet.chains) {
+      if (chain.chainType == ChainType.bitcoin && chain.address.isNotEmpty) {
+        await BitcoinService.restoreAddressIndex(mnemonic, chain.address);
       }
-      if (!wallet.chains.any((chain) => chain.chainType == ChainType.tron)) {
-        final configs = await ChainConfigService.loadConfigs();
-        final tronConfigs = configs
-            .where(
-              (config) =>
-                  chainTypeFromString(config.chainType) == ChainType.tron,
-            )
-            .toList();
-        wallet.chains.addAll(
-          await ChainConfigService.buildChainsFromConfig(tronConfigs, mnemonic),
-        );
-        shouldUpdateWallet = true;
-      }
-      if (shouldUpdateWallet) {
-        await WalletDao().updateWallet(wallet);
-      }
+    }
+    if (!wallet.chains.any((chain) => chain.chainType == ChainType.tron)) {
+      final configs = await ChainConfigService.loadConfigs();
+      final tronConfigs = configs
+          .where(
+            (config) => chainTypeFromString(config.chainType) == ChainType.tron,
+          )
+          .toList();
+      wallet.chains.addAll(
+        await ChainConfigService.buildChainsFromConfig(tronConfigs, mnemonic),
+      );
+      shouldUpdateWallet = true;
+    }
+    if (shouldUpdateWallet) {
+      await WalletDao().updateWallet(wallet);
+    }
+
+    final importedPrivateKey = securityData['privateKey'] ?? '';
+    if (importedPrivateKey.isNotEmpty) {
+      await _restorePrivateKeyWallet(wallet, importedPrivateKey);
     }
 
     /// 3. BTC 同步
@@ -106,7 +123,60 @@ class WalletManager {
     _initialized = true;
   }
 
+  static Future<void> _restorePrivateKeyWallet(
+    WalletModel wallet,
+    String privateKey,
+  ) async {
+    final restoredTypes = <ChainType>{};
+    for (final chain in wallet.chains) {
+      if (chain.address.isEmpty || restoredTypes.contains(chain.chainType)) {
+        continue;
+      }
+      restoredTypes.add(chain.chainType);
+      switch (chain.chainType) {
+        case ChainType.evm:
+          EvmService.privateKeyToAddress(privateKey);
+          break;
+        case ChainType.solana:
+          await SolanaService.privateKeyToAddress(privateKey);
+          break;
+        case ChainType.bitcoin:
+          await BitcoinService.privateKeyToAddress(privateKey);
+          break;
+        case ChainType.tron:
+          TronService.privateKeyToAddress(privateKey);
+          break;
+      }
+    }
+  }
+
   static bool get isUnlocked => _initialized;
+
+  static Future<bool> isValidPrivateKeyForChain(
+    ChainType chainType,
+    String privateKey,
+  ) async {
+    final value = privateKey.trim();
+    if (value.isEmpty) return false;
+
+    try {
+      switch (chainType) {
+        case ChainType.evm:
+          return EvmService.isValidPrivateKey(value);
+        case ChainType.solana:
+          final address = await SolanaService.privateKeyToAddress(value);
+          return address.isNotEmpty;
+        case ChainType.bitcoin:
+          final address = await BitcoinService.privateKeyToAddress(value);
+          return address.isNotEmpty;
+        case ChainType.tron:
+          final address = TronService.privateKeyToAddress(value);
+          return address.isNotEmpty;
+      }
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// 生成私钥（多链支持）
   static Future<String?> generatePrivateKey(ChainAccount chain) async {

@@ -235,6 +235,11 @@ class WalletSecurity {
   }
 
   static Future<String?> tryAutoUnlock(String walletId) async {
+    final data = await tryAutoUnlockData(walletId);
+    return data?['mnemonic'];
+  }
+
+  static Future<Map<String, String>?> tryAutoUnlockData(String walletId) async {
     final storedKey = await _storage.read(key: _autoUnlockKey);
     if (storedKey == null) return null;
 
@@ -245,7 +250,19 @@ class WalletSecurity {
 
     final json = jsonDecode(data);
 
-    final encrypted = jsonDecode(json["mnemonic"]);
+    try {
+      final mnemonic = _decryptWithKey(json["mnemonic"], key);
+      final privateKey = json["privateKey"] != ""
+          ? _decryptWithKey(json["privateKey"], key)
+          : "";
+      return {'mnemonic': mnemonic, 'privateKey': privateKey};
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static String _decryptWithKey(String encryptedData, encrypt.Key key) {
+    final encrypted = jsonDecode(encryptedData);
 
     final iv = encrypt.IV(base64Decode(encrypted["iv"]));
     final bytes = base64Decode(encrypted["data"]);
@@ -254,11 +271,7 @@ class WalletSecurity {
       encrypt.AES(key, mode: encrypt.AESMode.gcm),
     );
 
-    try {
-      return encrypter.decrypt(encrypt.Encrypted(bytes), iv: iv);
-    } catch (e) {
-      return null;
-    }
+    return encrypter.decrypt(encrypt.Encrypted(bytes), iv: iv);
   }
 
   /// =========================

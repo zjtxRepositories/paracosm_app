@@ -26,6 +26,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../chat_detail_message.dart';
 import '../chat_session_args.dart';
 import 'chat_detail_controller.dart';
+import 'file_download_state.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class ChatDetailPage extends StatefulWidget {
@@ -802,10 +803,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.video:
         return _buildVideoMessageContent(message);
       case ChatDetailMessageKind.file:
-        return ChatFileMessageContent(
-          fileName: message.fileName ?? '',
-          fileSize: message.fileSize ?? '',
-        );
+        return _buildFileMessageContent(message);
       case ChatDetailMessageKind.combineForward:
         final raw = message.extra;
         return ChatCombineMessageContent(
@@ -839,6 +837,47 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       valueListenable: listenable,
       builder: (context, pendingMessage, child) {
         return _buildVideoGesture(pendingMessage);
+      },
+    );
+  }
+
+  Widget _buildFileMessageContent(ChatDetailMessage message) {
+    final listenable = controller.pendingFileMessageListenable(
+      message.messageId,
+    );
+    if (listenable == null) {
+      return _buildFileGesture(message);
+    }
+
+    return ValueListenableBuilder<ChatDetailMessage>(
+      valueListenable: listenable,
+      builder: (context, pendingMessage, child) {
+        return _buildFileGesture(pendingMessage);
+      },
+    );
+  }
+
+  Widget _buildFileGesture(ChatDetailMessage message) {
+    final downloadListenable = controller.fileDownloadListenable(
+      message.messageId,
+    );
+
+    return ValueListenableBuilder<FileDownloadState>(
+      valueListenable: downloadListenable,
+      builder: (context, downloadState, child) {
+        return GestureDetector(
+          onTap: message.mediaSendStatus == MediaSendStatus.sent
+              ? () => controller.handleFileTap(message)
+              : null,
+          child: ChatFileMessageContent(
+            fileName: message.fileName ?? '',
+            fileSize: message.fileSize ?? '',
+            sendStatus: message.mediaSendStatus,
+            sendProgress: message.mediaSendProgress,
+            downloadStatus: downloadState.status,
+            downloadProgress: downloadState.progress,
+          ),
+        );
       },
     );
   }

@@ -36,20 +36,22 @@ class MomentsController extends ChangeNotifier {
 
   List<StoryData> get stories => _stories;
 
-  int _page = 1;
+  int _page = 0;
   final int _pageSize = 10;
   bool _initialLoading = false; // ⭐ 首屏 loading
   bool _loading = false; // ⭐ 上拉 loading
+  bool _refreshing = false; // 下拉刷新
   bool _hasMore = true;
 
   bool get initialLoading => _initialLoading;
   bool get loading => _loading;
+  bool get refreshing => _refreshing;
   bool get hasMore => _hasMore;
 
   /// 初始化
   Future<void> init() async {
     _items.clear();
-    _page = 1;
+    _page = 0;
     _hasMore = true;
 
     _initialLoading = true;
@@ -97,22 +99,28 @@ class MomentsController extends ChangeNotifier {
 
   /// 下拉刷新
   Future<void> refresh() async {
-    _page = 1;
+    if (_refreshing) return;
+
+    _page = 0;
     _hasMore = true;
-
-    final data = await _fetchData();
-
-    _items
-      ..clear()
-      ..addAll(data);
-
-    if (data.length < _pageSize) {
-      _hasMore = false;
-    }
-
-    _page++;
-
+    _refreshing = true;
+    _items.clear();
     notifyListeners();
+
+    try {
+      final data = await _fetchData();
+
+      _items.addAll(data);
+
+      if (data.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _page++;
+    } finally {
+      _refreshing = false;
+      notifyListeners();
+    }
   }
 
   /// 点赞

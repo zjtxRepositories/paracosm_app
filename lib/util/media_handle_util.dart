@@ -17,16 +17,25 @@ class CompressMediaFile {
   final MediaInfo? video;
   final File? thumbnail;
 
-  CompressMediaFile({
-    this.video,
-    this.thumbnail,
-  });
+  CompressMediaFile({this.video, this.thumbnail});
 }
 
 /// =========================
 /// 媒体处理工具（生产级🔥）
 /// =========================
 class MediaHandleUtil {
+  static Future<File> writeTempBytes(
+    List<int> bytes, {
+    String extension = '.tmp',
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final normalizedExtension = extension.startsWith('.')
+        ? extension
+        : '.$extension';
+    final file = File('${dir.path}/${const Uuid().v4()}$normalizedExtension');
+    return file.writeAsBytes(bytes);
+  }
+
   /// =========================
   /// 图片压缩（优化版）
   /// =========================
@@ -44,8 +53,7 @@ class MediaHandleUtil {
       /// PNG 转 JPG（关键优化🔥）
       final targetExt = ext == ".png" ? ".jpg" : ext;
 
-      final targetPath =
-          "${dir.path}/${const Uuid().v4()}$targetExt";
+      final targetPath = "${dir.path}/${const Uuid().v4()}$targetExt";
 
       final result = await FlutterImageCompress.compressAndGetFile(
         filePath,
@@ -89,10 +97,7 @@ class MediaHandleUtil {
         '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      return CompressMediaFile(
-        video: mediaInfo,
-        thumbnail: fixedThumb,
-      );
+      return CompressMediaFile(video: mediaInfo, thumbnail: fixedThumb);
     } catch (e) {
       print("视频压缩异常: $e");
       return null;
@@ -128,8 +133,8 @@ class MediaHandleUtil {
   /// 🚀 核心：统一构建 MediaModel（强烈推荐🔥）
   /// =========================
   static Future<List<SocialMediaModel>> buildMediaModels(
-      List<File> files,
-      ) async {
+    List<File> files,
+  ) async {
     final List<SocialMediaModel> result = [];
 
     for (int i = 0; i < files.length; i++) {
@@ -142,28 +147,18 @@ class MediaHandleUtil {
           filePath.endsWith(".png")) {
         final compressedPath = await compressedImageQuality(file.path);
 
-        final url =
-        await UploadFileApi.uploadFileByPath(compressedPath);
+        final url = await UploadFileApi.uploadFileByPath(compressedPath);
         final bytes = await File(compressedPath).readAsBytes();
         final image = img.decodeImage(bytes);
 
         if (url != null) {
           result.add(
-            SocialMediaModel(
-              url,
-              0,
-              "",
-              i,
-              image?.width,
-              image?.height,
-            ),
+            SocialMediaModel(url, 0, "", i, image?.width, image?.height),
           );
         }
       }
-
       /// ================= 视频 =================
-      else if (filePath.endsWith(".mp4") ||
-          filePath.endsWith(".mov")) {
+      else if (filePath.endsWith(".mp4") || filePath.endsWith(".mov")) {
         final compressResult = await compressedVideoQuality(file);
 
         if (compressResult == null) continue;

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/pages/chat/detail/file_download_state.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -736,52 +737,114 @@ class ChatFileMessageContent extends StatelessWidget {
     super.key,
     required this.fileName,
     required this.fileSize,
+    this.sendStatus = MediaSendStatus.sent,
+    this.sendProgress = 100,
+    this.downloadStatus = FileDownloadStatus.idle,
+    this.downloadProgress = 0,
   });
 
   final String fileName;
   final String fileSize;
+  final MediaSendStatus sendStatus;
+  final int sendProgress;
+  final FileDownloadStatus downloadStatus;
+  final int downloadProgress;
 
   @override
   Widget build(BuildContext context) {
+    final isSending = sendStatus == MediaSendStatus.sending;
+    final isFailed = sendStatus == MediaSendStatus.failed;
+    final isDownloading =
+        !isSending &&
+        !isFailed &&
+        downloadStatus == FileDownloadStatus.downloading;
+    final isDownloadFailed =
+        !isSending && !isFailed && downloadStatus == FileDownloadStatus.failed;
+    final progress = (isDownloading ? downloadProgress : sendProgress).clamp(
+      0,
+      100,
+    );
+
     return SizedBox(
       width: 230,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(
-            'assets/images/chat/file.png',
-            width: 36,
-            height: 36,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 180,
-                child: Text(
-                  fileName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.grey900,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+              Image.asset(
+                'assets/images/chat/file.png',
+                width: 36,
+                height: 36,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 2),
-              Text(
-                fileSize,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.grey400,
-                  fontSize: 12,
-                ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    child: Text(
+                      fileName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.grey900,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    fileSize,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.grey400,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+          if (isSending || isDownloading) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: progress <= 0 ? null : progress / 100,
+                minHeight: 3,
+                color: AppColors.primary,
+                backgroundColor: AppColors.grey200,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              progress <= 0
+                  ? AppLocalizations.of(context)!.chatDetailProcessing
+                  : '$progress%',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.grey500,
+                fontSize: 12,
+              ),
+            ),
+          ],
+          if (isFailed || isDownloadFailed) ...[
+            const SizedBox(height: 8),
+            Text(
+              isFailed
+                  ? AppLocalizations.of(context)!.chatDetailSendFailed
+                  : AppLocalizations.of(context)!.commonDownloadFailed,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ],
       ),
     );

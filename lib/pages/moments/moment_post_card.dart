@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../core/models/social_media_model.dart';
@@ -259,14 +260,18 @@ class ImageGrid extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        image.url,
+                      CachedNetworkImage(
+                        imageUrl: image.previewUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        placeholder: (_, __) =>
+                            Container(color: const Color(0xFFF2F2F2)),
+                        errorWidget: (_, __, ___) => Container(
                           color: const Color(0xFFF2F2F2),
                           child: const Icon(Icons.image_not_supported),
                         ),
                       ),
+
+                      if (image.isVideo) const _VideoBadge(),
 
                       if (showOverlay)
                         Container(
@@ -289,6 +294,25 @@ class ImageGrid extends StatelessWidget {
           }),
         );
       },
+    );
+  }
+}
+
+class _VideoBadge extends StatelessWidget {
+  const _VideoBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
+      ),
     );
   }
 }

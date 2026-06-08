@@ -1,15 +1,14 @@
-
 import 'media_item.dart';
 
 class SocialMediaModel {
   SocialMediaModel(
-      this.url,
-      this.type,
-      this.cover,
-      this.id,
-      this.width,
-      this.height,
-      );
+    this.url,
+    this.type,
+    this.cover,
+    this.id,
+    this.width,
+    this.height,
+  );
 
   final int id;
   final String url;
@@ -56,6 +55,15 @@ extension MediaTypeMapper on MediaType {
 }
 
 extension SocialMediaToItemMapper on SocialMediaModel {
+  bool get isVideo => type == MediaType.video.toInt();
+
+  String get previewUrl {
+    if (isVideo && cover.isNotEmpty) {
+      return cover;
+    }
+    return url;
+  }
+
   MediaItem toMediaItem() {
     return MediaItem(
       file: null,

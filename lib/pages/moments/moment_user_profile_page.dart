@@ -29,12 +29,18 @@ class MomentUserProfilePage extends StatefulWidget {
   final String userId;
   final String communityName;
   final String mode;
+  final String? initialNickname;
+  final String? initialAvatar;
+  final String? initialAccount;
 
   const MomentUserProfilePage({
     super.key,
     required this.userId,
     this.communityName = 'Kristen',
     this.mode = 'friend',
+    this.initialNickname,
+    this.initialAvatar,
+    this.initialAccount,
   });
 
   @override
@@ -85,7 +91,11 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   @override
   void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.userId != widget.userId || oldWidget.mode != widget.mode) {
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.mode != widget.mode ||
+        oldWidget.initialNickname != widget.initialNickname ||
+        oldWidget.initialAvatar != widget.initialAvatar ||
+        oldWidget.initialAccount != widget.initialAccount) {
       _loadPosts();
     }
   }
@@ -94,6 +104,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     final userId = _profileUserId;
     setState(() {
       _isLoading = true;
+      _profileHeader = _initialProfileHeader(userId);
       _posts.clear();
       _followingCount = 0;
       _followersCount = 0;
@@ -104,7 +115,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     if (userId.isEmpty) {
       if (!mounted) return;
       setState(() {
-        _profileHeader = _MomentProfileHeaderData.fallback(userId);
+        _profileHeader =
+            _profileHeader ?? _MomentProfileHeaderData.fallback(userId);
         _isLoading = false;
       });
       return;
@@ -126,6 +138,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         _profileHeader =
             profileHeader ??
             _headerFromPost(posts) ??
+            _profileHeader ??
             _MomentProfileHeaderData.fallback(userId);
         _applySocialStats(socialStats);
         _posts
@@ -197,6 +210,23 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     _isFollowingUser = stats.isFollowingUser;
   }
 
+  _MomentProfileHeaderData? _initialProfileHeader(String userId) {
+    final nickname = widget.initialNickname?.trim() ?? '';
+    final avatar = widget.initialAvatar?.trim() ?? '';
+    final account = widget.initialAccount?.trim() ?? '';
+
+    if (nickname.isEmpty && avatar.isEmpty && account.isEmpty) {
+      return null;
+    }
+
+    return _MomentProfileHeaderData(
+      userId: userId,
+      nickname: nickname,
+      avatar: avatar,
+      account: account.isNotEmpty ? account : userId,
+    );
+  }
+
   Future<_MomentProfileHeaderData?> _loadProfileHeader(String userId) async {
     final account = AccountManager().currentAccount;
     if (_isSelf && account != null) {
@@ -209,16 +239,27 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     try {
-      final user = await UserDisplayStateCenter().getUser(userId);
-      if (user == null) {
-        return null;
-      }
       final userInfo = await GetUerInfoApi.search(userId);
+      final businessHeader = userInfo == null
+          ? null
+          : _MomentProfileHeaderData.fromBusinessUserInfo(
+              userInfo,
+              fallbackUserId: userId,
+            );
 
-      return _MomentProfileHeaderData.fromUserInfo(
-        user,
-        fallbackUserId: userInfo?.userId ?? '',
-      );
+      final imUserId = userInfo?.account.trim().isNotEmpty == true
+          ? userInfo!.account.trim()
+          : userId;
+      final user = await UserDisplayStateCenter().getUser(imUserId);
+
+      if (user != null) {
+        return _MomentProfileHeaderData.fromUserInfo(
+          user,
+          fallbackUserId: userInfo?.userId ?? userId,
+        );
+      }
+
+      return businessHeader;
     } catch (e) {
       debugPrint('load moment user profile failed: $e');
       return null;
@@ -226,15 +267,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   _MomentProfileHeaderData? _headerFromPost(List<SocialInvitationModel> posts) {
-    // for (final post in posts) {
-    //   final userInfo = post.userInfoModel;
-    //   if (userInfo != null) {
-    //     return _MomentProfileHeaderData.fromUserInfo(
-    //       userInfo,
-    //       fallbackUserId: post.userId,
-    //     );
-    //   }
-    // }
+    for (final post in posts) {
+      final userInfo = post.userInfoModel;
+      if (userInfo != null) {
+        return _MomentProfileHeaderData.fromBusinessUserInfo(
+          userInfo,
+          fallbackUserId: post.userId,
+        );
+      }
+    }
     return null;
   }
 
@@ -937,25 +978,25 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 帖子内容
   Widget _buildPostItem(SocialInvitationModel post) {
+    final header = _postHeaderFor(post);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            ClipRRect(
+            UserAvatarWidget(
+              userId: header.avatarSeed,
+              avatarUrl: header.avatar,
+              size: 36,
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/images/chat/avatar.png',
-                width: 36,
-                height: 36,
-              ),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Kristen',
+                  header.displayName,
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.grey900,
@@ -988,6 +1029,20 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         const SizedBox(height: 12),
       ],
     );
+  }
+
+  _MomentProfileHeaderData _postHeaderFor(SocialInvitationModel post) {
+    final userInfo = post.userInfoModel;
+    if (userInfo != null) {
+      return _MomentProfileHeaderData(
+        userId: userInfo.userId.isNotEmpty ? userInfo.userId : post.userId,
+        nickname: userInfo.nickname,
+        avatar: userInfo.avatar,
+        account: userInfo.account,
+      );
+    }
+
+    return _profileHeader ?? _MomentProfileHeaderData.fallback(post.userId);
   }
 
   /// 帖子互动区
@@ -1031,6 +1086,21 @@ class _MomentProfileHeaderData {
       nickname: userInfo.name,
       avatar: userInfo.avatar,
       account: userInfo.userId,
+    );
+  }
+
+  factory _MomentProfileHeaderData.fromBusinessUserInfo(
+    UserInfo userInfo, {
+    required String fallbackUserId,
+  }) {
+    final userId = userInfo.userId.trim().isNotEmpty
+        ? userInfo.userId.trim()
+        : fallbackUserId;
+    return _MomentProfileHeaderData(
+      userId: userId,
+      nickname: userInfo.nickname,
+      avatar: userInfo.avatar,
+      account: userInfo.account,
     );
   }
 

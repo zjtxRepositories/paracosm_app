@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class UserAvatarWidget extends StatelessWidget {
   final String? userId;
@@ -25,7 +26,9 @@ class UserAvatarWidget extends StatelessWidget {
     final radius =
         borderRadius ??
         BorderRadius.circular(
-          (effectiveWidth < effectiveHeight ? effectiveWidth : effectiveHeight) /
+          (effectiveWidth < effectiveHeight
+                  ? effectiveWidth
+                  : effectiveHeight) /
               2,
         );
 
@@ -38,14 +41,15 @@ class UserAvatarWidget extends StatelessWidget {
   Widget _buildImage({required double width, required double height}) {
     // ✅ 有网络头像
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      return Image.network(
-        avatarUrl!,
+      return CachedNetworkImage(
+        imageUrl: avatarUrl!,
         width: width,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultAvatar(width: width, height: height);
-        },
+        placeholder: (context, url) =>
+            _buildDefaultAvatar(width: width, height: height),
+        errorWidget: (context, error, stackTrace) =>
+            _buildDefaultAvatar(width: width, height: height),
       );
     }
 
@@ -56,12 +60,7 @@ class UserAvatarWidget extends StatelessWidget {
   /// 默认头像
   Widget _buildDefaultAvatar({required double width, required double height}) {
     final asset = _getDefaultAvatar(userId ?? '');
-    return Image.asset(
-      asset,
-      width: width,
-      height: height,
-      fit: BoxFit.cover,
-    );
+    return Image.asset(asset, width: width, height: height, fit: BoxFit.cover);
   }
 
   /// 👉 你的规则

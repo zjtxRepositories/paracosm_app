@@ -62,62 +62,84 @@ class _MomentsPageState extends State<MomentsPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    /// 空状态
-    if (controller.items.isEmpty) {
-      return AppEmptyView(
-        text: AppLocalizations.of(context)!.chatSearchNoData,
-        bottomOffset: 50,
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: controller.refresh,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (scrollInfo) {
-          if (scrollInfo.metrics.pixels >=
-                  scrollInfo.metrics.maxScrollExtent - 100 &&
-              !controller.loading) {
-            controller.fetchMore();
-          }
-          return false;
-        },
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          physics: const BouncingScrollPhysics(),
-          itemCount: controller.items.length + (controller.loading ? 1 : 0),
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            /// 底部 loading
-            if (index == controller.items.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final model = controller.items[index];
-            final item = model.item;
-            return MomentPostCard(
-              model: model,
-              isFollowing: controller.followIds.contains(item.userId),
-              isBlock: controller.blockIds.contains(item.userId),
-              onLike: () => controller.toggleLike(item),
-              onCollect: () => controller.toggleCollect(item),
-              onShare: () => controller.toggleShare(item, context),
-              onFollow: () => controller.toggleFollow(item),
-              onBlock: () => controller.toggleBlock(item),
-              onReport: () => controller.toggleReport(item, context),
-              onMediaTap: (i) => controller.toggleMedia(item.media, i, context),
-              onTap: () => context.push(
-                '/moment-post-detail',
-                extra: {
-                  'item': item,
-                  'isFollowing': controller.followIds.contains(item.userId),
-                  'isBlock': controller.blockIds.contains(item.userId),
-                },
+      child: controller.items.isEmpty ? _buildEmptyBody() : _buildPostList(),
+    );
+  }
+
+  Widget _buildEmptyBody() {
+    /// 空状态
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          children: [
+            SizedBox(
+              height: constraints.maxHeight,
+              child: AppEmptyView(
+                text: AppLocalizations.of(context)!.chatSearchNoData,
+                bottomOffset: 50,
               ),
-            );
-          },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPostList() {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (scrollInfo.metrics.pixels >=
+                scrollInfo.metrics.maxScrollExtent - 100 &&
+            !controller.loading &&
+            !controller.refreshing) {
+          controller.fetchMore();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
+        itemCount: controller.items.length + (controller.loading ? 1 : 0),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          /// 底部 loading
+          if (index == controller.items.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final model = controller.items[index];
+          final item = model.item;
+          return MomentPostCard(
+            model: model,
+            isFollowing: controller.followIds.contains(item.userId),
+            isBlock: controller.blockIds.contains(item.userId),
+            onLike: () => controller.toggleLike(item),
+            onCollect: () => controller.toggleCollect(item),
+            onShare: () => controller.toggleShare(item, context),
+            onFollow: () => controller.toggleFollow(item),
+            onBlock: () => controller.toggleBlock(item),
+            onReport: () => controller.toggleReport(item, context),
+            onMediaTap: (i) => controller.toggleMedia(item.media, i, context),
+            onTap: () => context.push(
+              '/moment-post-detail',
+              extra: {
+                'item': item,
+                'user': model.user,
+                'isFollowing': controller.followIds.contains(item.userId),
+                'isBlock': controller.blockIds.contains(item.userId),
+              },
+            ),
+          );
+        },
       ),
     );
   }

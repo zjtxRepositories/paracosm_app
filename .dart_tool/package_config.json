@@ -890,6 +890,12 @@
       "languageVersion": "2.17"
     },
     {
+      "name": "open_filex",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/open_filex-4.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "package_config",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/package_config-2.2.0",
       "packageUri": "lib/",

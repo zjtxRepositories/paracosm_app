@@ -94,9 +94,10 @@ class SocialPostController extends GetxController {
         File? coverFile;
 
         if (thumb != null) {
-          final temp = File('${file.path}_cover.jpg');
-          await temp.writeAsBytes(thumb);
-          coverFile = temp;
+          coverFile = await MediaHandleUtil.writeTempBytes(
+            thumb,
+            extension: '.jpg',
+          );
         }
 
         assetList.add(

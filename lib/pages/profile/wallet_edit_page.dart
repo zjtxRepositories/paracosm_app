@@ -51,8 +51,8 @@ class _WalletEditPageState extends State<WalletEditPage> {
       onConfirm: (password) async {
         AppLoading.show();
         final isResult = await WalletSecurity.verifyPassword(password);
-        AppLoading.dismiss();
         if (!isResult) {
+          AppLoading.dismiss();
           return AppToast.show(
             AppLocalizations.of(context)!.commonPasswordError,
           );
@@ -62,8 +62,10 @@ class _WalletEditPageState extends State<WalletEditPage> {
           password: password,
         );
         if (data == null) {
+          AppLoading.dismiss();
           return AppToast.show(AppLocalizations.of(context)!.commonDataError);
         }
+        AppLoading.dismiss();
         if (type == WalletType.privateKey) {
           WalletModals.showChainSelector(
             context: context,

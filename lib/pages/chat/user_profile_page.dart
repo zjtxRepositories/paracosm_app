@@ -151,6 +151,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final started = await RongCallManager().startPrivateCall(
       targetId: user.userId,
       displayName: user.name,
+      avatar: user.avatar,
       mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
     );
     if (!started || !mounted) {

@@ -2913,6 +2913,7 @@ class ChatDetailController extends ChangeNotifier {
     final started = await RongCallManager().startPrivateCall(
       targetId: targetId,
       displayName: displayName,
+      avatar: headerAvatar,
       mediaType: isVideo ? RCCallMediaType.audio_video : RCCallMediaType.audio,
     );
     if (!started) return;

@@ -1,6 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:paracosm/modules/im/manager/im_token_manager.dart';
 
+import '../../account/manager/account_manager.dart';
 import '../manager/im_engine_manager.dart';
+import '../manager/im_user_manager.dart';
 
 class ImConfig {
   static const String appKey = 'x18ywvqfxiqlc';
@@ -20,7 +23,7 @@ class ImService {
         : accountId;
     final token = await ImTokenManager.getToken(userId: accountId, name: name);
     if (token == null) return;
-    print('loginIm-----$accountId---$token---$name');
+    debugPrint('loginIm-:$accountId---$token---$name');
     await IMEngineManager().connect(token, accountId);
   }
 
@@ -49,5 +52,23 @@ class ImService {
     final accountId = IMEngineManager().currentUserId;
     if (accountId == null) return;
     await loginIm(accountId);
+  }
+
+  static Future<void> asyncSelfInfo({String? accountId}) async {
+    final targetAccountId = (accountId ?? IMEngineManager().currentUserId)
+        ?.toLowerCase();
+    if (targetAccountId == null || targetAccountId.isEmpty) return;
+    if (AccountManager().currentAccount?.accountId != targetAccountId) return;
+
+    final profile = await ImUserManager().getMyUserProfile();
+    if (profile == null) return;
+    if (IMEngineManager().currentUserId?.toLowerCase() != targetAccountId ||
+        AccountManager().currentAccount?.accountId != targetAccountId) {
+      return;
+    }
+    await AccountManager().updateAccountUserInfo(
+      profile.name ?? '',
+      profile.portraitUri ?? '',
+    );
   }
 }

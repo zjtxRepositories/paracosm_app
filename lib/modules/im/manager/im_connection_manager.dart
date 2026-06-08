@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/modules/im/service/im_service.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -13,13 +14,12 @@ class ImEvent {
 
 class ImConnectionManager {
   ImConnectionManager._internal();
-  static final ImConnectionManager _instance =
-  ImConnectionManager._internal();
+  static final ImConnectionManager _instance = ImConnectionManager._internal();
 
   factory ImConnectionManager() => _instance;
 
   final StreamController<String> _eventController =
-  StreamController<String>.broadcast();
+      StreamController<String>.broadcast();
 
   Stream<String> get eventStream => _eventController.stream;
 
@@ -31,9 +31,10 @@ class ImConnectionManager {
   bool _isReconnecting = false;
 
   void initListener() {
-    IMEngineManager().engine?.onConnectionStatusChanged = (RCIMIWConnectionStatus? status) {
-      onConnectionStatusChanged(status);
-    };
+    IMEngineManager().engine?.onConnectionStatusChanged =
+        (RCIMIWConnectionStatus? status) {
+          onConnectionStatusChanged(status);
+        };
   }
 
   void onConnectionStatusChanged(RCIMIWConnectionStatus? status) {
@@ -44,6 +45,14 @@ class ImConnectionManager {
         _isReconnecting = false;
 
         _eventController.add(ImEvent.connected);
+        final accountId = IMEngineManager().currentUserId;
+        if (accountId != null) {
+          unawaited(
+            ImService.asyncSelfInfo(accountId: accountId).catchError((error) {
+              debugPrint('asyncSelfInfo failed: $error');
+            }),
+          );
+        }
         print("IM 已连接");
         break;
 

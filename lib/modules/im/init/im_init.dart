@@ -34,7 +34,6 @@ class ImInit {
     /// 3. 自动登录
     if (account != null) {
       await ImService.loginIm(account.accountId);
-      getUserInfo();
     }
   }
 
@@ -52,13 +51,4 @@ class ImInit {
     }
   }
 
-  Future<void> getUserInfo() async {
-    final profile = await ImUserManager().getMyUserProfile();
-    if (profile == null) return;
-    print('profile-----${profile.name}---${profile.userId}');
-    AccountManager().updateAccountUserInfo(
-      profile.name ?? '',
-      profile.portraitUri ?? '',
-    );
-  }
 }

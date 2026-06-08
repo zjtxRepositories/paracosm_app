@@ -55,11 +55,14 @@ class AccountManager extends ChangeNotifier {
     required WalletModel wallet,
     required UserInfo user,
   }) async {
+    String name =  wallet.id.length > 8
+        ?  wallet.id.substring( wallet.id.length - 8)
+        :  wallet.id;
     final account = AccountModel(
       id: wallet.id,
       userId: user.userId,
       avatar: user.avatar,
-      nickname: user.nickname,
+      nickname: name,
       token: user.token,
     );
 

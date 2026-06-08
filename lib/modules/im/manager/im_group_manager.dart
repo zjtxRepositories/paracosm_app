@@ -322,7 +322,8 @@ class ImGroupManager {
     final groupInfo = RCIMIWGroupInfo.create(
       groupId: groupId,
       groupName: groupName ?? '[默认]',
-      invitePermission: RCIMIWGroupOperationPermission.everyone
+      invitePermission: RCIMIWGroupOperationPermission.everyone,
+      joinPermission: RCIMIWGroupJoinPermission.free
     );
 
     return createByGroupInfo(
@@ -394,22 +395,46 @@ class ImGroupManager {
   Future<bool> joinGroup(
       String groupId,
       ) async {
-    final code =
-    await _engine?.joinGroup(groupId);
+    final completer = Completer<bool>();
 
-    final success = code == 0;
+    final code = await _engine?.joinGroup(
+      groupId,
+      callback: IRCIMIWJoinGroupCallback(
+        onSuccess: (code) async {
+          if (code != 0) completer.complete(false);
+          await GroupStateCenter().getGroupMembers(
+            groupId,
+            forceRefresh: true,
+          );
 
-    if (success) {
-      GroupEventBus.instance.fire(
-        GroupEvent(
-          type: GroupEventType.joined,
-          groupId: groupId,
-            operatorUserId: IMEngineManager().currentUserId
-        ),
-      );
+          GroupEventBus.instance.fire(
+            GroupEvent(
+              type: GroupEventType.joined,
+              groupId: groupId,
+              operatorUserId: IMEngineManager().currentUserId,
+            ),
+          );
+
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+        onError: (e) {
+          debugPrint('inviteUsersToGroup error: $e');
+
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+      ),
+    );
+
+    /// SDK 调用失败
+    if (code != 0) {
+      return false;
     }
 
-    return success;
+    return completer.future;
   }
 
   /// =======================================================
@@ -425,7 +450,8 @@ class ImGroupManager {
       groupId,
       userIds,
       callback: IRCIMIWInviteUsersToGroupCallback(
-        onSuccess: (_) async {
+        onSuccess: (code) async {
+          if (code != 0) completer.complete(false);
           await GroupStateCenter().getGroupMembers(
             groupId,
             forceRefresh: true,

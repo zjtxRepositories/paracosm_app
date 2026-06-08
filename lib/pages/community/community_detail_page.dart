@@ -281,7 +281,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                   )
                 : AppButton(
                     text: l10n.communityDetailBtnJoin,
-                    onPressed: ()=> controller.joined,
+                    onPressed:controller.joined,
                     width: 85,
                     height: 28,
                     borderRadius: 28,

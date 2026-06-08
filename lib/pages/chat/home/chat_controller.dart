@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../../core/models/conversation_model.dart';
@@ -360,6 +361,22 @@ class ChatController extends ChangeNotifier {
 
     if (result == null || result.isEmpty) return;
 
+    if (result.length == 1){
+      final user = await UserDisplayStateCenter().getUser(result.first);
+      if (user == null) return;
+      final title = user.name;
+      context.push(
+        '/chat-detail/${Uri.encodeComponent(title)}',
+        extra: ChatSessionArgs(
+          targetId: user.userId,
+          conversationType: RCIMIWConversationType.private,
+          name: title,
+          isGroup: false,
+          avatar: user.avatar,
+        ),
+      );
+      return;
+    }
     AppLoading.show();
 
     try {

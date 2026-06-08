@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import '../../util/image_picker_util.dart';
 
 class ImagePickerSheet {
   /// 🎯 对外统一入口
   static Future<String?> show(BuildContext context) async {
-    return await showModalBottomSheet<String>(
+    final fromCamera = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (_) => const _ImagePickerContent(),
     );
+    if (fromCamera == null) return null;
+
+    await SchedulerBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return ImagePickerUtil.pick(fromCamera: fromCamera);
   }
 }
 
@@ -44,6 +51,7 @@ class _ImagePickerContent extends StatelessWidget {
           /// 取消
           GestureDetector(
             onTap: () => Navigator.pop(context),
+            behavior: HitTestBehavior.opaque,
             child: Container(
               height: 50,
               alignment: Alignment.center,
@@ -67,13 +75,8 @@ class _ImagePickerContent extends StatelessWidget {
 
   Widget _buildItem(BuildContext context, String text, bool isCamera) {
     return GestureDetector(
-      onTap: () async {
-        final path = await ImagePickerUtil.pick(fromCamera: isCamera);
-        print('path:---$path');
-        if (path != null && context.mounted) {
-          Navigator.pop(context, path); // 返回结果
-        }
-      },
+      onTap: () => Navigator.pop(context, isCamera),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         height: 50,
         alignment: Alignment.center,

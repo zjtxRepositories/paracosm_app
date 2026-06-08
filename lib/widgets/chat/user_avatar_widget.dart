@@ -46,8 +46,6 @@ class UserAvatarWidget extends StatelessWidget {
         width: width,
         height: height,
         fit: BoxFit.cover,
-        placeholder: (context, url) =>
-            _buildDefaultAvatar(width: width, height: height),
         errorWidget: (context, error, stackTrace) =>
             _buildDefaultAvatar(width: width, height: height),
       );

@@ -224,6 +224,8 @@ class AccountManager extends ChangeNotifier {
     _currentAccount!.avatar = avatar;
 
     await AccountDao().updateAccount(_currentAccount!);
+    accounts = await AccountDao().getAccounts();
     notifyListeners();
+
   }
 }

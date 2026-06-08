@@ -1,12 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ImagePickerUtil {
   static final ImagePicker _picker = ImagePicker();
 
   /// 📷 拍照
-  static Future<String?> pickFromCamera({
-    int imageQuality = 80,
-  }) async {
+  static Future<String?> pickFromCamera({int imageQuality = 80}) async {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.camera,
@@ -17,15 +16,13 @@ class ImagePickerUtil {
 
       return file.path;
     } catch (e) {
-      print('❌ pickFromCamera error: $e');
+      debugPrint('pickFromCamera error: $e');
       return null;
     }
   }
 
   /// 🖼 相册
-  static Future<String?> pickFromGallery({
-    int imageQuality = 80,
-  }) async {
+  static Future<String?> pickFromGallery({int imageQuality = 80}) async {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -36,7 +33,7 @@ class ImagePickerUtil {
 
       return file.path;
     } catch (e) {
-      print('❌ pickFromGallery error: $e');
+      debugPrint('pickFromGallery error: $e');
       return null;
     }
   }

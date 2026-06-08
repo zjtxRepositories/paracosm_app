@@ -8,7 +8,6 @@ import 'mnemonic_service.dart';
 import '../security/wallet_security.dart';
 
 class WalletService {
-
   /// =========================
   /// 创建钱包（助记词）
   /// =========================
@@ -26,10 +25,9 @@ class WalletService {
   /// 助记词导入
   /// =========================
   static Future<WalletModel> importWalletByMnemonic(
-      String mnemonic,
-      String password,
-      ) async {
-
+    String mnemonic,
+    String password,
+  ) async {
     return await _buildWallet(
       mnemonic: mnemonic,
       password: password,
@@ -41,10 +39,9 @@ class WalletService {
   /// 私钥导入
   /// =========================
   static Future<WalletModel> importWalletByPrivateKey(
-      String privateKey,
-      String password,
-      ) async {
-
+    String privateKey,
+    String password,
+  ) async {
     /// ⚠️ 私钥转“伪助记词入口”（统一流程）
     return await _buildWalletByPrivateKey(
       privateKey: privateKey,
@@ -60,7 +57,6 @@ class WalletService {
     required String password,
     required String importType,
   }) async {
-
     /// 1. 加载链配置
     final configs = await ChainConfigService.loadConfigs();
 
@@ -71,9 +67,7 @@ class WalletService {
     );
 
     /// 3. 用 ETH 地址作为 walletId（行业标准）
-    final evmChain = chains.firstWhere(
-          (e) => e.chainType == ChainType.evm,
-    );
+    final evmChain = chains.firstWhere((e) => e.chainType == ChainType.evm);
 
     final walletId = evmChain.address;
 
@@ -85,13 +79,23 @@ class WalletService {
       password: password,
     );
 
-    /// 5. 返回模型
-    final accounts = await AccountDao().getAccounts();
+    /// 5. 返回模型，重复导入同一钱包时保留原名称和序号
+    final oldWallet = await WalletDao().getWalletById(walletId);
+    final accounts = oldWallet == null
+        ? await AccountDao().getAccounts()
+        : null;
+    final currentChainId =
+        oldWallet != null &&
+            chains.any((chain) => chain.chainId == oldWallet.currentChainId)
+        ? oldWallet.currentChainId
+        : 56;
     return WalletModel(
       id: walletId,
-      aIndex: accounts.length,
+      name: oldWallet?.name,
+      aIndex: oldWallet?.aIndex ?? accounts!.length,
+      currentChainId: currentChainId,
       chains: chains,
-      type: WalletType.mnemonic
+      type: WalletType.mnemonic,
     );
   }
 
@@ -103,7 +107,6 @@ class WalletService {
     required String password,
     ChainType chainType = ChainType.evm,
   }) async {
-
     /// 1. 构建链（只支持 EVM）
     final configs = await ChainConfigService.loadConfigs();
     final chains = await ChainConfigService.buildChainsFromPrivateKey(
@@ -111,9 +114,7 @@ class WalletService {
       privateKey,
     );
 
-    final evmChain = chains.firstWhere(
-          (e) => e.chainType == chainType
-    );
+    final evmChain = chains.firstWhere((e) => e.chainType == chainType);
 
     final walletId = evmChain.address;
 
@@ -124,12 +125,22 @@ class WalletService {
       privateKey: privateKey,
       password: password,
     );
-    final accounts = await AccountDao().getAccounts();
+    final oldWallet = await WalletDao().getWalletById(walletId);
+    final accounts = oldWallet == null
+        ? await AccountDao().getAccounts()
+        : null;
+    final currentChainId =
+        oldWallet != null &&
+            chains.any((chain) => chain.chainId == oldWallet.currentChainId)
+        ? oldWallet.currentChainId
+        : 56;
     return WalletModel(
       id: walletId,
+      name: oldWallet?.name,
       chains: chains,
-      aIndex: accounts.length,
-        type: WalletType.privateKey
+      aIndex: oldWallet?.aIndex ?? accounts!.length,
+      currentChainId: currentChainId,
+      type: WalletType.privateKey,
     );
   }
 
@@ -149,17 +160,14 @@ class WalletService {
     final chains = await ChainConfigService.buildChainsFromPrivateKey(
       config,
       privateKey,
-      chainType:  chainType
+      chainType: chainType,
     );
     final wallet = await WalletDao().getWalletById(walletId);
     final oldChains = wallet?.chains ?? [];
     final filteredOldChains = oldChains
         .where((c) => c.chainType != chainType)
         .toList();
-    wallet?.chains = [
-      ...filteredOldChains,
-      ...chains,
-    ];
+    wallet?.chains = [...filteredOldChains, ...chains];
     return wallet!;
   }
 }

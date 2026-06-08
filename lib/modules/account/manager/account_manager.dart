@@ -72,10 +72,13 @@ class AccountManager extends ChangeNotifier {
     _currentWallet = wallet;
 
     await AppConfigDao().setCurrentUser(account.id);
-
-    await ImService.loginIm(account.accountId);
-
     notifyListeners();
+
+    unawaited(
+      ImService.loginIm(account.accountId).catchError((error) {
+        debugPrint('Login IM failed: $error');
+      }),
+    );
 
     return account;
   }

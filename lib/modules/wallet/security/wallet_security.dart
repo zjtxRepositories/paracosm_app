@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,7 +72,7 @@ class WalletSecurity {
   /// =========================
   static Future<String> encryptData(String data, String password) async {
     final salt = await _getSalt();
-    final key = _deriveKey(password, salt);
+    final key = await _deriveKey(password, salt);
 
     final iv = _randomBytes(12);
 
@@ -96,7 +96,7 @@ class WalletSecurity {
     String password,
   ) async {
     final salt = await _getSalt();
-    final key = _deriveKey(password, salt);
+    final key = await _deriveKey(password, salt);
 
     final json = jsonDecode(encryptedData);
 
@@ -127,8 +127,12 @@ class WalletSecurity {
     return base64Decode(salt);
   }
 
-  static encrypt.Key _deriveKey(String password, Uint8List salt) {
-    return encrypt.Key(_pbkdf2(password, salt));
+  static Future<encrypt.Key> _deriveKey(String password, Uint8List salt) async {
+    final bytes = await compute(_deriveWalletKeyBytes, {
+      'password': password,
+      'salt': salt,
+    });
+    return encrypt.Key(bytes);
   }
 
   /// 标准 PBKDF2
@@ -222,7 +226,10 @@ class WalletSecurity {
 
   static Future<void> enableAutoUnlock(String password) async {
     final salt = await _getSalt();
-    final keyBytes = _pbkdf2(password, salt);
+    final keyBytes = await compute(_deriveWalletKeyBytes, {
+      'password': password,
+      'salt': salt,
+    });
 
     await _storage.write(key: _autoUnlockKey, value: base64Encode(keyBytes));
   }
@@ -310,4 +317,10 @@ class WalletSecurity {
     // 4. 最后更新 autoUnlock
     await enableAutoUnlock(newPassword);
   }
+}
+
+Uint8List _deriveWalletKeyBytes(Map<String, Object> args) {
+  final password = args['password'] as String;
+  final salt = args['salt'] as Uint8List;
+  return WalletSecurity._pbkdf2(password, salt);
 }

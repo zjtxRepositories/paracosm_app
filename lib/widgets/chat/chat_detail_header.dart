@@ -60,7 +60,12 @@ class ChatDetailHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(name, style: AppTextStyles.h2.copyWith(fontSize: 16)),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.h2.copyWith(fontSize: 16),
+                ),
                 Row(
                   children: [
                     isGroup

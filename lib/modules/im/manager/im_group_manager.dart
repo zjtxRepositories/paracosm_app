@@ -322,6 +322,7 @@ class ImGroupManager {
     final groupInfo = RCIMIWGroupInfo.create(
       groupId: groupId,
       groupName: groupName ?? '[默认]',
+      invitePermission: RCIMIWGroupOperationPermission.everyone
     );
 
     return createByGroupInfo(

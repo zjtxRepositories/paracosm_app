@@ -133,13 +133,7 @@ class EvmTransactionService {
             : null,
       );
 
-      final signed = await client.signTransaction(
-        credentials,
-        tx,
-        chainId: chain.chainId,
-      );
-
-      return client.sendRawTransaction(signed);
+      return _signAndSend(client, credentials, tx, chain.chainId);
     });
   }
 
@@ -192,13 +186,7 @@ class EvmTransactionService {
             : null,
       );
 
-      final signed = await client.signTransaction(
-        credentials,
-        tx,
-        chainId: chain.chainId,
-      );
-
-      return client.sendRawTransaction(signed);
+      return _signAndSend(client, credentials, tx, chain.chainId);
     });
   }
 
@@ -264,14 +252,17 @@ class EvmTransactionService {
             : null,
       );
 
-      final signed = await client.signTransaction(
-        credentials,
-        tx,
-        chainId: chain.chainId,
-      );
-
-      return client.sendRawTransaction(signed);
+      return _signAndSend(client, credentials, tx, chain.chainId);
     });
+  }
+
+  static Future<String> _signAndSend(
+    Web3Client client,
+    Credentials credentials,
+    Transaction tx,
+    int chainId,
+  ) {
+    return client.sendTransaction(credentials, tx, chainId: chainId);
   }
 
   /// =========================

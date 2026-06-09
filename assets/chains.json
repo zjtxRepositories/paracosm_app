@@ -11,7 +11,12 @@
     "coinId": "ethereum",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.flashbots.net"
+      "https://rpc.flashbots.net",
+      "https://ethereum.publicnode.com",
+      "https://eth-mainnet.g.alchemy.com/public",
+      "https://1rpc.io/eth",
+      "https://0xrpc.io/eth",
+      "https://cloudflare-eth.com"
     ],
     "explorer": "https://etherscan.io",
     "explorerTxUrl": "https://etherscan.io/tx/",

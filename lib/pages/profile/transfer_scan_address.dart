@@ -51,6 +51,7 @@ TransferScanPrefill? extractTransferPrefillFromScan(String raw) {
       return TransferScanPrefill(address: text);
     case ScanResultType.webUrl:
     case ScanResultType.friend:
+    case ScanResultType.group:
       return null;
   }
 }

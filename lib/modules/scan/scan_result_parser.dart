@@ -1,12 +1,15 @@
 import 'dart:convert';
 
-enum ScanResultType { webUrl, friend, walletPayment, unknown }
+enum ScanResultType { webUrl, friend, group, walletPayment, unknown }
 
 class ScanResult {
   final ScanResultType type;
   final String raw;
   final String? url;
   final String? userId;
+  final String? groupId;
+  final int? expiresAt;
+  final List<QrGroupMember> groupMembers;
   final String? address;
   final String? amount;
   final String? tokenSymbol;
@@ -17,11 +20,52 @@ class ScanResult {
     required this.raw,
     this.url,
     this.userId,
+    this.groupId,
+    this.expiresAt,
+    this.groupMembers = const [],
     this.address,
     this.amount,
     this.tokenSymbol,
     this.chain,
   });
+}
+
+class QrGroupMember {
+  const QrGroupMember({
+    required this.userId,
+    this.name,
+    this.portraitUri,
+    this.nickname,
+    this.role,
+  });
+
+  final String userId;
+  final String? name;
+  final String? portraitUri;
+  final String? nickname;
+  final int? role;
+
+  factory QrGroupMember.fromJson(Map<String, dynamic> json) {
+    return QrGroupMember(
+      userId: '${json['userId'] ?? json['uid'] ?? ''}',
+      name: _nullableString(json['name']),
+      portraitUri: _nullableString(json['portraitUri'] ?? json['avatar']),
+      nickname: _nullableString(json['nickname']),
+      role: json['role'] is int
+          ? json['role'] as int
+          : int.tryParse('${json['role'] ?? ''}'),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'name': name,
+      'portraitUri': portraitUri,
+      'nickname': nickname,
+      'role': role,
+    };
+  }
 }
 
 class ScanResultParser {
@@ -101,6 +145,19 @@ class ScanResultParser {
         );
       }
 
+      if (type == 'group' ||
+          type == 'group_qr' ||
+          type == 'join_group' ||
+          type == 'group_invite') {
+        return ScanResult(
+          type: ScanResultType.group,
+          raw: raw,
+          groupId: _firstString(decoded, ['groupId', 'gid', 'id']),
+          expiresAt: _firstInt(decoded, ['expiresAt', 'expireAt', 'expiredAt']),
+          groupMembers: _parseGroupMembers(decoded['members']),
+        );
+      }
+
       if (type == 'payment' ||
           type == 'pay' ||
           type == 'wallet_payment' ||
@@ -155,6 +212,21 @@ class ScanResultParser {
           chain: uri.queryParameters['chain'] ?? uri.queryParameters['network'],
         );
       }
+      if (action == 'group' || action == 'join-group' || uri.path == '/group') {
+        return ScanResult(
+          type: ScanResultType.group,
+          raw: raw,
+          groupId:
+              uri.queryParameters['groupId'] ??
+              uri.queryParameters['gid'] ??
+              uri.queryParameters['id'],
+          expiresAt: int.tryParse(
+            uri.queryParameters['expiresAt'] ??
+                uri.queryParameters['expireAt'] ??
+                '',
+          ),
+        );
+      }
     }
 
     if (scheme == 'bitcoin' || scheme == 'ethereum' || scheme == 'solana') {
@@ -184,4 +256,38 @@ class ScanResultParser {
     }
     return null;
   }
+
+  static int? _firstInt(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value == null) {
+        continue;
+      }
+      if (value is int) {
+        return value;
+      }
+      final number = int.tryParse('$value'.trim());
+      if (number != null) {
+        return number;
+      }
+    }
+    return null;
+  }
+
+  static List<QrGroupMember> _parseGroupMembers(dynamic value) {
+    if (value is! List) {
+      return const [];
+    }
+    return value
+        .whereType<Map>()
+        .map((item) => QrGroupMember.fromJson(Map<String, dynamic>.from(item)))
+        .where((item) => item.userId.isNotEmpty)
+        .toList();
+  }
+}
+
+String? _nullableString(dynamic value) {
+  if (value == null) return null;
+  final text = '$value'.trim();
+  return text.isEmpty ? null : text;
 }

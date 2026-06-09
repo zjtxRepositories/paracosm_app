@@ -732,8 +732,15 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_password_min_length');
   String get scanWebQrInvalid => translate('scan_web_qr_invalid');
   String get scanFriendQrInvalid => translate('scan_friend_qr_invalid');
+  String get scanGroupQrInvalid => translate('scan_group_qr_invalid');
+  String get scanGroupQrExpired => translate('scan_group_qr_expired');
+  String get scanGroupJoinFailed => translate('scan_group_join_failed');
   String get scanPaymentPending => translate('scan_payment_pending');
   String get discoverScanHint => translate('discover_scan_hint');
+  String get groupQrCodeTitle => translate('group_qr_code_title');
+  String get groupQrCodeScanToJoin => translate('group_qr_code_scan_to_join');
+  String groupQrCodeExpiresAt(String date) =>
+      translate('group_qr_code_expires_at', {'date': date});
   String get dappTransactionType => translate('dapp_transaction_type');
   String get dappTransfer => translate('dapp_transfer');
   String get dappApprovalAmount => translate('dapp_approval_amount');

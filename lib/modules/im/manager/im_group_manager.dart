@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
+import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../listener/group_state_center.dart';
@@ -483,7 +484,6 @@ class ImGroupManager {
         onCompleted: (int? code) async {
           if (code != 0) completer.complete(false);
           await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
-
           GroupEventBus.instance.fire(
             GroupEvent(
               type: GroupEventType.removed,

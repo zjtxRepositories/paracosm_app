@@ -36,11 +36,12 @@ class _WalletCreatingPageState extends State<WalletCreatingPage> {
 
   Future _creating() async {
     if (widget.mnemonics != null || widget.privateKey != null) {
+      bool isPrivateKey = (widget.privateKey ?? '').isNotEmpty;
       try {
         await Future.delayed(Duration(seconds: 2));
         await AccountService.creating(
           mnemonic: widget.mnemonics?.join(' '),
-          privateKey: widget.privateKey,
+          privateKey: isPrivateKey ? widget.privateKey : null,
           password: widget.password!,
         );
         AppToast.showSuccess(AppLocalizations.of(context)!.walletCreateSuccess);

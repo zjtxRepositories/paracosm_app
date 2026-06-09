@@ -31,7 +31,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   final bool Function(String host) isSessionHostAuthorized;
   final void Function(String host) authorizeSessionHost;
   Future<List<String>>? _pendingRequestAccounts;
-  final Map<String, Future<String>> _pendingSignRequests = {};
+  Future<String>? _pendingSignRequest;
 
   DAppWeb3Service(
     this.controller,
@@ -315,10 +315,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   // =========================================================
   Future<String> _signMessage(String data, bool personal) async {
     final host = (await controller.getUrl())?.host ?? '';
-    final method = personal ? 'personal_sign' : 'eth_sign';
-    final key = _signRequestKey(host, method, data);
     return _runPendingSignRequest(
-      key,
       () => _signMessageInternal(data, personal, host),
     );
   }
@@ -379,13 +376,7 @@ class DAppWeb3Service implements EthWeb3Handler {
     TypedDataVersion version,
   ) async {
     final host = (await controller.getUrl())?.host ?? '';
-    final key = _signRequestKey(
-      host,
-      'eth_signTypedData_${_typedDataVersionName(version)}',
-      jsonData,
-    );
     return _runPendingSignRequest(
-      key,
       () => _signTypeDataInternal(jsonData, version, host),
     );
   }
@@ -439,43 +430,20 @@ class DAppWeb3Service implements EthWeb3Handler {
     return signature;
   }
 
-  String _signRequestKey(String host, String method, String payload) {
-    return jsonEncode({
-      'host': host,
-      'walletId': wallet.id,
-      'chainId': wallet.currentChainId,
-      'method': method,
-      'payload': payload,
-    });
-  }
-
-  String _typedDataVersionName(TypedDataVersion version) {
-    switch (version) {
-      case TypedDataVersion.V1:
-        return 'v1';
-      case TypedDataVersion.V3:
-        return 'v3';
-      case TypedDataVersion.V4:
-        return 'v4';
-    }
-  }
-
   Future<String> _runPendingSignRequest(
-    String key,
     Future<String> Function() requestBuilder,
   ) async {
-    final pending = _pendingSignRequests[key];
-    if (pending != null) {
-      return pending;
+    if (_pendingSignRequest != null) {
+      throw Exception('Signature request already pending');
     }
 
     final request = requestBuilder();
-    _pendingSignRequests[key] = request;
+    _pendingSignRequest = request;
     try {
       return await request;
     } finally {
-      if (identical(_pendingSignRequests[key], request)) {
-        _pendingSignRequests.remove(key);
+      if (identical(_pendingSignRequest, request)) {
+        _pendingSignRequest = null;
       }
     }
   }

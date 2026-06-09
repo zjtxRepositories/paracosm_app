@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/get_uer_info_api.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -44,9 +46,34 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
     model = widget.item;
     isFollowing = widget.isFollowing;
     isBlock = widget.isBlock;
+    resolveReviewInfo();
   }
 
-  @override
+  Future<void> resolveReviewInfo() async {
+    // 并发处理所有 reviewInfo
+    await Future.wait(model.reviewInfo.map((info) async {
+      // 并发获取 user 和 toUser
+      final results = await Future.wait([
+        GetUerInfoApi.get(info.userId),
+        GetUerInfoApi.get(info.toUserId),
+      ]);
+
+      final user = results[0];
+      final toUser = results[1];
+
+      // 并发获取 display info
+      final displayResults = await Future.wait([
+        UserDisplayStateCenter().getUser(user.account),
+        UserDisplayStateCenter().getUser(toUser.account),
+      ]);
+
+      info.userFullInfo = displayResults[0];
+      info.toUserFullInfo = displayResults[1];
+    }));
+    setState(() {});
+  }
+
+    @override
   Widget build(BuildContext context) {
     final moreButtonKey = GlobalKey();
     final l10n = AppLocalizations.of(context)!;

@@ -1,3 +1,4 @@
+import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 
 class SocialReviewModel {
@@ -20,8 +21,8 @@ class SocialReviewModel {
   final int timestamp;
   final String content;
 
-  UserInfo? userFullInfo;
-  UserInfo? toUserFullInfo;
+  UserDisplayModel? userFullInfo;
+  UserDisplayModel? toUserFullInfo;
 
   List<SocialReviewModel>? subReviews;
 

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
 import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
@@ -19,6 +20,7 @@ import 'package:paracosm/widgets/common/app_action_sheet.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:paracosm/widgets/modals/share_modals.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/user_display_model.dart';
 import 'moment_post_card.dart';
@@ -374,7 +376,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   void _openComments(SocialInvitationModel post) {
     context.push(
       '/moment-post-detail',
-      extra: {'item': post, 'isFollowing': false, 'isBlock': false},
+      extra: {
+        'item': post,
+        'user': _profileHeader?.user,
+        'isFollowing': false,
+        'isBlock': false,
+      },
     );
   }
 
@@ -1135,6 +1142,10 @@ class _MomentProfileHeaderData {
     final accountText = account.trim();
     if (accountText.isNotEmpty) return accountText;
     return userId.trim();
+  }
+
+  UserDisplayModel get user {
+    return UserDisplayModel(profile: RCIMIWUserProfile.create(userId: userId,portraitUri: avatar,name: nickname));
   }
 }
 

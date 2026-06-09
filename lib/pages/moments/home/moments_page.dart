@@ -132,8 +132,7 @@ class _MomentsPageState extends State<MomentsPage> {
             onTap: () => context.push(
               '/moment-post-detail',
               extra: {
-                'item': item,
-                'user': model.user,
+                'item': model,
                 'isFollowing': controller.followIds.contains(item.userId),
                 'isBlock': controller.blockIds.contains(item.userId),
               },

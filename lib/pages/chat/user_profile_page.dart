@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
+import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
@@ -51,6 +52,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 防止并发请求乱序
   int _fetchVersion = 0;
+  String? _userId;
 
   @override
   void initState() {
@@ -67,6 +69,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _init() async {
     await fetchData(forceRefresh: true);
+    if (_isSelf) {
+      _userId = AccountManager().currentAccount?.userId;
+      return;
+    }
+    final user = await GetUerInfoApi.search(widget.userId);
+    _userId = user?.userId;
   }
 
   @override
@@ -118,17 +126,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> toggleMoment() async {
     final userId = _user?.userId.trim() ?? '';
-    if (_isSelf) {
-      context.push('/moment-user-profile?mode=self');
-      return;
-    }
-
     if (userId.isEmpty) {
       AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
       return;
     }
-
-    context.push('/moment-user-profile?mode=friend', extra: userId);
+    context.push(
+      '/moment-user-profile?mode=${_isSelf ? 'self' : 'friend'}',
+      extra: {'userId': _userId, 'imUserId': userId},
+    );
   }
 
   Future<void> toggleCall({required bool isVideo}) async {

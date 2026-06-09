@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 import '../../core/models/social_review_model.dart';
 import '../../theme/app_colors.dart';
@@ -59,19 +60,23 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
 
     return _CommentThread(
       parent: _MomentCommentItem(
-        name: c.userFullInfo?.nickname ?? '',
+        userId: c.userFullInfo?.userId ?? '',
+        name: c.userFullInfo?.name ?? '',
+        avatar: c.userFullInfo?.avatar ?? '',
         time: formatIMTime(c.timestamp),
         content: c.content,
         onTap: () => widget.onReply?.call(
           c.reviewId,
           c.userId,
-          c.userFullInfo?.nickname ?? '',
+          c.userFullInfo?.name ?? '',
         ),
       ),
 
       replies: visibleReplies.map((r) {
         return _MomentCommentItem(
-          name: r.userFullInfo?.nickname ?? '',
+          userId: c.userFullInfo?.userId ?? '',
+          name: c.userFullInfo?.name ?? '',
+          avatar: c.userFullInfo?.avatar ?? '',
           time: formatIMTime(r.timestamp),
           content: r.content,
           leftInset: 38,
@@ -79,7 +84,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
           onTap: () => widget.onReply?.call(
             r.reviewId,
             r.userId,
-            r.userFullInfo?.nickname ?? '',
+            r.userFullInfo?.name ?? '',
           ),
         );
       }).toList(),
@@ -186,7 +191,9 @@ class _CommentThread extends StatelessWidget {
 }
 
 class _MomentCommentItem extends StatelessWidget {
+  final String userId;
   final String name;
+  final String avatar;
   final String time;
   final String content;
   final double leftInset;
@@ -194,7 +201,9 @@ class _MomentCommentItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _MomentCommentItem({
+    required this.userId,
     required this.name,
+    required this.avatar,
     required this.time,
     required this.content,
     this.leftInset = 0,
@@ -216,16 +225,12 @@ class _MomentCommentItem extends StatelessWidget {
               Container(width: 2, height: 36, color: AppColors.grey100),
               const SizedBox(width: 10),
             ],
-
-            ClipRRect(
+            userId.isNotEmpty ? UserAvatarWidget(
+              userId: userId,
+              avatarUrl: avatar,
+              size: 24,
               borderRadius: BorderRadius.circular(4),
-              child: Image.asset(
-                'assets/images/chat/avatar.png',
-                width: 24,
-                height: 24,
-                fit: BoxFit.cover,
-              ),
-            ),
+            ) : SizedBox(),
 
             const SizedBox(width: 8),
 

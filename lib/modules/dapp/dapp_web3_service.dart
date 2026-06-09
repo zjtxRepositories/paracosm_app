@@ -31,6 +31,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   final bool Function(String host) isSessionHostAuthorized;
   final void Function(String host) authorizeSessionHost;
   Future<List<String>>? _pendingRequestAccounts;
+  final Map<String, Future<String>> _pendingSignRequests = {};
 
   DAppWeb3Service(
     this.controller,
@@ -313,8 +314,20 @@ class DAppWeb3Service implements EthWeb3Handler {
   // sign message (兼容 MetaMask 参数顺序)
   // =========================================================
   Future<String> _signMessage(String data, bool personal) async {
-    final uri = await controller.getUrl();
-    final host = uri?.host ?? '';
+    final host = (await controller.getUrl())?.host ?? '';
+    final method = personal ? 'personal_sign' : 'eth_sign';
+    final key = _signRequestKey(host, method, data);
+    return _runPendingSignRequest(
+      key,
+      () => _signMessageInternal(data, personal, host),
+    );
+  }
+
+  Future<String> _signMessageInternal(
+    String data,
+    bool personal,
+    String host,
+  ) async {
     final faviconUrl = await _favicon;
 
     final address = ethChain.address;
@@ -365,8 +378,23 @@ class DAppWeb3Service implements EthWeb3Handler {
     String jsonData,
     TypedDataVersion version,
   ) async {
-    final uri = await controller.getUrl();
-    final host = uri?.host ?? '';
+    final host = (await controller.getUrl())?.host ?? '';
+    final key = _signRequestKey(
+      host,
+      'eth_signTypedData_${_typedDataVersionName(version)}',
+      jsonData,
+    );
+    return _runPendingSignRequest(
+      key,
+      () => _signTypeDataInternal(jsonData, version, host),
+    );
+  }
+
+  Future<String> _signTypeDataInternal(
+    String jsonData,
+    TypedDataVersion version,
+    String host,
+  ) async {
     final faviconUrl = await _favicon;
 
     final address = ethChain.address;
@@ -409,6 +437,47 @@ class DAppWeb3Service implements EthWeb3Handler {
     );
 
     return signature;
+  }
+
+  String _signRequestKey(String host, String method, String payload) {
+    return jsonEncode({
+      'host': host,
+      'walletId': wallet.id,
+      'chainId': wallet.currentChainId,
+      'method': method,
+      'payload': payload,
+    });
+  }
+
+  String _typedDataVersionName(TypedDataVersion version) {
+    switch (version) {
+      case TypedDataVersion.V1:
+        return 'v1';
+      case TypedDataVersion.V3:
+        return 'v3';
+      case TypedDataVersion.V4:
+        return 'v4';
+    }
+  }
+
+  Future<String> _runPendingSignRequest(
+    String key,
+    Future<String> Function() requestBuilder,
+  ) async {
+    final pending = _pendingSignRequests[key];
+    if (pending != null) {
+      return pending;
+    }
+
+    final request = requestBuilder();
+    _pendingSignRequests[key] = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_pendingSignRequests[key], request)) {
+        _pendingSignRequests.remove(key);
+      }
+    }
   }
 
   // =========================================================

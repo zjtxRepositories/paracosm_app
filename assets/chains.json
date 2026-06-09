@@ -45,7 +45,6 @@
     "coinId": "binancecoin",
     "chainType": "evm",
     "nodes": [
-      "https://rpc.ankr.com/bsc",
       "https://bsc-dataseed1.binance.org",
       "https://bsc-dataseed2.binance.org",
       "https://bsc-rpc.publicnode.com",

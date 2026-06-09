@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import 'im_connection_manager.dart';
 import 'im_engine_manager.dart';
 import 'im_group_manager.dart';
 import 'im_message_manager.dart';
@@ -120,6 +122,7 @@ class ImConversationManager {
 
   StreamSubscription<MessageEvent>? _messageSubscription;
   StreamSubscription<GroupEvent>? _groupEventSubscription;
+  StreamSubscription<String>? _connectionSubscription;
 
   /// =========================
   /// key
@@ -241,6 +244,9 @@ class ImConversationManager {
     _messageSubscription ??= ImMessageManager().messageStream.listen(
       _onMessageEvent,
     );
+    _connectionSubscription ??= IMEngineManager().connection.eventStream.listen(
+      _onConnectionEvent,
+    );
 
     engine?.onConversationReadStatusSyncMessageReceived =
         (type, targetId, timestamp) {
@@ -250,6 +256,16 @@ class ImConversationManager {
     engine?.onConversationTopStatusSynced = (type, targetId, channelId, top) {
       _onTopSync(type, targetId, top);
     };
+  }
+
+  void _onConnectionEvent(String event) {
+    if (event != ImEvent.connected) return;
+
+    unawaited(
+      getRemoteConversationList().catchError((error) {
+        debugPrint('Refresh conversations after IM connected failed: $error');
+      }),
+    );
   }
 
   Future<void> getRemoteConversationList({int pageSize = 10}) async {
@@ -489,8 +505,12 @@ class ImConversationManager {
         old.lastMessage = msg;
       }
 
-      if (msg.senderUserId != IMEngineManager().currentUserId  && event.type == MessageEventType.add && event.message?.messageType != RCIMIWMessageType.nativeCustom) {
-        old.unreadCount = (old.unreadCount ?? 0) + (!(event.message?.receivedStatusInfo?.read ?? false)? 1 : 0) ;
+      if (msg.senderUserId != IMEngineManager().currentUserId &&
+          event.type == MessageEventType.add &&
+          event.message?.messageType != RCIMIWMessageType.nativeCustom) {
+        old.unreadCount =
+            (old.unreadCount ?? 0) +
+            (!(event.message?.receivedStatusInfo?.read ?? false) ? 1 : 0);
       }
       old.operationTime = newTime;
 
@@ -719,6 +739,8 @@ class ImConversationManager {
     await _messageSubscription?.cancel();
 
     await _groupEventSubscription?.cancel();
+
+    await _connectionSubscription?.cancel();
 
     _debounce?.cancel();
 

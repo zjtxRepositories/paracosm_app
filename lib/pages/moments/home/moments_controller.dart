@@ -101,15 +101,18 @@ class MomentsController extends ChangeNotifier {
   Future<void> refresh() async {
     if (_refreshing) return;
 
+    final previousPage = _page;
+    final previousHasMore = _hasMore;
+
     _page = 0;
     _hasMore = true;
     _refreshing = true;
-    _items.clear();
     notifyListeners();
 
     try {
       final data = await _fetchData();
 
+      _items.clear();
       _items.addAll(data);
 
       if (data.length < _pageSize) {
@@ -117,6 +120,10 @@ class MomentsController extends ChangeNotifier {
       }
 
       _page++;
+    } catch (_) {
+      _page = previousPage;
+      _hasMore = previousHasMore;
+      rethrow;
     } finally {
       _refreshing = false;
       notifyListeners();

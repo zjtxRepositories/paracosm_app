@@ -74,7 +74,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     final userId = widget.userId.trim().toLowerCase();
     if (userId.isNotEmpty) return userId;
     if (_isSelf) {
-      return AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+      return _currentUserId;
     }
     return '';
   }
@@ -111,7 +111,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       _isFollowingUser = false;
       _isFollowLoading = false;
     });
-
     if (userId.isEmpty) {
       if (!mounted) return;
       setState(() {
@@ -543,7 +542,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-
     return AppPage(
       showNav: true,
       isCustomHeader: true,

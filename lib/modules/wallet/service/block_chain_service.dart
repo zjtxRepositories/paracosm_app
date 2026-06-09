@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/modules/wallet/chains/evm/services/evm_erc20_rpc_scan_service.dart';
 import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/tron/tron_service.dart';
@@ -8,18 +9,48 @@ import 'package:paracosm/modules/wallet/model/chain_account.dart';
 
 import '../model/trade_model.dart';
 
+typedef _Erc20RpcFallback =
+    Future<List<TradeModel>> Function({
+      required ChainAccount chain,
+      required String walletAddress,
+      required String contractAddress,
+      int limit,
+      int scanBlockCount,
+      int chunkSize,
+    });
+
 class BlockChainService {
   static const String _solanaRpc = 'https://api.mainnet-beta.solana.com';
   static const String _evmApiUrl = 'https://api.etherscan.io/v2/api';
   static const String _evmApiKey = 'AJYYQC9NT6NV5WGPDSDNXXQHDRF375RQ4Q';
+  static const int _erc20RpcFallbackScanBlockCount = 5000;
+  static const int _erc20RpcFallbackChunkSize = 500;
 
-  final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
-      sendTimeout: const Duration(seconds: 15),
-    ),
-  );
+  final Dio _dio;
+  final _Erc20RpcFallback _erc20RpcFallback;
+
+  BlockChainService({
+    Dio? dio,
+    Future<List<TradeModel>> Function({
+      required ChainAccount chain,
+      required String walletAddress,
+      required String contractAddress,
+      int limit,
+      int scanBlockCount,
+      int chunkSize,
+    })?
+    erc20RpcFallback,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 15),
+               receiveTimeout: const Duration(seconds: 20),
+               sendTimeout: const Duration(seconds: 15),
+             ),
+           ),
+       _erc20RpcFallback =
+           erc20RpcFallback ?? EvmErc20RpcScanService.getErc20Transactions;
 
   /// 统一入口：获取代币/主币交易记录（EVM、Solana、BTC）
   Future<List<TradeModel>> getTokenTransactions(
@@ -45,11 +76,26 @@ class BlockChainService {
         return _parseBtcTxsToTradeModel(rawTxs, address);
       case ChainType.evm:
         if (_hasValue(contractAddress)) {
-          return EvmErc20RpcScanService.getErc20Transactions(
+          try {
+            final rawTxs = await _getTokenTransactionsEvm(
+              chain,
+              address,
+              contractAddress: contractAddress,
+              limit: limit,
+              strictFailures: true,
+            );
+            return _parseEvmTxsToTradeModel(rawTxs, address, chain: chain);
+          } catch (e) {
+            debugPrint('EVM token transaction index query failed: $e');
+          }
+
+          return _erc20RpcFallback(
             chain: chain,
             walletAddress: address,
             contractAddress: contractAddress!,
             limit: limit,
+            scanBlockCount: _erc20RpcFallbackScanBlockCount,
+            chunkSize: _erc20RpcFallbackChunkSize,
           );
         }
 
@@ -84,6 +130,7 @@ class BlockChainService {
     String address, {
     String? contractAddress,
     int limit = 20,
+    bool strictFailures = false,
   }) async {
     final isToken = _hasValue(contractAddress);
     final action = isToken ? 'tokentx' : 'txlist';
@@ -112,7 +159,7 @@ class BlockChainService {
         options: Options(headers: {'User-Agent': 'Mozilla/5.0'}),
       );
     } on DioException catch (e) {
-      if (_isTimeoutException(e)) return [];
+      if (_isTimeoutException(e) && !strictFailures) return [];
       rethrow;
     }
 
@@ -120,14 +167,23 @@ class BlockChainService {
       throw Exception('EVM 请求失败: ${res.statusCode}');
     }
     final data = _decodeResponseData(res.data);
-    if (data is! Map<String, dynamic>) return [];
+    if (data is! Map<String, dynamic>) {
+      if (strictFailures) {
+        throw Exception('EVM API 返回格式异常: ${data.runtimeType}');
+      }
+      return [];
+    }
 
     final status = data['status']?.toString();
     final message = data['message']?.toString();
     if (status != '1') {
       // Etherscan 无交易时常返回 status=0,message=No transactions found。
       if (message == 'No transactions found') return [];
-      return [];
+      final result = data['result']?.toString();
+      if (!strictFailures) return [];
+      throw Exception(
+        'EVM API 返回失败: status=$status, message=$message, result=$result',
+      );
     }
 
     final result = data['result'];
@@ -137,7 +193,8 @@ class BlockChainService {
     if (result is Map && result['transactions'] is List) {
       return List<Map<String, dynamic>>.from(result['transactions']);
     }
-    return [];
+    if (!strictFailures) return [];
+    throw Exception('EVM API 返回格式异常: ${result.runtimeType}');
   }
 
   /// 获取 Solana SPL Token 交易记录。

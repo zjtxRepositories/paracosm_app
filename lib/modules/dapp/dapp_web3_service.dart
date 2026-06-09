@@ -31,6 +31,7 @@ class DAppWeb3Service implements EthWeb3Handler {
   final bool Function(String host) isSessionHostAuthorized;
   final void Function(String host) authorizeSessionHost;
   Future<List<String>>? _pendingRequestAccounts;
+  Future<String>? _pendingSignRequest;
 
   DAppWeb3Service(
     this.controller,
@@ -313,8 +314,17 @@ class DAppWeb3Service implements EthWeb3Handler {
   // sign message (兼容 MetaMask 参数顺序)
   // =========================================================
   Future<String> _signMessage(String data, bool personal) async {
-    final uri = await controller.getUrl();
-    final host = uri?.host ?? '';
+    final host = (await controller.getUrl())?.host ?? '';
+    return _runPendingSignRequest(
+      () => _signMessageInternal(data, personal, host),
+    );
+  }
+
+  Future<String> _signMessageInternal(
+    String data,
+    bool personal,
+    String host,
+  ) async {
     final faviconUrl = await _favicon;
 
     final address = ethChain.address;
@@ -365,8 +375,17 @@ class DAppWeb3Service implements EthWeb3Handler {
     String jsonData,
     TypedDataVersion version,
   ) async {
-    final uri = await controller.getUrl();
-    final host = uri?.host ?? '';
+    final host = (await controller.getUrl())?.host ?? '';
+    return _runPendingSignRequest(
+      () => _signTypeDataInternal(jsonData, version, host),
+    );
+  }
+
+  Future<String> _signTypeDataInternal(
+    String jsonData,
+    TypedDataVersion version,
+    String host,
+  ) async {
     final faviconUrl = await _favicon;
 
     final address = ethChain.address;
@@ -409,6 +428,24 @@ class DAppWeb3Service implements EthWeb3Handler {
     );
 
     return signature;
+  }
+
+  Future<String> _runPendingSignRequest(
+    Future<String> Function() requestBuilder,
+  ) async {
+    if (_pendingSignRequest != null) {
+      throw Exception('Signature request already pending');
+    }
+
+    final request = requestBuilder();
+    _pendingSignRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_pendingSignRequest, request)) {
+        _pendingSignRequest = null;
+      }
+    }
   }
 
   // =========================================================

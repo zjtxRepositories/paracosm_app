@@ -528,7 +528,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             )
           : AppButton(
               text: _isSelf
-                  ? 'Modify nickname'
+                  ? AppLocalizations.of(context)!.chatProfileModifyNickname
                   : AppLocalizations.of(context)!.chatProfileAddFriend,
               textColor: Colors.white,
               backgroundColor: AppColors.grey900,

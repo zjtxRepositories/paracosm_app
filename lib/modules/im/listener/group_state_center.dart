@@ -40,6 +40,12 @@ class GroupStateCenter {
 
   int _generation = 0;
 
+  Future<void> refreshGroup(
+      String groupId) async {
+    getGroup(groupId,forceRefresh: true);
+    getGroupMembers(groupId,forceRefresh: true);
+  }
+
   /// =====================================================
   /// get group
   /// =====================================================

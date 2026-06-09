@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
@@ -157,9 +155,9 @@ class ConversationResolver {
         final group = await _getGroup(message.toUserId);
         final members =
             await _getMemberNames(message.userIds) ?? await group?.memberName;
-        final user = await _getUser(message.fromUserId);
+        final user = await _getUserName(message.fromUserId);
         return AppLocalizations.currentText('chat_invited_members_message', {
-          'user': user?.name ?? '',
+          'user': user,
           'members': members,
         });
       case CustomMessageType.createDao:
@@ -169,14 +167,26 @@ class ConversationResolver {
         final group = await _getGroup(message.toUserId);
         return '${group?.name} Club has been created';
       case CustomMessageType.quitGroup:
-        final user = await _getUser(message.fromUserId);
+        final user = await _getUserName(message.fromUserId);
         return AppLocalizations.currentText('chat_user_quit_group_message', {
-          'user': user?.name ?? '',
+          'user': user,
         });
       case CustomMessageType.groupRemoved:
         final members = await _getMemberNames(message.userIds);
         return AppLocalizations.currentText('chat_members_removed_message', {
           'members': members ?? '',
+        });
+      case CustomMessageType.transfer:
+        final user = await _getUserName(message.fromUserId);
+        final target = await _getUserName(message.userIds?.firstOrNull ?? '');
+        return AppLocalizations.currentText('chat_group_transferred_message', {
+          'user': user,
+          'target': target,
+        });
+      case CustomMessageType.groupDisbanded:
+        final user = await _getUserName(message.fromUserId);
+        return AppLocalizations.currentText('chat_group_disbanded_message', {
+          'user': user,
         });
       case CustomMessageType.customFace:
         return AppLocalizations.currentText('chat_detail_custom_face');
@@ -200,7 +210,9 @@ class ConversationResolver {
       if (userId == null) continue;
 
       final user = await _getUser(userId);
-      final name = user?.name ?? '';
+      final name = _isCurrentUser(userId)
+          ? AppLocalizations.currentText('chat_me')
+          : user?.name ?? '';
 
       result = result.replaceAll('[$userId]', name);
     }
@@ -235,6 +247,19 @@ class ConversationResolver {
 
   Future<UserDisplayModel?> _getUser(String id) async {
     return UserDisplayStateCenter().getUser(id);
+  }
+
+  Future<String> _getUserName(String id) async {
+    if (id.isEmpty) return '';
+    if (_isCurrentUser(id)) {
+      return AppLocalizations.currentText('chat_me');
+    }
+    final user = await _getUser(id);
+    return user?.name.trim() ?? '';
+  }
+
+  bool _isCurrentUser(String userId) {
+    return userId == IMEngineManager().currentUserId;
   }
 
   Future<GroupModel?> _getGroup(String id) async {

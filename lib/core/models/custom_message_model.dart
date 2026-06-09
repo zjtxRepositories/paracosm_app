@@ -8,6 +8,7 @@ enum CustomMessageType {
   transfer,
   quitGroup,
   groupRemoved,
+  groupDisbanded,
   customFace,
   unknown,
 }
@@ -32,6 +33,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.quitGroup;
     case 'group_removed':
       return CustomMessageType.groupRemoved;
+    case 'group_disbanded':
+      return CustomMessageType.groupDisbanded;
     case 'custom_face':
       return CustomMessageType.customFace;
     default:
@@ -113,6 +116,8 @@ class CustomMessageModel {
         return 'group_quit';
       case CustomMessageType.groupRemoved:
         return 'group_removed';
+      case CustomMessageType.groupDisbanded:
+        return 'group_disbanded';
       case CustomMessageType.customFace:
         return 'custom_face';
       case CustomMessageType.unknown:

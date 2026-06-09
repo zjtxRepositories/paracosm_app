@@ -125,6 +125,7 @@ class ImDataCenter {
           break;
         case GroupEventType.quit:
           if (event.operatorUserId != IMEngineManager().currentUserId){
+            GroupStateCenter().refreshGroup(event.groupId);
             return;
           }
           _removeGroup(event.groupId);
@@ -132,13 +133,17 @@ class ImDataCenter {
         case GroupEventType.removed:
           if (event.userIds == null) return;
           if (!event.userIds!.contains(IMEngineManager().currentUserId)){
+            GroupStateCenter().refreshGroup(event.groupId);
             return;
           }
           _removeGroup(event.groupId);
           break;
-        default:
+        case GroupEventType.memberChanged:
+        case GroupEventType.managerChanged:
+        case GroupEventType.ownerTransferred:
+          GroupStateCenter().refreshGroup(event.groupId);
           break;
-      }
+        }
     });
   }
 
@@ -359,7 +364,9 @@ class ImDataCenter {
 
 
   Future<void> _removeGroup(String groupId) async {
+    if (!_groupCache.containsKey(groupId)) return;
     removeGroup(groupId);
+    GroupStateCenter().refreshGroup(groupId);
     _removeConversation(groupId,RCIMIWConversationType.group);
   }
 

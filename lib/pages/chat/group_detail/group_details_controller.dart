@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -35,6 +36,7 @@ class GroupDetailsController extends ChangeNotifier {
   bool get isManager =>
       group?.info.role == RCIMIWGroupMemberRole.manager ||
       group?.info.role == RCIMIWGroupMemberRole.owner;
+  bool get isOwner => group?.info.role == RCIMIWGroupMemberRole.owner;
 
   bool isPinned = false;
   bool isMuted = false;
@@ -132,6 +134,7 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> toggleDisband(BuildContext context) async {
+    final disbandedText = AppLocalizations.of(context)!.chatGroupDisbanded;
     AppConfirmDialog.show(
       context,
       description: AppLocalizations.of(context)!.chatDisbandGroupConfirm,
@@ -140,10 +143,16 @@ class GroupDetailsController extends ChangeNotifier {
         final groupId = args?.targetId;
         if (groupId == null) return;
         AppLoading.show();
+        final message = CustomMessage(
+          targetId: groupId,
+          customMessageType: CustomMessageType.groupDisbanded,
+          conversationType: RCIMIWConversationType.group,
+        );
+        await ImSender.instance.send(message: message);
         final isOk = await ImGroupManager().dismissGroup(groupId);
         AppLoading.dismiss();
         if (isOk) {
-          AppToast.show(AppLocalizations.of(context)!.chatGroupDisbanded);
+          AppToast.show(disbandedText);
         }
         if (!context.mounted) return;
         context.pop();
@@ -152,8 +161,57 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> toggleLeave(BuildContext context) async {
-    if (group?.info.role == RCIMIWGroupMemberRole.owner) {
-      toggleDisband(context);
+    final leftText = AppLocalizations.of(context)!.chatGroupLeft;
+    final leaveFailedText = AppLocalizations.of(context)!.chatLeaveGroupFailed;
+    if (isOwner) {
+      final nextOwner = members
+          .where(
+            (member) =>
+                (member.item.userId ?? '') != IMEngineManager().currentUserId,
+          )
+          .firstOrNull;
+
+      if (nextOwner == null) {
+        toggleDisband(context);
+        return;
+      }
+
+      AppConfirmDialog.show(
+        context,
+        description: AppLocalizations.of(
+          context,
+        )!.chatOwnerLeaveTransferConfirm(nextOwner.name),
+        onConfirm: () async {
+          context.pop();
+          final groupId = args?.targetId;
+          final newOwnerId = nextOwner.item.userId;
+          if (groupId == null || newOwnerId == null || newOwnerId.isEmpty) {
+            return;
+          }
+
+          AppLoading.show();
+          final message = CustomMessage(
+            targetId: groupId,
+            customMessageType: CustomMessageType.transfer,
+            conversationType: RCIMIWConversationType.group,
+            userIds: [newOwnerId],
+          );
+          await ImSender.instance.send(message: message);
+          final isOk = await ImGroupManager().transferGroupOwner(
+            groupId,
+            newOwnerId,
+            quitGroup: true,
+          );
+          AppLoading.dismiss();
+          if (isOk) {
+            AppToast.show(leftText);
+          } else {
+            AppToast.show(leaveFailedText);
+          }
+          if (!context.mounted || !isOk) return;
+          context.pop();
+        },
+      );
       return;
     }
     AppConfirmDialog.show(
@@ -173,9 +231,11 @@ class GroupDetailsController extends ChangeNotifier {
         final isOk = await ImGroupManager().quitGroup(groupId);
         AppLoading.dismiss();
         if (isOk) {
-          AppToast.show(AppLocalizations.of(context)!.chatGroupLeft);
+          AppToast.show(leftText);
+        } else {
+          AppToast.show(leaveFailedText);
         }
-        if (!context.mounted) return;
+        if (!context.mounted || !isOk) return;
         context.pop();
       },
     );
@@ -200,6 +260,8 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> clearHistory(BuildContext context) async {
     if (args == null) return;
+    final successText = AppLocalizations.of(context)!.chatClearHistorySuccess;
+    final failedText = AppLocalizations.of(context)!.chatClearHistoryFailed;
     context.pop();
 
     final isOk = await ImMessageManager().clearMessages(
@@ -209,9 +271,9 @@ class GroupDetailsController extends ChangeNotifier {
       timestamp: 0,
     );
     if (isOk) {
-      AppToast.show(AppLocalizations.of(context)!.chatClearHistorySuccess);
+      AppToast.show(successText);
     } else {
-      AppToast.show(AppLocalizations.of(context)!.chatClearHistoryFailed);
+      AppToast.show(failedText);
     }
   }
 
@@ -254,5 +316,43 @@ class GroupDetailsController extends ChangeNotifier {
     );
     await ImSender.instance.send(message: message);
     AppLoading.dismiss();
+  }
+
+  List<String> currentManagerUserIds() {
+    return members
+        .where((member) => member.item.role == RCIMIWGroupMemberRole.manager)
+        .map((member) => member.item.userId ?? '')
+        .where((userId) => userId.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> updateGroupManagers(List<String> selectedUserIds) async {
+    final groupId = args?.targetId;
+    if (groupId == null) return;
+
+    final selected = selectedUserIds.toSet();
+    final current = currentManagerUserIds().toSet();
+    final addUserIds = selected.difference(current).toList();
+    final removeUserIds = current.difference(selected).toList();
+
+    if (addUserIds.isEmpty && removeUserIds.isEmpty) {
+      return;
+    }
+
+    AppLoading.show();
+    final addOk = await ImGroupManager().addGroupManagers(groupId, addUserIds);
+    final removeOk = await ImGroupManager().removeGroupManagers(
+      groupId,
+      removeUserIds,
+    );
+    AppLoading.dismiss();
+
+    if (!addOk || !removeOk) {
+      AppToast.show(AppLocalizations.currentText('chat_set_manager_failed'));
+      return;
+    }
+
+    await _fetchGroupMembers();
+    AppToast.show(AppLocalizations.currentText('chat_set_manager_success'));
   }
 }

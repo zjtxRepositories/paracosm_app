@@ -12,6 +12,7 @@ import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../../core/models/group_member_model.dart';
 import '../../../widgets/chat/select_members_modal.dart';
@@ -71,13 +72,30 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Future<void> showRemoveMembers() async {
     List<GroupMemberModel> members = controller.members
         .where(
-          (item) => (item.item.userId ?? '') != IMEngineManager().currentUserId,
+          (item) =>
+              (item.item.userId ?? '') != IMEngineManager().currentUserId &&
+              item.item.role != RCIMIWGroupMemberRole.owner,
         )
         .toList();
 
     final result = await RemoveMemberModal.show(context, members: members);
     if (result == null || result.isEmpty) return;
     controller.kickGroupMembers(result);
+  }
+
+  Future<void> showSetManagers() async {
+    final members = controller.members
+        .where((item) => item.item.role != RCIMIWGroupMemberRole.owner)
+        .toList();
+
+    final result = await RemoveMemberModal.show(
+      context,
+      members: members,
+      title: AppLocalizations.of(context)!.chatSetManager,
+      defaultSelectedUserIds: controller.currentManagerUserIds(),
+    );
+    if (result == null) return;
+    controller.updateGroupManagers(result);
   }
 
   /// 显示清空记录确认弹窗
@@ -246,7 +264,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                controller.isManager
+                controller.isOwner
+                    ? _buildOptionItem(
+                        AppLocalizations.of(context)!.chatSetManager,
+                        onTap: showSetManagers,
+                      )
+                    : SizedBox(),
+                controller.isOwner
                     ? _buildOptionItem(
                         AppLocalizations.of(context)!.chatSettingDisband,
                         isFullBorder: true,
@@ -270,6 +294,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   AppLocalizations.of(context)!.sessionDetailsReport,
                   isFullBorder: true,
                   onTap: () async {
+                    final submittedText = AppLocalizations.of(
+                      context,
+                    )!.chatComplaintSubmitted;
                     final text = await context.push<String>(
                       '/group-introduction',
                       extra: {
@@ -280,9 +307,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       },
                     );
                     if (text != null && text.isNotEmpty) {
-                      AppToast.show(
-                        AppLocalizations.of(context)!.chatComplaintSubmitted,
-                      );
+                      AppToast.show(submittedText);
                     }
                   },
                 ),
@@ -316,7 +341,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           crossAxisCount: 5, // 每行5个
           mainAxisSpacing: 16,
           crossAxisSpacing: 12,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.62,
         ),
         itemBuilder: (context, index) {
           final item = items[index];
@@ -351,6 +376,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Widget _buildMemberItem(GroupMemberModel member) {
     final String name = member.name;
     String? avatarPath = member.item.portraitUri;
+    final roleText = _roleText(member.item.role);
 
     return GestureDetector(
       onTap: () {
@@ -379,9 +405,41 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               ),
             ),
           ),
+          if (roleText != null) ...[
+            const SizedBox(height: 2),
+            Container(
+              height: 16,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.grey100,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                roleText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.grey700,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String? _roleText(RCIMIWGroupMemberRole? role) {
+    switch (role) {
+      case RCIMIWGroupMemberRole.owner:
+        return AppLocalizations.of(context)!.chatGroupOwner;
+      case RCIMIWGroupMemberRole.manager:
+        return AppLocalizations.of(context)!.chatGroupManager;
+      default:
+        return null;
+    }
   }
 
   /// 添加/删除成员按钮 (参考 session_details_page.dart)

@@ -5,8 +5,7 @@ import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
-import '../../core/models/user_display_model.dart';
-import '../../core/models/social_Invitation_model.dart';
+import '../../core/models/moment_post_model.dart';
 import '../../util/string_util.dart';
 import '../../widgets/base/app_localizations.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
@@ -16,15 +15,13 @@ import 'moment_comments_section.dart';
 import 'moment_post_card.dart';
 
 class MomentPostDetailPage extends StatefulWidget {
-  final SocialInvitationModel item;
-  final UserDisplayModel? user;
+  final MomentPostModel item;
   final bool isFollowing;
   final bool isBlock;
 
   const MomentPostDetailPage({
     super.key,
     required this.item,
-    this.user,
     required this.isFollowing,
     required this.isBlock,
   });
@@ -34,7 +31,7 @@ class MomentPostDetailPage extends StatefulWidget {
 }
 
 class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
-  late SocialInvitationModel model;
+  late MomentPostModel model;
   late bool isFollowing;
   late bool isBlock;
   final MomentsController controller = MomentsController();
@@ -51,29 +48,31 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
 
   Future<void> resolveReviewInfo() async {
     // 并发处理所有 reviewInfo
-    await Future.wait(model.reviewInfo.map((info) async {
-      // 并发获取 user 和 toUser
-      final results = await Future.wait([
-        GetUerInfoApi.get(info.userId),
-        GetUerInfoApi.get(info.toUserId),
-      ]);
+    await Future.wait(
+      model.item.reviewInfo.map((info) async {
+        // 并发获取 user 和 toUser
+        final results = await Future.wait([
+          GetUerInfoApi.get(info.userId),
+          GetUerInfoApi.get(info.toUserId),
+        ]);
 
-      final user = results[0];
-      final toUser = results[1];
+        final user = results[0];
+        final toUser = results[1];
 
-      // 并发获取 display info
-      final displayResults = await Future.wait([
-        UserDisplayStateCenter().getUser(user.account),
-        UserDisplayStateCenter().getUser(toUser.account),
-      ]);
+        // 并发获取 display info
+        final displayResults = await Future.wait([
+          UserDisplayStateCenter().getUser(user.account),
+          UserDisplayStateCenter().getUser(toUser.account),
+        ]);
 
-      info.userFullInfo = displayResults[0];
-      info.toUserFullInfo = displayResults[1];
-    }));
+        info.userFullInfo = displayResults[0];
+        info.toUserFullInfo = displayResults[1];
+      }),
+    );
     setState(() {});
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     final moreButtonKey = GlobalKey();
     final l10n = AppLocalizations.of(context)!;
@@ -98,19 +97,19 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/share-pop.png',
                     label: l10n.translate('moments_share'),
-                    onTap: () => controller.toggleShare(model, context),
+                    onTap: () => controller.toggleShare(model.item, context),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/block.png',
                     label: isBlock
                         ? l10n.translate('moments_unblock_this_user')
                         : l10n.translate('moments_block_this_user'),
-                    onTap: () => controller.toggleBlock(model),
+                    onTap: () => controller.toggleBlock(model.item),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/moments/report.png',
                     label: l10n.translate('moments_report'),
-                    onTap: () => controller.toggleReport(model, context),
+                    onTap: () => controller.toggleReport(model.item, context),
                     showDivider: false,
                   ),
                 ],
@@ -133,15 +132,14 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
               children: [
                 _MomentDetailHeader(
                   model: model,
-                  user: widget.user,
                   isFollowing: isFollowing,
-                  onFollow: () => controller.toggleFollow(model),
+                  onFollow: () => controller.toggleFollow(model.item),
                 ),
 
                 const SizedBox(height: 12),
 
                 Text(
-                  model.content,
+                  model.item.content,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.5,
@@ -151,9 +149,9 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
 
                 const SizedBox(height: 16),
                 ImageGrid(
-                  medias: model.media,
+                  medias: model.item.media,
                   onTap: (index) =>
-                      controller.toggleMedia(model.media, index, context),
+                      controller.toggleMedia(model.item.media, index, context),
                 ),
 
                 const SizedBox(height: 16),
@@ -161,8 +159,8 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 const SizedBox(height: 16),
 
                 MomentCommentsSection(
-                  noteId: model.noteId,
-                  reviews: model.reviewInfo,
+                  noteId: model.item.noteId,
+                  reviews: model.item.reviewInfo,
                   onReply: (reviewId, toUserId, userName) {
                     inputKey.currentState?.setReply(
                       rootId: reviewId,
@@ -176,28 +174,28 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
           ),
           CommentComposerBar(
             key: inputKey,
-            model: model,
+            model: model.item,
             onLike: () async {
-              await controller.toggleLike(model);
+              await controller.toggleLike(model.item);
               if (!mounted) return;
               setState(() {});
             },
             onCollect: () async {
-              await controller.toggleCollect(model);
+              await controller.toggleCollect(model.item);
               if (!mounted) return;
               setState(() {});
             },
-            onShare: () => controller.toggleShare(model, context),
+            onShare: () => controller.toggleShare(model.item, context),
             onSend: (text, rootReviewId, toUserId) async {
               final newModel = await controller.sendComment(
-                model,
+                model.item,
                 text,
                 rootReviewId,
-                model.noteId,
-                toUserId ?? model.userId,
+                model.item.noteId,
+                toUserId ?? model.item.userId,
               );
               setState(() {
-                model = newModel;
+                model.item = newModel;
               });
             },
           ),
@@ -208,33 +206,22 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
 }
 
 class _MomentDetailHeader extends StatelessWidget {
-  final SocialInvitationModel model;
-  final UserDisplayModel? user;
+  final MomentPostModel model;
   final bool isFollowing;
   final VoidCallback? onFollow;
 
   const _MomentDetailHeader({
     required this.model,
-    this.user,
     required this.isFollowing,
     this.onFollow,
   });
 
   String get _avatarUrl {
-    final userAvatar = user?.avatar.trim();
-    if (userAvatar != null && userAvatar.isNotEmpty) return userAvatar;
-    return model.userInfoModel?.avatar.trim() ?? '';
+    return model.user?.avatar ?? '';
   }
 
   String get _displayName {
-    final userName = user?.name.trim();
-    if (userName != null && userName.isNotEmpty) return userName;
-
-    final nickname = model.userInfoModel?.nickname.trim();
-    if (nickname != null && nickname.isNotEmpty) return nickname;
-
-    if (model.userId.length <= 8) return model.userId;
-    return model.userId.substring(model.userId.length - 8);
+    return model.user?.name ?? '';
   }
 
   @override
@@ -249,18 +236,13 @@ class _MomentDetailHeader extends StatelessWidget {
                 context.push(
                   '/moment-user-profile',
                   extra: {
-                    'userId': model.userId,
-                    'nickname': _displayName,
-                    'avatar': _avatarUrl,
-                    'account':
-                        user?.userId ??
-                        model.userInfoModel?.account ??
-                        model.userId,
+                    'userId': model.item.userId,
+                    'imUserId': model.user?.userId,
                   },
                 );
               },
               child: UserAvatarWidget(
-                userId: model.userId,
+                userId: model.user?.userId,
                 avatarUrl: _avatarUrl,
                 size: 36,
                 borderRadius: BorderRadius.circular(8),
@@ -278,7 +260,7 @@ class _MomentDetailHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  formatIMTime(model.timestamp),
+                  formatIMTime(model.item.timestamp),
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.grey400,

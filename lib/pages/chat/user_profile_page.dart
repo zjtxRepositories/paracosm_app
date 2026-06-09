@@ -69,7 +69,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _init() async {
     await fetchData(forceRefresh: true);
-    if (_isSelf){
+    if (_isSelf) {
       _userId = AccountManager().currentAccount?.userId;
       return;
     }
@@ -130,12 +130,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
       return;
     }
-    context.push('/moment-user-profile?mode=${_isSelf ? 'self' : 'friend'}',extra: {
-      'userId': _userId,
-      'nickname': _user?.name,
-      'avatar': _user?.avatar,
-      'account':userId
-    });
+    context.push(
+      '/moment-user-profile?mode=${_isSelf ? 'self' : 'friend'}',
+      extra: {'userId': _userId, 'imUserId': userId},
+    );
   }
 
   Future<void> toggleCall({required bool isVideo}) async {

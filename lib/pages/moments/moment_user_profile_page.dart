@@ -8,7 +8,6 @@ import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
-import 'package:paracosm/modules/user/model/user_info.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
@@ -29,20 +28,14 @@ import 'moment_post_card.dart';
 /// 保留社区详情页的主体结构，只显示看板下面的内容列表，移除 TabController 和其他 Tab 区域。
 class MomentUserProfilePage extends StatefulWidget {
   final String userId;
-  final String communityName;
+  final String imUserId;
   final String mode;
-  final String? initialNickname;
-  final String? initialAvatar;
-  final String? initialAccount;
 
   const MomentUserProfilePage({
     super.key,
     required this.userId,
-    this.communityName = 'Kristen',
+    required this.imUserId,
     this.mode = 'friend',
-    this.initialNickname,
-    this.initialAvatar,
-    this.initialAccount,
   });
 
   @override
@@ -51,7 +44,7 @@ class MomentUserProfilePage extends StatefulWidget {
 
 class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   static const double _sendMomentSize = 80;
-  final List<SocialInvitationModel> _posts = [];
+  final List<MomentPostModel> _posts = [];
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
   bool _isLoading = true;
@@ -94,10 +87,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId ||
-        oldWidget.mode != widget.mode ||
-        oldWidget.initialNickname != widget.initialNickname ||
-        oldWidget.initialAvatar != widget.initialAvatar ||
-        oldWidget.initialAccount != widget.initialAccount) {
+        oldWidget.imUserId != widget.imUserId ||
+        oldWidget.mode != widget.mode) {
       _loadPosts();
     }
   }
@@ -106,7 +97,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     final userId = _profileUserId;
     setState(() {
       _isLoading = true;
-      _profileHeader = _initialProfileHeader(userId);
+      _profileHeader = null;
       _posts.clear();
       _followingCount = 0;
       _followersCount = 0;
@@ -116,47 +107,42 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     if (userId.isEmpty) {
       if (!mounted) return;
       setState(() {
-        _profileHeader =
-            _profileHeader ?? _MomentProfileHeaderData.fallback(userId);
         _isLoading = false;
       });
       return;
     }
 
-    Future<_MomentProfileHeaderData?>? profileFuture;
     Future<_MomentProfileSocialStats>? socialStatsFuture;
     try {
-      profileFuture = _loadProfileHeader(userId);
+      final profileHeader = await _loadProfileHeader(userId, widget.imUserId);
+      if (!mounted || _profileUserId != userId) return;
+      setState(() {
+        _profileHeader = profileHeader ?? _profileHeader;
+      });
+
       socialStatsFuture = _loadSocialStats(userId);
       final posts = await SocialCircleNoteApi.getSocialCircleUserNoteList(
         userId,
       );
       final hydratedPosts = await _hydratePostInteractionStates(posts);
-      final profileHeader = await profileFuture;
+      final postModels = hydratedPosts
+          .map((post) => MomentPostModel(item: post))
+          .toList();
+      await MomentsResolver().resolve(postModels);
       final socialStats = await socialStatsFuture;
       if (!mounted || _profileUserId != userId) return;
       setState(() {
-        _profileHeader =
-            profileHeader ??
-            _headerFromPost(posts) ??
-            _profileHeader ??
-            _MomentProfileHeaderData.fallback(userId);
         _applySocialStats(socialStats);
         _posts
           ..clear()
-          ..addAll(hydratedPosts);
+          ..addAll(postModels);
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('load moment user posts failed: $e');
-      final profileHeader = await profileFuture;
       final socialStats = await socialStatsFuture;
       if (!mounted) return;
       setState(() {
-        _profileHeader =
-            profileHeader ??
-            _profileHeader ??
-            _MomentProfileHeaderData.fallback(userId);
         if (socialStats != null) {
           _applySocialStats(socialStats);
         }
@@ -211,24 +197,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     _isFollowingUser = stats.isFollowingUser;
   }
 
-  _MomentProfileHeaderData? _initialProfileHeader(String userId) {
-    final nickname = widget.initialNickname?.trim() ?? '';
-    final avatar = widget.initialAvatar?.trim() ?? '';
-    final account = widget.initialAccount?.trim() ?? '';
-
-    if (nickname.isEmpty && avatar.isEmpty && account.isEmpty) {
-      return null;
-    }
-
-    return _MomentProfileHeaderData(
-      userId: userId,
-      nickname: nickname,
-      avatar: avatar,
-      account: account.isNotEmpty ? account : userId,
-    );
-  }
-
-  Future<_MomentProfileHeaderData?> _loadProfileHeader(String userId) async {
+  Future<_MomentProfileHeaderData?> _loadProfileHeader(
+    String userId,
+    String imUserId,
+  ) async {
     final account = AccountManager().currentAccount;
     if (_isSelf && account != null) {
       return _MomentProfileHeaderData(
@@ -240,44 +212,36 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     try {
-      final userInfo = await GetUerInfoApi.search(userId);
-      final businessHeader = userInfo == null
-          ? null
-          : _MomentProfileHeaderData.fromBusinessUserInfo(
-              userInfo,
-              fallbackUserId: userId,
-            );
+      final normalizedImUserId = imUserId.trim();
+      if (normalizedImUserId.isNotEmpty) {
+        final user = await UserDisplayStateCenter().getUser(normalizedImUserId);
 
-      final imUserId = userInfo?.account.trim().isNotEmpty == true
-          ? userInfo!.account.trim()
-          : userId;
-      final user = await UserDisplayStateCenter().getUser(imUserId);
-
-      if (user != null) {
-        return _MomentProfileHeaderData.fromUserInfo(
-          user,
-          fallbackUserId: userInfo?.userId ?? userId,
-        );
+        if (user != null) {
+          return _MomentProfileHeaderData.fromUserDisplay(
+            user,
+            fallbackUserId: userId,
+          );
+        }
       }
 
-      return businessHeader;
+      final userInfo = await GetUerInfoApi.search(userId);
+      final fallbackImUserId = userInfo?.account.trim() ?? '';
+      if (fallbackImUserId.isNotEmpty) {
+        final user = await UserDisplayStateCenter().getUser(fallbackImUserId);
+
+        if (user != null) {
+          return _MomentProfileHeaderData.fromUserDisplay(
+            user,
+            fallbackUserId: userInfo?.userId ?? userId,
+          );
+        }
+      }
+
+      return null;
     } catch (e) {
       debugPrint('load moment user profile failed: $e');
       return null;
     }
-  }
-
-  _MomentProfileHeaderData? _headerFromPost(List<SocialInvitationModel> posts) {
-    for (final post in posts) {
-      final userInfo = post.userInfoModel;
-      if (userInfo != null) {
-        return _MomentProfileHeaderData.fromBusinessUserInfo(
-          userInfo,
-          fallbackUserId: post.userId,
-        );
-      }
-    }
-    return null;
   }
 
   Future<List<SocialInvitationModel>> _hydratePostInteractionStates(
@@ -373,15 +337,10 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     });
   }
 
-  void _openComments(SocialInvitationModel post) {
+  void _openComments(MomentPostModel model) {
     context.push(
       '/moment-post-detail',
-      extra: {
-        'item': post,
-        'user': _profileHeader?.user,
-        'isFollowing': false,
-        'isBlock': false,
-      },
+      extra: {'item': model, 'isFollowing': false, 'isBlock': false},
     );
   }
 
@@ -737,8 +696,21 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   /// 社区标题和地址
   Widget _buildProfileAvatar({required bool showPhotoIcon}) {
-    final header =
-        _profileHeader ?? _MomentProfileHeaderData.fallback(_profileUserId);
+    final header = _profileHeader;
+    if (header == null) {
+      return const SizedBox(
+        width: 64,
+        height: 64,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
     final avatar = SizedBox(
       width: 64,
       height: 64,
@@ -798,8 +770,21 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   Widget _buildProfileTitleAndAddress() {
-    final header =
-        _profileHeader ?? _MomentProfileHeaderData.fallback(_profileUserId);
+    final header = _profileHeader;
+    if (header == null) {
+      return const SizedBox(
+        height: 48,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -982,8 +967,9 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   /// 帖子内容
-  Widget _buildPostItem(SocialInvitationModel post) {
-    final header = _postHeaderFor(post);
+  Widget _buildPostItem(MomentPostModel model) {
+    final post = model.item;
+    final header = _postHeaderFor(model);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -991,8 +977,8 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         Row(
           children: [
             UserAvatarWidget(
-              userId: header.avatarSeed,
-              avatarUrl: header.avatar,
+              userId: header?.avatarSeed,
+              avatarUrl: header?.avatar,
               size: 36,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -1001,7 +987,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  header.displayName,
+                  header?.displayName ?? '',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.grey900,
@@ -1036,7 +1022,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     );
   }
 
-  _MomentProfileHeaderData _postHeaderFor(SocialInvitationModel post) {
+  _MomentProfileHeaderData? _postHeaderFor(MomentPostModel model) {
+    if (model.user != null) {
+      return _MomentProfileHeaderData.fromUserDisplay(
+        model.user!,
+        fallbackUserId: model.item.userId,
+      );
+    }
+
+    final post = model.item;
     final userInfo = post.userInfoModel;
     if (userInfo != null) {
       return _MomentProfileHeaderData(
@@ -1047,11 +1041,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       );
     }
 
-    return _profileHeader ?? _MomentProfileHeaderData.fallback(post.userId);
+    return _profileHeader;
   }
 
   /// 帖子互动区
-  Widget _buildPostInteraction(SocialInvitationModel post) {
+  Widget _buildPostInteraction(MomentPostModel model) {
+    final post = model.item;
     return _PostActionBar(
       isLiked: post.isLike,
       isCollected: post.isCollect,
@@ -1062,7 +1057,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       forwardCount: post.forwards,
       onLike: () => _toggleLike(post),
       onCollect: () => _toggleCollect(post),
-      onComment: () => _openComments(post),
+      onComment: () => _openComments(model),
       onShare: () => _showShare(post),
       onForward: () => _forwardPost(post),
     );
@@ -1082,7 +1077,7 @@ class _MomentProfileHeaderData {
     required this.account,
   });
 
-  factory _MomentProfileHeaderData.fromUserInfo(
+  factory _MomentProfileHeaderData.fromUserDisplay(
     UserDisplayModel userInfo, {
     required String fallbackUserId,
   }) {
@@ -1091,30 +1086,6 @@ class _MomentProfileHeaderData {
       nickname: userInfo.name,
       avatar: userInfo.avatar,
       account: userInfo.userId,
-    );
-  }
-
-  factory _MomentProfileHeaderData.fromBusinessUserInfo(
-    UserInfo userInfo, {
-    required String fallbackUserId,
-  }) {
-    final userId = userInfo.userId.trim().isNotEmpty
-        ? userInfo.userId.trim()
-        : fallbackUserId;
-    return _MomentProfileHeaderData(
-      userId: userId,
-      nickname: userInfo.nickname,
-      avatar: userInfo.avatar,
-      account: userInfo.account,
-    );
-  }
-
-  factory _MomentProfileHeaderData.fallback(String userId) {
-    return _MomentProfileHeaderData(
-      userId: userId,
-      nickname: '',
-      avatar: '',
-      account: userId,
     );
   }
 
@@ -1145,7 +1116,13 @@ class _MomentProfileHeaderData {
   }
 
   UserDisplayModel get user {
-    return UserDisplayModel(profile: RCIMIWUserProfile.create(userId: userId,portraitUri: avatar,name: nickname));
+    return UserDisplayModel(
+      profile: RCIMIWUserProfile.create(
+        userId: userId,
+        portraitUri: avatar,
+        name: nickname,
+      ),
+    );
   }
 }
 

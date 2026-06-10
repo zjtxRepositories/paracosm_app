@@ -120,7 +120,16 @@ class DAppModalService {
   }
 
   static Future<bool> showPassword({required BuildContext context}) async {
+    final password = await showPasswordValue(context: context);
+    return password != null;
+  }
+
+  static Future<String?> showPasswordValue({
+    required BuildContext context,
+  }) async {
     final completer = Completer<bool>();
+    final passwordErrorText = AppLocalizations.of(context)!.commonPasswordError;
+    String? verifiedPassword;
 
     await WalletModals.showPasswordModal(
       context: context,
@@ -129,10 +138,11 @@ class DAppModalService {
         final isResult = await WalletSecurity.verifyPassword(password);
 
         if (!isResult) {
-          AppToast.show(AppLocalizations.of(context)!.commonPasswordError);
+          AppToast.show(passwordErrorText);
           return false;
         }
 
+        verifiedPassword = password;
         return true;
       },
       onConfirm: (_) async {
@@ -151,6 +161,7 @@ class DAppModalService {
       completer.complete(false);
     }
 
-    return completer.future;
+    final confirmed = await completer.future;
+    return confirmed ? verifiedPassword : null;
   }
 }

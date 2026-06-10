@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import '../../../core/db/dao/account_dao.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../../core/db/dao/wallet_dao.dart';
+import '../../../core/network/friend_circle/friend_circle_token_manager.dart';
 import '../../im/service/im_service.dart';
 import '../../user/model/user_info.dart';
 import '../../wallet/manager/wallet_manager.dart';
@@ -55,9 +56,9 @@ class AccountManager extends ChangeNotifier {
     required WalletModel wallet,
     required UserInfo user,
   }) async {
-    String name =  wallet.id.length > 8
-        ?  wallet.id.substring( wallet.id.length - 8)
-        :  wallet.id;
+    String name = wallet.id.length > 8
+        ? wallet.id.substring(wallet.id.length - 8)
+        : wallet.id;
     final account = AccountModel(
       id: wallet.id,
       userId: user.userId,
@@ -80,6 +81,11 @@ class AccountManager extends ChangeNotifier {
     unawaited(
       ImService.loginIm(account.accountId).catchError((error) {
         debugPrint('Login IM failed: $error');
+      }),
+    );
+    unawaited(
+      FriendCircleTokenManager.prefetchForCurrentAccount().catchError((error) {
+        debugPrint('Prefetch friend circle token failed: $error');
       }),
     );
 
@@ -226,6 +232,5 @@ class AccountManager extends ChangeNotifier {
     await AccountDao().updateAccount(_currentAccount!);
     accounts = await AccountDao().getAccounts();
     notifyListeners();
-
   }
 }

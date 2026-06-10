@@ -4,25 +4,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
 import 'package:paracosm/core/models/social_media_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
-import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-
-import '../../modules/im/manager/im_user_manager.dart';
+import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 
 class MomentPostModel {
   SocialInvitationModel item;
 
-  MomentPostModel({
-    required this.item,
-  });
+  MomentPostModel({required this.item});
 
   UserDisplayModel? user;
 }
 
 class MomentsResolver {
-  final ImUserManager _manager = ImUserManager();
-
   /// 内存缓存
   final Map<String, UserDisplayModel> _cache = {};
 
@@ -44,66 +36,20 @@ class MomentsResolver {
           .where((e) => !_cache.containsKey(e))
           .toList();
 
-      /// 3. 批量获取业务用户信息
-      ///
-      /// 假设返回：
-      /// List<UserInfo>
-      ///
-      final userInfos =
-      await GetUerInfoApi.getList(needLoadIds);
+      /// 3. 朋友圈 user_id 直接作为 IM userId 获取资料
+      await Future.wait(
+        needLoadIds.map((userId) async {
+          final user = await UserDisplayStateCenter().getUser(userId);
+          if (user != null) {
+            _cache[userId] = user;
+          }
+        }),
+      );
 
-      /// socialId -> imId
-      final Map<String, String> socialToImMap = {};
-
-      for (final item in userInfos) {
-        socialToImMap[item.userId] = item.account;
-      }
-      print('socialToImMap---$socialToImMap');
-      final currentUserId =
-          IMEngineManager().currentUserId;
-
-      /// 4. 收集 IM userId
-      final imUserIds = socialToImMap.values.toSet().toList();
-
-      /// 5. 批量获取 IM 用户资料
-      final profiles =
-          await _manager.getUserProfiles(imUserIds) ?? [];
-
-      /// imId -> profile
-      final Map<String, RCIMIWUserProfile> profileMap = {};
-
-      for (final profile in profiles) {
-        if (profile.userId != null) {
-          profileMap[profile.userId!] = profile;
-        }
-      }
-
-      /// 6. 当前用户特殊处理
-      if (imUserIds.contains(currentUserId)) {
-        final myProfile =
-        await _manager.getMyUserProfile();
-
-        if (myProfile != null &&
-            myProfile.userId != null) {
-          profileMap[myProfile.userId!] = myProfile;
-        }
-      }
-
-      /// 7. 构建缓存
-      socialToImMap.forEach((socialId, imId) {
-        final profile = profileMap[imId];
-
-        if (profile != null) {
-          _cache[socialId] =
-              UserDisplayModel(profile: profile);
-        }
-      });
-
-      /// 8. 回填数据
+      /// 4. 回填数据
       for (final model in models) {
-        final socialId = model.item.userId;
-        model.user = _cache[socialId];
-
+        final userId = model.item.userId;
+        model.user = _cache[userId];
       }
     } catch (e) {
       debugPrint("MomentsResolver resolve error: $e");
@@ -116,13 +62,11 @@ class MomentsResolver {
 }
 
 class MomentDynamicModel {
-  MomentDynamicModel(
-  {
+  MomentDynamicModel({
     required this.noteId,
     required this.content,
     required this.media,
-}
-      );
+  });
 
   final String noteId;
   final String content;

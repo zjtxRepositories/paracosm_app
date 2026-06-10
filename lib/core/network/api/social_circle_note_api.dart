@@ -1,13 +1,17 @@
 import '../../../modules/account/manager/account_manager.dart';
 import '../../models/social_Invitation_model.dart';
-import '../client/base_client.dart';
+import '../../models/social_wallet_address.dart';
+import '../client/friend_circle_base_client.dart';
 import '../../models/social_note_publish_model.dart';
-import 'api_paths.dart';
 
 class SocialCircleNoteApi {
-  static final BaseClient _client = BaseClient(ApiPaths.circleUrl);
+  static FriendCircleBaseClient _client = FriendCircleBaseClient();
+  static String? Function() _accountIdProvider = () =>
+      AccountManager().currentAccount?.accountId;
   static String? get _userId =>
-      AccountManager().currentAccount?.userId.toLowerCase();
+      SocialWalletAddress.normalize(_accountIdProvider());
+  static String get _currentUserId =>
+      SocialWalletAddress.normalize(_accountIdProvider());
 
   /// =========================
   /// 通用解析工具
@@ -20,6 +24,22 @@ class SocialCircleNoteApi {
   static SocialInvitationModel? _parseOne(dynamic data) {
     if (data == null) return null;
     return SocialInvitationModel.fromJson(data);
+  }
+
+  static void setClientForTesting(FriendCircleBaseClient client) {
+    _client = client;
+  }
+
+  static void resetClientForTesting() {
+    _client = FriendCircleBaseClient();
+  }
+
+  static void setAccountIdProviderForTesting(String? Function() provider) {
+    _accountIdProvider = provider;
+  }
+
+  static void resetAccountIdProviderForTesting() {
+    _accountIdProvider = () => AccountManager().currentAccount?.accountId;
   }
 
   /// =========================
@@ -38,11 +58,13 @@ class SocialCircleNoteApi {
   }
 
   static Future<List<SocialInvitationModel>> getSocialCircleUserNoteList(
-    String userId,
+    String walletAddress,
   ) async {
-    final currentUserId = _userId;
-    final params = <String, dynamic>{"user_id": userId.toLowerCase()};
-    if (currentUserId != null) {
+    final userId = SocialWalletAddress.normalize(walletAddress);
+    if (userId.isEmpty) return [];
+    final currentUserId = _currentUserId;
+    final params = <String, dynamic>{"user_id": userId};
+    if (currentUserId.isNotEmpty) {
       params["viewer_user_id"] = currentUserId;
     }
     final res = await _client.get("/app/user/note", params: params);
@@ -77,7 +99,7 @@ class SocialCircleNoteApi {
   /// 写操作（统一 bool）
   /// =========================
   static Future<bool> _postOk(String path, Map<String, dynamic> data) async {
-    final res = await _client.post(path, data: data);
+    final res = await _client.post(path: path, data: data);
     return res["code"] == 1;
   }
 
@@ -103,16 +125,20 @@ class SocialCircleNoteApi {
 
   static Future<bool> socialCircleNoteReview(
     String noteId,
-    String toUserId,
+    String toWalletAddress,
     String content,
     String rootId,
-  ) => _postOk("/app/note/review", {
-    "user_id": _userId,
-    "note_id": noteId,
-    "to_user_id": toUserId,
-    "content": content,
-    "root_id": rootId,
-  });
+  ) {
+    final toUserId = SocialWalletAddress.normalize(toWalletAddress);
+    if (toUserId.isEmpty) return Future.value(false);
+    return _postOk("/app/note/review", {
+      "user_id": _userId,
+      "note_id": noteId,
+      "to_user_id": toUserId,
+      "content": content,
+      "root_id": rootId,
+    });
+  }
 
   static Future<bool> socialCircleNoteDelreview(
     String noteId,
@@ -124,24 +150,34 @@ class SocialCircleNoteApi {
   });
 
   static Future<bool> socialCircleNoteShare(
-    String fromUserId,
-    String toUserId,
+    String fromWalletAddress,
+    String toWalletAddress,
     String noteId,
-  ) => _postOk("/app/note/share", {
-    "note_id": noteId,
-    "from_user_id": fromUserId,
-    "to_user_id": toUserId,
-  });
+  ) {
+    final fromUserId = SocialWalletAddress.normalize(fromWalletAddress);
+    final toUserId = SocialWalletAddress.normalize(toWalletAddress);
+    if (fromUserId.isEmpty || toUserId.isEmpty) return Future.value(false);
+    return _postOk("/app/note/share", {
+      "note_id": noteId,
+      "from_user_id": fromUserId,
+      "to_user_id": toUserId,
+    });
+  }
 
   static Future<bool> socialCircleNoteForward(
-    String fromUserId,
-    String toUserId,
+    String fromWalletAddress,
+    String toWalletAddress,
     String noteId,
-  ) => _postOk("/app/note/forward", {
-    "note_id": noteId,
-    "from_user_id": fromUserId,
-    "to_user_id": toUserId,
-  });
+  ) {
+    final fromUserId = SocialWalletAddress.normalize(fromWalletAddress);
+    final toUserId = SocialWalletAddress.normalize(toWalletAddress);
+    if (fromUserId.isEmpty || toUserId.isEmpty) return Future.value(false);
+    return _postOk("/app/note/forward", {
+      "note_id": noteId,
+      "from_user_id": fromUserId,
+      "to_user_id": toUserId,
+    });
+  }
 
   static Future<List<SocialInvitationModel>> getSocialCircleNoteDraft() async {
     final res = await _client.get(

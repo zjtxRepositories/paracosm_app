@@ -186,7 +186,7 @@ class SocialPostController extends GetxController {
       final mediaList = await buildMediaList();
 
       final model = SocialNotePublishModel(
-        userId: AccountManager().currentAccount?.userId.toLowerCase() ?? '',
+        userId: AccountManager().currentAccount?.accountId.toLowerCase() ?? '',
         noteId: noteId,
         content: textController.text.trim(),
         quote: quote,

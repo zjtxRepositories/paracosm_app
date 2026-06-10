@@ -1,18 +1,18 @@
 import 'package:paracosm/core/models/user_display_model.dart';
-import 'package:paracosm/modules/user/model/user_info.dart';
+import 'package:paracosm/core/models/social_wallet_address.dart';
 
 class SocialReviewModel {
   SocialReviewModel(
-      this.reviewId,
-      this.userId,
-      this.noteId,
-      this.timestamp,
-      this.content,
-      this.toUserId,
-      this.subReviews, {
-        this.userFullInfo,
-        this.toUserFullInfo,
-      });
+    this.reviewId,
+    this.userId,
+    this.noteId,
+    this.timestamp,
+    this.content,
+    this.toUserId,
+    this.subReviews, {
+    this.userFullInfo,
+    this.toUserFullInfo,
+  });
 
   final String reviewId;
   final String userId;
@@ -25,6 +25,20 @@ class SocialReviewModel {
   UserDisplayModel? toUserFullInfo;
 
   List<SocialReviewModel>? subReviews;
+
+  String get walletAddress {
+    final displayAddress = SocialWalletAddress.normalize(userFullInfo?.userId);
+    if (displayAddress.isNotEmpty) return displayAddress;
+    return SocialWalletAddress.normalize(userId);
+  }
+
+  String get toWalletAddress {
+    final displayAddress = SocialWalletAddress.normalize(
+      toUserFullInfo?.userId,
+    );
+    if (displayAddress.isNotEmpty) return displayAddress;
+    return SocialWalletAddress.normalize(toUserId);
+  }
 
   /// =========================
   /// fromJson

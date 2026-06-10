@@ -172,10 +172,15 @@ class MomentsController extends ChangeNotifier {
 
   /// 关注
   Future<void> toggleFollow(SocialInvitationModel item) async {
+    final walletAddress = item.walletAddress;
+    if (walletAddress.isEmpty) {
+      AppToast.show(AppLocalizations.currentText('moments_follow_failed'));
+      return;
+    }
     AppLoading.show();
-    bool isFollow = !_followIds.contains(item.userId);
+    bool isFollow = !_followIds.contains(walletAddress);
     final result = await SocialCircleUserApi.socialCircleUserFollowToggle(
-      item.userId,
+      walletAddress,
       isFollow,
     );
     AppLoading.dismiss();
@@ -184,9 +189,9 @@ class MomentsController extends ChangeNotifier {
       return;
     }
     if (isFollow) {
-      _followIds.add(item.userId);
+      _followIds.add(walletAddress);
     } else {
-      _followIds.remove(item.userId);
+      _followIds.remove(walletAddress);
     }
     notifyListeners();
   }
@@ -226,10 +231,15 @@ class MomentsController extends ChangeNotifier {
 
   /// 拉黑
   Future<void> toggleBlock(SocialInvitationModel item) async {
+    final walletAddress = item.walletAddress;
+    if (walletAddress.isEmpty) {
+      AppToast.show(AppLocalizations.currentText('moments_block_failed'));
+      return;
+    }
     AppLoading.show();
-    bool isBlock = !_blockIds.contains(item.userId);
+    bool isBlock = !_blockIds.contains(walletAddress);
     final result = await SocialCircleUserApi.socialCircleUserBlockToggle(
-      item.userId,
+      walletAddress,
       isBlock,
     );
     AppLoading.dismiss();
@@ -238,9 +248,9 @@ class MomentsController extends ChangeNotifier {
       return;
     }
     if (isBlock) {
-      _blockIds.add(item.userId);
+      _blockIds.add(walletAddress);
     } else {
-      _blockIds.remove(item.userId);
+      _blockIds.remove(walletAddress);
     }
     notifyListeners();
   }

@@ -4,29 +4,33 @@ import '../../../modules/account/manager/account_manager.dart';
 class BaseClient {
   final Dio _dio;
 
-  BaseClient(String baseUrl)
-      : _dio = Dio(BaseOptions(
-    baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-  )) {
+  BaseClient(String baseUrl, {Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: baseUrl,
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 15),
+            ),
+          ) {
+    if (_dio.options.baseUrl.isEmpty) {
+      _dio.options.baseUrl = baseUrl;
+    }
     _dio.interceptors.add(_TokenInterceptor());
   }
 
-  Future<dynamic> get(
-      String path, {
-        Map<String, dynamic>? params,
-      }) async {
+  Future<dynamic> get(String path, {Map<String, dynamic>? params}) async {
     final res = await _dio.get(path, queryParameters: params);
     return res.data;
   }
 
   Future<dynamic> post(
-      String path, {
-        dynamic data,
-        Options? options,
-        void Function(int, int)? onSendProgress,
-      }) async {
+    String path, {
+    dynamic data,
+    Options? options,
+    void Function(int, int)? onSendProgress,
+  }) async {
     final res = await _dio.post(
       path,
       data: data,

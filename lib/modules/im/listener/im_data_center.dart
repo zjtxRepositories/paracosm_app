@@ -193,6 +193,7 @@ class ImDataCenter {
     }
 
     _applyProfiles({userId: profile});
+    _patchGroupMemberByProfile({userId: profile});
   }
 
   void setProfiles(List<RCIMIWUserProfile> profiles) {

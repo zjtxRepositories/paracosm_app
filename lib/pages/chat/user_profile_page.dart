@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -210,6 +211,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   /// 显示设置备注弹窗
   void _showSetNoteNameModal() {
     if (_user == null) return;
+    final setNoteFailedText = AppLocalizations.of(context)!.chatSetNoteFailed;
     TextEditingController controller = TextEditingController(text: _user!.name);
     AppModal.show(
       context,
@@ -224,7 +226,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result) {
-          AppToast.show(AppLocalizations.of(context)!.chatSetNoteFailed);
+          AppToast.show(setNoteFailedText);
           return;
         }
         if (!mounted) return;
@@ -279,6 +281,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _showSetNameModal() {
     final profile = _user?.profile;
     if (profile == null) return;
+    final modifyNameFailedText = AppLocalizations.of(
+      context,
+    )!.chatModifyNameFailed;
     TextEditingController controller = TextEditingController(
       text: profile.name,
     );
@@ -294,7 +299,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
         AppLoading.dismiss();
         if (!result) {
-          AppToast.show(AppLocalizations.of(context)!.chatModifyNameFailed);
+          AppToast.show(modifyNameFailedText);
           return;
         }
         if (!mounted) return;
@@ -314,12 +319,55 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final path = await ImagePickerSheet.show(context);
     if (path == null) return;
 
-    await _handleImage(path);
+    if (!mounted) return;
+    _showAvatarConfirmDialog(path);
+  }
+
+  void _showAvatarConfirmDialog(String path) {
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.chatAvatar,
+      confirmText: AppLocalizations.of(context)!.commonConfirm,
+      cancelText: AppLocalizations.of(context)!.commonCancel,
+      confirmWidth: 161,
+      cancelWidth: 161,
+      cancelBorder: const BorderSide(color: AppColors.grey300),
+      onConfirm: () async {
+        context.pop();
+        await _handleImage(path);
+      },
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Image.file(
+            File(path),
+            width: 140,
+            height: 140,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 140,
+              height: 140,
+              color: AppColors.grey100,
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.broken_image_outlined,
+                size: 48,
+                color: AppColors.grey400,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleImage(String path) async {
     final profile = _user?.profile;
     if (profile == null) return;
+    final uploadFailedText = AppLocalizations.of(context)!.commonUploadFailed;
+    final avatarModifyFailedText = AppLocalizations.of(
+      context,
+    )!.chatAvatarModifyFailed;
     try {
       AppLoading.show();
 
@@ -328,7 +376,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final url = await UploadFileApi.uploadFileByPath(compressed);
 
       if (url == null || url.isEmpty) {
-        AppToast.show(AppLocalizations.of(context)!.commonUploadFailed);
+        AppToast.show(uploadFailedText);
         return;
       }
 
@@ -339,9 +387,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       );
 
       if (!result) {
-        AppToast.show(AppLocalizations.of(context)!.chatAvatarModifyFailed);
+        AppToast.show(avatarModifyFailedText);
         return;
       }
+      if (!mounted) return;
       setState(() {});
       AccountManager().updateAccountUserInfo(
         profile.name ?? '',

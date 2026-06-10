@@ -252,21 +252,21 @@ class ImConversationManager {
 
     final engine = IMEngineManager().engine;
 
-    // _messageSubscription ??= ImMessageManager().messageStream.listen(
-    //   _onMessageEvent,
-    // );
+    _messageSubscription ??= ImMessageManager().messageStream.listen(
+      _onMessageEvent,
+    );
     _connectionSubscription ??= IMEngineManager().connection.eventStream.listen(
       _onConnectionEvent,
     );
 
-    // engine?.onConversationReadStatusSyncMessageReceived =
-    //     (type, targetId, timestamp) {
-    //       _onReadSync(type, targetId);
-    //     };
-    //
-    // engine?.onConversationTopStatusSynced = (type, targetId, channelId, top) {
-    //   _onTopSync(type, targetId, top);
-    // };
+    engine?.onConversationReadStatusSyncMessageReceived =
+        (type, targetId, timestamp) {
+          _onReadSync(type, targetId);
+        };
+
+    engine?.onConversationTopStatusSynced = (type, targetId, channelId, top) {
+      _onTopSync(type, targetId, top);
+    };
   }
 
   void _onConnectionEvent(String event) {

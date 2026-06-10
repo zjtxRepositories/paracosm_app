@@ -92,7 +92,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
                     _filterMembers = _members;
                   } else {
                     _filterMembers = _members.where((e) {
-                      final name = e.name;
+                      final name =  e.name;
                       final address = e.item.userId ?? '';
 
                       final keyword = t.toLowerCase();

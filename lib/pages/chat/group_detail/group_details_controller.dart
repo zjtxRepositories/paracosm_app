@@ -175,12 +175,12 @@ class GroupDetailsController extends ChangeNotifier {
         toggleDisband(context);
         return;
       }
-
+      final name = await nextOwner.name;
       AppConfirmDialog.show(
         context,
         description: AppLocalizations.of(
           context,
-        )!.chatOwnerLeaveTransferConfirm(nextOwner.name),
+        )!.chatOwnerLeaveTransferConfirm(name),
         onConfirm: () async {
           context.pop();
           final groupId = args?.targetId;

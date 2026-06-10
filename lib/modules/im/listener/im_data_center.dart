@@ -168,6 +168,10 @@ class ImDataCenter {
 
     _notifyFriendListChanged();
     _notifyUserDisplayChanged([userId]);
+
+    if ((friend.remark ?? '').isNotEmpty){
+      _patchGroupMemberByProfile({userId: RCIMIWUserProfile.create(userId: friend.userId,portraitUri: friend.portrait,name: friend.remark)});
+    }
   }
 
   void removeFriend(String userId, {bool deletedMessage = true}) {

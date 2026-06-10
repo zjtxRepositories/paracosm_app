@@ -35,7 +35,8 @@ class GroupModel {
     final List<String> list = [];
     for (final e in memberList) {
       if (e.item.userId == IMEngineManager().currentUserId) continue;
-      list.add(e.name);
+      final name = await e.name;
+      list.add(name);
     }
     return list.join("、");
   }

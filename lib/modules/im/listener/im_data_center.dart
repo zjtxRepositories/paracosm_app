@@ -22,15 +22,15 @@ class ImDataCenter {
   bool _inited = false;
 
   // ======================================================
-  // Friend cache + stream（核心新增）
+  // Friend
   // ======================================================
   final Map<String, RCIMIWFriendInfo> _friendCache = {};
 
-  final _friendListController =
+  final _friendListChangeController =
       StreamController<List<RCIMIWFriendInfo>>.broadcast();
 
   Stream<List<RCIMIWFriendInfo>> get friendListStream =>
-      _friendListController.stream;
+      _friendListChangeController.stream;
 
   List<RCIMIWFriendInfo> get friendListSnapshot =>
       List.unmodifiable(_friendCache.values);
@@ -40,46 +40,44 @@ class ImDataCenter {
   // ======================================================
   final Map<String, PresenceState> _presenceCache = {};
 
-  final _presenceController =
+  final _presenceChangeController =
       StreamController<Map<String, PresenceState>>.broadcast();
 
   Stream<Map<String, PresenceState>> get presenceStream =>
-      _presenceController.stream;
+      _presenceChangeController.stream;
 
   // ======================================================
-  // Profile
+  // User display
   // ======================================================
 
-  final _profileController = StreamController<List<String>>.broadcast();
+  final _userDisplayChangeController =
+      StreamController<List<String>>.broadcast();
 
-  Stream<List<String>> get profileStream => _profileController.stream;
+  Stream<List<String>> get profileStream => _userDisplayChangeController.stream;
 
-  // ======================================================
-  // Group member
-  // ======================================================
-  // final Map<String, List<RCIMIWGroupMemberInfo>> _groupMemberCache = {};
+  final _groupMemberChangeController =
+      StreamController<List<String>>.broadcast();
 
-  final _groupMemberController = StreamController<List<String>>.broadcast();
-
-  Stream<List<String>> get groupMemberStream => _groupMemberController.stream;
+  Stream<List<String>> get groupMemberStream =>
+      _groupMemberChangeController.stream;
 
   // ======================================================
   // Group
   // ======================================================
   final Map<String, RCIMIWGroupInfo> _groupCache = {};
 
-  final _groupListController =
+  final _groupListChangeController =
       StreamController<List<RCIMIWGroupInfo>>.broadcast();
 
   Stream<List<RCIMIWGroupInfo>> get groupListStream =>
-      _groupListController.stream;
+      _groupListChangeController.stream;
 
   List<RCIMIWGroupInfo> get groupListSnapshot =>
       List.unmodifiable(_groupCache.values);
 
-  final _groupInfoController = StreamController<List<String>>.broadcast();
+  final _groupInfoChangeController = StreamController<List<String>>.broadcast();
 
-  Stream<List<String>> get groupInfoStream => _groupInfoController.stream;
+  Stream<List<String>> get groupInfoStream => _groupInfoChangeController.stream;
 
   // ======================================================
   // init
@@ -95,14 +93,14 @@ class ImDataCenter {
     // =========================
     _subscribe.stream.listen((map) {
       _presenceCache.addAll(map);
-      _emitPresence();
+      _notifyPresenceChanged();
     });
 
     // =========================
     // profile
     // =========================
     _subscribe.profileStream.listen((map) {
-      _emitProfile(map);
+      _applyProfiles(map);
       _patchGroupMemberByProfile(map);
     });
 
@@ -120,35 +118,34 @@ class ImDataCenter {
           }
           break;
         case GroupEventType.dismissed:
-          removeGroup(event.groupId);
-          _removeConversation(event.groupId, RCIMIWConversationType.group);
+          _removeGroupAndConversation(event.groupId);
           break;
         case GroupEventType.quit:
-          if (event.operatorUserId != IMEngineManager().currentUserId){
-            GroupStateCenter().refreshGroup(event.groupId);
+          if (event.operatorUserId != IMEngineManager().currentUserId) {
+            await _refreshGroupState(event.groupId);
             return;
           }
-          _removeGroup(event.groupId);
+          _removeGroupAndConversation(event.groupId);
           break;
         case GroupEventType.removed:
           if (event.userIds == null) return;
-          if (!event.userIds!.contains(IMEngineManager().currentUserId)){
-            GroupStateCenter().refreshGroup(event.groupId);
+          if (!event.userIds!.contains(IMEngineManager().currentUserId)) {
+            await _refreshGroupState(event.groupId);
             return;
           }
-          _removeGroup(event.groupId);
+          _removeGroupAndConversation(event.groupId);
           break;
         case GroupEventType.memberChanged:
         case GroupEventType.managerChanged:
         case GroupEventType.ownerTransferred:
-          GroupStateCenter().refreshGroup(event.groupId);
+          await _refreshGroupState(event.groupId);
           break;
-        }
+      }
     });
   }
 
   // ======================================================
-  // Friend API（核心）
+  // Friend API
   // ======================================================
 
   void setFriendList(List<RCIMIWFriendInfo> list) {
@@ -157,9 +154,10 @@ class ImDataCenter {
     for (final item in list) {
       if (item.userId == null) continue;
       _friendCache[item.userId!] = item;
+      UserDisplayStateCenter().updateFriend(item);
     }
 
-    _emitFriendList();
+    _notifyFriendListChanged();
   }
 
   void updateFriend(RCIMIWFriendInfo friend) {
@@ -168,15 +166,15 @@ class ImDataCenter {
     UserDisplayStateCenter().updateFriend(friend);
     _friendCache[userId] = friend;
 
-    _emitFriendList();
-    _emitFriend(userId);
+    _notifyFriendListChanged();
+    _notifyUserDisplayChanged([userId]);
   }
 
   void removeFriend(String userId, {bool deletedMessage = true}) {
     _friendCache.remove(userId);
-    _emitFriendList();
+    _notifyFriendListChanged();
     UserDisplayStateCenter().removeFriend(userId);
-    _emitFriend(userId);
+    _notifyUserDisplayChanged([userId]);
     _removeConversation(
       userId,
       RCIMIWConversationType.private,
@@ -193,17 +191,25 @@ class ImDataCenter {
     if (userId == null || userId.isEmpty) {
       return;
     }
-    UserDisplayStateCenter().updateUserProfile(profile);
+
+    _applyProfiles({userId: profile});
   }
 
   void setProfiles(List<RCIMIWUserProfile> profiles) {
+    final map = <String, RCIMIWUserProfile>{};
+
     for (final profile in profiles) {
       final userId = profile.userId;
 
       if (userId == null || userId.isEmpty) {
         continue;
       }
-      UserDisplayStateCenter().updateUserProfile(profile);
+
+      map[userId] = profile;
+    }
+
+    if (map.isNotEmpty) {
+      _applyProfiles(map);
     }
   }
 
@@ -216,8 +222,9 @@ class ImDataCenter {
     for (final item in list) {
       if (item.groupId == null) continue;
       _groupCache[item.groupId!] = item;
+      GroupStateCenter().updateGroupInfo(item);
     }
-    _emitGroupList();
+    _notifyGroupListChanged();
   }
 
   void setGroup(RCIMIWGroupInfo group) {
@@ -228,14 +235,21 @@ class ImDataCenter {
     }
     _groupCache[groupId] = group;
     GroupStateCenter().updateGroupInfo(group);
-    _emitGroup([groupId]);
-
+    _notifyGroupListChanged();
+    _notifyGroupInfoChanged([groupId]);
   }
 
   void removeGroup(String groupId) {
     _groupCache.remove(groupId);
-    _emitGroup([groupId]);
+    GroupStateCenter().removeGroup(groupId);
+    _notifyGroupListChanged();
+    _notifyGroupInfoChanged([groupId]);
+    _notifyGroupMemberChanged([groupId]);
+  }
 
+  void removeGroupAndConversation(String groupId) {
+    removeGroup(groupId);
+    _removeConversation(groupId, RCIMIWConversationType.group);
   }
 
   void _removeConversation(
@@ -275,20 +289,22 @@ class ImDataCenter {
     });
 
     if (affected.isNotEmpty) {
-      _emitGroup(affected.toList());
-
+      final groupIds = affected.toList();
+      _notifyGroupInfoChanged(groupIds);
+      _notifyGroupMemberChanged(groupIds);
     }
   }
 
   void setGroupMembers(String groupId, List<RCIMIWGroupMemberInfo> list) {
     GroupStateCenter().updateMembers(groupId, list);
-    _emitGroup([groupId]);
+    _notifyGroupMemberChanged([groupId]);
+    _notifyGroupInfoChanged([groupId]);
   }
 
   void removeGroupMembers(String groupId) {
-    GroupStateCenter().removeGroup(groupId);
-    _emitGroup([groupId]);
-
+    GroupStateCenter().removeMembers(groupId);
+    _notifyGroupMemberChanged([groupId]);
+    _notifyGroupInfoChanged([groupId]);
   }
 
   List<RCIMIWGroupMemberInfo> getGroupMembers(String groupId) {
@@ -316,58 +332,108 @@ class ImDataCenter {
       _subscribe.unsubscribe(userIds);
 
   // ======================================================
-  // emit
+  // notify
   // ======================================================
 
-  void _emitFriendList() {
-    if (_friendListController.isClosed) return;
+  void _notifyFriendListChanged() {
+    if (_friendListChangeController.isClosed) return;
 
-    _friendListController.add(_friendCache.values.toList());
+    _friendListChangeController.add(_friendCache.values.toList());
   }
 
-  void _emitPresence() {
-    if (_presenceController.isClosed) return;
+  void _notifyPresenceChanged() {
+    if (_presenceChangeController.isClosed) return;
 
-    _presenceController.add(Map.unmodifiable(_presenceCache));
+    _presenceChangeController.add(Map.unmodifiable(_presenceCache));
   }
 
-  void _emitFriend(String userId) {
-    if (!_profileController.isClosed) {
-      _profileController.add([userId]);
-    }
-  }
-
-  void _emitProfile(Map<String, RCIMIWUserProfile> map) {
+  void _applyProfiles(Map<String, RCIMIWUserProfile> map) {
     final userIds = <String>[];
+    var friendListChanged = false;
 
     map.forEach((userId, profile) {
       UserDisplayStateCenter().updateUserProfile(profile);
       userIds.add(userId);
+
+      final friend = _friendCache[userId];
+      if (friend != null) {
+        var changed = false;
+        final name = profile.name;
+        if (name != null && name.isNotEmpty && friend.name != name) {
+          friend.name = name;
+          changed = true;
+        }
+
+        final portrait = profile.portraitUri;
+        if (portrait != null &&
+            portrait.isNotEmpty &&
+            friend.portrait != portrait) {
+          friend.portrait = portrait;
+          changed = true;
+        }
+
+        if (changed) {
+          UserDisplayStateCenter().updateFriend(friend);
+          friendListChanged = true;
+        }
+      }
     });
 
-    if (!_profileController.isClosed) {
-      _profileController.add(userIds);
+    if (friendListChanged) {
+      _notifyFriendListChanged();
+    }
+
+    _notifyUserDisplayChanged(userIds);
+  }
+
+  void _notifyUserDisplayChanged(List<String> userIds) {
+    if (userIds.isEmpty || _userDisplayChangeController.isClosed) return;
+
+    _userDisplayChangeController.add(List.unmodifiable(userIds));
+  }
+
+  void _notifyGroupListChanged() {
+    if (_groupListChangeController.isClosed) return;
+
+    _groupListChangeController.add(_groupCache.values.toList());
+  }
+
+  void _notifyGroupInfoChanged(List<String> groupIds) {
+    if (groupIds.isEmpty || _groupInfoChangeController.isClosed) return;
+
+    _groupInfoChangeController.add(List.unmodifiable(groupIds));
+  }
+
+  void _notifyGroupMemberChanged(List<String> groupIds) {
+    if (groupIds.isEmpty || _groupMemberChangeController.isClosed) return;
+
+    _groupMemberChangeController.add(List.unmodifiable(groupIds));
+  }
+
+  Future<void> _refreshGroupState(String groupId) async {
+    if (groupId.isEmpty) return;
+
+    try {
+      final info = await GroupStateCenter().getGroup(
+        groupId,
+        forceRefresh: true,
+      );
+      if (info != null) {
+        _groupCache[groupId] = info;
+        _notifyGroupListChanged();
+      }
+
+      await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
+
+      _notifyGroupInfoChanged([groupId]);
+      _notifyGroupMemberChanged([groupId]);
+    } catch (_) {
+      // 忽略单次远端刷新失败，后续事件或页面主动拉取会继续同步。
     }
   }
 
-  void _emitGroupList() {
-    if (_groupListController.isClosed) return;
-
-    _groupListController.add(_groupCache.values.toList());
-  }
-
-  void _emitGroup(List<String> groupIds) {
-    if (!_profileController.isClosed) {
-      _groupInfoController.add(groupIds);
-    }
-  }
-
-
-  Future<void> _removeGroup(String groupId) async {
-    if (!_groupCache.containsKey(groupId)) return;
-    removeGroup(groupId);
-    GroupStateCenter().refreshGroup(groupId);
-    _removeConversation(groupId,RCIMIWConversationType.group);
+  void _removeGroupAndConversation(String groupId) {
+    removeGroupAndConversation(groupId);
   }
 
   List<RCIMIWFriendInfo> get friends {
@@ -378,10 +444,10 @@ class ImDataCenter {
   // ======================================================
 
   void dispose() {
-    _friendListController.close();
-    _presenceController.close();
-    _profileController.close();
-    _groupMemberController.close();
-    _groupInfoController.close();
+    _friendListChangeController.close();
+    _presenceChangeController.close();
+    _userDisplayChangeController.close();
+    _groupMemberChangeController.close();
+    _groupInfoChangeController.close();
   }
 }

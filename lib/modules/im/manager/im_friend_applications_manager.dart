@@ -6,11 +6,12 @@ import 'im_engine_manager.dart';
 class ImFriendApplicationsManager {
   ImFriendApplicationsManager._internal();
   static final ImFriendApplicationsManager _instance =
-  ImFriendApplicationsManager._internal();
+      ImFriendApplicationsManager._internal();
 
   factory ImFriendApplicationsManager() => _instance;
 
-  final _controller = StreamController<List<RCIMIWFriendApplicationInfo>>.broadcast();
+  final _controller =
+      StreamController<List<RCIMIWFriendApplicationInfo>>.broadcast();
 
   Stream<List<RCIMIWFriendApplicationInfo>> get stream => _controller.stream;
 
@@ -25,35 +26,34 @@ class ImFriendApplicationsManager {
   void initListener() {
     final engine = IMEngineManager().engine;
 
-    engine?.onFriendApplicationStatusChanged = (
-        String? userId,
-        RCIMIWFriendApplicationType? type,
-        RCIMIWFriendApplicationStatus? status,
-        RCIMIWFriendType? friendType,
-        int? time,
-        String? extra,
+    engine?.onFriendApplicationStatusChanged =
+        (
+          String? userId,
+          RCIMIWFriendApplicationType? type,
+          RCIMIWFriendApplicationStatus? status,
+          RCIMIWFriendType? friendType,
+          int? time,
+          String? extra,
         ) {
+          if (userId == null || status == null || type == null) return;
 
-      if (userId == null || status == null || type == null) return;
+          final item = RCIMIWFriendApplicationInfo.create(
+            userId: userId,
+            applicationStatus: status,
+            applicationType: type,
+            friendType: friendType,
+            operationTime: time ?? 0,
+            remark: extra,
+          );
 
-      final item = RCIMIWFriendApplicationInfo.create(
-        userId: userId,
-        applicationStatus: status,
-        applicationType: type,
-        friendType: friendType,
-        operationTime: time ?? 0,
-        remark: extra,
-      );
+          /// 更新本地列表
+          _upsert(item);
 
-      /// 更新本地列表
-      _upsert(item);
+          /// 推送给 UI
+          _controller.add(_list);
 
-      /// 推送给 UI
-      _controller.add(_list);
-
-      debugPrint("好友申请变更: $userId $status");
-    };
-
+          debugPrint("好友申请变更: $userId $status");
+        };
   }
 
   /// =========================
@@ -69,9 +69,7 @@ class ImFriendApplicationsManager {
     final completer = Completer<void>();
 
     final callback = IRCIMIWGetFriendApplicationsCallback(
-
       onSuccess: (page) {
-
         final result = page?.data ?? [];
 
         if (!loadMore) {
@@ -93,10 +91,7 @@ class ImFriendApplicationsManager {
     );
 
     await IMEngineManager().engine?.getFriendApplications(
-      [
-        RCIMIWFriendApplicationType.sent,
-        RCIMIWFriendApplicationType.received,
-      ],
+      [RCIMIWFriendApplicationType.sent, RCIMIWFriendApplicationType.received],
       [
         RCIMIWFriendApplicationStatus.unhandled,
         RCIMIWFriendApplicationStatus.accepted,
@@ -121,10 +116,8 @@ class ImFriendApplicationsManager {
         onSuccess: () {
           debugPrint('acceptFriendApplication success');
           if (!completer.isCompleted) {
-            _updateLocalStatus(
-              userId,
-              RCIMIWFriendApplicationStatus.accepted,
-            );
+            _updateLocalStatus(userId, RCIMIWFriendApplicationStatus.accepted);
+            unawaited(IMEngineManager().friend.refreshFriend(userId));
             completer.complete(true);
           }
         },
@@ -152,10 +145,7 @@ class ImFriendApplicationsManager {
         onSuccess: () {
           debugPrint('refuse success');
           if (!completer.isCompleted) {
-            _updateLocalStatus(
-              userId,
-              RCIMIWFriendApplicationStatus.refused,
-            );
+            _updateLocalStatus(userId, RCIMIWFriendApplicationStatus.refused);
 
             completer.complete(true);
           }
@@ -171,6 +161,7 @@ class ImFriendApplicationsManager {
 
     return completer.future;
   }
+
   /// =========================
   /// 获取列表
   /// =========================
@@ -179,8 +170,7 @@ class ImFriendApplicationsManager {
     RCIMIWFriendApplicationType? applicationType,
   }) {
     return _list.where((e) {
-      final matchStatus =
-          status == null || e.applicationStatus == status;
+      final matchStatus = status == null || e.applicationStatus == status;
 
       final matchType =
           applicationType == null || e.applicationType == applicationType;
@@ -193,11 +183,14 @@ class ImFriendApplicationsManager {
   /// 未处理数量
   /// =========================
   int get unhandledCount {
-    return _list.where((e) =>
-    e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled
-    && e.applicationType == RCIMIWFriendApplicationType.received).length;
+    return _list
+        .where(
+          (e) =>
+              e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled &&
+              e.applicationType == RCIMIWFriendApplicationType.received,
+        )
+        .length;
   }
-
 
   /// =========================
   /// 本地更新
@@ -212,10 +205,7 @@ class ImFriendApplicationsManager {
     }
   }
 
-  void _updateLocalStatus(
-      String userId,
-      RCIMIWFriendApplicationStatus status,
-      ) {
+  void _updateLocalStatus(String userId, RCIMIWFriendApplicationStatus status) {
     final index = _list.indexWhere((e) => e.userId == userId);
 
     if (index != -1) {
@@ -234,11 +224,13 @@ class ImFriendApplicationsManager {
       _notify();
     }
   }
+
   void _notify() {
     if (!_controller.isClosed) {
       _controller.add(List.from(_list));
     }
   }
+
   /// =========================
   /// 释放
   /// =========================

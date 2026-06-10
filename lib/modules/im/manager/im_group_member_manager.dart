@@ -91,7 +91,7 @@ class ImGroupMemberManager {
             completer.complete(data);
           },
           onError: (int? code) async {
-            if (code == 25418) {
+            if (code == 25418 || code == 25410) {
               GroupEventBus.instance.fire(
                 GroupEvent(
                   type: GroupEventType.quit,

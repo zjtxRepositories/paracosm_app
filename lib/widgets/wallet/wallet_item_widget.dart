@@ -27,17 +27,6 @@ class WalletItemWidget extends StatelessWidget {
     this.onTap,
   });
 
-  String? _avatarUrl() {
-    final value = avatarUrl?.trim();
-    if (value != null && value.isNotEmpty) return value;
-
-    final walletId = wallet?.id ?? address;
-    for (final account in AccountManager().accounts) {
-      if (account.id == walletId) return account.avatar;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -57,8 +46,8 @@ class WalletItemWidget extends StatelessWidget {
         children: [
           /// 头像
           UserAvatarWidget(
-            userId: wallet?.id ?? address,
-            avatarUrl: _avatarUrl(),
+            userId: address.toLowerCase(),
+            avatarUrl: avatarUrl,
             size: 44,
           ),
           const SizedBox(width: 12),

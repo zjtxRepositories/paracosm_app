@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
-import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../listener/group_state_center.dart';
@@ -85,6 +84,8 @@ class ImGroupManager {
 
   bool _initialized = false;
 
+  final Set<String> _locallyRemovedGroupIds = {};
+
   RCIMIWEngine? get _engine => IMEngineManager().engine;
 
   /// =======================================================
@@ -127,6 +128,7 @@ class ImGroupManager {
             /// 创建群
             /// =========================
             case RCIMIWGroupOperation.create:
+              _markGroupActive(groupId);
               GroupEventBus.instance.fire(
                 GroupEvent(
                   type: GroupEventType.created,
@@ -142,6 +144,7 @@ class ImGroupManager {
             /// 加入群
             /// =========================
             case RCIMIWGroupOperation.join:
+              _markGroupActive(groupId);
               if (groupInfo == null) {
                 GroupStateCenter().refreshGroup(groupId);
               }
@@ -155,23 +158,56 @@ class ImGroupManager {
               );
 
               break;
-          /// =========================
-          /// 踢出
-          /// =========================
-            case RCIMIWGroupOperation.kick:
-            case RCIMIWGroupOperation.addmanager:
-            case RCIMIWGroupOperation.removemanager:
-            case RCIMIWGroupOperation.transfergroupowner:
 
+            /// =========================
+            /// 踢出
+            /// =========================
+            case RCIMIWGroupOperation.kick:
+              if (_locallyRemovedGroupIds.contains(groupId)) return;
               GroupEventBus.instance.fire(
                 GroupEvent(
-                  type: GroupEventType.memberChanged,
+                  type: GroupEventType.removed,
                   groupId: groupId,
                   operatorUserId: operatorInfo?.userId,
+                  userIds: _memberUserIds(memberInfos),
                 ),
               );
 
               break;
+
+            /// =========================
+            /// 管理员变更
+            /// =========================
+            case RCIMIWGroupOperation.addmanager:
+            case RCIMIWGroupOperation.removemanager:
+              if (_locallyRemovedGroupIds.contains(groupId)) return;
+              GroupEventBus.instance.fire(
+                GroupEvent(
+                  type: GroupEventType.managerChanged,
+                  groupId: groupId,
+                  operatorUserId: operatorInfo?.userId,
+                  userIds: _memberUserIds(memberInfos),
+                ),
+              );
+
+              break;
+
+            /// =========================
+            /// 转让群主
+            /// =========================
+            case RCIMIWGroupOperation.transfergroupowner:
+              if (_locallyRemovedGroupIds.contains(groupId)) return;
+              GroupEventBus.instance.fire(
+                GroupEvent(
+                  type: GroupEventType.ownerTransferred,
+                  groupId: groupId,
+                  operatorUserId: operatorInfo?.userId,
+                  userIds: _memberUserIds(memberInfos),
+                ),
+              );
+
+              break;
+
             /// =========================
             /// 退群
             /// =========================
@@ -193,9 +229,7 @@ class ImGroupManager {
               GroupEventBus.instance.fire(
                 GroupEvent(type: GroupEventType.dismissed, groupId: groupId),
               );
-
               break;
-
             default:
               break;
           }
@@ -283,6 +317,12 @@ class ImGroupManager {
     }
 
     ImDataCenter().setGroupList(allGroups);
+    for (final group in allGroups) {
+      final groupId = group.groupId;
+      if (groupId != null && groupId.isNotEmpty) {
+        _markGroupActive(groupId);
+      }
+    }
 
     return allGroups;
   }
@@ -326,7 +366,7 @@ class ImGroupManager {
       groupName: groupName ?? '[默认]',
       invitePermission: RCIMIWGroupOperationPermission.everyone,
       joinPermission: RCIMIWGroupJoinPermission.free,
-      role: RCIMIWGroupMemberRole.owner
+      role: RCIMIWGroupMemberRole.owner,
     );
 
     return createByGroupInfo(groupInfo, inviteeUserIds);
@@ -353,6 +393,7 @@ class ImGroupManager {
         inviteeUserIds,
         callback: IRCIMIWCreateGroupCallback(
           onSuccess: (result) {
+            _markGroupActive(groupInfo.groupId ?? '');
             GroupEventBus.instance.fire(
               GroupEvent(
                 type: GroupEventType.created,
@@ -393,7 +434,13 @@ class ImGroupManager {
       groupId,
       callback: IRCIMIWJoinGroupCallback(
         onSuccess: (code) async {
-          if (code != 0) completer.complete(false);
+          if (code != 0) {
+            if (!completer.isCompleted) {
+              completer.complete(false);
+            }
+            return;
+          }
+          _markGroupActive(groupId);
           await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
 
           GroupEventBus.instance.fire(
@@ -437,7 +484,12 @@ class ImGroupManager {
       userIds,
       callback: IRCIMIWInviteUsersToGroupCallback(
         onSuccess: (code) async {
-          if (code != 0) completer.complete(false);
+          if (code != 0) {
+            if (!completer.isCompleted) {
+              completer.complete(false);
+            }
+            return;
+          }
           await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
 
           GroupEventBus.instance.fire(
@@ -482,7 +534,12 @@ class ImGroupManager {
       config,
       callback: IRCIMIWKickGroupMembersCallback(
         onCompleted: (int? code) async {
-          if (code != 0) completer.complete(false);
+          if (code != 0) {
+            if (!completer.isCompleted) {
+              completer.complete(false);
+            }
+            return;
+          }
           await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
           GroupEventBus.instance.fire(
             GroupEvent(
@@ -522,13 +579,7 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      GroupEventBus.instance.fire(
-        GroupEvent(
-          type: GroupEventType.quit,
-          groupId: groupId,
-          operatorUserId: IMEngineManager().currentUserId,
-        ),
-      );
+      _removeLocalGroupAndConversation(groupId);
     }
 
     return success;
@@ -543,9 +594,7 @@ class ImGroupManager {
     final success = code == 0;
 
     if (success) {
-      GroupEventBus.instance.fire(
-        GroupEvent(type: GroupEventType.dismissed, groupId: groupId),
-      );
+      _removeLocalGroupAndConversation(groupId);
     }
 
     return success;
@@ -587,21 +636,39 @@ class ImGroupManager {
     final success = await completer.future;
 
     if (success) {
-      await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
-
-      GroupEventBus.instance.fire(
-        GroupEvent(
-          type: quitGroup
-              ? GroupEventType.quit
-              : GroupEventType.ownerTransferred,
-          groupId: groupId,
-          operatorUserId: IMEngineManager().currentUserId,
-          data: newOwnerId,
-        ),
-      );
+      if (quitGroup) {
+        _removeLocalGroupAndConversation(groupId);
+      } else {
+        GroupEventBus.instance.fire(
+          GroupEvent(
+            type: GroupEventType.ownerTransferred,
+            groupId: groupId,
+            operatorUserId: IMEngineManager().currentUserId,
+            data: newOwnerId,
+          ),
+        );
+      }
     }
 
     return success;
+  }
+
+  void _removeLocalGroupAndConversation(String groupId) {
+    _locallyRemovedGroupIds.add(groupId);
+    ImDataCenter().removeGroupAndConversation(groupId);
+  }
+
+  void _markGroupActive(String groupId) {
+    _locallyRemovedGroupIds.remove(groupId);
+  }
+
+  List<String> _memberUserIds(List<RCIMIWGroupMemberInfo>? members) {
+    if (members == null || members.isEmpty) return const [];
+
+    return members
+        .map((member) => member.userId ?? '')
+        .where((userId) => userId.isNotEmpty)
+        .toList();
   }
 
   /// =======================================================

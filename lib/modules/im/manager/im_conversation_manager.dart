@@ -6,7 +6,6 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'im_connection_manager.dart';
 import 'im_engine_manager.dart';
-import 'im_group_manager.dart';
 import 'im_message_manager.dart';
 
 /// =========================
@@ -121,7 +120,6 @@ class ImConversationManager {
   bool _disposed = false;
 
   StreamSubscription<MessageEvent>? _messageSubscription;
-  StreamSubscription<GroupEvent>? _groupEventSubscription;
   StreamSubscription<String>? _connectionSubscription;
 
   /// =========================
@@ -231,6 +229,18 @@ class ImConversationManager {
     );
   }
 
+  void _complete<T>(Completer<T> completer, T value) {
+    if (!completer.isCompleted) {
+      completer.complete(value);
+    }
+  }
+
+  void _completeError<T>(Completer<T> completer, Object error) {
+    if (!completer.isCompleted) {
+      completer.completeError(error);
+    }
+  }
+
   /// =========================
   /// init
   /// =========================
@@ -238,24 +248,25 @@ class ImConversationManager {
     if (_inited) return;
 
     _inited = true;
+    _disposed = false;
 
     final engine = IMEngineManager().engine;
 
-    _messageSubscription ??= ImMessageManager().messageStream.listen(
-      _onMessageEvent,
-    );
+    // _messageSubscription ??= ImMessageManager().messageStream.listen(
+    //   _onMessageEvent,
+    // );
     _connectionSubscription ??= IMEngineManager().connection.eventStream.listen(
       _onConnectionEvent,
     );
 
-    engine?.onConversationReadStatusSyncMessageReceived =
-        (type, targetId, timestamp) {
-          _onReadSync(type, targetId);
-        };
-
-    engine?.onConversationTopStatusSynced = (type, targetId, channelId, top) {
-      _onTopSync(type, targetId, top);
-    };
+    // engine?.onConversationReadStatusSyncMessageReceived =
+    //     (type, targetId, timestamp) {
+    //       _onReadSync(type, targetId);
+    //     };
+    //
+    // engine?.onConversationTopStatusSynced = (type, targetId, channelId, top) {
+    //   _onTopSync(type, targetId, top);
+    // };
   }
 
   void _onConnectionEvent(String event) {
@@ -390,6 +401,9 @@ class ImConversationManager {
           state.hasMore = false;
         }
       }
+    } catch (error) {
+      debugPrint('Load conversations failed: $error');
+      state.hasMore = false;
     } finally {
       state.loading = false;
     }
@@ -413,6 +427,8 @@ class ImConversationManager {
 
     final callback = IRCIMIWGetConversationsCallback(
       onSuccess: (list) {
+
+        print('list------$tabIndex:${list?.length}');
         final conversations = list ?? [];
         var minTime = startTime == 0 ? null : startTime;
 
@@ -429,20 +445,17 @@ class ImConversationManager {
             nextCursorTime > 0 &&
             nextCursorTime != startTime;
 
-        if (!completer.isCompleted) {
-          completer.complete(
-            _ConversationFetchResult(
-              conversations: conversations,
-              nextCursorTime: nextCursorTime,
-              hasMore: hasMore,
-            ),
-          );
-        }
+        _complete(
+          completer,
+          _ConversationFetchResult(
+            conversations: conversations,
+            nextCursorTime: nextCursorTime,
+            hasMore: hasMore,
+          ),
+        );
       },
       onError: (code) {
-        if (!completer.isCompleted) {
-          completer.completeError(code ?? -1);
-        }
+        _completeError(completer, code ?? -1);
       },
     );
 
@@ -454,8 +467,8 @@ class ImConversationManager {
       callback: callback,
     );
 
-    if (code != 0 && !completer.isCompleted) {
-      completer.completeError(code);
+    if (code != 0) {
+      _completeError(completer, code);
     }
 
     return completer.future;
@@ -512,7 +525,9 @@ class ImConversationManager {
             (old.unreadCount ?? 0) +
             (!(event.message?.receivedStatusInfo?.read ?? false) ? 1 : 0);
       }
-      old.operationTime = newTime;
+      if (newTime > 0 && newTime >= oldTime) {
+        old.operationTime = newTime;
+      }
 
       _sortAllTabs();
 
@@ -566,13 +581,12 @@ class ImConversationManager {
     String targetId,
     RCIMIWConversationType type,
   ) async {
-    final key = _buildKey(type, targetId);
-
     try {
-      await IMEngineManager().engine?.removeConversation(type, targetId, null);
-    } catch (_) {}
-
-    _removeLocalConversation(key);
+      await removeConversation(type, null, targetId);
+    } catch (_) {
+      final key = _buildKey(type, targetId);
+      _removeLocalConversation(key);
+    }
   }
 
   void _removeLocalConversation(String key) {
@@ -735,27 +749,22 @@ class ImConversationManager {
   /// =========================
   Future<void> dispose() async {
     _disposed = true;
+    _inited = false;
+    _loading = false;
 
     await _messageSubscription?.cancel();
-
-    await _groupEventSubscription?.cancel();
+    _messageSubscription = null;
 
     await _connectionSubscription?.cancel();
+    _connectionSubscription = null;
 
     _debounce?.cancel();
+    _debounce = null;
 
     _allMap.clear();
     _tabIds.clear();
     _tabCache.clear();
     _tabPageStates.clear();
-
-    if (!_controller.isClosed) {
-      await _controller.close();
-    }
-
-    if (!_changeController.isClosed) {
-      await _changeController.close();
-    }
   }
 
   /// =========================
@@ -766,21 +775,30 @@ class ImConversationManager {
     required String targetId,
     String? channelId,
   }) async {
+    final engine = IMEngineManager().engine;
+    if (engine == null) {
+      return null;
+    }
+
     final completer = Completer<RCIMIWConversation?>();
 
-    IMEngineManager().engine?.getConversation(
+    final code = await engine.getConversation(
       type,
       targetId,
       channelId,
       callback: IRCIMIWGetConversationCallback(
         onSuccess: (c) {
-          completer.complete(c);
+          _complete(completer, c);
         },
         onError: (_) {
-          completer.complete(null);
+          _complete(completer, null);
         },
       ),
     );
+
+    if (code != 0) {
+      _complete(completer, null);
+    }
 
     return completer.future;
   }
@@ -790,26 +808,36 @@ class ImConversationManager {
     String? channelId,
     String targetId,
   ) async {
+    final engine = IMEngineManager().engine;
+    final key = _buildKey(type, targetId);
+
+    if (engine == null) {
+      _removeLocalConversation(key);
+      return;
+    }
+
     final completer = Completer<void>();
 
-    await IMEngineManager().engine?.removeConversation(
+    final code = await engine.removeConversation(
       type,
       targetId,
       channelId,
       callback: IRCIMIWRemoveConversationCallback(
         onConversationRemoved: (code) {
           if (code == 0) {
-            final key = _buildKey(type, targetId);
-
             _removeLocalConversation(key);
 
-            completer.complete();
+            _complete(completer, null);
           } else {
-            completer.completeError(code ?? -1);
+            _completeError(completer, code ?? -1);
           }
         },
       ),
     );
+
+    if (code != 0) {
+      _completeError(completer, code);
+    }
 
     return completer.future;
   }
@@ -835,19 +863,22 @@ class ImConversationManager {
       top,
       callback: IRCIMIWChangeConversationTopStatusCallback(
         onConversationTopStatusChanged: (code) {
-          completer.complete(code == 0);
-          _onTopSync(
-            type,
-            targetId,
-            top,
-            operationTime: DateTime.now().millisecondsSinceEpoch,
-          );
+          final success = code == 0;
+          _complete(completer, success);
+          if (success) {
+            _onTopSync(
+              type,
+              targetId,
+              top,
+              operationTime: DateTime.now().millisecondsSinceEpoch,
+            );
+          }
         },
       ),
     );
 
-    if (code != 0 && !completer.isCompleted) {
-      completer.complete(false);
+    if (code != 0) {
+      _complete(completer, false);
     }
 
     return completer.future;
@@ -867,19 +898,25 @@ class ImConversationManager {
 
     final completer = Completer<bool>();
 
-    await engine.clearUnreadCount(
+    final code = await engine.clearUnreadCount(
       type,
       targetId,
       channelId,
       timestamp,
       callback: IRCIMIWClearUnreadCountCallback(
         onUnreadCountCleared: (code) {
-          completer.complete(code == 0);
-
-          _onReadSync(type, targetId);
+          final success = code == 0;
+          _complete(completer, success);
+          if (success) {
+            _onReadSync(type, targetId);
+          }
         },
       ),
     );
+
+    if (code != 0) {
+      _complete(completer, false);
+    }
 
     return completer.future;
   }
@@ -918,17 +955,21 @@ class ImConversationManager {
 
     final completer = Completer<bool>();
 
-    await engine.changeConversationNotificationLevel(
+    final code = await engine.changeConversationNotificationLevel(
       type,
       targetId,
       channelId,
       level,
       callback: IRCIMIWChangeConversationNotificationLevelCallback(
         onConversationNotificationLevelChanged: (code) {
-          completer.complete(code == 0);
+          _complete(completer, code == 0);
         },
       ),
     );
+
+    if (code != 0) {
+      _complete(completer, false);
+    }
 
     return completer.future;
   }
@@ -952,16 +993,16 @@ class ImConversationManager {
       channelId,
       callback: IRCIMIWGetConversationNotificationLevelCallback(
         onSuccess: (level) {
-          completer.complete(level);
+          _complete(completer, level);
         },
         onError: (_) {
-          completer.complete(null);
+          _complete(completer, null);
         },
       ),
     );
 
-    if (code != 0 && !completer.isCompleted) {
-      completer.complete(null);
+    if (code != 0) {
+      _complete(completer, null);
     }
 
     return completer.future;
@@ -986,16 +1027,16 @@ class ImConversationManager {
       channelId,
       callback: IRCIMIWGetConversationTopStatusCallback(
         onSuccess: (top) {
-          completer.complete(top);
+          _complete(completer, top);
         },
         onError: (_) {
-          completer.complete(null);
+          _complete(completer, null);
         },
       ),
     );
 
-    if (code != 0 && !completer.isCompleted) {
-      completer.complete(null);
+    if (code != 0) {
+      _complete(completer, null);
     }
 
     return completer.future;

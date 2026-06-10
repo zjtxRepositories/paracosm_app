@@ -9,8 +9,7 @@ import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 class UserDisplayStateCenter {
   UserDisplayStateCenter._();
 
-  static final UserDisplayStateCenter _instance =
-  UserDisplayStateCenter._();
+  static final UserDisplayStateCenter _instance = UserDisplayStateCenter._();
 
   factory UserDisplayStateCenter() => _instance;
 
@@ -29,9 +28,9 @@ class UserDisplayStateCenter {
   // ======================================================
 
   Future<UserDisplayModel?> getUser(
-      String userId, {
-        bool forceRefresh = false,
-      }) {
+    String userId, {
+    bool forceRefresh = false,
+  }) {
     if (!forceRefresh) {
       final cached = _cache[userId];
       if (cached != null) return Future.value(cached);
@@ -67,21 +66,22 @@ class UserDisplayStateCenter {
 
         if (friend != null) {
           final old = _cache[userId];
-          result = (old ?? UserDisplayModel(friend: friend))
-              .copyWith(friend: friend);
+          result = (old ?? UserDisplayModel(friend: friend)).copyWith(
+            friend: friend,
+          );
         } else {
           /// =========================
           /// 3️⃣ user fallback
           /// =========================
-          final users =
-          await ImUserManager().getUserProfiles([userId]);
+          final users = await ImUserManager().getUserProfiles([userId]);
 
           final user = users?.isNotEmpty == true ? users!.first : null;
 
           if (user != null) {
             final old = _cache[userId];
-            result = (old ?? UserDisplayModel(profile: user))
-                .copyWith(profile: user);
+            result = (old ?? UserDisplayModel(profile: user)).copyWith(
+              profile: user,
+            );
           }
         }
       }
@@ -110,8 +110,9 @@ class UserDisplayStateCenter {
 
     final old = _cache[userId];
 
-    _cache[userId] = (old ?? UserDisplayModel.empty(userId))
-        .copyWith(friend: friend);
+    _cache[userId] = (old ?? UserDisplayModel.empty(userId)).copyWith(
+      friend: friend,
+    );
   }
 
   void updateUserProfile(dynamic profile) {
@@ -120,8 +121,9 @@ class UserDisplayStateCenter {
 
     final old = _cache[userId];
 
-    _cache[userId] = (old ?? UserDisplayModel.empty(userId))
-        .copyWith(profile: profile);
+    _cache[userId] = (old ?? UserDisplayModel.empty(userId)).copyWith(
+      profile: profile,
+    );
   }
 
   void removeFriend(String userId) {
@@ -151,6 +153,10 @@ class UserDisplayStateCenter {
   // snapshot（只保留单源）
   // ======================================================
 
-  Map<String, UserDisplayModel> snapshot() =>
-      UnmodifiableMapView(_cache);
+  Map<String, UserDisplayModel> snapshot() => UnmodifiableMapView(_cache);
+
+  void resetForTesting() {
+    _cache.clear();
+    _pending.clear();
+  }
 }

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
@@ -48,7 +47,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
 
   Widget _buildThread(SocialReviewModel c) {
     final id = c.reviewId;
-    final replies = c.subReviews ?? [];
+    final replies = _flattenReplies(c);
 
     final isExpanded = _expanded.contains(id);
 
@@ -67,23 +66,23 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
         content: c.content,
         onTap: () => widget.onReply?.call(
           c.reviewId,
-          c.userId,
+          c.walletAddress,
           c.userFullInfo?.name ?? '',
         ),
       ),
 
       replies: visibleReplies.map((r) {
         return _MomentCommentItem(
-          userId: c.userFullInfo?.userId ?? '',
-          name: c.userFullInfo?.name ?? '',
-          avatar: c.userFullInfo?.avatar ?? '',
+          userId: r.userFullInfo?.userId ?? '',
+          name: _replyTitle(r),
+          avatar: r.userFullInfo?.avatar ?? '',
           time: formatIMTime(r.timestamp),
           content: r.content,
           leftInset: 38,
           showConnector: true,
           onTap: () => widget.onReply?.call(
-            r.reviewId,
-            r.userId,
+            c.reviewId,
+            r.walletAddress,
             r.userFullInfo?.name ?? '',
           ),
         );
@@ -104,12 +103,38 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
           : null,
     );
   }
+
+  List<SocialReviewModel> _flattenReplies(SocialReviewModel root) {
+    final replies = <SocialReviewModel>[];
+
+    void collect(List<SocialReviewModel>? items) {
+      if (items == null) return;
+
+      for (final item in items) {
+        replies.add(item);
+        collect(item.subReviews);
+      }
+    }
+
+    collect(root.subReviews);
+    return replies;
+  }
+
+  String _replyTitle(SocialReviewModel review) {
+    final userName = review.userFullInfo?.name ?? '';
+    final toUserName = review.toUserFullInfo?.name ?? '';
+
+    if (userName.isEmpty && toUserName.isEmpty) return '';
+    if (toUserName.isEmpty) return userName;
+    if (userName.isEmpty) return '回复 $toUserName';
+    return '$userName 回复 $toUserName';
+  }
 }
 
 class _CommentHeader extends StatelessWidget {
   final int count;
 
-  const _CommentHeader({required this.count, super.key});
+  const _CommentHeader({required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +234,6 @@ class _MomentCommentItem extends StatelessWidget {
     this.leftInset = 0,
     this.showConnector = false,
     this.onTap,
-    super.key,
   });
 
   @override
@@ -225,12 +249,14 @@ class _MomentCommentItem extends StatelessWidget {
               Container(width: 2, height: 36, color: AppColors.grey100),
               const SizedBox(width: 10),
             ],
-            userId.isNotEmpty ? UserAvatarWidget(
-              userId: userId,
-              avatarUrl: avatar,
-              size: 24,
-              borderRadius: BorderRadius.circular(4),
-            ) : SizedBox(),
+            userId.isNotEmpty
+                ? UserAvatarWidget(
+                    userId: userId,
+                    avatarUrl: avatar,
+                    size: 24,
+                    borderRadius: BorderRadius.circular(4),
+                  )
+                : SizedBox(),
 
             const SizedBox(width: 8),
 

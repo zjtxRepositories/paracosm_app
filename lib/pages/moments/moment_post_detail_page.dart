@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import '../../core/models/moment_post_model.dart';
+import '../../core/models/social_review_model.dart';
 import '../../util/string_util.dart';
 import '../../widgets/base/app_localizations.dart';
 import '../../widgets/chat/user_avatar_widget.dart';
@@ -48,28 +48,23 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
 
   Future<void> resolveReviewInfo() async {
     // 并发处理所有 reviewInfo
-    await Future.wait(
-      model.item.reviewInfo.map((info) async {
-        // 并发获取 user 和 toUser
-        final results = await Future.wait([
-          GetUerInfoApi.get(info.userId),
-          GetUerInfoApi.get(info.toUserId),
-        ]);
+    await Future.wait(model.item.reviewInfo.map(_resolveSingleReviewInfo));
+    if (!mounted) return;
+    setState(() {});
+  }
 
-        final user = results[0];
-        final toUser = results[1];
-
-        // 并发获取 display info
-        final displayResults = await Future.wait([
-          UserDisplayStateCenter().getUser(user.account),
-          UserDisplayStateCenter().getUser(toUser.account),
-        ]);
-
+  Future<void> _resolveSingleReviewInfo(SocialReviewModel info) async {
+    final subReviews = info.subReviews ?? const <SocialReviewModel>[];
+    await Future.wait([
+      Future.wait([
+        UserDisplayStateCenter().getUser(info.userId),
+        UserDisplayStateCenter().getUser(info.toUserId),
+      ]).then((displayResults) {
         info.userFullInfo = displayResults[0];
         info.toUserFullInfo = displayResults[1];
       }),
-    );
-    setState(() {});
+      ...subReviews.map(_resolveSingleReviewInfo),
+    ]);
   }
 
   @override
@@ -192,10 +187,11 @@ class _MomentPostDetailPageState extends State<MomentPostDetailPage> {
                 text,
                 rootReviewId,
                 model.item.noteId,
-                toUserId ?? model.item.userId,
+                toUserId ?? model.item.walletAddress,
               );
               setState(() {
                 model.item = newModel;
+                resolveReviewInfo();
               });
             },
           ),

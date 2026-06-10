@@ -138,6 +138,7 @@ flutter:
     - assets/images/profile/user/
     - assets/i18n/
     - assets/chains.json
+    - assets/public/public.pem
     - assets/javascript/metamask/
     - assets/images/avatar/
     - assets/images/chat/custom_face/4350/

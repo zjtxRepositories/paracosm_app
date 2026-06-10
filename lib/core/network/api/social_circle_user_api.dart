@@ -1,12 +1,14 @@
 import '../../../modules/account/manager/account_manager.dart';
 import '../../models/social_Invitation_model.dart';
-import '../client/base_client.dart';
-import 'api_paths.dart';
+import '../../models/social_wallet_address.dart';
+import '../client/friend_circle_base_client.dart';
 
 class SocialCircleUserApi {
-  static final BaseClient _httpUtil = BaseClient(ApiPaths.circleUrl);
+  static FriendCircleBaseClient _httpUtil = FriendCircleBaseClient();
+  static String? Function() _accountIdProvider = () =>
+      AccountManager().currentAccount?.accountId;
   static String? get _userId =>
-      AccountManager().currentAccount?.userId.toLowerCase();
+      SocialWalletAddress.normalize(_accountIdProvider());
 
   /// =========================
   /// 通用解析
@@ -23,9 +25,25 @@ class SocialCircleUserApi {
 
   static bool _isOk(dynamic res) => res?["code"] == 1;
 
+  static void setClientForTesting(FriendCircleBaseClient client) {
+    _httpUtil = client;
+  }
+
+  static void resetClientForTesting() {
+    _httpUtil = FriendCircleBaseClient();
+  }
+
+  static void setAccountIdProviderForTesting(String? Function() provider) {
+    _accountIdProvider = provider;
+  }
+
+  static void resetAccountIdProviderForTesting() {
+    _accountIdProvider = () => AccountManager().currentAccount?.accountId;
+  }
+
   static String? _resolveUserId(String? userId) {
-    final value = userId?.trim().toLowerCase();
-    if (value != null && value.isNotEmpty) return value;
+    final value = SocialWalletAddress.normalize(userId);
+    if (value.isNotEmpty) return value;
     return _userId;
   }
 
@@ -74,13 +92,15 @@ class SocialCircleUserApi {
   /// follow / unfollow（合并）
   /// =========================
   static Future<bool> socialCircleUserFollowToggle(
-    String followUserId,
+    String followWalletAddress,
     bool isFollow,
   ) async {
+    final followUserId = SocialWalletAddress.normalize(followWalletAddress);
+    if (followUserId.isEmpty) return false;
     final path = isFollow ? "/app/user/follow" : "/app/user/unfollow";
 
     final res = await _httpUtil.post(
-      path,
+      path: path,
       data: {"user_id": _userId, "follow_user_id": followUserId},
     );
     return _isOk(res);
@@ -90,13 +110,15 @@ class SocialCircleUserApi {
   /// block / unblock（合并）
   /// =========================
   static Future<bool> socialCircleUserBlockToggle(
-    String blockUserId,
+    String blockWalletAddress,
     bool isBlock,
   ) async {
+    final blockUserId = SocialWalletAddress.normalize(blockWalletAddress);
+    if (blockUserId.isEmpty) return false;
     final path = isBlock ? "/app/user/block" : "/app/user/unblock";
 
     final res = await _httpUtil.post(
-      path,
+      path: path,
       data: {"user_id": _userId, "block_user_id": blockUserId},
     );
 
@@ -107,12 +129,15 @@ class SocialCircleUserApi {
   /// report（单一行为）
   /// =========================
   static Future<bool> socialCircleUserReport(
-    String userId,
-    String reportUserId,
+    String walletAddress,
+    String reportWalletAddress,
     String content,
   ) async {
+    final userId = SocialWalletAddress.normalize(walletAddress);
+    final reportUserId = SocialWalletAddress.normalize(reportWalletAddress);
+    if (userId.isEmpty || reportUserId.isEmpty) return false;
     final res = await _httpUtil.post(
-      "/app/user/report",
+      path: "/app/user/report",
       data: {
         "user_id": userId,
         "report_user_id": reportUserId,

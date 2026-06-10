@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
+import 'package:paracosm/core/models/social_wallet_address.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
@@ -79,7 +79,15 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   String get _currentUserId =>
-      AccountManager().currentAccount?.userId.toLowerCase() ?? '';
+      AccountManager().currentAccount?.accountId.toLowerCase() ?? '';
+
+  String get _profileWalletAddress {
+    final headerAccount = SocialWalletAddress.normalize(
+      _profileHeader?.account,
+    );
+    if (headerAccount.isNotEmpty) return headerAccount;
+    return SocialWalletAddress.normalize(_profileUserId);
+  }
 
   @override
   void initState() {
@@ -144,9 +152,18 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         _profileHeader = profileHeader ?? _profileHeader;
       });
 
-      socialStatsFuture = _loadSocialStats(userId);
+      final profileWalletAddress = _profileWalletAddress;
+      if (profileWalletAddress.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      socialStatsFuture = _loadSocialStats(profileWalletAddress);
       final posts = await SocialCircleNoteApi.getSocialCircleUserNoteList(
-        userId,
+        profileWalletAddress,
       );
       final hydratedPosts = await _hydratePostInteractionStates(posts);
       final postModels = hydratedPosts
@@ -248,15 +265,14 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         }
       }
 
-      final userInfo = await GetUerInfoApi.search(userId);
-      final fallbackImUserId = userInfo?.account.trim() ?? '';
+      final fallbackImUserId = userId.trim();
       if (fallbackImUserId.isNotEmpty) {
         final user = await UserDisplayStateCenter().getUser(fallbackImUserId);
 
         if (user != null) {
           return _MomentProfileHeaderData.fromUserDisplay(
             user,
-            fallbackUserId: userInfo?.userId ?? userId,
+            fallbackUserId: userId,
           );
         }
       }
@@ -396,7 +412,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     await _sendShareAction(
       action: () => SocialCircleNoteApi.socialCircleNoteShare(
         _currentUserId,
-        post.userId,
+        post.walletAddress,
         post.noteId,
       ),
       successText: AppLocalizations.of(context)!.momentsShareSuccess,
@@ -413,7 +429,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     await _sendShareAction(
       action: () => SocialCircleNoteApi.socialCircleNoteForward(
         _currentUserId,
-        post.userId,
+        post.walletAddress,
         post.noteId,
       ),
       successText: AppLocalizations.of(context)!.momentsForwardSuccess,
@@ -460,7 +476,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   Future<void> _toggleProfileFollow() async {
     if (_isSelf || _isFollowLoading) return;
 
-    final userId = _profileUserId;
+    final userId = _profileWalletAddress;
     if (userId.isEmpty) {
       AppToast.show(AppLocalizations.of(context)!.momentsUserInfoEmpty);
       return;

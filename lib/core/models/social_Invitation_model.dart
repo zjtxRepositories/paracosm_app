@@ -1,5 +1,6 @@
 import 'package:paracosm/core/models/social_media_model.dart';
 import 'package:paracosm/core/models/social_review_model.dart';
+import 'package:paracosm/core/models/social_wallet_address.dart';
 import 'package:paracosm/modules/user/model/user_info.dart';
 
 class SocialInvitationModel {
@@ -46,6 +47,14 @@ class SocialInvitationModel {
   bool isLike;
   bool isCollect;
   List<SocialReviewModel> reviewInfo;
+
+  String get walletAddress {
+    final accountAddress = SocialWalletAddress.normalize(
+      userInfoModel?.account,
+    );
+    if (accountAddress.isNotEmpty) return accountAddress;
+    return SocialWalletAddress.normalize(userId);
+  }
 
   /// =========================
   /// fromJson

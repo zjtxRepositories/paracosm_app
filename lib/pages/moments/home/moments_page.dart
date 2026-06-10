@@ -120,8 +120,8 @@ class _MomentsPageState extends State<MomentsPage> {
           final item = model.item;
           return MomentPostCard(
             model: model,
-            isFollowing: controller.followIds.contains(item.userId),
-            isBlock: controller.blockIds.contains(item.userId),
+            isFollowing: controller.followIds.contains(item.walletAddress),
+            isBlock: controller.blockIds.contains(item.walletAddress),
             onLike: () => controller.toggleLike(item),
             onCollect: () => controller.toggleCollect(item),
             onShare: () => controller.toggleShare(item, context),
@@ -133,8 +133,10 @@ class _MomentsPageState extends State<MomentsPage> {
               '/moment-post-detail',
               extra: {
                 'item': model,
-                'isFollowing': controller.followIds.contains(item.userId),
-                'isBlock': controller.blockIds.contains(item.userId),
+                'isFollowing': controller.followIds.contains(
+                  item.walletAddress,
+                ),
+                'isBlock': controller.blockIds.contains(item.walletAddress),
               },
             ),
           );

@@ -6,6 +6,13 @@ import 'package:flutter/foundation.dart';
 enum VoicePlayState { idle, loading, playing, paused, stopped, completed }
 
 class VoicePlayerManager {
+  static const double _defaultVolume = 1.0;
+
+  static final AudioContext _speakerContext = AudioContextConfig(
+    route: AudioContextConfigRoute.speaker,
+    focus: AudioContextConfigFocus.gain,
+  ).build();
+
   /// =========================
   /// 单例
   /// =========================
@@ -32,7 +39,6 @@ class VoicePlayerManager {
 
   /// 进度
   Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
 
   /// 队列（自动播放下一条）
   final List<_VoiceTask> _queue = [];
@@ -57,6 +63,8 @@ class VoicePlayerManager {
   /// 初始化监听
   /// =========================
   void _initListener() {
+    unawaited(_applyDefaultAudioOutput());
+
     /// 播放进度
     _player.onPositionChanged.listen((pos) {
       _position = pos;
@@ -65,7 +73,6 @@ class VoicePlayerManager {
 
     /// 总时长
     _player.onDurationChanged.listen((dur) {
-      _duration = dur;
       _durationController.add(dur);
     });
 
@@ -128,22 +135,11 @@ class VoicePlayerManager {
   }
 
   /// =========================
-  /// 队列播放
-  /// =========================
-  void playList(List<_VoiceTask> list) {
-    _queue.clear();
-    _queue.addAll(list);
-
-    if (_queue.isNotEmpty) {
-      _startNew(_queue.removeAt(0));
-    }
-  }
-
-  /// =========================
   /// 开始新播放
   /// =========================
   Future<void> _startNew(_VoiceTask task) async {
     await _player.stop();
+    await _applyDefaultAudioOutput();
 
     _currentId = task.id;
     _currentIdController.add(_currentId);
@@ -228,6 +224,11 @@ class VoicePlayerManager {
   void _setState(VoicePlayState state) {
     _state = state;
     _stateController.add(state);
+  }
+
+  Future<void> _applyDefaultAudioOutput() async {
+    await _player.setAudioContext(_speakerContext);
+    await _player.setVolume(_defaultVolume);
   }
 
   /// =========================

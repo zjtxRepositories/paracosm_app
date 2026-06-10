@@ -658,6 +658,8 @@ extension AppLocalizationsKeys on AppLocalizations {
     'chat_invited_members_message',
     {'user': user, 'members': members},
   );
+  String chatGroupJoinedMessage(String user) =>
+      translate('chat_group_joined_message', {'user': user});
   String chatUserQuitGroupMessage(String user) =>
       translate('chat_user_quit_group_message', {'user': user});
   String chatMembersRemovedMessage(String members) =>

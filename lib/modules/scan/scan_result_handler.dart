@@ -113,7 +113,7 @@ class ScanResultHandler {
       '/group-information',
       extra: {
         'group': GroupModel(info: groupInfo),
-        'isJoined': joinedGroup != null,
+        'isJoined': groupInfo.joinedTime != 0,
         'members': _toGroupMemberInfos(result.groupMembers),
       },
     );

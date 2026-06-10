@@ -693,6 +693,7 @@
   "chat_recalled_message": "撤回了一条消息",
   "chat_friend_added_message": "我们已成功添加为好友，现在可以开始聊天啦～",
   "chat_invited_members_message": "\"{user}\"邀请{members}加入了群聊",
+  "chat_group_joined_message": "{user}加入了群聊",
   "chat_user_quit_group_message": "{user} 退出了群聊",
   "chat_members_removed_message": "{members} 被移出了群聊",
   "chat_group_transferred_message": "{user}将群聊转让给{target}",

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -9,9 +10,12 @@ import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../core/models/custom_message_model.dart';
 import '../../core/models/group_model.dart';
 import '../../modules/im/listener/group_state_center.dart';
 import '../../modules/im/manager/im_group_manager.dart';
+import '../../modules/im/message/base/im_message.dart';
+import '../../modules/im/message/send/im_sender.dart';
 import '../../widgets/common/app_toast.dart';
 
 /// 群组信息页面
@@ -106,6 +110,13 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       AppToast.show(joinFailedText);
       return;
     }
+    final message = CustomMessage(
+      targetId: groupId,
+      customMessageType: CustomMessageType.groupJoined,
+      conversationType: RCIMIWConversationType.group,
+      userIds: [IMEngineManager().currentUserId!],
+    );
+    await ImSender.instance.send(message: message);
 
     _isJoined = true;
     await getGroup();

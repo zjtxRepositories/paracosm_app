@@ -6,6 +6,10 @@ import 'package:paracosm/core/network/api/community_dynamics_api.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../core/models/custom_message_model.dart';
+import '../../modules/im/manager/im_engine_manager.dart';
+import '../../modules/im/message/base/im_message.dart';
+import '../../modules/im/message/send/im_sender.dart';
 import '../../widgets/base/app_localizations.dart';
 import '../../core/models/social_media_model.dart';
 import '../../widgets/common/app_media_gallery.dart';
@@ -158,6 +162,13 @@ class CommunityDetailController extends ChangeNotifier {
     AppToast.show(AppLocalizations.currentText('community_join_success'));
     group!.info.role = RCIMIWGroupMemberRole.normal;
     notifyListeners();
+    final message = CustomMessage(
+      targetId: groupInfo.info.groupId ?? '',
+      customMessageType: CustomMessageType.groupJoined,
+      conversationType: RCIMIWConversationType.group,
+      userIds: [IMEngineManager().currentUserId!],
+    );
+    await ImSender.instance.send(message: message);
   }
 
   void toggleMedia(

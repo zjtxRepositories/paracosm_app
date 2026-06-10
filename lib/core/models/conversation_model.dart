@@ -160,6 +160,13 @@ class ConversationResolver {
           'user': user,
           'members': members,
         });
+      case CustomMessageType.groupJoined:
+        final user =
+            await _getMemberNames(message.userIds) ??
+            await _getUserName(message.fromUserId);
+        return AppLocalizations.currentText('chat_group_joined_message', {
+          'user': user,
+        });
       case CustomMessageType.createDao:
         final group = await _getGroup(message.toUserId);
         return '${group?.info.groupName} DAO has been created';

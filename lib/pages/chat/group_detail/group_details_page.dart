@@ -167,31 +167,31 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     context.push('/group-information', extra: controller.group);
                   },
                 ),
-                // _buildOptionItem(
-                //   AppLocalizations.of(context)!.groupQrCodeTitle,
-                //   trailing: Row(
-                //     children: [
-                //       Image.asset(
-                //         'assets/images/profile/user/qrcode.png',
-                //         width: 20,
-                //         height: 20,
-                //         errorBuilder: (_, __, ___) =>
-                //         const Icon(Icons.qr_code_scanner, color: AppColors.grey900),
-                //       ),
-                //       const SizedBox(width: 8),
-                //       Image.asset(
-                //         'assets/images/common/next.png',
-                //         width: 20,
-                //         height: 20,
-                //       ),
-                //     ],
-                //   ),
-                //   onTap: () {
-                //     final group = controller.group;
-                //     if (group == null) return;
-                //     context.push('/group-qr-code', extra: group);
-                //   },
-                // ),
+                _buildOptionItem(
+                  AppLocalizations.of(context)!.groupQrCodeTitle,
+                  trailing: Row(
+                    children: [
+                      Image.asset(
+                        'assets/images/profile/user/qrcode.png',
+                        width: 20,
+                        height: 20,
+                        errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.qr_code_scanner, color: AppColors.grey900),
+                      ),
+                      const SizedBox(width: 8),
+                      Image.asset(
+                        'assets/images/common/next.png',
+                        width: 20,
+                        height: 20,
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    final group = controller.group;
+                    if (group == null) return;
+                    context.push('/group-qr-code', extra: group);
+                  },
+                ),
                 _buildOptionItem(
                   AppLocalizations.of(context)!.chatSettingIntroduction,
                   subtitle: (controller.group?.info.introduction ?? '').isEmpty

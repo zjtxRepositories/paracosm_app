@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
-import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
@@ -18,8 +17,15 @@ import '../../widgets/common/app_toast.dart';
 /// 群组信息页面
 class GroupInformationPage extends StatefulWidget {
   final GroupModel group;
+  final bool isJoined;
+  final List<RCIMIWGroupMemberInfo> qrMembers;
 
-  const GroupInformationPage({super.key, required this.group});
+  const GroupInformationPage({
+    super.key,
+    required this.group,
+    this.isJoined = true,
+    this.qrMembers = const [],
+  });
 
   @override
   State<GroupInformationPage> createState() => _GroupInformationPageState();
@@ -31,17 +37,22 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
   late GroupModel _group;
   String _groupName = '';
+  late bool _isJoined;
+  late List<RCIMIWGroupMemberInfo> _qrMembers;
 
   /// 是否群管理员/群主
   bool get _isManager =>
-      _group.info.role == RCIMIWGroupMemberRole.manager ||
-      _group.info.role == RCIMIWGroupMemberRole.owner;
+      _isJoined &&
+      (_group.info.role == RCIMIWGroupMemberRole.manager ||
+          _group.info.role == RCIMIWGroupMemberRole.owner);
 
   @override
   void initState() {
     super.initState();
 
     _group = widget.group;
+    _isJoined = widget.isJoined;
+    _qrMembers = widget.qrMembers;
 
     _nameController = TextEditingController(text: widget.group.displayName);
 
@@ -57,7 +68,9 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       groupId,
       forceRefresh: true,
     );
-    await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
+    if (_isJoined) {
+      await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
+    }
 
     if (group != null) {
       _group = GroupModel(info: group);
@@ -66,11 +79,48 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       _nameController.text = _group.displayName ?? '';
 
       _noteController.text = _group.info.notice ?? '';
+    } else if (!_isJoined) {
+      _groupName = _group.displayName ?? _group.info.groupName ?? '';
+      if (_groupName.isEmpty || _groupName == '[默认]') {
+        _groupName = _qrMemberNames();
+      }
     } else {
       _groupName = await _group.name;
     }
     if (!mounted) return;
     setState(() {});
+  }
+
+  Future<void> joinGroup() async {
+    final groupId = _group.info.groupId ?? '';
+    if (groupId.isEmpty) return;
+    final joinFailedText = AppLocalizations.of(context)!.scanGroupJoinFailed;
+
+    AppLoading.show();
+    final isOk = await ImGroupManager().joinGroup(groupId);
+    AppLoading.dismiss();
+
+    if (!mounted) return;
+
+    if (!isOk) {
+      AppToast.show(joinFailedText);
+      return;
+    }
+
+    _isJoined = true;
+    await getGroup();
+
+    if (!mounted) return;
+    context.pushReplacement(
+      '/chat-detail/${Uri.encodeComponent(_groupName)}',
+      extra: ChatSessionArgs(
+        targetId: groupId,
+        conversationType: RCIMIWConversationType.group,
+        name: _groupName,
+        isGroup: true,
+        avatar: _group.info.portraitUri,
+      ),
+    );
   }
 
   @override
@@ -82,6 +132,8 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
   Future<void> updateGroupInfo() async {
     if (!_isManager) return;
+    final updateFailedText = AppLocalizations.of(context)!.commonUpdateFailed;
+    final updateSuccessText = AppLocalizations.of(context)!.commonUpdateSuccess;
 
     FocusScope.of(context).unfocus();
 
@@ -101,12 +153,14 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
     AppLoading.dismiss();
 
+    if (!mounted) return;
+
     if (!isOk) {
-      AppToast.show(AppLocalizations.of(context)!.commonUpdateFailed);
+      AppToast.show(updateFailedText);
       return;
     }
 
-    AppToast.show(AppLocalizations.of(context)!.commonUpdateSuccess);
+    AppToast.show(updateSuccessText);
 
     context.pop();
   }
@@ -297,12 +351,21 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                         const SizedBox(height: 32),
 
                         // Save Button
-                        _isManager
-                            ? AppButton(
-                                text: AppLocalizations.of(context)!.commonSave,
-                                onPressed: updateGroupInfo,
-                              )
-                            : SizedBox(),
+                        _isJoined
+                            ? _isManager
+                                  ? AppButton(
+                                      text: AppLocalizations.of(
+                                        context,
+                                      )!.commonSave,
+                                      onPressed: updateGroupInfo,
+                                    )
+                                  : SizedBox()
+                            : AppButton(
+                                text: AppLocalizations.of(
+                                  context,
+                                )!.communityDetailBtnJoin,
+                                onPressed: joinGroup,
+                              ),
                       ],
                     ),
                   ),
@@ -320,6 +383,19 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       groupId: _group.info.groupId ?? '',
       size: 80,
       portraitUri: _group.info.portraitUri,
+      initialMembers: _qrMembers,
     );
+  }
+
+  String _qrMemberNames() {
+    final names = _qrMembers
+        .map((member) {
+          final nickname = (member.nickname ?? '').replaceAll(' ', '');
+          if (nickname.isNotEmpty) return nickname;
+          return member.name ?? '';
+        })
+        .where((name) => name.isNotEmpty)
+        .toList();
+    return names.join('、');
   }
 }

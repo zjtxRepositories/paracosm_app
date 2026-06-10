@@ -44,10 +44,7 @@ class ImFriendManager {
     engine.onFriendAdded = (type, userId, name, portrait, time) async {
       if (!mounted || userId == null) return;
 
-      // 可选：延迟刷新完整信息
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      await _refreshFriend(userId);
+      await refreshFriend(userId);
     };
 
     // =========================
@@ -69,7 +66,7 @@ class ImFriendManager {
     engine.onFriendInfoChangedSync = (userId, remark, ext, time) async {
       if (!mounted || userId == null) return;
 
-      await _refreshFriend(userId);
+      await refreshFriend(userId);
     };
   }
 
@@ -137,12 +134,32 @@ class ImFriendManager {
   // 单个好友刷新
   // ======================================================
 
-  Future<void> _refreshFriend(String userId) async {
-    final infos = await getFriendsInfo([userId]);
+  Future<void> refreshFriend(String userId) async {
+    final delays = [
+      Duration.zero,
+      const Duration(milliseconds: 300),
+      const Duration(seconds: 1),
+    ];
 
-    if (infos == null || infos.isEmpty) return;
+    for (final delay in delays) {
+      if (!mounted) return;
+      if (delay != Duration.zero) {
+        await Future.delayed(delay);
+      }
 
-    ImDataCenter().updateFriend(infos.first);
+      final infos = await getFriendsInfo([userId]);
+
+      if (infos != null && infos.isNotEmpty) {
+        ImDataCenter().updateFriend(infos.first);
+        return;
+      }
+    }
+
+    try {
+      await fetchFriends();
+    } catch (_) {
+      // 忽略兜底刷新失败，下一次 SDK 事件或页面拉取会继续同步。
+    }
   }
 
   // ======================================================
@@ -201,7 +218,7 @@ class ImFriendManager {
       friendInfo,
       callback: IRCIMIWSetFriendInfoCallback(
         onSuccess: () async {
-          await _refreshFriend(userId);
+          await refreshFriend(userId);
           completer.complete(true);
         },
         onError: (code, keys) {
@@ -219,7 +236,7 @@ class ImFriendManager {
     required String userId,
     String extra = "",
   }) async {
-    return ImCallbackWrapper.wrapAddFriend((callback) {
+    final result = await ImCallbackWrapper.wrapAddFriend((callback) {
       return IMEngineManager().engine!.addFriend(
         userId,
         RCIMIWFriendType.both,
@@ -227,6 +244,12 @@ class ImFriendManager {
         callback: callback,
       );
     });
+
+    if (result.success) {
+      unawaited(refreshFriend(userId));
+    }
+
+    return result;
   }
 
   Future<ImResult<void>> deleteFriends(List<String> userIds) async {

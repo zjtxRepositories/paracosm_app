@@ -44,9 +44,13 @@ class MomentUserProfilePage extends StatefulWidget {
 
 class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   static const double _sendMomentSize = 80;
+  static const double _coverHeight = 140;
+  static const double _navBackgroundThreshold = 48;
   final List<MomentPostModel> _posts = [];
+  final ScrollController _scrollController = ScrollController();
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
+  bool _showNavBackground = false;
   bool _isLoading = true;
   bool _isFollowLoading = false;
   bool _isFollowingUser = false;
@@ -88,7 +92,27 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     _loadPosts();
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final nextShowNavBackground =
+        _scrollController.hasClients &&
+        _scrollController.offset > _navBackgroundThreshold;
+    if (nextShowNavBackground == _showNavBackground) return;
+
+    setState(() {
+      _showNavBackground = nextShowNavBackground;
+    });
   }
 
   @override
@@ -529,10 +553,16 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       isCustomHeader: true,
       renderCustomHeader: _buildCustomHeader(context),
       extendBodyBehindAppBar: true,
+      backgroundColor: AppColors.white,
       navBackgroundColor: Colors.transparent,
       child: Stack(
         children: [
-          Positioned.fill(
+          const Positioned.fill(child: ColoredBox(color: AppColors.white)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: _coverHeight,
             child: Image.asset(
               'assets/images/moments/moment-bg.png',
               fit: BoxFit.cover,
@@ -540,14 +570,16 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           ),
           Positioned.fill(
             child: SingleChildScrollView(
+              controller: _scrollController,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 140),
+                  const SizedBox(height: _coverHeight),
                   Container(
                     width: double.infinity,
                     constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height - 140,
+                      minHeight:
+                          MediaQuery.of(context).size.height - _coverHeight,
                     ),
                     decoration: const BoxDecoration(color: AppColors.white),
                     child: Column(
@@ -621,7 +653,18 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   /// 自定义导航栏
   Widget _buildCustomHeader(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      foregroundDecoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: _showNavBackground ? AppColors.grey100 : Colors.transparent,
+            width: 1,
+          ),
+        ),
+      ),
+      color: _showNavBackground ? AppColors.white : Colors.transparent,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
         left: 20,

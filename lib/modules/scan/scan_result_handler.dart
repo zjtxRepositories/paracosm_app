@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/dApp_hive.dart';
+import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/pages/profile/transfer_scan_address.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import 'scan_result_parser.dart';
 
@@ -12,8 +16,9 @@ import 'scan_result_parser.dart';
 /// 1. 网页：`https://example.com`、`http://example.com`、`example.com/path`
 /// 2. 好友 JSON：`{"type":"friend","userId":"user_123"}`
 /// 3. 好友 URI：`paracosm://friend?userId=user_123`
-/// 4. 支付 JSON：`{"type":"payment","address":"0xabc","amount":"1.5","token":"BNB","chain":"bsc"}`
-/// 5. 链支付 URI：`bitcoin:bc1...?amount=0.01`、`ethereum:0x...?amount=1`
+/// 4. 群 JSON：`{"type":"group","groupId":"group_123","expiresAt":1710000000000}`
+/// 5. 支付 JSON：`{"type":"payment","address":"0xabc","amount":"1.5","token":"BNB","chain":"bsc"}`
+/// 6. 链支付 URI：`bitcoin:bc1...?amount=0.01`、`ethereum:0x...?amount=1`
 class ScanResultHandler {
   ScanResultHandler._();
 
@@ -24,11 +29,11 @@ class ScanResultHandler {
       return;
     }
 
-    handle(context, result);
+    await handle(context, result);
   }
 
   /// 解析二维码内容，并按类型路由到对应业务。
-  static void handle(BuildContext context, String raw) {
+  static Future<void> handle(BuildContext context, String raw) async {
     final result = ScanResultParser.parse(raw);
     switch (result.type) {
       case ScanResultType.webUrl:
@@ -36,6 +41,9 @@ class ScanResultHandler {
         break;
       case ScanResultType.friend:
         _handleFriend(context, result);
+        break;
+      case ScanResultType.group:
+        await _handleGroup(context, result);
         break;
       case ScanResultType.walletPayment:
         _handleWalletPayment(context, result);
@@ -72,6 +80,63 @@ class ScanResultHandler {
     }
 
     context.push('/user-profile', extra: userId);
+  }
+
+  /// 群二维码。
+  static Future<void> _handleGroup(
+    BuildContext context,
+    ScanResult result,
+  ) async {
+    final groupId = result.groupId;
+    if (groupId == null || groupId.isEmpty) {
+      AppToast.show(AppLocalizations.of(context)!.scanGroupQrInvalid);
+      return;
+    }
+
+    final expiresAt = result.expiresAt;
+    if (expiresAt != null &&
+        expiresAt > 0 &&
+        expiresAt < DateTime.now().millisecondsSinceEpoch) {
+      AppToast.show(AppLocalizations.of(context)!.scanGroupQrExpired);
+      return;
+    }
+
+    final joinedGroup = await GroupStateCenter().getGroup(groupId);
+    final groupInfo =
+        joinedGroup ??
+        (await ImGroupManager().getGroupsInfo([groupId]))?.firstOrNull ??
+        RCIMIWGroupInfo.create(groupId: groupId);
+
+    if (!context.mounted) return;
+
+    context.push(
+      '/group-information',
+      extra: {
+        'group': GroupModel(info: groupInfo),
+        'isJoined': joinedGroup != null,
+        'members': _toGroupMemberInfos(result.groupMembers),
+      },
+    );
+  }
+
+  static List<RCIMIWGroupMemberInfo> _toGroupMemberInfos(
+    List<QrGroupMember> members,
+  ) {
+    return members.map((member) {
+      final roleIndex = member.role;
+      return RCIMIWGroupMemberInfo.fromJson({
+        'userId': member.userId,
+        'name': member.name,
+        'nickname': member.nickname,
+        'portraitUri': member.portraitUri,
+        'role':
+            roleIndex != null &&
+                roleIndex >= 0 &&
+                roleIndex < RCIMIWGroupMemberRole.values.length
+            ? roleIndex
+            : null,
+      });
+    }).toList();
   }
 
   /// 钱包支付二维码。

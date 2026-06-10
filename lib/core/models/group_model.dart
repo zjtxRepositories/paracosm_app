@@ -1,5 +1,3 @@
-
-
 import 'dart:math';
 
 import 'package:paracosm/core/models/group_member_model.dart';
@@ -7,19 +5,13 @@ import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../modules/im/listener/group_state_center.dart';
 
-enum GroupType {
-  normal,
-  dao,
-  club,
-}
+enum GroupType { normal, dao, club }
 
 class GroupModel {
   RCIMIWGroupInfo info;
   String? showName;
 
-  GroupModel({
-    required this.info,
-  });
+  GroupModel({required this.info});
 
   String? get displayName => info.groupName != '[默认]' ? info.groupName : null;
 
@@ -65,41 +57,39 @@ class GroupModel {
         .map((e) => GroupMemberModel(item: e))
         .toList();
 
-    /// 群主排第一
+    /// 群主、管理员、普通成员排序
     list.sort((a, b) {
-      final aIsOwner = a.item.role == RCIMIWGroupMemberRole.owner;
-      final bIsOwner = b.item.role == RCIMIWGroupMemberRole.owner;
-
-      if (aIsOwner && !bIsOwner) {
-        return -1;
-      }
-
-      if (!aIsOwner && bIsOwner) {
-        return 1;
-      }
-
-      return 0;
+      return _roleWeight(a.item.role).compareTo(_roleWeight(b.item.role));
     });
 
     return list;
   }
+}
 
+int _roleWeight(RCIMIWGroupMemberRole? role) {
+  switch (role) {
+    case RCIMIWGroupMemberRole.owner:
+      return 0;
+    case RCIMIWGroupMemberRole.manager:
+      return 1;
+    default:
+      return 2;
+  }
 }
 
 String generateGroupId(GroupType type) {
-  const chars =
-      'abcdefghijklmnopqrstuvwxyz0123456789';
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
   final random = Random();
 
   final randomId = List.generate(
     12,
-        (_) => chars[random.nextInt(chars.length)],
+    (_) => chars[random.nextInt(chars.length)],
   ).join();
 
   return 'group_${type.name}_$randomId';
 }
 
-String generateCommunityGroupId(GroupType type,String jid) {
+String generateCommunityGroupId(GroupType type, String jid) {
   return 'group_${type.name}_$jid';
 }

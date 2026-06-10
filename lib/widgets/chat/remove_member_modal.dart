@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:paracosm/core/models/friend_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
@@ -8,27 +7,39 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_search_input.dart';
-import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/group_member_model.dart';
 
 /// 选择成员弹窗
 class RemoveMemberModal extends StatefulWidget {
   final List<GroupMemberModel>? members;
+  final String? title;
+  final List<String>? defaultSelectedUserIds;
 
-  const RemoveMemberModal({super.key, this.members});
+  const RemoveMemberModal({
+    super.key,
+    this.members,
+    this.title,
+    this.defaultSelectedUserIds,
+  });
 
   /// 显示弹窗
   static Future<List<String>?> show(
     BuildContext context, {
     List<GroupMemberModel>? members,
+    String? title,
+    List<String>? defaultSelectedUserIds,
   }) {
     return showModalBottomSheet<List<String>>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RemoveMemberModal(members: members),
+      builder: (context) => RemoveMemberModal(
+        members: members,
+        title: title,
+        defaultSelectedUserIds: defaultSelectedUserIds,
+      ),
     );
   }
 
@@ -44,6 +55,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
   void initState() {
     super.initState();
     _filterMembers = _members;
+    _selectedMembers.addAll(widget.defaultSelectedUserIds ?? []);
   }
 
   @override
@@ -54,7 +66,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
         : 5 * itemHeight;
 
     return AppModal(
-      title: AppLocalizations.of(context)!.chatRemoveMembers,
+      title: widget.title ?? AppLocalizations.of(context)!.chatRemoveMembers,
       confirmText: _selectedMembers.isNotEmpty
           ? AppLocalizations.of(
               context,

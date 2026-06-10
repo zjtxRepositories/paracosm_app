@@ -24,6 +24,7 @@ import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';
 import 'package:paracosm/pages/chat/group_information_page.dart';
+import 'package:paracosm/pages/chat/group_qr_code_page.dart';
 import 'package:paracosm/pages/chat/group_detail/group_details_page.dart';
 import 'package:paracosm/pages/chat/chat_history_search_page.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
@@ -361,10 +362,34 @@ class AppRouter {
         path: '/group-information',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final group = state.extra as GroupModel?;
+          final extra = state.extra;
+          final group = extra is GroupModel
+              ? extra
+              : extra is Map<String, dynamic>
+              ? extra['group'] as GroupModel?
+              : null;
+          final isJoined = extra is Map<String, dynamic>
+              ? extra['isJoined'] as bool? ?? true
+              : true;
+          final members = extra is Map<String, dynamic>
+              ? extra['members'] as List<RCIMIWGroupMemberInfo>? ?? const []
+              : const <RCIMIWGroupMemberInfo>[];
           return group == null
               ? SizedBox()
-              : GroupInformationPage(group: group);
+              : GroupInformationPage(
+                  group: group,
+                  isJoined: isJoined,
+                  qrMembers: members,
+                );
+        },
+      ),
+      // 群二维码页
+      GoRoute(
+        path: '/group-qr-code',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final group = state.extra as GroupModel?;
+          return group == null ? SizedBox() : GroupQrCodePage(group: group);
         },
       ),
       // 群简介编辑页

@@ -195,6 +195,9 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_setting_message_do_not_disturb');
   String get chatSettingDisband => translate('chat_setting_disband');
   String get chatSettingLeave => translate('chat_setting_leave');
+  String get chatSetManager => translate('chat_set_manager');
+  String get chatGroupOwner => translate('chat_group_owner');
+  String get chatGroupManager => translate('chat_group_manager');
   String chatSettingViewMore(int count) => translate(
     'chat_setting_view_more',
   ).replaceAll('{count}', count.toString());
@@ -628,7 +631,12 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatDisbandGroupConfirm => translate('chat_disband_group_confirm');
   String get chatGroupDisbanded => translate('chat_group_disbanded');
   String get chatLeaveGroupConfirm => translate('chat_leave_group_confirm');
+  String chatOwnerLeaveTransferConfirm(String name) =>
+      translate('chat_owner_leave_transfer_confirm', {'name': name});
   String get chatGroupLeft => translate('chat_group_left');
+  String get chatLeaveGroupFailed => translate('chat_leave_group_failed');
+  String get chatSetManagerSuccess => translate('chat_set_manager_success');
+  String get chatSetManagerFailed => translate('chat_set_manager_failed');
   String get chatClearHistorySuccess => translate('chat_clear_history_success');
   String get chatClearHistoryFailed => translate('chat_clear_history_failed');
   String get chatInviteFailed => translate('chat_invite_failed');
@@ -654,6 +662,12 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_user_quit_group_message', {'user': user});
   String chatMembersRemovedMessage(String members) =>
       translate('chat_members_removed_message', {'members': members});
+  String chatGroupTransferredMessage(String user, String target) => translate(
+    'chat_group_transferred_message',
+    {'user': user, 'target': target},
+  );
+  String chatGroupDisbandedMessage(String user) =>
+      translate('chat_group_disbanded_message', {'user': user});
   String get chatMe => translate('chat_me');
   String get callVideoPrefix => translate('call_video_prefix');
   String get callAudioPrefix => translate('call_audio_prefix');
@@ -718,8 +732,15 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_password_min_length');
   String get scanWebQrInvalid => translate('scan_web_qr_invalid');
   String get scanFriendQrInvalid => translate('scan_friend_qr_invalid');
+  String get scanGroupQrInvalid => translate('scan_group_qr_invalid');
+  String get scanGroupQrExpired => translate('scan_group_qr_expired');
+  String get scanGroupJoinFailed => translate('scan_group_join_failed');
   String get scanPaymentPending => translate('scan_payment_pending');
   String get discoverScanHint => translate('discover_scan_hint');
+  String get groupQrCodeTitle => translate('group_qr_code_title');
+  String get groupQrCodeScanToJoin => translate('group_qr_code_scan_to_join');
+  String groupQrCodeExpiresAt(String date) =>
+      translate('group_qr_code_expires_at', {'date': date});
   String get dappTransactionType => translate('dapp_transaction_type');
   String get dappTransfer => translate('dapp_transfer');
   String get dappApprovalAmount => translate('dapp_approval_amount');

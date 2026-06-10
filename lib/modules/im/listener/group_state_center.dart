@@ -8,8 +8,7 @@ import '../manager/im_group_manager.dart';
 class GroupStateCenter {
   GroupStateCenter._();
 
-  static final GroupStateCenter _instance =
-  GroupStateCenter._();
+  static final GroupStateCenter _instance = GroupStateCenter._();
 
   factory GroupStateCenter() => _instance;
 
@@ -17,8 +16,7 @@ class GroupStateCenter {
   /// cache
   /// =====================================================
 
-  final Map<String, RCIMIWGroupInfo>
-  _groupCache = {};
+  final Map<String, RCIMIWGroupInfo> _groupCache = {};
 
   final Map<String, List<RCIMIWGroupMemberInfo>> _memberCache = {};
 
@@ -26,12 +24,9 @@ class GroupStateCenter {
   /// pending
   /// =====================================================
 
-  final Map<String, Future<RCIMIWGroupInfo?>>
-  _pendingGroup = {};
+  final Map<String, Future<RCIMIWGroupInfo?>> _pendingGroup = {};
 
-  final Map<String,
-      Future<List<RCIMIWGroupMemberInfo>>>
-  _pendingMembers = {};
+  final Map<String, Future<List<RCIMIWGroupMemberInfo>>> _pendingMembers = {};
 
   /// =====================================================
   /// generation
@@ -40,14 +35,19 @@ class GroupStateCenter {
 
   int _generation = 0;
 
+  Future<void> refreshGroup(String groupId) async {
+    getGroup(groupId, forceRefresh: true);
+    getGroupMembers(groupId, forceRefresh: true);
+  }
+
   /// =====================================================
   /// get group
   /// =====================================================
 
   Future<RCIMIWGroupInfo?> getGroup(
-      String groupId, {
-        bool forceRefresh = false,
-      }) async {
+    String groupId, {
+    bool forceRefresh = false,
+  }) async {
     if (groupId.isEmpty) {
       return null;
     }
@@ -64,17 +64,17 @@ class GroupStateCenter {
       _pendingGroup.remove(groupId);
     }
 
-    return _pendingGroup[groupId] ??=
-        _fetchGroup(groupId);
+    return _pendingGroup[groupId] ??= _fetchGroup(groupId);
   }
 
   /// =====================================================
   /// get members
   /// =====================================================
 
-  Future<List<RCIMIWGroupMemberInfo>> getGroupMembers(String groupId, {
-        bool forceRefresh = false,
-      }) async {
+  Future<List<RCIMIWGroupMemberInfo>> getGroupMembers(
+    String groupId, {
+    bool forceRefresh = false,
+  }) async {
     if (groupId.isEmpty) {
       return [];
     }
@@ -98,16 +98,11 @@ class GroupStateCenter {
   /// fetch group
   /// =====================================================
 
-  Future<RCIMIWGroupInfo?> _fetchGroup(
-      String groupId,
-      ) async {
+  Future<RCIMIWGroupInfo?> _fetchGroup(String groupId) async {
     final generation = _generation;
 
     try {
-      final result =
-      await ImGroupManager().getGroupsInfo(
-        [groupId],
-      );
+      final result = await ImGroupManager().getGroupsInfo([groupId]);
 
       /// clear/logout 后旧请求失效
       if (generation != _generation) {
@@ -134,10 +129,7 @@ class GroupStateCenter {
   /// fetch members
   /// =====================================================
 
-  Future<List<RCIMIWGroupMemberInfo>>
-  _fetchGroupMembers(
-      String groupId,
-      ) async {
+  Future<List<RCIMIWGroupMemberInfo>> _fetchGroupMembers(String groupId) async {
     final generation = _generation;
 
     try {
@@ -148,9 +140,7 @@ class GroupStateCenter {
         return [];
       }
 
-      final immutable = List<RCIMIWGroupMemberInfo>.unmodifiable(
-        result,
-      );
+      final immutable = List<RCIMIWGroupMemberInfo>.unmodifiable(result);
 
       _memberCache[groupId] = immutable;
 
@@ -166,9 +156,7 @@ class GroupStateCenter {
   /// update group
   /// =====================================================
 
-  void updateGroupInfo(
-      RCIMIWGroupInfo info,
-      ) {
+  void updateGroupInfo(RCIMIWGroupInfo info) {
     final groupId = info.groupId;
 
     if (groupId == null || groupId.isEmpty) {
@@ -182,14 +170,8 @@ class GroupStateCenter {
   /// update members
   /// =====================================================
 
-  void updateMembers(
-      String groupId,
-      List<RCIMIWGroupMemberInfo> members,
-      ) {
-    _memberCache[groupId] =
-    List<RCIMIWGroupMemberInfo>.unmodifiable(
-      members,
-    );
+  void updateMembers(String groupId, List<RCIMIWGroupMemberInfo> members) {
+    _memberCache[groupId] = List<RCIMIWGroupMemberInfo>.unmodifiable(members);
   }
 
   /// =====================================================
@@ -211,8 +193,7 @@ class GroupStateCenter {
 
       final list = entry.value;
 
-      final newList =
-      <RCIMIWGroupMemberInfo>[];
+      final newList = <RCIMIWGroupMemberInfo>[];
 
       for (final item in list) {
         if (item.userId != userId) {
@@ -231,18 +212,12 @@ class GroupStateCenter {
           json['portraitUri'] = portrait;
         }
 
-        final newItem =
-        RCIMIWGroupMemberInfo.fromJson(
-          json,
-        );
+        final newItem = RCIMIWGroupMemberInfo.fromJson(json);
 
         newList.add(newItem);
       }
 
-      newCache[groupId] =
-      List<RCIMIWGroupMemberInfo>.unmodifiable(
-        newList,
-      );
+      newCache[groupId] = List<RCIMIWGroupMemberInfo>.unmodifiable(newList);
     }
 
     _memberCache
@@ -264,16 +239,18 @@ class GroupStateCenter {
     _pendingMembers.remove(groupId);
   }
 
+  void removeMembers(String groupId) {
+    _memberCache.remove(groupId);
+
+    _pendingMembers.remove(groupId);
+  }
+
   /// =====================================================
   /// preload groups
   /// =====================================================
 
-  Future<void> preloadGroups(
-      List<String> groupIds,
-      ) async {
-    final tasks = groupIds
-        .where((e) => e.isNotEmpty)
-        .map((e) => getGroup(e));
+  Future<void> preloadGroups(List<String> groupIds) async {
+    final tasks = groupIds.where((e) => e.isNotEmpty).map((e) => getGroup(e));
 
     await Future.wait(tasks);
   }
@@ -282,9 +259,7 @@ class GroupStateCenter {
   /// preload members
   /// =====================================================
 
-  Future<void> preloadMembers(
-      List<String> groupIds,
-      ) async {
+  Future<void> preloadMembers(List<String> groupIds) async {
     final tasks = groupIds
         .where((e) => e.isNotEmpty)
         .map((e) => getGroupMembers(e));
@@ -296,15 +271,11 @@ class GroupStateCenter {
   /// getter
   /// =====================================================
 
-  RCIMIWGroupInfo? getCachedGroup(
-      String groupId,
-      ) {
+  RCIMIWGroupInfo? getCachedGroup(String groupId) {
     return _groupCache[groupId];
   }
 
-  List<RCIMIWGroupMemberInfo> getMembers(
-      String groupId,
-      ) {
+  List<RCIMIWGroupMemberInfo> getMembers(String groupId) {
     return _memberCache[groupId] ?? const [];
   }
 
@@ -320,18 +291,14 @@ class GroupStateCenter {
   /// snapshot
   /// =====================================================
 
-  Map<String, RCIMIWGroupInfo>
-  snapshotGroup() {
+  Map<String, RCIMIWGroupInfo> snapshotGroup() {
     return UnmodifiableMapView(_groupCache);
   }
 
-  Map<String, List<RCIMIWGroupMemberInfo>>
-  snapshotMember() {
+  Map<String, List<RCIMIWGroupMemberInfo>> snapshotMember() {
     return UnmodifiableMapView({
       for (final e in _memberCache.entries)
-        e.key:
-        List<RCIMIWGroupMemberInfo>
-            .unmodifiable(e.value),
+        e.key: List<RCIMIWGroupMemberInfo>.unmodifiable(e.value),
     });
   }
 

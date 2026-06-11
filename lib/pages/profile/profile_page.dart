@@ -101,7 +101,6 @@ class _ProfilePageState extends State<ProfilePage> {
         if (!_shouldShowToken(token)) {
           continue;
         }
-        token.isAdded = true;
         tokenList.add(token);
       }
     }
@@ -116,7 +115,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   bool _shouldShowToken(TokenModel token) {
-    return token.isAdded == true || token.isNative || token.address.isEmpty;
+    return token.isAdded == true;
   }
 
   /// 显示网络选择弹窗

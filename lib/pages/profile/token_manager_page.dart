@@ -24,12 +24,15 @@ class TokenManagerPage extends StatefulWidget {
 class _TokenManagerPageState extends State<TokenManagerPage> {
   List<TokenModel> tokenList = [];
   String _searchQuery = '';
-  final FocusNode _focusNode = FocusNode();
   final _searchController = TextEditingController();
 
-  final bool _hasFocus = false;
   List<TokenModel> _filteredTokens = [];
   StreamSubscription<List<TokenModel>>? _portfolioSubscription;
+
+  bool get _isSearching => _searchQuery.trim().isNotEmpty;
+
+  List<TokenModel> get _displayTokens =>
+      _isSearching ? _filteredTokens : tokenList;
 
   @override
   void initState() {
@@ -43,7 +46,6 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   @override
   void dispose() {
     _portfolioSubscription?.cancel();
-    _focusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -54,7 +56,13 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
 
   Future<void> reloadTokenList() async {
     final chains = AccountManager().currentWallet?.chains;
-    if (chains == null) return;
+    if (chains == null) {
+      tokenList = [];
+      _filteredTokens = [];
+      if (!mounted) return;
+      setState(() {});
+      return;
+    }
     tokenList = [];
     for (final chain in chains) {
       tokenList.addAll(chain.tokens);
@@ -67,9 +75,7 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   Future<void> _onSearchChanged(String query) async {
     if (_searchQuery == query) return;
     _searchQuery = query;
-    final lower = _searchQuery.toLowerCase();
-
-    _filteredTokens = _filterTokens(lower);
+    _refreshFilteredTokens();
     setState(() {});
   }
 
@@ -97,15 +103,20 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   }
 
   void _refreshFilteredTokens() {
-    if (!_hasFocus && _searchQuery.isEmpty) return;
     _filteredTokens = _filterTokens(_searchQuery.toLowerCase());
   }
 
   List<TokenModel> _filterTokens(String lower) {
+    final query = lower.trim();
+    if (query.isEmpty) {
+      return List<TokenModel>.from(tokenList);
+    }
     return tokenList.where((item) {
-      return item.symbol.toLowerCase().contains(lower) ||
-          item.name.toLowerCase().contains(lower) ||
-          item.address.toLowerCase().contains(lower);
+      final chainLabel = _tokenSubtitle(item).toLowerCase();
+      return item.symbol.toLowerCase().contains(query) ||
+          item.name.toLowerCase().contains(query) ||
+          item.address.toLowerCase().contains(query) ||
+          chainLabel.contains(query);
     }).toList();
   }
 
@@ -126,11 +137,11 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
       child: Column(
         children: [
           _buildSearchBar(),
-          if (!_hasFocus) _buildCustomTokenCard(),
+          if (!_isSearching) _buildCustomTokenCard(),
           Expanded(
             child: _buildTokenSection(
               AppLocalizations.of(context)!.profileHotTokens,
-              _hasFocus ? _filteredTokens : tokenList,
+              _displayTokens,
             ),
           ),
         ],
@@ -191,23 +202,22 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   // ================= Token Section =================
   Widget _buildTokenSection(String title, List<TokenModel> tokens) {
     if (tokens.isEmpty) return const SizedBox();
-    tokens.sort((a, b) {
-      return b.balance.compareTo(a.balance);
-    });
+    final displayTokens = List<TokenModel>.from(tokens)
+      ..sort(_compareDisplayTokens);
     return Container(
       margin: EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _hasFocus ? SizedBox() : Text(title),
+          _isSearching ? SizedBox() : Text(title),
           SizedBox(height: 12),
 
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 0),
-              itemCount: tokens.length,
+              itemCount: displayTokens.length,
               itemBuilder: (_, i) {
-                final t = tokens[i];
+                final t = displayTokens[i];
                 return _buildTokenItem(
                   t,
                   t.name,
@@ -225,6 +235,28 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
       ),
     );
   }
+
+  int _compareDisplayTokens(TokenModel a, TokenModel b) {
+    final addedCompare = _boolRank(
+      b.isAdded == true,
+    ).compareTo(_boolRank(a.isAdded == true));
+    if (addedCompare != 0) return addedCompare;
+
+    final balanceCompare = b.balance.compareTo(a.balance);
+    if (balanceCompare != 0) return balanceCompare;
+
+    final chainCompare = a.chainId.compareTo(b.chainId);
+    if (chainCompare != 0) return chainCompare;
+
+    final symbolCompare = a.symbol.toLowerCase().compareTo(
+      b.symbol.toLowerCase(),
+    );
+    if (symbolCompare != 0) return symbolCompare;
+
+    return a.address.toLowerCase().compareTo(b.address.toLowerCase());
+  }
+
+  int _boolRank(bool value) => value ? 1 : 0;
 
   /// 构建代币列表项
   Widget _buildTokenItem(
@@ -269,6 +301,16 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
                         fontSize: 14,
                         color: AppColors.grey900,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _tokenSubtitle(token),
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 11,
+                        color: AppColors.grey400,
+                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Row(
@@ -333,10 +375,10 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
                         color: isAdd ? Colors.red : Colors.green,
                       ),
                       onPressed: () async {
-                        token.isAdded = !isAdd;
                         final walletId = AccountManager().currentWallet?.id;
                         if (walletId == null) return;
-                        await WalletManager.updateToken(walletId, token);
+                        final updatedToken = _copyTokenWithAdded(token, !isAdd);
+                        await WalletManager.updateToken(walletId, updatedToken);
                         await reloadTokenList();
                       },
                     ),
@@ -347,6 +389,33 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
           ),
         ),
       ),
+    );
+  }
+
+  String _tokenSubtitle(TokenModel token) {
+    final chain = token.getChain();
+    final chainName = chain?.name.trim();
+    if (chainName != null && chainName.isNotEmpty) {
+      return chainName;
+    }
+    return 'Chain ${token.chainId}';
+  }
+
+  TokenModel _copyTokenWithAdded(TokenModel token, bool isAdded) {
+    return TokenModel(
+      symbol: token.symbol,
+      name: token.name,
+      address: token.address,
+      balance: token.balance,
+      decimals: token.decimals,
+      logo: token.logo,
+      coinId: token.coinId,
+      chainId: token.chainId,
+      isAdded: isAdded,
+      isNative: token.isNative,
+      market: token.market,
+      price: token.price,
+      protocol: token.protocol,
     );
   }
 }

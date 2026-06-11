@@ -29,7 +29,8 @@
         "name": "ETH",
         "coinId": "ethereum",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png",
-        "native": 1
+        "native": 1,
+        "isAdded": 1
       }
     ]
   },
@@ -64,7 +65,8 @@
         "name": "BNB",
         "coinId": "binancecoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
-        "native": 1
+        "native": 1,
+        "isAdded": 1
 
       },
       {
@@ -126,7 +128,6 @@
         "coinId": "binancecoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
         "native": 1
-
       }
     ]
   },
@@ -155,7 +156,8 @@
         "name": "Solana",
         "coinId": "solana",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png",
-        "native": 1
+        "native": 1,
+        "isAdded": 1
 
       }
     ]
@@ -330,7 +332,6 @@
         "coinId": "base",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png",
         "native": 1
-
       }
     ]
   },
@@ -560,15 +561,8 @@
         "name": "TRON",
         "coinId": "tron",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/info/logo.png",
-        "native": 1
-      },
-      {
-        "symbol": "USDT",
-        "address": "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj",
-        "decimals": 6,
-        "name": "Tether USD",
-        "coinId": "tether",
-        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/assets/TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj/logo.png"
+        "native": 1,
+        "isAdded": 1
       }
     ]
   },
@@ -592,7 +586,8 @@
         "name": "Bitcoin",
         "coinId": "bitcoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png",
-        "native": 1
+        "native": 1,
+        "isAdded": 1
       }
     ]
   }

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
 import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
@@ -113,6 +114,8 @@ class ChatDetailController extends ChangeNotifier {
 
   bool isLoadingMore = false;
 
+  bool isGroupMuted = false;
+
   bool hasMore = true;
 
   RCIMIWMessage? quotedMessage;
@@ -171,6 +174,8 @@ class ChatDetailController extends ChangeNotifier {
     _listenProfile();
 
     _listenGroup();
+
+    _refreshGroupMuteStatus();
   }
 
   @override
@@ -838,10 +843,14 @@ class ChatDetailController extends ChangeNotifier {
   void _listenGroup() {
     _groupChangeSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
       if (!groupIds.contains(args?.targetId)) return;
-      final info = await GroupStateCenter().getGroup(args?.targetId ?? '');
+      final info = await GroupStateCenter().getGroup(
+        args?.targetId ?? '',
+        forceRefresh: true,
+      );
       if (info == null) return;
       final group = GroupModel(info: info);
       final name = await group.name;
+      await _refreshGroupMuteStatus();
       args = args?.copyWith(
         isGroup: true,
         name: name,
@@ -849,6 +858,44 @@ class ChatDetailController extends ChangeNotifier {
       );
       notifyListeners();
     });
+  }
+
+  Future<void> _refreshGroupMuteStatus() async {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.group) {
+      _setGroupMuted(false);
+      return;
+    }
+
+    final banned = await RongGroupBanApi.isBanned(session.targetId);
+    if (banned == null) {
+      return;
+    }
+    _setGroupMuted(banned);
+  }
+
+  void _setGroupMuted(bool muted) {
+    if (isGroupMuted == muted) {
+      return;
+    }
+
+    isGroupMuted = muted;
+    if (muted) {
+      isMenuExpanded = false;
+      isEmojiPanelExpanded = false;
+      isVoiceMode = false;
+      isRecording = false;
+      isCancelling = false;
+      quotedMessage = null;
+      quotedText = null;
+      inputController.clear();
+      final currentContext = context;
+      if (currentContext != null) {
+        FocusScope.of(currentContext).unfocus();
+      }
+    }
+    notifyListeners();
   }
 
   void _listenProfile() {

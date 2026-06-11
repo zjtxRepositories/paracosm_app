@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -367,6 +368,7 @@ class ImGroupManager {
       invitePermission: RCIMIWGroupOperationPermission.everyone,
       joinPermission: RCIMIWGroupJoinPermission.free,
       role: RCIMIWGroupMemberRole.owner,
+      groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
     );
 
     return createByGroupInfo(groupInfo, inviteeUserIds);
@@ -749,10 +751,20 @@ class ImGroupManager {
   /// 更新群信息
   /// =======================================================
   Future<bool> updateGroupInfo(RCIMIWGroupInfo groupInfo) async {
-    final code = await _engine?.updateGroupInfo(groupInfo);
+    final completer = Completer<bool>();
 
-    final success = code == 0;
-
+    final ret = await _engine?.updateGroupInfo(
+      groupInfo,
+      callback: IRCIMIWGroupInfoUpdatedCallback(
+        onGroupInfoUpdated: (int? code, String? errorInfo) {
+          completer.complete(code == 0);
+        },
+      ),
+    );
+    if (ret != null && ret != 0) {
+      return false;
+    }
+    final success = await completer.future;
     if (success) {
       GroupEventBus.instance.fire(
         GroupEvent(
@@ -762,8 +774,41 @@ class ImGroupManager {
         ),
       );
     }
-
     return success;
+  }
+
+  /// =======================================================
+  /// 设置/取消群组全体禁言
+  /// =======================================================
+  Future<bool> setGroupBan({
+    required String groupId,
+    required bool banned,
+  }) async {
+    if (groupId.isEmpty) return false;
+
+    final success = banned
+        ? await RongGroupBanApi.add(groupId: groupId)
+        : await RongGroupBanApi.rollback(groupId: groupId);
+    if (!success) {
+      return false;
+    }
+
+    final groupInfo = await GroupStateCenter().getGroup(groupId);
+    if (groupInfo != null) {
+      groupInfo.groupStatus = banned
+          ? RCIMIWGroupStatus.muted
+          : RCIMIWGroupStatus.using;
+      ImDataCenter().setGroup(groupInfo);
+      GroupEventBus.instance.fire(
+        GroupEvent(
+          type: GroupEventType.infoChanged,
+          groupId: groupId,
+          groupInfo: groupInfo,
+        ),
+      );
+    }
+
+    return true;
   }
 
   /// =======================================================

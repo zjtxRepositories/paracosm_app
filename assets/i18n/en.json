@@ -160,6 +160,7 @@
   "chat_detail_release_to_cancel": "Release to cancel",
   "chat_detail_release_to_end": "Release to end",
   "chat_detail_hold_to_talk": "Hold to talk",
+  "chat_detail_group_muted_input_hint": "All members are muted",
   "chat_detail_record_canceled": "Recording canceled",
   "chat_detail_short_speech": "Short speech",
   "chat_detail_contact_card": "Contact Card",

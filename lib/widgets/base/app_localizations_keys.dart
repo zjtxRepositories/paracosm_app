@@ -221,6 +221,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_detail_release_to_cancel');
   String get chatDetailReleaseToEnd => translate('chat_detail_release_to_end');
   String get chatDetailHoldToTalk => translate('chat_detail_hold_to_talk');
+  String get chatDetailGroupMutedInputHint =>
+      translate('chat_detail_group_muted_input_hint');
   String get chatDetailRecordCanceled =>
       translate('chat_detail_record_canceled');
   String get chatDetailShortSpeech => translate('chat_detail_short_speech');

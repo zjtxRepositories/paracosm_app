@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
@@ -75,7 +76,10 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
     group = GroupModel(info: groupInfo);
-    isMuted = group?.info.groupStatus == RCIMIWGroupStatus.muted;
+    final banned = await RongGroupBanApi.isBanned(groupId);
+    if (banned != null) {
+      isMuted = banned;
+    }
     notifyListeners();
   }
 
@@ -122,14 +126,23 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> toggleMute() async {
     if (args == null) return;
-    final groupInfo = group?.info;
-    if (groupInfo == null) return;
-    groupInfo.groupStatus = !isMuted
-        ? RCIMIWGroupStatus.muted
-        : RCIMIWGroupStatus.using;
-    final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
-    if (!isOk) return;
+    final groupId = args!.targetId;
+    if (groupId.isEmpty) return;
+    final isOk = await ImGroupManager().setGroupBan(
+      groupId: groupId,
+      banned: !isMuted,
+    );
+    if (!isOk) {
+      notifyListeners();
+      return;
+    }
     isMuted = !isMuted;
+    final groupInfo = group?.info;
+    if (groupInfo != null) {
+      groupInfo.groupStatus = isMuted
+          ? RCIMIWGroupStatus.muted
+          : RCIMIWGroupStatus.using;
+    }
     notifyListeners();
   }
 
@@ -175,7 +188,7 @@ class GroupDetailsController extends ChangeNotifier {
         toggleDisband(context);
         return;
       }
-      final name = await nextOwner.name;
+      final name = nextOwner.name;
       AppConfirmDialog.show(
         context,
         description: AppLocalizations.of(

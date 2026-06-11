@@ -113,6 +113,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       isMenuExpanded: controller.isMenuExpanded,
                       isEmojiPanelExpanded: controller.isEmojiPanelExpanded,
                       isInputEmpty: controller.isInputEmpty,
+                      isDisabled: controller.isGroupMuted,
+                      disabledText: AppLocalizations.of(
+                        context,
+                      )!.chatDetailGroupMutedInputHint,
                       quoteText: controller.quotedText,
                       onClearQuote: controller.clearQuote,
                       onToggleVoiceMode: controller.toggleVoice,
@@ -229,6 +233,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             key: _keyForMessage(message.messageId),
             child: _isSelectingMessages
                 ? _buildSelectableMessageNode(message, node)
+                : controller.isGroupMuted
+                ? IgnorePointer(child: node)
                 : node,
           );
         },
@@ -952,7 +958,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     Offset position,
     ChatDetailMessage message,
   ) {
-    if (_isSelectingMessages) {
+    if (_isSelectingMessages || controller.isGroupMuted) {
       return;
     }
 

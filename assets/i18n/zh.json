@@ -160,6 +160,7 @@
   "chat_detail_release_to_cancel": "松开取消",
   "chat_detail_release_to_end": "松开结束",
   "chat_detail_hold_to_talk": "按住发言",
+  "chat_detail_group_muted_input_hint": "全员禁言中",
   "chat_detail_record_canceled": "已取消录音",
   "chat_detail_short_speech": "说话太短",
   "chat_detail_contact_card": "个人名片",

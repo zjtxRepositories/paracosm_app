@@ -20,6 +20,8 @@ class ChatInputBar extends StatelessWidget {
     required this.onVoiceLongPressStart,
     required this.onVoiceLongPressMoveUpdate,
     required this.onVoiceLongPressEnd,
+    this.isDisabled = false,
+    this.disabledText,
     this.quoteText,
     this.onClearQuote,
   });
@@ -38,6 +40,8 @@ class ChatInputBar extends StatelessWidget {
   final GestureLongPressStartCallback onVoiceLongPressStart;
   final GestureLongPressMoveUpdateCallback onVoiceLongPressMoveUpdate;
   final GestureLongPressEndCallback onVoiceLongPressEnd;
+  final bool isDisabled;
+  final String? disabledText;
   final String? quoteText;
   final VoidCallback? onClearQuote;
 
@@ -93,18 +97,43 @@ class ChatInputBar extends StatelessWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: onToggleVoiceMode,
-                child: Image.asset(
-                  isVoiceMode
-                      ? 'assets/images/chat/keyboard.png'
-                      : 'assets/images/chat/microphone.png',
-                  width: 24,
-                  height: 24,
+                onTap: isDisabled ? null : onToggleVoiceMode,
+                child: Opacity(
+                  opacity: isDisabled ? 0.4 : 1,
+                  child: Image.asset(
+                    isVoiceMode
+                        ? 'assets/images/chat/keyboard.png'
+                        : 'assets/images/chat/microphone.png',
+                    width: 24,
+                    height: 24,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: isVoiceMode
+                child: isDisabled
+                    ? Container(
+                        height: 44,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.topBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          disabledText ??
+                              AppLocalizations.of(
+                                context,
+                              )!.chatDetailGroupMutedInputHint,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.grey500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    : isVoiceMode
                     ? GestureDetector(
                         onLongPressStart: onVoiceLongPressStart,
                         onLongPressMoveUpdate: onVoiceLongPressMoveUpdate,
@@ -155,30 +184,36 @@ class ChatInputBar extends StatelessWidget {
               const SizedBox(width: 12),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: onEmojiTap,
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Image.asset(
-                    isEmojiPanelExpanded
-                        ? 'assets/images/chat/keyboard.png'
-                        : 'assets/images/chat/emoj.png',
+                onTap: isDisabled ? null : onEmojiTap,
+                child: Opacity(
+                  opacity: isDisabled ? 0.4 : 1,
+                  child: SizedBox(
                     width: 24,
                     height: 24,
+                    child: Image.asset(
+                      isEmojiPanelExpanded
+                          ? 'assets/images/chat/keyboard.png'
+                          : 'assets/images/chat/emoj.png',
+                      width: 24,
+                      height: 24,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: onActionTap,
-                child: Image.asset(
-                  !isInputEmpty
-                      ? 'assets/images/chat/send.png'
-                      : (isMenuExpanded
-                            ? 'assets/images/chat/function-close.png'
-                            : 'assets/images/chat/more-function.png'),
-                  width: 24,
-                  height: 24,
+                onTap: isDisabled ? null : onActionTap,
+                child: Opacity(
+                  opacity: isDisabled ? 0.4 : 1,
+                  child: Image.asset(
+                    !isInputEmpty
+                        ? 'assets/images/chat/send.png'
+                        : (isMenuExpanded
+                              ? 'assets/images/chat/function-close.png'
+                              : 'assets/images/chat/more-function.png'),
+                    width: 24,
+                    height: 24,
+                  ),
                 ),
               ),
             ],

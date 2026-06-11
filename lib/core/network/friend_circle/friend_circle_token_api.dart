@@ -20,7 +20,7 @@ class FriendCircleTokenResult {
 }
 
 class FriendCircleTokenApi {
-  static const String baseUrl = 'http://192.168.0.111:8080';
+  static const String baseUrl = 'https://imapi.zjtxy.top/moments/friend97';
   static const String path = '/app/user/getToken';
 
   final Dio _dio;

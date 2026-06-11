@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/network/api/coin_overview_api.dart';
 import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
@@ -13,7 +12,6 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
 import '../../modules/account/manager/account_manager.dart';
-import '../../modules/wallet/chains/model/coin_market_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../util/string_util.dart';
 import '../../widgets/common/app_network_image.dart';
@@ -33,7 +31,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   WalletModel? _walletModel;
   ChainAccount? _selectedNetwork;
-  List<CoinMarketModel> _coinMarkets = [];
   List<TokenModel> _tokens = [];
   Timer? _accountChangedRefreshTimer;
   int _loadGeneration = 0;
@@ -52,8 +49,6 @@ class _ProfilePageState extends State<ProfilePage> {
     await fetchData(generation: generation);
     if (!_isCurrentLoad(generation)) return;
     await fetchTokenList(generation: generation);
-    if (!_isCurrentLoad(generation)) return;
-    await fetchMarketData(generation: generation); // 内部再调 fetchTokenList
   }
 
   bool _isCurrentLoad(int generation, {String? walletId}) {
@@ -91,15 +86,6 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {});
   }
 
-  Future<void> fetchMarketData({int? generation}) async {
-    final list = await CoinOverviewApi.getCoins();
-    if (generation != null && !_isCurrentLoad(generation)) return;
-    setState(() {
-      _coinMarkets = list;
-    });
-    await fetchTokenList(generation: generation);
-  }
-
   Future<void> fetchTokenList({int? generation}) async {
     final wallet = _walletModel;
     if (wallet == null) return;
@@ -108,20 +94,11 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     List<ChainAccount> chains = wallet.chains;
-    final coins = _coinMarkets;
     List<TokenModel> tokenList = [];
     for (final chain in chains) {
       final tokens = chain.tokens;
       for (final token in tokens) {
-        final index = coins.indexWhere(
-          (c) =>
-              c.symbol.toLowerCase().split('/')[0] ==
-              token.symbol.toLowerCase(),
-        );
-        if (index != -1) {
-          token.market = coins[index];
-        }
-        if (token.isAdded != true && index == -1) {
+        if (!_shouldShowToken(token)) {
           continue;
         }
         token.isAdded = true;
@@ -136,6 +113,10 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     PortfolioService().start(_tokens, ownerId: wallet.id);
+  }
+
+  bool _shouldShowToken(TokenModel token) {
+    return token.isAdded == true || token.isNative || token.address.isEmpty;
   }
 
   /// 显示网络选择弹窗

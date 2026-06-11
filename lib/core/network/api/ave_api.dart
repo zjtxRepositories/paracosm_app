@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class AveApi {
   static const apiKey =
@@ -16,7 +17,7 @@ class AveApi {
     ),
   );
 
-  static String resolveAveChain(int chainId, String symbol) {
+  static String? resolveAveChain(int chainId, String symbol) {
     switch (chainId) {
       case 1:
         return 'eth';
@@ -34,10 +35,31 @@ class AveApi {
         return 'avax';
       case 101:
         return 'solana';
+      case 250:
+        return 'ftm';
+      case 324:
+        return 'zksync';
+      case 81457:
+        return 'blast';
+      case 4200:
+        return 'merlin';
+      case 59144:
+        return 'linea';
+      case 534352:
+        return 'scroll';
+      case 5000:
+        return 'mantle';
+      case 196:
+        return 'xlayer';
+      case 728126428:
+        return 'tron';
+      case 0:
+        return 'btc';
       default:
-        return symbol.toLowerCase();
+        return null;
     }
   }
+
   /// token_id = {token}-{chain}，如 0x...-bsc、So111...-solana
   static String tokenId({required String token, required String aveChain}) {
     return '$token-$aveChain';
@@ -101,6 +123,7 @@ class AveApi {
     );
     return _toMapList(data);
   }
+
   /// 获取交易记录
   static Future<Map<String, dynamic>> getSwapTransactionsByTokenAddress({
     required String tokenAddress,
@@ -111,11 +134,14 @@ class AveApi {
     int? toTime,
     String sort = 'desc',
   }) async {
-    final aveChain = AveApi.resolveAveChain(chainId,symbol);
-    final tokenId = AveApi.tokenId(token: tokenAddress,aveChain: aveChain);
+    final aveChain = AveApi.resolveAveChain(chainId, symbol);
+    if (aveChain == null) {
+      throw Exception('AveApi unsupported chain: $chainId');
+    }
+    final tokenId = AveApi.tokenId(token: tokenAddress, aveChain: aveChain);
     final detail = await AveApi.getTokenDetail(tokenId);
     final pairId = _extractAvePairId(detail, aveChain);
-    print('transactions-----${pairId}');
+    debugPrint('transactions-----$pairId');
 
     final data = await _get<Map<String, dynamic>>(
       '/txs/$pairId',
@@ -261,9 +287,10 @@ class AveApi {
       ..removeWhere((key, value) => value == null);
   }
 
-
-
-  static String? _extractAvePairId(Map<String, dynamic> detail, String aveChain) {
+  static String? _extractAvePairId(
+    Map<String, dynamic> detail,
+    String aveChain,
+  ) {
     final directPairId = detail['pair_id']?.toString();
     if (directPairId != null && directPairId.isNotEmpty) {
       return directPairId;
@@ -295,8 +322,6 @@ class AveApi {
     return null;
   }
 
-
-
   static const String _v1BaseUrl = 'https://prod.ave-api.com/v1';
 
   static final Dio _v1Dio = Dio(
@@ -306,10 +331,7 @@ class AveApi {
       receiveTimeout: const Duration(seconds: 15),
       sendTimeout: const Duration(seconds: 15),
       responseType: ResponseType.json,
-      headers: const {
-        'X-API-KEY': apiKey,
-        'Content-Type': 'application/json',
-      },
+      headers: const {'X-API-KEY': apiKey, 'Content-Type': 'application/json'},
     ),
   );
 
@@ -324,6 +346,9 @@ class AveApi {
     int? endTime,
   }) async {
     final aveChain = resolveAveChain(chainId, symbol);
+    if (aveChain == null) {
+      throw Exception('AveApi unsupported chain: $chainId');
+    }
 
     final data = await _v1Get<List<dynamic>>(
       '/txs',
@@ -340,11 +365,12 @@ class AveApi {
 
     return _toMapList(data);
   }
+
   /// v1 获取代币交易记录（ERC20/BEP20）
   static Future<List<Map<String, dynamic>>> getTokenTransactionsV1({
-    required String address,      // 用户钱包地址
-    required int chainId,         // 链 ID，例如 56 = BSC
-    required String symbol,       // 链符号，如 BNB、ETH
+    required String address, // 用户钱包地址
+    required int chainId, // 链 ID，例如 56 = BSC
+    required String symbol, // 链符号，如 BNB、ETH
     required String tokenAddress, // ERC20/BEP20 代币合约地址
     int page = 1,
     int pageSize = 20,
@@ -352,6 +378,9 @@ class AveApi {
     int? endTime,
   }) async {
     final aveChain = resolveAveChain(chainId, symbol);
+    if (aveChain == null) {
+      throw Exception('AveApi unsupported chain: $chainId');
+    }
 
     final data = await _v1Get<List<dynamic>>(
       '/txs',
@@ -369,6 +398,7 @@ class AveApi {
 
     return _toMapList(data);
   }
+
   /// 获取当前钱包某个币种的交易记录
   static Future<List<Map<String, dynamic>>> getWalletTokenTransactionsV1({
     required String walletAddress,
@@ -416,9 +446,9 @@ class AveApi {
   }
 
   static Future<T> _v1Get<T>(
-      String path, {
-        Map<String, dynamic>? params,
-      }) async {
+    String path, {
+    Map<String, dynamic>? params,
+  }) async {
     final res = await _v1Dio.get(path, queryParameters: params);
     return _parseData<T>(res.data);
   }

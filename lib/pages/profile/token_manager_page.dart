@@ -1,6 +1,8 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import '../../modules/account/manager/account_manager.dart';
@@ -25,14 +27,25 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   final FocusNode _focusNode = FocusNode();
   final _searchController = TextEditingController();
 
-  bool _hasFocus = false;
+  final bool _hasFocus = false;
   List<TokenModel> _filteredTokens = [];
-  final _wallet = AccountManager().currentWallet;
+  StreamSubscription<List<TokenModel>>? _portfolioSubscription;
 
   @override
   void initState() {
     super.initState();
+    _portfolioSubscription = PortfolioService().stream.listen(
+      _mergePortfolioTokens,
+    );
     _init();
+  }
+
+  @override
+  void dispose() {
+    _portfolioSubscription?.cancel();
+    _focusNode.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _init() async {
@@ -40,12 +53,13 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
   }
 
   Future<void> reloadTokenList() async {
-    final chains = _wallet?.chains;
+    final chains = AccountManager().currentWallet?.chains;
     if (chains == null) return;
     tokenList = [];
     for (final chain in chains) {
       tokenList.addAll(chain.tokens);
     }
+    _refreshFilteredTokens();
     if (!mounted) return;
     setState(() {});
   }
@@ -55,12 +69,52 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
     _searchQuery = query;
     final lower = _searchQuery.toLowerCase();
 
-    final result = tokenList.where((item) {
+    _filteredTokens = _filterTokens(lower);
+    setState(() {});
+  }
+
+  void _mergePortfolioTokens(List<TokenModel> tokens) {
+    if (!mounted || tokens.isEmpty || tokenList.isEmpty) return;
+    final tokenMap = {for (final token in tokens) _tokenKey(token): token};
+    var changed = false;
+
+    for (final token in tokenList) {
+      final updated = tokenMap[_tokenKey(token)];
+      if (updated == null) continue;
+      if (updated.price != 0 && token.price != updated.price) {
+        token.price = updated.price;
+        changed = true;
+      }
+      if (updated.market != null && token.market != updated.market) {
+        token.market = updated.market;
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
+    _refreshFilteredTokens();
+    setState(() {});
+  }
+
+  void _refreshFilteredTokens() {
+    if (!_hasFocus && _searchQuery.isEmpty) return;
+    _filteredTokens = _filterTokens(_searchQuery.toLowerCase());
+  }
+
+  List<TokenModel> _filterTokens(String lower) {
+    return tokenList.where((item) {
       return item.symbol.toLowerCase().contains(lower) ||
           item.name.toLowerCase().contains(lower) ||
           item.address.toLowerCase().contains(lower);
     }).toList();
-    setState(() => _filteredTokens = result);
+  }
+
+  String _tokenKey(TokenModel token) {
+    final address = token.address.trim().toLowerCase();
+    if (address.isNotEmpty) {
+      return '${token.chainId}:$address';
+    }
+    return '${token.chainId}:${token.symbol.toLowerCase()}';
   }
 
   @override
@@ -280,8 +334,10 @@ class _TokenManagerPageState extends State<TokenManagerPage> {
                       ),
                       onPressed: () async {
                         token.isAdded = !isAdd;
-                        await WalletManager.updateToken(_wallet!.id, token);
-                        if (mounted) setState(() {});
+                        final walletId = AccountManager().currentWallet?.id;
+                        if (walletId == null) return;
+                        await WalletManager.updateToken(walletId, token);
+                        await reloadTokenList();
                       },
                     ),
                   ],

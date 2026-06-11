@@ -77,7 +77,7 @@ class WalletManager {
     final mnemonic = securityData['mnemonic'];
     if (mnemonic == null || mnemonic.isEmpty) return;
 
-    print('恢复----$mnemonic');
+    debugPrint('恢复助记词钱包');
 
     /// 2. 恢复三条链
     /// EVM
@@ -240,14 +240,99 @@ class WalletManager {
     );
     if (chainIndex == -1) return;
     ChainAccount chain = wallet.chains[chainIndex];
-    final tokenIndex = chain.tokens.indexWhere(
-      (item) => item.symbol == token.symbol,
-    );
+    final tokenIndex = chain.tokens.indexWhere((item) {
+      return _isSameMarketToken(item, token);
+    });
     if (tokenIndex == -1) return;
-    chain.tokens[tokenIndex] = token;
+    chain.tokens[tokenIndex] = mergeTokenPreservingMarket(
+      chain.tokens[tokenIndex],
+      token,
+    );
     wallet.chains[chainIndex] = chain;
     await WalletDao().updateWallet(wallet);
     await AccountManager().refreshWallet();
+  }
+
+  static Future<void> syncTokenMarkets(
+    String walletId,
+    List<TokenModel> tokens,
+  ) async {
+    if (tokens.isEmpty) return;
+    final wallet = await WalletDao().getWalletById(walletId);
+    if (wallet == null) return;
+    final changed = applyTokenMarketUpdates(wallet, tokens);
+    if (!changed) return;
+    await WalletDao().updateWallet(wallet);
+    await AccountManager().refreshWallet(isNotify: false, wallet: wallet);
+  }
+
+  static bool applyTokenMarketUpdates(
+    WalletModel wallet,
+    List<TokenModel> tokens,
+  ) {
+    var changed = false;
+
+    for (final updatedToken in tokens) {
+      final chainIndex = wallet.chains.indexWhere(
+        (chain) => chain.chainId == updatedToken.chainId,
+      );
+      if (chainIndex == -1) continue;
+
+      final chain = wallet.chains[chainIndex];
+      final tokenIndex = chain.tokens.indexWhere(
+        (token) => _isSameMarketToken(token, updatedToken),
+      );
+      if (tokenIndex == -1) continue;
+
+      final token = chain.tokens[tokenIndex];
+      final market = updatedToken.market;
+      final nextPrice = updatedToken.price;
+      final priceChanged = token.price != nextPrice;
+      final marketChanged =
+          market != null &&
+          (token.market?.close != market.close ||
+              token.market?.chg != market.chg ||
+              token.market?.change != market.change);
+      if (!priceChanged && !marketChanged) continue;
+
+      token.price = nextPrice;
+      if (market != null) {
+        token.market = market;
+      }
+      chain.tokens[tokenIndex] = token;
+      wallet.chains[chainIndex] = chain;
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  static TokenModel mergeTokenPreservingMarket(
+    TokenModel existing,
+    TokenModel incoming,
+  ) {
+    incoming.price = incoming.price == 0 && existing.price != 0
+        ? existing.price
+        : incoming.price;
+    incoming.market = incoming.market ?? existing.market;
+    return incoming;
+  }
+
+  static bool _isSameMarketToken(TokenModel token, TokenModel updatedToken) {
+    if (token.chainId != updatedToken.chainId) return false;
+
+    final tokenAddress = token.address.trim().toLowerCase();
+    final updatedAddress = updatedToken.address.trim().toLowerCase();
+    final tokenIsNativeLike = token.isNative || tokenAddress.isEmpty;
+    final updatedIsNativeLike = updatedToken.isNative || updatedAddress.isEmpty;
+
+    if (tokenIsNativeLike || updatedIsNativeLike) {
+      return tokenIsNativeLike &&
+          updatedIsNativeLike &&
+          token.symbol.toLowerCase() == updatedToken.symbol.toLowerCase();
+    }
+
+    return tokenAddress == updatedAddress;
   }
 
   /// 添加token

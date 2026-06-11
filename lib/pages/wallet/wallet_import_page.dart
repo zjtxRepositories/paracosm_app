@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/service/mnemonic_service.dart';
@@ -453,8 +454,11 @@ class _WalletImportPageState extends State<WalletImportPage>
                                                       : null,
                                                   privateKey:
                                                       _tabController.index == 1
-                                                      ? _privateKeyController
-                                                            .text
+                                                      ? EvmService
+                                                            .normalizePrivateKey(
+                                                              _privateKeyController
+                                                                  .text,
+                                                            )
                                                       : null,
                                                   password: widget.password!,
                                                 );
@@ -477,7 +481,13 @@ class _WalletImportPageState extends State<WalletImportPage>
                                                 'mnemonic':
                                                     _mnemonicController.text,
                                                 'privateKey':
-                                                    _privateKeyController.text,
+                                                    _tabController.index == 1
+                                                    ? EvmService
+                                                          .normalizePrivateKey(
+                                                            _privateKeyController
+                                                                .text,
+                                                          )
+                                                    : null,
                                               },
                                             );
                                           }

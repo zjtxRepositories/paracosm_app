@@ -1,5 +1,6 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
+import 'package:paracosm/modules/wallet/chains/evm/evm_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 
 import '../chains/service/chain_config_service.dart';
@@ -107,6 +108,9 @@ class WalletService {
     required String password,
     ChainType chainType = ChainType.evm,
   }) async {
+    final normalizedPrivateKey = chainType == ChainType.evm
+        ? EvmService.normalizePrivateKey(privateKey)
+        : privateKey.trim();
     final configs = await ChainConfigService.loadConfigs();
     final relatedConfigs = configs
         .where((config) => chainTypeFromString(config.chainType) == chainType)
@@ -114,7 +118,7 @@ class WalletService {
 
     final chains = await ChainConfigService.buildChainsFromPrivateKey(
       relatedConfigs,
-      privateKey,
+      normalizedPrivateKey,
       chainType: chainType,
     );
 
@@ -126,7 +130,7 @@ class WalletService {
     await WalletSecurity.saveWallet(
       walletId: walletId,
       mnemonic: "",
-      privateKey: privateKey,
+      privateKey: normalizedPrivateKey,
       password: password,
     );
     final oldWallet = await WalletDao().getWalletById(walletId);
@@ -159,13 +163,16 @@ class WalletService {
     required String walletId,
     ChainType chainType = ChainType.evm,
   }) async {
+    final normalizedPrivateKey = chainType == ChainType.evm
+        ? EvmService.normalizePrivateKey(privateKey)
+        : privateKey.trim();
     final configs = await ChainConfigService.loadConfigs();
     final config = configs.where((e) {
       return chainTypeFromString(e.chainType) == chainType;
     }).toList();
     final chains = await ChainConfigService.buildChainsFromPrivateKey(
       config,
-      privateKey,
+      normalizedPrivateKey,
       chainType: chainType,
     );
     final wallet = await WalletDao().getWalletById(walletId);
@@ -179,7 +186,7 @@ class WalletService {
     await WalletSecurity.saveWallet(
       walletId: walletId,
       mnemonic: securityData?['mnemonic'] ?? '',
-      privateKey: privateKey,
+      privateKey: normalizedPrivateKey,
       password: password,
     );
     final oldChains = wallet.chains;

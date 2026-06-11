@@ -72,11 +72,12 @@ class EvmService {
   /// 私钥 → 地址
   /// =========================
   static String privateKeyToAddress(String privateKeyHex) {
-    final credentials = EthPrivateKey.fromHex(privateKeyHex);
+    final normalizedPrivateKey = normalizePrivateKey(privateKeyHex);
+    final credentials = EthPrivateKey.fromHex(normalizedPrivateKey);
     final address = credentials.address.hexEip55;
     _wallets.putIfAbsent(
       address,
-      () => {'address': address, 'privateKey': privateKeyHex},
+      () => {'address': address, 'privateKey': normalizedPrivateKey},
     );
     return address;
   }
@@ -102,7 +103,9 @@ class EvmService {
   /// =========================
   static bool isValidPrivateKey(String privateKeyHex) {
     try {
-      final bytes = hexToBytes(privateKeyHex.replaceFirst('0x', ''));
+      final bytes = hexToBytes(
+        normalizePrivateKey(privateKeyHex).replaceFirst('0x', ''),
+      );
 
       if (bytes.length != 32) return false;
 
@@ -117,6 +120,17 @@ class EvmService {
     } catch (_) {
       return false;
     }
+  }
+
+  static String normalizePrivateKey(String privateKeyHex) {
+    final withoutWhitespace = privateKeyHex.replaceAll(RegExp(r'\s+'), '');
+    final normalized = withoutWhitespace.startsWith(RegExp(r'0[xX]'))
+        ? withoutWhitespace.substring(2)
+        : withoutWhitespace;
+    if (!RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(normalized)) {
+      throw const FormatException('Invalid EVM private key');
+    }
+    return '0x$normalized';
   }
 
   static BigInt bytesToInt(Uint8List bytes) {

@@ -325,6 +325,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   Future<void> _toggleLike(SocialInvitationModel post) async {
     final nextIsLiked = !post.isLike;
+    final failureText = AppLocalizations.of(context)!.momentsLikeFailed;
     var success = false;
     try {
       AppLoading.show();
@@ -339,7 +340,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     if (!success) {
-      AppToast.show(AppLocalizations.of(context)!.momentsLikeFailed);
+      AppToast.show(failureText);
       return;
     }
     if (!mounted) return;
@@ -352,6 +353,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   Future<void> _toggleCollect(SocialInvitationModel post) async {
     final nextIsCollected = !post.isCollect;
+    final failureText = AppLocalizations.of(context)!.momentsCollectFailed;
     var success = false;
     try {
       AppLoading.show();
@@ -366,7 +368,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     if (!success) {
-      AppToast.show(AppLocalizations.of(context)!.momentsCollectFailed);
+      AppToast.show(failureText);
       return;
     }
     if (!mounted) return;
@@ -682,41 +684,44 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               height: 32,
             ),
           ),
-          Builder(
-            builder: (context) {
-              final moreButtonKey = GlobalKey();
+          if (_isSelf)
+            const SizedBox(width: 32, height: 32)
+          else
+            Builder(
+              builder: (context) {
+                final moreButtonKey = GlobalKey();
 
-              return GestureDetector(
-                key: moreButtonKey,
-                onTap: () {
-                  AppActionPopMenu.show(
-                    context,
-                    buttonKey: moreButtonKey,
-                    width: 152,
-                    rightOffset: 5,
-                    items: [
-                      AppActionPopMenuItem(
-                        icon: 'assets/images/moments/block.png',
-                        label: l10n.translate('moments_block_this_user'),
-                        onTap: () {},
-                      ),
-                      AppActionPopMenuItem(
-                        icon: 'assets/images/moments/report.png',
-                        label: l10n.translate('moments_report'),
-                        onTap: () {},
-                        showDivider: false,
-                      ),
-                    ],
-                  );
-                },
-                child: Image.asset(
-                  'assets/images/moments/black-more.png',
-                  width: 32,
-                  height: 32,
-                ),
-              );
-            },
-          ),
+                return GestureDetector(
+                  key: moreButtonKey,
+                  onTap: () {
+                    AppActionPopMenu.show(
+                      context,
+                      buttonKey: moreButtonKey,
+                      width: 152,
+                      rightOffset: 5,
+                      items: [
+                        AppActionPopMenuItem(
+                          icon: 'assets/images/moments/block.png',
+                          label: l10n.translate('moments_block_this_user'),
+                          onTap: () {},
+                        ),
+                        AppActionPopMenuItem(
+                          icon: 'assets/images/moments/report.png',
+                          label: l10n.translate('moments_report'),
+                          onTap: () {},
+                          showDivider: false,
+                        ),
+                      ],
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/images/moments/black-more.png',
+                    width: 32,
+                    height: 32,
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

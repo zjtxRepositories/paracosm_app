@@ -86,7 +86,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     } else if (!_isJoined) {
       _groupName = _group.displayName ?? _group.info.groupName ?? '';
       if (_groupName.isEmpty || _groupName == '[默认]') {
-        _groupName = _qrMemberNames();
+        _groupName = '-';
       }
     } else {
       _groupName = await _group.name;

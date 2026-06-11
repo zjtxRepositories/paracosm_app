@@ -12,6 +12,7 @@ enum ChatDetailMessageKind {
   withdrawnNotice,
   combineForward,
   customFace,
+  momentPost,
   fm,
 }
 

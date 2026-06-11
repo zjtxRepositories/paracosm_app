@@ -933,6 +933,124 @@ class ChatCombineMessageContent extends StatelessWidget {
   }
 }
 
+class ChatMomentPostMessageContent extends StatelessWidget {
+  const ChatMomentPostMessageContent({
+    super.key,
+    required this.content,
+    this.authorName,
+    this.coverUrl,
+    this.onTap,
+  });
+
+  final String content;
+  final String? authorName;
+  final String? coverUrl;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = AppLocalizations.of(context)!.momentsMomentTitle;
+    final author = authorName?.trim();
+    final cover = coverUrl?.trim();
+    final body = content.trim().isNotEmpty
+        ? content.trim()
+        : AppLocalizations.of(context)!.momentsMomentTitle;
+
+    final child = SizedBox(
+      width: 230,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.grey900,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (author != null && author.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              author,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.grey400,
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  body,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.grey600,
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              if (cover != null && cover.isNotEmpty) ...[
+                const SizedBox(width: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: cover,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => _buildCoverFallback(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey400,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) {
+      return child;
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: child,
+    );
+  }
+
+  Widget _buildCoverFallback() {
+    return Container(
+      width: 48,
+      height: 48,
+      color: AppColors.grey100,
+      alignment: Alignment.center,
+      child: const Icon(Icons.image_outlined, color: AppColors.grey400),
+    );
+  }
+}
+
 class ChatContactCardMessageContent extends StatelessWidget {
   const ChatContactCardMessageContent({
     super.key,

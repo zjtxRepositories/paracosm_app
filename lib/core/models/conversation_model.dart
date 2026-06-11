@@ -197,6 +197,11 @@ class ConversationResolver {
         });
       case CustomMessageType.customFace:
         return AppLocalizations.currentText('chat_detail_custom_face');
+      case CustomMessageType.momentPost:
+        final summary = (message.postContent ?? message.content ?? '').trim();
+        return summary.isNotEmpty
+            ? summary
+            : AppLocalizations.currentText('moments_moment_title');
       default:
         return _formatContent(message.content ?? '');
     }

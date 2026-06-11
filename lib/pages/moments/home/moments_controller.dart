@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/im_data_center.dart';
+import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
+import 'package:paracosm/modules/im/message/send/im_sender.dart';
+import 'package:paracosm/widgets/chat/chat_forward_target_modal.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../../core/models/social_Invitation_model.dart';
 import '../../../core/models/social_media_model.dart';
 import '../../../core/network/api/social_circle_note_api.dart';
 import '../../../core/network/api/social_circle_user_api.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/common/app_media_gallery.dart';
-import '../../../widgets/modals/share_modals.dart';
 
 /// ==========================
 /// Controller
@@ -225,8 +232,79 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 分享
-  void toggleShare(SocialInvitationModel item, BuildContext context) {
-    ShareModals.show(context);
+  Future<void> toggleShare(
+    SocialInvitationModel item,
+    BuildContext context,
+  ) async {
+    final targets = await ChatForwardTargetModal.show(
+      context,
+      friends: ImDataCenter().friendListSnapshot,
+      groups: ImDataCenter().groupListSnapshot,
+    );
+    if (!context.mounted || targets == null || targets.isEmpty) {
+      return;
+    }
+
+    final shareData = MomentPostShareData.fromPost(item);
+    if (!shareData.isValid) {
+      AppToast.show(AppLocalizations.of(context)!.momentsShareFailed);
+      return;
+    }
+
+    var successCount = 0;
+    AppLoading.show();
+    try {
+      for (final target in targets) {
+        final sent = await ImSender.instance.send(
+          message: MomentPostShareMessage(
+            conversationType: target.conversationType,
+            targetId: target.targetId,
+            channelId: target.channelId,
+            data: shareData,
+          ),
+        );
+        if (!sent) {
+          continue;
+        }
+        successCount++;
+        if (target.conversationType == RCIMIWConversationType.private) {
+          unawaited(_recordShare(item, target.targetId));
+        }
+      }
+    } catch (e) {
+      debugPrint('share moment post failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    AppToast.show(
+      successCount > 0
+          ? AppLocalizations.of(context)!.momentsShareSuccess
+          : AppLocalizations.of(context)!.momentsShareFailed,
+    );
+    if (successCount > 0) {
+      item.shares += successCount;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _recordShare(SocialInvitationModel item, String toUserId) async {
+    final fromUserId = AccountManager().currentAccount?.accountId ?? '';
+    if (fromUserId.isEmpty || toUserId.isEmpty) {
+      return;
+    }
+    try {
+      await SocialCircleNoteApi.socialCircleNoteShare(
+        fromUserId,
+        toUserId,
+        item.noteId,
+      );
+    } catch (e) {
+      debugPrint('record moment share failed: $e');
+    }
   }
 
   /// 拉黑

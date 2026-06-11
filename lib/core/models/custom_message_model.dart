@@ -11,6 +11,7 @@ enum CustomMessageType {
   groupRemoved,
   groupDisbanded,
   customFace,
+  momentPost,
   unknown,
 }
 
@@ -40,6 +41,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.groupDisbanded;
     case 'custom_face':
       return CustomMessageType.customFace;
+    case 'moment_post':
+      return CustomMessageType.momentPost;
     default:
       return CustomMessageType.unknown;
   }
@@ -53,6 +56,13 @@ class CustomMessageModel {
   final List<String>? userIds;
   final String? facePackId;
   final String? faceName;
+  final String? noteId;
+  final String? postContent;
+  final String? postCover;
+  final String? authorId;
+  final String? authorName;
+  final String? authorAvatar;
+  final int? mediaType;
 
   CustomMessageModel({
     required this.type,
@@ -62,6 +72,13 @@ class CustomMessageModel {
     this.userIds,
     this.facePackId,
     this.faceName,
+    this.noteId,
+    this.postContent,
+    this.postCover,
+    this.authorId,
+    this.authorName,
+    this.authorAvatar,
+    this.mediaType,
   });
 
   /// =========================
@@ -76,6 +93,13 @@ class CustomMessageModel {
       userIds: (json['userIds'] as List?)?.map((e) => e.toString()).toList(),
       facePackId: json['facePackId']?.toString(),
       faceName: json['faceName']?.toString(),
+      noteId: json['noteId']?.toString(),
+      postContent: json['postContent']?.toString(),
+      postCover: json['postCover']?.toString(),
+      authorId: json['authorId']?.toString(),
+      authorName: json['authorName']?.toString(),
+      authorAvatar: json['authorAvatar']?.toString(),
+      mediaType: _parseInt(json['mediaType']),
     );
   }
 
@@ -96,7 +120,36 @@ class CustomMessageModel {
     if (faceName != null) {
       json['faceName'] = faceName;
     }
+    if (noteId != null) {
+      json['noteId'] = noteId;
+    }
+    if (postContent != null) {
+      json['postContent'] = postContent;
+    }
+    if (postCover != null) {
+      json['postCover'] = postCover;
+    }
+    if (authorId != null) {
+      json['authorId'] = authorId;
+    }
+    if (authorName != null) {
+      json['authorName'] = authorName;
+    }
+    if (authorAvatar != null) {
+      json['authorAvatar'] = authorAvatar;
+    }
+    if (mediaType != null) {
+      json['mediaType'] = mediaType;
+    }
     return json;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   String _typeToString(CustomMessageType type) {
@@ -125,6 +178,8 @@ class CustomMessageModel {
         return 'group_disbanded';
       case CustomMessageType.customFace:
         return 'custom_face';
+      case CustomMessageType.momentPost:
+        return 'moment_post';
       case CustomMessageType.unknown:
         return 'unknown';
     }

@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
+import 'package:paracosm/core/models/social_wallet_address.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import '../../core/models/social_Invitation_model.dart';
 import '../../core/models/social_media_model.dart';
 import '../../util/string_util.dart';
@@ -123,6 +125,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSelf = _isSelfPost;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -155,58 +158,75 @@ class _Header extends StatelessWidget {
           ],
         ),
 
-        Row(
-          children: [
-            FollowButton(isFollowing: isFollowing, onTap: onFollow),
-            const SizedBox(width: 8),
-            Builder(
-              builder: (context) {
-                final l10n = AppLocalizations.of(context)!;
-                final moreButtonKey = GlobalKey();
+        if (!isSelf)
+          Row(
+            children: [
+              FollowButton(isFollowing: isFollowing, onTap: onFollow),
+              const SizedBox(width: 8),
+              Builder(
+                builder: (context) {
+                  final l10n = AppLocalizations.of(context)!;
+                  final moreButtonKey = GlobalKey();
 
-                return GestureDetector(
-                  key: moreButtonKey,
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AppActionPopMenu.show(
-                      context,
-                      buttonKey: moreButtonKey,
-                      width: 152,
-                      rightOffset: 15,
-                      items: [
-                        AppActionPopMenuItem(
-                          icon: 'assets/images/moments/share-pop.png',
-                          label: l10n.translate('moments_share'),
-                          onTap: onShare ?? () {},
-                        ),
-                        AppActionPopMenuItem(
-                          icon: 'assets/images/moments/block.png',
-                          label: isBlock
-                              ? l10n.translate('moments_unblock_this_user')
-                              : l10n.translate('moments_block_this_user'),
-                          onTap: onBlock ?? () {},
-                        ),
-                        AppActionPopMenuItem(
-                          icon: 'assets/images/moments/report.png',
-                          label: l10n.translate('moments_report'),
-                          onTap: onReport ?? () {},
-                          showDivider: false,
-                        ),
-                      ],
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/images/moments/more.png',
-                    width: 24,
-                    height: 24,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+                  return GestureDetector(
+                    key: moreButtonKey,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      AppActionPopMenu.show(
+                        context,
+                        buttonKey: moreButtonKey,
+                        width: 152,
+                        rightOffset: 15,
+                        items: [
+                          AppActionPopMenuItem(
+                            icon: 'assets/images/moments/share-pop.png',
+                            label: l10n.translate('moments_share'),
+                            onTap: onShare ?? () {},
+                          ),
+                          AppActionPopMenuItem(
+                            icon: 'assets/images/moments/block.png',
+                            label: isBlock
+                                ? l10n.translate('moments_unblock_this_user')
+                                : l10n.translate('moments_block_this_user'),
+                            onTap: onBlock ?? () {},
+                          ),
+                          AppActionPopMenuItem(
+                            icon: 'assets/images/moments/report.png',
+                            label: l10n.translate('moments_report'),
+                            onTap: onReport ?? () {},
+                            showDivider: false,
+                          ),
+                        ],
+                      );
+                    },
+                    child: Image.asset(
+                      'assets/images/moments/more.png',
+                      width: 24,
+                      height: 24,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
       ],
     );
+  }
+
+  bool get _isSelfPost {
+    final account = AccountManager().currentAccount;
+    if (account == null) return false;
+
+    final currentWallet = SocialWalletAddress.normalize(account.accountId);
+    final postWallet = model.item.walletAddress;
+    if (currentWallet.isNotEmpty && postWallet == currentWallet) {
+      return true;
+    }
+
+    final postUserId = model.item.userId.trim().toLowerCase();
+    return postUserId.isNotEmpty &&
+        (postUserId == account.userId.toLowerCase() ||
+            postUserId == account.accountId);
   }
 
   String _formatTime(int time) {

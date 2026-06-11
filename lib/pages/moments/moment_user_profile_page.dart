@@ -22,6 +22,7 @@ import 'package:paracosm/widgets/modals/share_modals.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/user_display_model.dart';
+import 'home/moments_controller.dart';
 import 'moment_post_card.dart';
 
 /// 个人主页详情页
@@ -394,7 +395,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         ShareActionData(
           icon: 'assets/images/moments/share-pop.png',
           label: l10n.momentsShare,
-          onTap: () => _sharePost(post),
+          onTap: () => MomentsController().toggleShare(post, context),
         ),
         ShareActionData(
           icon: 'assets/images/moments/friends.png',
@@ -407,23 +408,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           onTap: AppToast.showCopied,
         ),
       ],
-    );
-  }
-
-  Future<void> _sharePost(SocialInvitationModel post) async {
-    await _sendShareAction(
-      action: () => SocialCircleNoteApi.socialCircleNoteShare(
-        _currentUserId,
-        post.walletAddress,
-        post.noteId,
-      ),
-      successText: AppLocalizations.of(context)!.momentsShareSuccess,
-      failureText: AppLocalizations.of(context)!.momentsShareFailed,
-      onSuccess: () {
-        setState(() {
-          post.shares += 1;
-        });
-      },
     );
   }
 

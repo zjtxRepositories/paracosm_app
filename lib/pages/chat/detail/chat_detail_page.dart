@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/media_item.dart';
 import '../../../modules/im/listener/im_data_center.dart';
+import '../../../modules/im/message/moment_post_share_message.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../tool/keyboard_detector.dart';
@@ -820,6 +821,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ? () => _openCombineForwardDetail(raw)
               : null,
         );
+      case ChatDetailMessageKind.momentPost:
+        final noteId = _noteIdForMomentPost(message);
+        return ChatMomentPostMessageContent(
+          content: message.text ?? '',
+          authorName: message.contactName,
+          coverUrl: message.imagePath,
+          onTap: noteId == null
+              ? null
+              : () => context.push(
+                  '/moment-post-detail',
+                  extra: {'noteId': noteId},
+                ),
+        );
       case ChatDetailMessageKind.call:
         return ChatCallMessageContent(
           text: message.text ?? '',
@@ -829,6 +843,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       default:
         return ChatTextMessageContent(message: message.text ?? '');
     }
+  }
+
+  String? _noteIdForMomentPost(ChatDetailMessage message) {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return null;
+    final noteId = MomentPostShareData.fromMessage(raw)?.noteId.trim();
+    if (noteId == null || noteId.isEmpty) return null;
+    return noteId;
   }
 
   Widget _buildVideoMessageContent(ChatDetailMessage message) {

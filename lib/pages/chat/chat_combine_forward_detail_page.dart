@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -667,6 +668,19 @@ class _ChatCombineForwardDetailPageState
               ? () => _openNestedCombine(raw)
               : null,
         );
+      case ChatDetailMessageKind.momentPost:
+        final noteId = _noteIdForMomentPost(message);
+        return ChatMomentPostMessageContent(
+          content: message.text ?? '',
+          authorName: message.contactName,
+          coverUrl: message.imagePath,
+          onTap: noteId == null
+              ? null
+              : () => context.push(
+                  '/moment-post-detail',
+                  extra: {'noteId': noteId},
+                ),
+        );
       case ChatDetailMessageKind.call:
         return ChatCallMessageContent(
           text: message.text ?? '',
@@ -676,6 +690,14 @@ class _ChatCombineForwardDetailPageState
       default:
         return const SizedBox();
     }
+  }
+
+  String? _noteIdForMomentPost(ChatDetailMessage message) {
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) return null;
+    final noteId = MomentPostShareData.fromMessage(raw)?.noteId.trim();
+    if (noteId == null || noteId.isEmpty) return null;
+    return noteId;
   }
 
   void _openNestedCombine(RCIMIWCombineV2Message message) {

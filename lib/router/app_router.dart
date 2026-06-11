@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/community_model.dart';
 import 'package:paracosm/core/models/group_model.dart';
+import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -245,15 +246,18 @@ class AppRouter {
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>?;
           final item = data?['item'];
-          final isFollowing = data?['isFollowing'];
-          final isBlock = data?['isBlock'];
-          return data == null
-              ? SizedBox()
-              : MomentPostDetailPage(
-                  item: item,
-                  isFollowing: isFollowing,
-                  isBlock: isBlock,
-                );
+          final noteId = data?['noteId']?.toString();
+          if (item is MomentPostModel) {
+            return MomentPostDetailPage(
+              item: item,
+              isFollowing: data?['isFollowing'] == true,
+              isBlock: data?['isBlock'] == true,
+            );
+          }
+          if (noteId != null && noteId.isNotEmpty) {
+            return MomentPostDetailPage(noteId: noteId);
+          }
+          return const SizedBox();
         },
       ),
 

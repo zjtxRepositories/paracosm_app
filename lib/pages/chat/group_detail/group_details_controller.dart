@@ -392,6 +392,16 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
 
+    if (addUserIds.isNotEmpty) {
+      final message = CustomMessage(
+        targetId: groupId,
+        customMessageType: CustomMessageType.groupManagerSet,
+        conversationType: RCIMIWConversationType.group,
+        userIds: addUserIds,
+      );
+      await ImSender.instance.send(message: message);
+    }
+
     await _fetchGroupMembers(groupId);
     AppToast.show(AppLocalizations.currentText('chat_set_manager_success'));
   }

@@ -697,6 +697,7 @@
   "chat_group_joined_message": "{user}加入了群聊",
   "chat_user_quit_group_message": "{user} 退出了群聊",
   "chat_members_removed_message": "{members} 被移出了群聊",
+  "chat_group_manager_set_message": "{members}已被设置成管理员",
   "chat_group_transferred_message": "{user}将群聊转让给{target}",
   "chat_group_disbanded_message": "{user}已解散群聊",
   "chat_me": "你",

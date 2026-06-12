@@ -183,6 +183,11 @@ class ConversationResolver {
         return AppLocalizations.currentText('chat_members_removed_message', {
           'members': members ?? '',
         });
+      case CustomMessageType.groupManagerSet:
+        final members = await _getMemberNames(message.userIds);
+        return AppLocalizations.currentText('chat_group_manager_set_message', {
+          'members': members ?? '',
+        });
       case CustomMessageType.transfer:
         final user = await _getUserName(message.fromUserId);
         final target = await _getUserName(message.userIds?.firstOrNull ?? '');

@@ -107,13 +107,15 @@ class ScanResultHandler {
         (await ImGroupManager().getGroupsInfo([groupId]))?.firstOrNull ??
         RCIMIWGroupInfo.create(groupId: groupId);
 
+    final members = await GroupStateCenter().getGroupMembers(groupId,forceRefresh: true);
+
     if (!context.mounted) return;
 
     context.push(
       '/group-information',
       extra: {
         'group': GroupModel(info: groupInfo),
-        'isJoined': groupInfo.joinedTime != 0,
+        'isJoined': members.isNotEmpty,
         'members': _toGroupMemberInfos(result.groupMembers),
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/chat/chat_bubble_painters.dart';
@@ -146,11 +147,19 @@ class _ChatMessageAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return UserAvatarWidget(
-      userId: userId,
-      avatarUrl: avatarUrl,
-      size: 40,
-      borderRadius: BorderRadius.circular(10),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: userId.isEmpty
+          ? null
+          : () {
+              context.push('/user-profile', extra: userId);
+            },
+      child: UserAvatarWidget(
+        userId: userId,
+        avatarUrl: avatarUrl,
+        size: 40,
+        borderRadius: BorderRadius.circular(10),
+      ),
     );
   }
 }

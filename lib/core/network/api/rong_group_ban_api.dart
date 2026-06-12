@@ -11,12 +11,10 @@ import '../../../modules/im/service/im_service.dart';
 import '../../../modules/wallet/chains/evm/evm_facade.dart';
 
 class RongGroupBanApi {
-  static const String _baseUrl = 'http://192.168.0.111:8080';
+  static const String _baseUrl = 'https://rj.zjtxy.top';
   static const String _addPath = '/group/ban/add.json';
   static const String _rollbackPath = '/group/ban/rollback.json';
   static const String _queryPath = '/group/ban/query.json';
-  static const String _appKey = ImConfig.appKey;
-  static const String _appSecret = 'zmetBLCbins';
 
   static final Dio _dio = Dio(
     BaseOptions(
@@ -54,8 +52,7 @@ class RongGroupBanApi {
 
     final nonce = _nonce();
     final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final timestampText = timestamp.toString();
-    final headerSignature = _headerSignature(nonce, timestampText);
+    final businessToken = _businessToken();
     final body = await _queryRequestBody(
       userId: userId,
       groupIds: ids,
@@ -72,10 +69,8 @@ class RongGroupBanApi {
         options: Options(
           contentType: Headers.jsonContentType,
           headers: {
-            'App-Key': _appKey,
-            'Nonce': nonce,
-            'Timestamp': timestampText,
-            'Signature': headerSignature,
+            if (businessToken != null && businessToken.isNotEmpty)
+              'token': businessToken,
           },
         ),
       );
@@ -134,10 +129,10 @@ class RongGroupBanApi {
         Random().nextInt(99999).toString();
   }
 
-  static String _headerSignature(String nonce, String timestamp) {
-    final content = _appSecret + nonce + timestamp;
-    return sha1.convert(utf8.encode(content)).toString();
+  static String? _businessToken() {
+    return AccountManager().currentAccount?.token;
   }
+
 
   static String _signatureMessage({
     required bool isAdd,
@@ -305,11 +300,7 @@ class RongGroupBanApi {
     final groupIds = [id];
     final nonce = _nonce();
     final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final timestampText = timestamp.toString();
-    final headerSignature = _headerSignature(nonce, timestampText);
-    debugPrint(
-      'RongGroupBanApi userId=$userId, headerSignature=$headerSignature',
-    );
+    final businessToken = _businessToken();
     try {
       final response = await _dio.post(
         path,
@@ -323,10 +314,8 @@ class RongGroupBanApi {
         options: Options(
           contentType: Headers.jsonContentType,
           headers: {
-            'App-Key': _appKey,
-            'Nonce': nonce,
-            'Timestamp': timestampText,
-            'Signature': headerSignature,
+            if (businessToken != null && businessToken.isNotEmpty)
+              'token': businessToken,
           },
         ),
       );

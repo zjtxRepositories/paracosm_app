@@ -648,6 +648,7 @@
   "chat_detail_group_call_unavailable": "Group calls are not available yet",
   "chat_detail_release_to_send": "Release to send",
   "chat_detail_voice_too_short": "Recording too short",
+  "chat_detail_microphone_permission_required": "Please enable microphone permission and try again",
   "chat_detail_send_failed": "Send failed",
   "chat_detail_processing": "Processing",
   "chat_detail_history": "Chat history",

@@ -641,6 +641,7 @@
   "chat_detail_group_call_unavailable": "群通话暂未开放",
   "chat_detail_release_to_send": "松开发送",
   "chat_detail_voice_too_short": "录音太短",
+  "chat_detail_microphone_permission_required": "请开启麦克风权限后再试",
   "chat_detail_send_failed": "发送失败",
   "chat_detail_processing": "处理中",
   "chat_detail_history": "聊天记录",

@@ -594,6 +594,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_detail_release_to_send');
   String get chatDetailVoiceTooShort =>
       translate('chat_detail_voice_too_short');
+  String get chatDetailMicrophonePermissionRequired =>
+      translate('chat_detail_microphone_permission_required');
   String get chatDetailSendFailed => translate('chat_detail_send_failed');
   String get chatDetailProcessing => translate('chat_detail_processing');
   String get chatDetailHistory => translate('chat_detail_history');

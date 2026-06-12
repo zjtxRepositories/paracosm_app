@@ -369,6 +369,7 @@ class ImGroupManager {
       joinPermission: RCIMIWGroupJoinPermission.free,
       role: RCIMIWGroupMemberRole.owner,
       groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
+      removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager
     );
 
     return createByGroupInfo(groupInfo, inviteeUserIds);

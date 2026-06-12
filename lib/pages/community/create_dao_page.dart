@@ -94,7 +94,9 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
         introduction: desc,
         invitePermission: RCIMIWGroupOperationPermission.everyone,
         joinPermission: RCIMIWGroupJoinPermission.free,
-        role: RCIMIWGroupMemberRole.owner
+        role: RCIMIWGroupMemberRole.owner,
+        groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
+        removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager
     );
     final result = await ImGroupManager().createByGroupInfo(groupInfo, []);
     if (result == null) {

@@ -24,37 +24,53 @@ class ChatTextMessageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quote = quoteText?.trim();
+    final maxWidth = (MediaQuery.sizeOf(context).width * 0.9).clamp(
+      220.0,
+      290.0,
+    );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (quote != null && quote.isNotEmpty) ...[
-          _ChatQuotePreview(text: quote, onTap: onQuoteTap),
-          const SizedBox(height: 8),
-        ],
-        Text(
-          message,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.grey900,
-            fontSize: 16,
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (quote != null && quote.isNotEmpty) ...[
+            _ChatQuotePreview(
+              text: quote,
+              maxWidth: maxWidth,
+              onTap: onQuoteTap,
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            message,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.grey900,
+              fontSize: 16,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 class _ChatQuotePreview extends StatelessWidget {
-  const _ChatQuotePreview({required this.text, this.onTap});
+  const _ChatQuotePreview({
+    required this.text,
+    required this.maxWidth,
+    this.onTap,
+  });
 
   final String text;
+  final double maxWidth;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final child = Container(
-      constraints: const BoxConstraints(maxWidth: 220),
+      constraints: BoxConstraints(maxWidth: maxWidth),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.04),

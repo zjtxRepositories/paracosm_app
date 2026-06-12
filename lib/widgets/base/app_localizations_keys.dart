@@ -670,6 +670,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_user_quit_group_message', {'user': user});
   String chatMembersRemovedMessage(String members) =>
       translate('chat_members_removed_message', {'members': members});
+  String chatGroupManagerSetMessage(String members) =>
+      translate('chat_group_manager_set_message', {'members': members});
   String chatGroupTransferredMessage(String user, String target) => translate(
     'chat_group_transferred_message',
     {'user': user, 'target': target},

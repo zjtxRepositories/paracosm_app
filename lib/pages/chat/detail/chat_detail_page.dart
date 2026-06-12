@@ -757,6 +757,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         padding: const EdgeInsets.only(top: 10),
         child: Text(
           message.text ?? '',
+          textAlign: TextAlign.center,
           style: AppTextStyles.caption.copyWith(
             color: AppColors.grey400,
             fontSize: 12,

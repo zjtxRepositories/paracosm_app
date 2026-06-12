@@ -41,53 +41,80 @@ class GroupDetailsController extends ChangeNotifier {
 
   bool isPinned = false;
   bool isMuted = false;
-  StreamSubscription? _groupSub;
+  StreamSubscription? _groupInfoSub;
+  StreamSubscription? _groupMemberSub;
 
-  Future<void> init(BuildContext context) async {
-    _fetchPinned();
-
-    await _fetchGroupInfo();
-
-    await _fetchGroupMembers();
-
-    _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
-      // print('groupInfoStream-------');
-      if (!groupIds.contains(group?.info.groupId)) return;
-      await _fetchGroupInfo();
-      await _fetchGroupMembers();
-    });
-  }
-
-  @override
-  void dispose() {
-    _groupSub?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _fetchGroupInfo() async {
+  Future<void> init() async {
     final groupId = args?.targetId;
     if (groupId == null || groupId.isEmpty) {
       return;
     }
 
+    _loadCachedGroup(groupId);
+    _loadCachedMembers(groupId);
+
+    _groupInfoSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
+      if (!groupIds.contains(groupId)) return;
+      await _fetchGroupInfo(groupId);
+    });
+
+    _groupMemberSub = ImDataCenter().groupMemberStream.listen((groupIds) async {
+      if (!groupIds.contains(groupId)) return;
+      await _fetchGroupMembers(groupId);
+    });
+
+    unawaited(_fetchPinned());
+
+    await Future.wait([_fetchGroupInfo(groupId), _fetchGroupMembers(groupId)]);
+  }
+
+  @override
+  void dispose() {
+    _groupInfoSub?.cancel();
+    _groupMemberSub?.cancel();
+    super.dispose();
+  }
+
+  void _loadCachedGroup(String groupId) {
+    final groupInfo = GroupStateCenter().getCachedGroup(groupId);
+    if (groupInfo == null) return;
+    group = GroupModel(info: groupInfo);
+    notifyListeners();
+  }
+
+  void _loadCachedMembers(String groupId) {
+    final cached = GroupStateCenter().getMembers(groupId);
+    if (cached.isEmpty) return;
+    _setMembers(cached);
+  }
+
+  Future<void> _fetchGroupInfo(String groupId) async {
     final groupInfo = await GroupStateCenter().getGroup(groupId);
 
     if (groupInfo == null) {
       return;
     }
     group = GroupModel(info: groupInfo);
+    notifyListeners();
+
+    unawaited(_fetchBanStatus(groupId));
+  }
+
+  Future<void> _fetchBanStatus(String groupId) async {
     final banned = await RongGroupBanApi.isBanned(groupId);
     if (banned != null) {
       isMuted = banned;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
-  Future<void> _fetchGroupMembers() async {
-    if (group == null) {
-      return;
-    }
-    members = await group!.members;
+  Future<void> _fetchGroupMembers(String groupId) async {
+    final result = await GroupStateCenter().getGroupMembers(groupId);
+    _setMembers(result);
+  }
+
+  void _setMembers(List<RCIMIWGroupMemberInfo> result) {
+    members = result.map((e) => GroupMemberModel(item: e)).toList();
     notifyListeners();
   }
 
@@ -365,7 +392,17 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
 
-    await _fetchGroupMembers();
+    if (addUserIds.isNotEmpty) {
+      final message = CustomMessage(
+        targetId: groupId,
+        customMessageType: CustomMessageType.groupManagerSet,
+        conversationType: RCIMIWConversationType.group,
+        userIds: addUserIds,
+      );
+      await ImSender.instance.send(message: message);
+    }
+
+    await _fetchGroupMembers(groupId);
     AppToast.show(AppLocalizations.currentText('chat_set_manager_success'));
   }
 }

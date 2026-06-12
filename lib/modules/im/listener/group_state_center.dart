@@ -140,7 +140,7 @@ class GroupStateCenter {
         return [];
       }
 
-      final immutable = List<RCIMIWGroupMemberInfo>.unmodifiable(result);
+      final immutable = _sortedMembers(result);
 
       _memberCache[groupId] = immutable;
 
@@ -171,7 +171,7 @@ class GroupStateCenter {
   /// =====================================================
 
   void updateMembers(String groupId, List<RCIMIWGroupMemberInfo> members) {
-    _memberCache[groupId] = List<RCIMIWGroupMemberInfo>.unmodifiable(members);
+    _memberCache[groupId] = _sortedMembers(members);
   }
 
   /// =====================================================
@@ -217,7 +217,7 @@ class GroupStateCenter {
         newList.add(newItem);
       }
 
-      newCache[groupId] = List<RCIMIWGroupMemberInfo>.unmodifiable(newList);
+      newCache[groupId] = _sortedMembers(newList);
     }
 
     _memberCache
@@ -317,5 +317,25 @@ class GroupStateCenter {
     _pendingGroup.clear();
 
     _pendingMembers.clear();
+  }
+
+  List<RCIMIWGroupMemberInfo> _sortedMembers(
+    List<RCIMIWGroupMemberInfo> members,
+  ) {
+    final sorted = List<RCIMIWGroupMemberInfo>.of(members)
+      ..sort((a, b) => _roleWeight(a.role).compareTo(_roleWeight(b.role)));
+
+    return List<RCIMIWGroupMemberInfo>.unmodifiable(sorted);
+  }
+
+  int _roleWeight(RCIMIWGroupMemberRole? role) {
+    switch (role) {
+      case RCIMIWGroupMemberRole.owner:
+        return 0;
+      case RCIMIWGroupMemberRole.manager:
+        return 1;
+      default:
+        return 2;
+    }
   }
 }

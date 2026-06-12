@@ -58,23 +58,7 @@ class GroupModel {
         .map((e) => GroupMemberModel(item: e))
         .toList();
 
-    /// 群主、管理员、普通成员排序
-    list.sort((a, b) {
-      return _roleWeight(a.item.role).compareTo(_roleWeight(b.item.role));
-    });
-
     return list;
-  }
-}
-
-int _roleWeight(RCIMIWGroupMemberRole? role) {
-  switch (role) {
-    case RCIMIWGroupMemberRole.owner:
-      return 0;
-    case RCIMIWGroupMemberRole.manager:
-      return 1;
-    default:
-      return 2;
   }
 }
 

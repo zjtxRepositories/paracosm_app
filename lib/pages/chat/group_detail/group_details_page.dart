@@ -37,7 +37,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     super.initState();
     controller = GroupDetailsController(widget.args);
     controller.addListener(_refresh);
-    controller.init(context);
+    controller.init();
   }
 
   void _refresh() {
@@ -175,8 +175,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         'assets/images/profile/user/qrcode.png',
                         width: 20,
                         height: 20,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.qr_code_scanner, color: AppColors.grey900),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.qr_code_scanner,
+                              color: AppColors.grey900,
+                            ),
                       ),
                       const SizedBox(width: 8),
                       Image.asset(

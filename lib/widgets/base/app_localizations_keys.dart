@@ -594,6 +594,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_detail_release_to_send');
   String get chatDetailVoiceTooShort =>
       translate('chat_detail_voice_too_short');
+  String get chatDetailMicrophonePermissionRequired =>
+      translate('chat_detail_microphone_permission_required');
   String get chatDetailSendFailed => translate('chat_detail_send_failed');
   String get chatDetailProcessing => translate('chat_detail_processing');
   String get chatDetailHistory => translate('chat_detail_history');
@@ -653,6 +655,10 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatRemoveMembers => translate('chat_remove_members');
   String get chatSystemNotification => translate('chat_system_notification');
   String get chatRecalledMessage => translate('chat_recalled_message');
+  String get chatRecalledMessageByOther =>
+      translate('chat_recalled_message_by_other');
+  String chatRecalledMessageWithUser(String user) =>
+      translate('chat_recalled_message_with_user', {'user': user});
   String get chatFriendAddedMessage => translate('chat_friend_added_message');
   String get imErrorFriendWaitingApproval =>
       translate('im_error_friend_waiting_approval');

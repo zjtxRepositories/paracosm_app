@@ -764,7 +764,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ChatDetailMessage(
             messageId: message.messageId,
             kind: message.kind,
-            text: AppLocalizations.of(context)!.chatDetailWithdrewMessage,
+            text:
+                message.text ??
+                AppLocalizations.of(context)!.chatDetailWithdrewMessage,
             sentTime: message.sentTime,
             extra: message.extra,
           ),

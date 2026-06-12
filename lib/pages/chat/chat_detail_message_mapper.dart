@@ -3,6 +3,7 @@ import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/message/custom_face_message.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
+import 'package:paracosm/modules/im/message/recall_message_formatter.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -44,18 +45,19 @@ class ChatDetailMessageMapper {
     final sentTime = message.sentTime ?? message.receivedTime;
     final messageKey = messageKeyFor(message);
 
-    final senderUserInfo = await UserDisplayStateCenter().getUser(
-      message.senderUserId ?? '',
-    );
-
     if (_isRecallMessage(message)) {
       return ChatDetailMessage(
         messageId: messageKey,
         kind: ChatDetailMessageKind.withdrawnNotice,
+        text: await RecallMessageFormatter.format(message),
         sentTime: sentTime,
         extra: message,
       );
     }
+
+    final senderUserInfo = await UserDisplayStateCenter().getUser(
+      message.senderUserId ?? '',
+    );
 
     if (message is RCIMIWCombineV2Message) {
       final summaries = message.summaryList ?? const <String>[];

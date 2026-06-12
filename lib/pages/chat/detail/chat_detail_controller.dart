@@ -23,6 +23,7 @@ import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1866,6 +1867,12 @@ class ChatDetailController extends ChangeNotifier {
   /// 语音
   /// =========================
   Future<void> voiceStart() async {
+    final microphone = await Permission.microphone.request();
+    if (!microphone.isGranted) {
+      AppToast.show(_tr('chat_detail_microphone_permission_required'));
+      return;
+    }
+
     await voiceManager.startRecord();
 
     VoiceRecordOverlay.show(

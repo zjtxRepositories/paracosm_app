@@ -25,6 +25,7 @@ import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
@@ -116,6 +117,10 @@ class ChatDetailController extends ChangeNotifier {
 
   bool isGroupMuted = false;
 
+  bool isGroupNoticeViewed = false;
+
+  String groupNotice = '';
+
   bool hasMore = true;
 
   RCIMIWMessage? quotedMessage;
@@ -174,6 +179,8 @@ class ChatDetailController extends ChangeNotifier {
     _listenProfile();
 
     _listenGroup();
+
+    unawaited(_loadGroupNoticeBanner());
 
     _refreshGroupMuteStatus();
   }
@@ -851,6 +858,8 @@ class ChatDetailController extends ChangeNotifier {
       final group = GroupModel(info: info);
       final name = await group.name;
       await _refreshGroupMuteStatus();
+      _applyGroupNotice(info.notice);
+      unawaited(_loadGroupNoticeBanner());
       args = args?.copyWith(
         isGroup: true,
         name: name,
@@ -859,6 +868,55 @@ class ChatDetailController extends ChangeNotifier {
       notifyListeners();
     });
   }
+
+  bool get shouldShowGroupNotice =>
+      isGroupSession && !isGroupNoticeViewed && groupNotice.trim().isNotEmpty;
+
+  Future<void> _loadGroupNoticeBanner() async {
+    final session = args;
+    if (session == null ||
+        session.conversationType != RCIMIWConversationType.group ||
+        session.targetId.isEmpty) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    isGroupNoticeViewed = prefs.getBool(_groupNoticeViewedKey) ?? false;
+
+    final cached = GroupStateCenter().getCachedGroup(session.targetId);
+    if (cached != null) {
+      _applyGroupNotice(cached.notice);
+    }
+
+    final info = await GroupStateCenter().getGroup(session.targetId);
+    if (info != null) {
+      _applyGroupNotice(info.notice);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  void _applyGroupNotice(String? notice) {
+    final next = notice?.trim() ?? '';
+    if (groupNotice == next) {
+      notifyListeners();
+      return;
+    }
+    groupNotice = next;
+    notifyListeners();
+
+  }
+
+  Future<void> markGroupNoticeViewed() async {
+    if (isGroupNoticeViewed) return;
+    isGroupNoticeViewed = true;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_groupNoticeViewedKey, true);
+  }
+
+  String get _groupNoticeViewedKey =>
+      'chat_group_notice_viewed_${args?.targetId ?? ''}';
 
   Future<void> _refreshGroupMuteStatus() async {
     final session = args;

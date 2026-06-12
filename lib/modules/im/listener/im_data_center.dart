@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
@@ -234,9 +235,12 @@ class ImDataCenter {
 
   void setGroup(RCIMIWGroupInfo group) {
     final groupId = group.groupId;
-
     if (groupId == null || groupId.isEmpty) {
       return;
+    }
+    if (_groupCache[groupId]?.notice != group.notice){
+      final model = GroupModel(info: group);
+      model.setNoticeViewed(false);
     }
     _groupCache[groupId] = group;
     GroupStateCenter().updateGroupInfo(group);

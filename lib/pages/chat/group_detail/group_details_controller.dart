@@ -11,6 +11,7 @@ import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/custom_message_model.dart';
 import '../../../core/models/group_member_model.dart';
@@ -290,6 +291,7 @@ class GroupDetailsController extends ChangeNotifier {
     if (introduction != null) {
       groupInfo.introduction = introduction;
     }
+    group?.setNoticeViewed(false);
     final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
     if (!isOk) {
       AppToast.show(AppLocalizations.currentText('common_update_failed'));

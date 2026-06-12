@@ -102,6 +102,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               }
               return Column(
                 children: [
+                  if (controller.shouldShowGroupNotice) _buildGroupNoticeBar(),
                   Expanded(child: _buildMessageList()),
                   if (_isSelectingMessages)
                     _buildSelectionActionBar()
@@ -163,6 +164,75 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGroupNoticeBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _showGroupNoticeModal,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.campaign_outlined,
+                size: 20,
+                color: Color(0xFFE6A100),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  controller.groupNotice,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.grey900,
+                    fontSize: 14,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_right,
+                size: 22,
+                color: AppColors.grey500,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showGroupNoticeModal() async {
+    await controller.markGroupNoticeViewed();
+    if (!mounted) return;
+
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.chatSettingNotice,
+      confirmText: null,
+      onConfirm: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Text(
+          controller.groupNotice,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey900,
+            fontSize: 15,
+            height: 1.45,
+          ),
+        ),
+      ),
     );
   }
 

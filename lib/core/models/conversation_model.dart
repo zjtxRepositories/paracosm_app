@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/message/recall_message_formatter.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -86,7 +87,8 @@ class ConversationResolver {
     if (msg != null) {
       final content = await _format(msg);
       if (info.conversationType == RCIMIWConversationType.group &&
-          msg.messageType != RCIMIWMessageType.custom) {
+          msg.messageType != RCIMIWMessageType.custom &&
+          msg.messageType != RCIMIWMessageType.recall) {
         final user = await _getUser(msg.senderUserId ?? '');
         subtitle = '${user?.name ?? ''}：$content';
       } else {
@@ -123,7 +125,7 @@ class ConversationResolver {
       case RCIMIWMessageType.file:
         return AppLocalizations.currentText('chat_file');
       case RCIMIWMessageType.recall:
-        return AppLocalizations.currentText('chat_recalled_message');
+        return RecallMessageFormatter.format(message);
       case RCIMIWMessageType.reference:
         return message is RCIMIWReferenceMessage
             ? (message.text?.isNotEmpty ?? false

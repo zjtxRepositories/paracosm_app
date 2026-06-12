@@ -699,6 +699,8 @@
   "wallet_search_nft_name_or_contract": "Search NFT name or contract",
   "chat_system_notification": "Notification",
   "chat_recalled_message": "Recalled a message",
+  "chat_recalled_message_by_other": "The other user withdrew a message",
+  "chat_recalled_message_with_user": "{user} withdrew a message",
   "chat_friend_added_message": "We are now friends. Start chatting!",
   "chat_invited_members_message": "\"{user}\" invited {members} to the group chat",
   "chat_group_joined_message": "{user} joined the group chat",

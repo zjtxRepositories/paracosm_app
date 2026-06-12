@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,22 +9,24 @@ import 'package:paracosm/core/models/social_wallet_address.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
+import 'package:paracosm/modules/im/message/send/im_sender.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/chat/chat_forward_target_modal.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_action_sheet.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:paracosm/widgets/modals/share_modals.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/user_display_model.dart';
-import 'home/moments_controller.dart';
 import 'moment_post_card.dart';
 
 /// 个人主页详情页
@@ -387,28 +391,75 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     );
   }
 
-  void _showShare(SocialInvitationModel post) {
-    final l10n = AppLocalizations.of(context)!;
-    ShareModals.show(
+  Future<void> _sharePost(SocialInvitationModel post) async {
+    final targets = await ChatForwardTargetModal.show(
       context,
-      actions: [
-        ShareActionData(
-          icon: 'assets/images/moments/share-pop.png',
-          label: l10n.momentsShare,
-          onTap: () => MomentsController().toggleShare(post, context),
-        ),
-        ShareActionData(
-          icon: 'assets/images/moments/friends.png',
-          label: l10n.momentsRetweet,
-          onTap: () => _forwardPost(post),
-        ),
-        ShareActionData(
-          icon: 'assets/images/moments/link.png',
-          label: l10n.translate('moments_copy_link'),
-          onTap: AppToast.showCopied,
-        ),
-      ],
+      friends: ImDataCenter().friendListSnapshot,
+      groups: ImDataCenter().groupListSnapshot,
     );
+    if (!mounted || targets == null || targets.isEmpty) {
+      return;
+    }
+
+    final shareData = MomentPostShareData.fromPost(post);
+    if (!shareData.isValid) {
+      AppToast.show(AppLocalizations.of(context)!.momentsShareFailed);
+      return;
+    }
+
+    var successCount = 0;
+    AppLoading.show();
+    try {
+      for (final target in targets) {
+        final sent = await ImSender.instance.send(
+          message: MomentPostShareMessage(
+            conversationType: target.conversationType,
+            targetId: target.targetId,
+            channelId: target.channelId,
+            data: shareData,
+          ),
+        );
+        if (!sent) continue;
+
+        successCount++;
+        if (target.conversationType == RCIMIWConversationType.private) {
+          unawaited(_recordShare(post, target.targetId));
+        }
+      }
+    } catch (e) {
+      debugPrint('share moment profile post failed: $e');
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!mounted) return;
+    AppToast.show(
+      successCount > 0
+          ? AppLocalizations.of(context)!.momentsShareSuccess
+          : AppLocalizations.of(context)!.momentsShareFailed,
+    );
+    if (successCount == 0) return;
+
+    setState(() {
+      post.shares += successCount;
+    });
+  }
+
+  Future<void> _recordShare(SocialInvitationModel post, String toUserId) async {
+    final fromUserId = AccountManager().currentAccount?.accountId ?? '';
+    if (fromUserId.isEmpty || toUserId.isEmpty) {
+      return;
+    }
+
+    try {
+      await SocialCircleNoteApi.socialCircleNoteShare(
+        fromUserId,
+        toUserId,
+        post.noteId,
+      );
+    } catch (e) {
+      debugPrint('record moment profile post share failed: $e');
+    }
   }
 
   Future<void> _forwardPost(SocialInvitationModel post) async {
@@ -1106,7 +1157,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
       onLike: () => _toggleLike(post),
       onCollect: () => _toggleCollect(post),
       onComment: () => _openComments(model),
-      onShare: () => _showShare(post),
+      onShare: () => _sharePost(post),
       onForward: () => _forwardPost(post),
     );
   }

@@ -692,6 +692,8 @@
   "wallet_search_nft_name_or_contract": "搜索 NFT 名称或合约",
   "chat_system_notification": "通知",
   "chat_recalled_message": "撤回了一条消息",
+  "chat_recalled_message_by_other": "对方撤回了一条消息",
+  "chat_recalled_message_with_user": "{user}撤回了一条消息",
   "chat_friend_added_message": "我们已成功添加为好友，现在可以开始聊天啦～",
   "chat_invited_members_message": "\"{user}\"邀请{members}加入了群聊",
   "chat_group_joined_message": "{user}加入了群聊",

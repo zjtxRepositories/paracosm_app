@@ -94,12 +94,13 @@ class CustomMessageModel {
   /// fromJson
   /// =========================
   factory CustomMessageModel.fromJson(Map<String, dynamic> json) {
+
     return CustomMessageModel(
       type: _typeFromString(json['type']),
       fromUserId: json['fromUserId'] ?? '',
       toUserId: json['toUserId'] ?? '',
       content: json['content'] ?? '',
-      userIds: (json['userIds'] as List?)?.map((e) => e.toString()).toList(),
+      userIds: _parseUserIds(json['userIds']),
       facePackId: json['facePackId']?.toString(),
       faceName: json['faceName']?.toString(),
       noteId: json['noteId']?.toString(),
@@ -199,4 +200,19 @@ class CustomMessageModel {
         return 'unknown';
     }
   }
+
+}
+
+List<String>? _parseUserIds(dynamic value) {
+  if (value == null) return null;
+
+  if (value is List) {
+    return value.map((e) => e.toString()).toList();
+  }
+
+  if (value is String) {
+    return [value];
+  }
+
+  return null;
 }

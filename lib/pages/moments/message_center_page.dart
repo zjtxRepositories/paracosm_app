@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:paracosm/core/models/moment_message_model.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
-import 'package:paracosm/core/network/api/get_moment_messages_api.dart';
+import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -37,7 +37,7 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
     }
 
     try {
-      final items = await GetMomentMessagesApi.get();
+      final items = await SocialCircleUserApi.getMomentMessages();
       final userIds = items
           .map((item) => item.fromUserId)
           .where((id) => id.isNotEmpty)

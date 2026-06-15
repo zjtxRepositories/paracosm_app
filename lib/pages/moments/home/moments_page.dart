@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -19,12 +19,26 @@ class MomentsPage extends StatefulWidget {
 
 class _MomentsPageState extends State<MomentsPage> {
   final MomentsController controller = MomentsController();
+  final AccountManager _accountManager = AccountManager();
+  String _accountId = '';
 
   @override
   void initState() {
     super.initState();
-    controller.init();
     controller.addListener(_onUpdate);
+    _accountId = _currentAccountId;
+    _accountManager.addListener(_onAccountChanged);
+    controller.init();
+  }
+
+  String get _currentAccountId =>
+      _accountManager.currentAccount?.accountId.toLowerCase() ?? '';
+
+  void _onAccountChanged() {
+    final accountId = _currentAccountId;
+    if (accountId == _accountId) return;
+    _accountId = accountId;
+    controller.init();
   }
 
   void _onUpdate() {
@@ -33,6 +47,7 @@ class _MomentsPageState extends State<MomentsPage> {
 
   @override
   void dispose() {
+    _accountManager.removeListener(_onAccountChanged);
     controller.removeListener(_onUpdate);
     controller.dispose();
     super.dispose();
@@ -107,7 +122,7 @@ class _MomentsPageState extends State<MomentsPage> {
           parent: BouncingScrollPhysics(),
         ),
         itemCount: controller.items.length + (controller.loading ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           /// 底部 loading
           if (index == controller.items.length) {
@@ -222,9 +237,8 @@ class _MessageButton extends StatelessWidget {
 
 class _StoryAvatar extends StatelessWidget {
   final StoryData story;
-  final VoidCallback? onTap;
 
-  const _StoryAvatar({required this.story, this.onTap});
+  const _StoryAvatar({required this.story});
 
   @override
   Widget build(BuildContext context) {

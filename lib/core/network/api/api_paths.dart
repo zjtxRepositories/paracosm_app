@@ -25,9 +25,7 @@ class ApiPaths {
   /// 朋友圈
   /// http://8.210.9.90:7000 测试
   /// https://imapi.zjtxy.top/moments/friend97 生产
-  static const circleUrl = 'https://imapi.zjtxy.top/moments/friend97';
-  static const noteList = '/app/note/list';
-  static const userMessage = '/app/user/message';
+  static const circleUrl = 'http://8.210.9.90:7000';
 
   /// 社区
   static const createCommunity = '/room/community/add';

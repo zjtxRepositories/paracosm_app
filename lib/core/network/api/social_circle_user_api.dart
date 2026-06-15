@@ -1,4 +1,5 @@
 import '../../../modules/account/manager/account_manager.dart';
+import '../../models/moment_message_model.dart';
 import '../../models/social_circle_blocked_user_model.dart';
 import '../../models/social_circle_relation_model.dart';
 import '../../models/social_Invitation_model.dart';
@@ -43,6 +44,17 @@ class SocialCircleUserApi {
           (item) => SocialCircleRelationModel.fromJson(
             Map<String, dynamic>.from(item),
           ),
+        )
+        .toList();
+  }
+
+  static List<MomentMessageModel> _parseMomentMessageList(dynamic data) {
+    if (data is! List) return [];
+    return data
+        .whereType<Map>()
+        .map(
+          (item) =>
+              MomentMessageModel.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList();
   }
@@ -156,6 +168,19 @@ class SocialCircleUserApi {
     );
 
     return _parseInvitationList(res["data"]);
+  }
+
+  static Future<List<MomentMessageModel>> getMomentMessages({
+    int page = 0,
+    int size = 20,
+  }) async {
+    final res = await _httpUtil.get(
+      "/app/user/message",
+      params: {"user_id": _userId, "page": page, "size": size},
+    );
+
+    final data = res is Map ? res["data"] : res;
+    return _parseMomentMessageList(data);
   }
 
   /// =========================

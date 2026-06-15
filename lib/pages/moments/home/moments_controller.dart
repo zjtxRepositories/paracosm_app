@@ -49,23 +49,36 @@ class MomentsController extends ChangeNotifier {
   bool _loading = false; // ⭐ 上拉 loading
   bool _refreshing = false; // 下拉刷新
   bool _hasMore = true;
+  int _loadVersion = 0;
 
   bool get initialLoading => _initialLoading;
   bool get loading => _loading;
   bool get refreshing => _refreshing;
   bool get hasMore => _hasMore;
 
+  @override
+  void dispose() {
+    _loadVersion++;
+    super.dispose();
+  }
+
   /// 初始化
   Future<void> init() async {
+    final loadVersion = ++_loadVersion;
     _items.clear();
+    _followIds = [];
+    _blockIds = [];
     _page = 0;
     _hasMore = true;
+    _loading = false;
+    _refreshing = false;
 
     _initialLoading = true;
     notifyListeners();
 
     try {
-      final data = await _fetchData();
+      final data = await _fetchData(0);
+      if (loadVersion != _loadVersion) return;
 
       if (data.length < _pageSize) {
         _hasMore = false;
@@ -74,23 +87,28 @@ class MomentsController extends ChangeNotifier {
       _items.addAll(data);
       _page++;
     } finally {
-      _initialLoading = false;
-      notifyListeners();
+      if (loadVersion == _loadVersion) {
+        _initialLoading = false;
+        notifyListeners();
+      }
     }
 
-    _getFollowList();
-    _getBlockList();
+    unawaited(_getFollowList(loadVersion));
+    unawaited(_getBlockList(loadVersion));
   }
 
   /// 上拉加载
   Future<void> fetchMore() async {
     if (_loading || !_hasMore) return;
 
+    final loadVersion = _loadVersion;
+    final page = _page;
     _loading = true;
     notifyListeners();
 
     try {
-      final data = await _fetchData();
+      final data = await _fetchData(page);
+      if (loadVersion != _loadVersion) return;
 
       if (data.length < _pageSize) {
         _hasMore = false;
@@ -99,8 +117,10 @@ class MomentsController extends ChangeNotifier {
       _items.addAll(data);
       _page++;
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (loadVersion == _loadVersion) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -108,6 +128,7 @@ class MomentsController extends ChangeNotifier {
   Future<void> refresh() async {
     if (_refreshing) return;
 
+    final loadVersion = _loadVersion;
     final previousPage = _page;
     final previousHasMore = _hasMore;
 
@@ -117,7 +138,8 @@ class MomentsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _fetchData();
+      final data = await _fetchData(0);
+      if (loadVersion != _loadVersion) return;
 
       _items.clear();
       _items.addAll(data);
@@ -128,12 +150,15 @@ class MomentsController extends ChangeNotifier {
 
       _page++;
     } catch (_) {
+      if (loadVersion != _loadVersion) return;
       _page = previousPage;
       _hasMore = previousHasMore;
       rethrow;
     } finally {
-      _refreshing = false;
-      notifyListeners();
+      if (loadVersion == _loadVersion) {
+        _refreshing = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -344,7 +369,6 @@ class MomentsController extends ChangeNotifier {
     int initialIndex,
     BuildContext context,
   ) {
-    print('init:$initialIndex');
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => AppMediaGallery(
@@ -356,9 +380,9 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 数据
-  Future<List<MomentPostModel>> _fetchData() async {
+  Future<List<MomentPostModel>> _fetchData(int page) async {
     final data = await SocialCircleNoteApi.getSocialCircleNoteList(
-      _page.toString(),
+      page.toString(),
       _pageSize.toString(),
     );
     List<MomentPostModel> list = [];
@@ -373,18 +397,18 @@ class MomentsController extends ChangeNotifier {
   }
 
   /// 关注列表
-  Future<void> _getFollowList() async {
+  Future<void> _getFollowList(int loadVersion) async {
     List<String> list = await SocialCircleUserApi.getSocialCircleUserFollow();
+    if (loadVersion != _loadVersion) return;
     _followIds = list;
-    print('fllowing:$_followIds');
     notifyListeners();
   }
 
   /// 拉黑列表
-  Future<void> _getBlockList() async {
+  Future<void> _getBlockList(int loadVersion) async {
     List<String> list = await SocialCircleUserApi.getSocialCircleUserBlock();
+    if (loadVersion != _loadVersion) return;
     _blockIds = list;
-    print('_blockIds:$_blockIds');
     notifyListeners();
   }
 }

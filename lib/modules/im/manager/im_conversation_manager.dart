@@ -118,6 +118,9 @@ class ImConversationManager {
   bool _inited = false;
   bool _loading = false;
   bool _disposed = false;
+  bool _acceptRealtimeUpdates = true;
+  int _dataVersion = 0;
+  String? _expectedAccountId;
 
   StreamSubscription<MessageEvent>? _messageSubscription;
   StreamSubscription<String>? _connectionSubscription;
@@ -271,6 +274,12 @@ class ImConversationManager {
 
   void _onConnectionEvent(String event) {
     if (event != ImEvent.connected) return;
+    final currentAccountId = IMEngineManager().currentUserId?.toLowerCase();
+    if (_expectedAccountId != null &&
+        currentAccountId != _expectedAccountId) {
+      return;
+    }
+    _acceptRealtimeUpdates = true;
 
     unawaited(
       getRemoteConversationList().catchError((error) {
@@ -281,6 +290,23 @@ class ImConversationManager {
 
   Future<void> getRemoteConversationList({int pageSize = 10}) async {
     await _initAllTabs(pageSize: pageSize);
+  }
+
+  /// 切换账号时立即清空旧账号的会话，避免登录失败后仍展示旧数据。
+  void resetForAccountSwitch(String accountId) {
+    _dataVersion++;
+    _loading = false;
+    _acceptRealtimeUpdates = false;
+    _expectedAccountId = accountId.toLowerCase();
+    _debounce?.cancel();
+    _debounce = null;
+    _allMap.clear();
+    _tabIds.clear();
+    _tabCache.clear();
+    _tabPageStates.clear();
+
+    if (_disposed || _controller.isClosed) return;
+    _controller.add(const <int, List<RCIMIWConversation>>{});
   }
 
   Future<void> loadMoreConversations(int tabIndex, {int pageSize = 10}) async {
@@ -316,6 +342,7 @@ class ImConversationManager {
   Future<void> _initAllTabs({required int pageSize}) async {
     if (_loading) return;
 
+    final dataVersion = _dataVersion;
     _loading = true;
 
     try {
@@ -327,10 +354,11 @@ class ImConversationManager {
       final futures = <Future>[];
 
       for (int i = 0; i < tabTypes.length; i++) {
-        futures.add(_loadTab(i, pageSize: pageSize));
+        futures.add(_loadTab(i, pageSize: pageSize, dataVersion: dataVersion));
       }
 
       await Future.wait(futures);
+      if (dataVersion != _dataVersion) return;
 
       _sortAllTabs();
 
@@ -338,11 +366,18 @@ class ImConversationManager {
 
       _notify();
     } finally {
-      _loading = false;
+      if (dataVersion == _dataVersion) {
+        _loading = false;
+      }
     }
   }
 
-  Future<void> _loadTab(int tabIndex, {required int pageSize}) async {
+  Future<void> _loadTab(
+    int tabIndex, {
+    required int pageSize,
+    int? dataVersion,
+  }) async {
+    final requestVersion = dataVersion ?? _dataVersion;
     final state = _pageState(tabIndex);
     if (state.loading || !state.hasMore) {
       return;
@@ -367,6 +402,7 @@ class ImConversationManager {
           startTime: startTime,
           count: count,
         );
+        if (requestVersion != _dataVersion) return;
 
         for (final conv in result.conversations) {
           final type = conv.conversationType;
@@ -427,7 +463,6 @@ class ImConversationManager {
 
     final callback = IRCIMIWGetConversationsCallback(
       onSuccess: (list) {
-
         print('list------$tabIndex:${list?.length}');
         final conversations = list ?? [];
         var minTime = startTime == 0 ? null : startTime;
@@ -487,6 +522,9 @@ class ImConversationManager {
   /// message event
   /// =========================
   void _onMessageEvent(MessageEvent event) async {
+    if (!_acceptRealtimeUpdates) return;
+    final eventDataVersion = _dataVersion;
+
     final targetId = event.targetId ?? event.message?.targetId;
 
     final type = event.conversationType ?? event.message?.conversationType;
@@ -545,7 +583,9 @@ class ImConversationManager {
     /// =========================
     final conv = await getConversation(type: type, targetId: targetId);
 
-    if (conv == null) {
+    if (conv == null ||
+        !_acceptRealtimeUpdates ||
+        eventDataVersion != _dataVersion) {
       return;
     }
 
@@ -607,6 +647,8 @@ class ImConversationManager {
   /// read sync
   /// =========================
   void _onReadSync(RCIMIWConversationType? type, String? targetId) {
+    if (!_acceptRealtimeUpdates) return;
+
     if (type == null || targetId == null) {
       return;
     }
@@ -635,6 +677,8 @@ class ImConversationManager {
     bool? top, {
     int? operationTime,
   }) {
+    if (!_acceptRealtimeUpdates) return;
+
     if (type == null || targetId == null) {
       return;
     }

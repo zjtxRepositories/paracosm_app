@@ -160,11 +160,11 @@ class _MomentsPageState extends State<MomentsPage> {
             ),
           ),
 
-          // _MessageButton(
-          //   onTap: () {
-          //     context.push('/message-center');
-          //   },
-          // ),
+          _MessageButton(
+            onTap: () {
+              context.push('/message-center');
+            },
+          ),
         ],
       ),
     );
@@ -212,7 +212,7 @@ class _MessageButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Image.asset(
-        'assets/images/moments/has-msg.png',
+        'assets/images/moments/icon_message.png',
         width: 32,
         height: 32,
       ),

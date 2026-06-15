@@ -25,6 +25,7 @@ class ApiPaths {
   /// 朋友圈
   static const circleUrl = 'https://imapi.zjtxy.top/moments/friend97';
   static const noteList = '/app/note/list';
+  static const userMessage = '/app/user/message';
 
   /// 社区
   static const createCommunity = '/room/community/add';

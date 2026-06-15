@@ -42,6 +42,7 @@ class ChatDetailMessageMapper {
 
   static Future<ChatDetailMessage> mapMessage(RCIMIWMessage message) async {
     final isMe = message.senderUserId == IMEngineManager().currentUserId;
+    final isSending = isMe && message.sentStatus == RCIMIWSentStatus.sending;
     final sentTime = message.sentTime ?? message.receivedTime;
     final messageKey = messageKeyFor(message);
 
@@ -65,6 +66,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.combineForward,
         isMe: isMe,
+        isSending: isSending,
         text: AppLocalizations.currentText('chat_detail_history'),
         combineSummaries: summaries,
         sentTime: sentTime,
@@ -82,6 +84,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.combineForward,
         isMe: isMe,
+        isSending: isSending,
         text: AppLocalizations.currentText('chat_detail_history'),
         sentTime: sentTime,
         extra: message,
@@ -99,6 +102,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
+        isSending: isSending,
         text: (message.text?.isNotEmpty ?? false)
             ? message.text
             : AppLocalizations.currentText('chat_detail_empty_message'),
@@ -128,6 +132,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.call,
         isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         isVideo: callSummary.isVideo,
         text: callSummary.text,
@@ -142,6 +147,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.text,
         isMe: isMe,
+        isSending: isSending,
         text: (message.text?.isNotEmpty ?? false)
             ? message.text
             : AppLocalizations.currentText('chat_detail_empty_message'),
@@ -160,6 +166,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.image,
         isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         imagePath: message.local,
         remote: message.remote,
@@ -179,6 +186,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.video,
         isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         thumbnailBase64String: message.thumbnailBase64String,
         path: message.local,
@@ -197,6 +205,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.voice,
         isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         path: message.local,
         remote: message.remote,
@@ -214,6 +223,7 @@ class ChatDetailMessageMapper {
         messageId: messageKey,
         kind: ChatDetailMessageKind.file,
         isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         fileName: message.name,
         fileSize: formatFileSize(message.size ?? 0),
@@ -235,6 +245,7 @@ class ChatDetailMessageMapper {
           messageId: messageKey,
           kind: ChatDetailMessageKind.customFace,
           isMe: isMe,
+          isSending: isSending,
           showBubble: false,
           sentTime: sentTime,
           imagePath: face.assetPath,
@@ -253,6 +264,7 @@ class ChatDetailMessageMapper {
           messageId: messageKey,
           kind: ChatDetailMessageKind.momentPost,
           isMe: isMe,
+          isSending: isSending,
           sentTime: sentTime,
           text: momentPost.postContent,
           imagePath: momentPost.postCover,
@@ -271,6 +283,8 @@ class ChatDetailMessageMapper {
       return ChatDetailMessage(
         messageId: messageKey,
         kind: ChatDetailMessageKind.fm,
+        isMe: isMe,
+        isSending: isSending,
         sentTime: sentTime,
         text: content,
         extra: message,
@@ -281,6 +295,7 @@ class ChatDetailMessageMapper {
       messageId: messageKey,
       kind: ChatDetailMessageKind.text,
       isMe: isMe,
+      isSending: isSending,
       text: AppLocalizations.currentText(
         'chat_detail_unsupported_message_type',
       ),

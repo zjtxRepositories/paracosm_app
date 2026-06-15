@@ -4,6 +4,8 @@ import 'dart:math';
 
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../manager/im_connection_manager.dart';
+import '../../manager/im_message_manager.dart';
 import '../../manager/im_send_manager.dart';
 
 /// =========================
@@ -55,6 +57,9 @@ class ImSendQueue {
 
   /// 是否正在发送
   bool _isSending = false;
+  SendTask? _currentTask;
+
+  StreamSubscription<String>? _connectionSubscription;
 
   /// 事件流（UI监听）
   final StreamController<SendQueueEvent> _controller =
@@ -66,8 +71,37 @@ class ImSendQueue {
   /// 入队
   /// =========================
   void enqueue(SendTask task) {
+    _listenConnection();
     _queue.add(task);
     _trySend();
+  }
+
+  void _listenConnection() {
+    _connectionSubscription ??= ImConnectionManager().eventStream.listen((
+      event,
+    ) {
+      if (event == ImEvent.connected) {
+        _setWaitingStatus(false);
+        _trySend();
+      } else if (event == ImEvent.disconnected) {
+        _setWaitingStatus(true);
+      }
+    });
+  }
+
+  void _setWaitingStatus(bool waiting) {
+    final tasks = <SendTask>[..._queue];
+    final currentTask = _currentTask;
+    if (currentTask != null) {
+      tasks.add(currentTask);
+    }
+
+    for (final task in tasks) {
+      final nextStatus = waiting ? RCIMIWSentStatus.sending : null;
+      if (task.message.sentStatus == nextStatus) continue;
+      task.message.sentStatus = nextStatus;
+      ImMessageManager().updateLocalMessage(task.message);
+    }
   }
 
   /// =========================
@@ -76,6 +110,7 @@ class ImSendQueue {
   void _trySend() {
     if (_isSending) return;
     if (_queue.isEmpty) return;
+    if (!ImConnectionManager().isConnected) return;
 
     _consume();
   }
@@ -89,22 +124,39 @@ class ImSendQueue {
     _isSending = true;
 
     final task = _queue.removeFirst();
+    _currentTask = task;
     final success = await ImSendManager.instance.sendMessage(
       task.message,
       onProgress: task.onProgress,
       pushSavedMessage: task.pushSavedMessage,
     );
 
+    if (!success && !ImConnectionManager().isConnected) {
+      task.message.sentStatus = RCIMIWSentStatus.sending;
+      ImMessageManager().updateLocalMessage(task.message);
+      _queue.addFirst(task);
+      _currentTask = null;
+      _isSending = false;
+      return;
+    }
+
     if (!success && task.retryCount < task.maxRetry) {
       await _handleRetry(task);
+      _currentTask = null;
       _isSending = false;
       _trySend();
       return;
     }
 
+    if (!success) {
+      task.message.sentStatus = RCIMIWSentStatus.failed;
+      ImMessageManager().updateLocalMessage(task.message);
+    }
+
     /// 通知外部
     _controller.add(SendQueueEvent(task.taskId, task.message, success));
 
+    _currentTask = null;
     _isSending = false;
 
     /// 继续发送下一个

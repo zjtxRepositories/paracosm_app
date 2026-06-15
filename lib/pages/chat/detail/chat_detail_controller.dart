@@ -2911,11 +2911,15 @@ class ChatDetailController extends ChangeNotifier {
 
     final oldId = oldRaw.messageId;
     final newId = newRaw.messageId;
-    return oldId != null &&
+    if (oldId != null &&
         oldId > 0 &&
         newId != null &&
         newId > 0 &&
-        oldId == newId;
+        oldId == newId) {
+      return true;
+    }
+
+    return oldRaw.sentTime != null && oldRaw.sentTime == newRaw.sentTime;
   }
 
   bool _isSameMediaMessage(

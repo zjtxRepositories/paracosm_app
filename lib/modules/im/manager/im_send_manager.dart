@@ -35,22 +35,39 @@ class ImSendManager {
         pushSavedMessage: pushSavedMessage,
       );
     } else {
-      return _sendNormalMessage(message);
+      return _sendNormalMessage(message, pushSavedMessage: pushSavedMessage);
     }
   }
 
   /// =========================
   /// 普通消息
   /// =========================
-  Future<bool> _sendNormalMessage(RCIMIWMessage message) async {
+  Future<bool> _sendNormalMessage(
+    RCIMIWMessage message, {
+    required bool pushSavedMessage,
+  }) async {
     final completer = Completer<bool>();
-
     final listener = RCIMIWSendMessageCallback(
       onMessageSaved: (msg) {
-        ImMessageManager().pushLocalMessage(msg ?? message);
+        final savedMessage = _keepClientIdentity(msg ?? message, message);
+        if (!pushSavedMessage) {
+          savedMessage.sentStatus =
+              message.sentStatus == RCIMIWSentStatus.sending
+              ? RCIMIWSentStatus.sending
+              : null;
+        }
+        if (pushSavedMessage) {
+          ImMessageManager().pushLocalMessage(savedMessage);
+        } else {
+          ImMessageManager().updateLocalMessage(savedMessage);
+        }
       },
       onMessageSent: (code, msg) {
-        ImMessageManager().updateLocalMessage(msg ?? message);
+        final sentMessage = _keepClientIdentity(msg ?? message, message);
+        if (code == 0) {
+          sentMessage.sentStatus = RCIMIWSentStatus.sent;
+          ImMessageManager().updateLocalMessage(sentMessage);
+        }
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }
@@ -75,13 +92,22 @@ class ImSendManager {
     bool pushSavedMessage = true,
   }) async {
     final completer = Completer<bool>();
-
     final listener = RCIMIWSendMediaMessageListener(
       onMediaMessageSaved: (msg) {
+        final savedMessage = _keepClientIdentity(
+          _keepOriginalRemote(msg ?? message, message),
+          message,
+        );
+        if (!pushSavedMessage) {
+          savedMessage.sentStatus =
+              message.sentStatus == RCIMIWSentStatus.sending
+              ? RCIMIWSentStatus.sending
+              : null;
+        }
         if (pushSavedMessage) {
-          ImMessageManager().pushLocalMessage(
-            _keepOriginalRemote(msg ?? message, message),
-          );
+          ImMessageManager().pushLocalMessage(savedMessage);
+        } else {
+          ImMessageManager().updateLocalMessage(savedMessage);
         }
       },
       onMediaMessageSending: (message, progress) {
@@ -89,9 +115,14 @@ class ImSendManager {
         onProgress?.call(value.toInt());
       },
       onMediaMessageSent: (code, msg) {
-        ImMessageManager().updateLocalMessage(
+        final sentMessage = _keepClientIdentity(
           _keepOriginalRemote(msg ?? message, message),
+          message,
         );
+        if (code == 0) {
+          sentMessage.sentStatus = RCIMIWSentStatus.sent;
+          ImMessageManager().updateLocalMessage(sentMessage);
+        }
         if (!completer.isCompleted) {
           completer.complete(code == 0);
         }
@@ -110,6 +141,16 @@ class ImSendManager {
     }
 
     return completer.future;
+  }
+
+  T _keepClientIdentity<T extends RCIMIWMessage>(
+    T callbackMessage,
+    RCIMIWMessage originalMessage,
+  ) {
+    callbackMessage.sentTime = originalMessage.sentTime;
+    callbackMessage.senderUserId ??= originalMessage.senderUserId;
+    callbackMessage.channelId ??= originalMessage.channelId;
+    return callbackMessage;
   }
 
   RCIMIWMediaMessage _keepOriginalRemote(

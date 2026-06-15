@@ -172,7 +172,7 @@ class SocialCircleUserApi {
 
   static Future<List<MomentMessageModel>> getMomentMessages({
     int page = 0,
-    int size = 20,
+    int size = 100,
   }) async {
     final res = await _httpUtil.get(
       "/app/user/message",

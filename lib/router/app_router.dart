@@ -33,6 +33,9 @@ import 'package:paracosm/pages/chat/user_profile_page.dart';
 import 'package:paracosm/pages/chat/group_list_page.dart';
 import 'package:paracosm/pages/moments/home/moments_page.dart';
 import 'package:paracosm/pages/moments/message_center_page.dart';
+import 'package:paracosm/pages/moments/moment_blocked_users_page.dart';
+import 'package:paracosm/pages/moments/moment_collections_page.dart';
+import 'package:paracosm/pages/moments/moment_relation_list_page.dart';
 import 'package:paracosm/pages/moments/post/new_post_page.dart';
 import 'package:paracosm/pages/moments/moment_post_detail_page.dart';
 import 'package:paracosm/pages/moments/moment_user_profile_page.dart';
@@ -261,6 +264,38 @@ class AppRouter {
         },
       ),
 
+      GoRoute(
+        path: '/moment-blocked-users',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentBlockedUsersPage(),
+      ),
+      GoRoute(
+        path: '/moment-collections',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MomentCollectionsPage(),
+      ),
+      GoRoute(
+        path: '/moment-following',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final userId = state.uri.queryParameters['userId'] ?? '';
+          return MomentRelationListPage(
+            type: MomentRelationListType.following,
+            userId: userId,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/moment-followers',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final userId = state.uri.queryParameters['userId'] ?? '';
+          return MomentRelationListPage(
+            type: MomentRelationListType.fans,
+            userId: userId,
+          );
+        },
+      ),
       GoRoute(
         path: '/moment-user-profile',
         parentNavigatorKey: rootNavigatorKey,

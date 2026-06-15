@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:paracosm/core/network/api/api_paths.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../modules/wallet/chains/evm/evm_facade.dart';
@@ -20,7 +21,7 @@ class FriendCircleTokenResult {
 }
 
 class FriendCircleTokenApi {
-  static const String baseUrl = 'https://imapi.zjtxy.top/moments/friend97';
+  static const String baseUrl = ApiPaths.circleUrl;
   static const String path = '/app/user/getToken';
 
   final Dio _dio;

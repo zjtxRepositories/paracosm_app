@@ -719,47 +719,75 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
               height: 32,
             ),
           ),
-          if (_isSelf)
-            const SizedBox(width: 32, height: 32)
-          else
-            Builder(
-              builder: (context) {
-                final moreButtonKey = GlobalKey();
-
-                return GestureDetector(
-                  key: moreButtonKey,
-                  onTap: () {
-                    AppActionPopMenu.show(
-                      context,
-                      buttonKey: moreButtonKey,
-                      width: 152,
-                      rightOffset: 5,
-                      items: [
-                        AppActionPopMenuItem(
-                          icon: 'assets/images/moments/block.png',
-                          label: l10n.translate('moments_block_this_user'),
-                          onTap: () {},
-                        ),
-                        AppActionPopMenuItem(
-                          icon: 'assets/images/moments/report.png',
-                          label: l10n.translate('moments_report'),
-                          onTap: () {},
-                          showDivider: false,
-                        ),
-                      ],
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/images/moments/black-more.png',
-                    width: 32,
-                    height: 32,
-                  ),
-                );
-              },
-            ),
+          _buildMoreButton(l10n),
         ],
       ),
     );
+  }
+
+  Widget _buildMoreButton(AppLocalizations l10n) {
+    return Builder(
+      builder: (context) {
+        final moreButtonKey = GlobalKey();
+
+        return GestureDetector(
+          key: moreButtonKey,
+          onTap: () {
+            AppActionPopMenu.show(
+              context,
+              buttonKey: moreButtonKey,
+              width: _isSelf ? 168 : 152,
+              rightOffset: 5,
+              items: _isSelf
+                  ? _buildSelfMoreItems(l10n)
+                  : _buildOtherUserMoreItems(l10n),
+            );
+          },
+          child: Image.asset(
+            'assets/images/moments/black-more.png',
+            width: 32,
+            height: 32,
+          ),
+        );
+      },
+    );
+  }
+
+  List<AppActionPopMenuItem> _buildSelfMoreItems(AppLocalizations l10n) {
+    return [
+      AppActionPopMenuItem(
+        icon: 'assets/images/moments/block.png',
+        label: l10n.translate('moments_my_blocked'),
+        onTap: () => context.push('/moment-blocked-users'),
+      ),
+      AppActionPopMenuItem(
+        icon: 'assets/images/moments/my-collections.png',
+        label: l10n.translate('moments_my_collections'),
+        onTap: () => context.push('/moment-collections'),
+      ),
+      AppActionPopMenuItem(
+        icon: 'assets/images/moments/message-list.png',
+        label: l10n.translate('moments_message_list'),
+        onTap: () => context.push('/message-center'),
+        showDivider: false,
+      ),
+    ];
+  }
+
+  List<AppActionPopMenuItem> _buildOtherUserMoreItems(AppLocalizations l10n) {
+    return [
+      AppActionPopMenuItem(
+        icon: 'assets/images/moments/block.png',
+        label: l10n.translate('moments_block_this_user'),
+        onTap: () {},
+      ),
+      AppActionPopMenuItem(
+        icon: 'assets/images/moments/report.png',
+        label: l10n.translate('moments_report'),
+        onTap: () {},
+        showDivider: false,
+      ),
+    ];
   }
 
   /// 头像与操作按钮
@@ -938,11 +966,13 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           _buildFollowStatColumn(
             '$_followingCount',
             l10n.translate('moments_following'),
+            onTap: _openFollowingList,
           ),
           const SizedBox(width: 24),
           _buildFollowStatColumn(
             '$_followersCount',
             l10n.translate('moments_followers'),
+            onTap: _openFollowersList,
           ),
         ],
       );
@@ -950,65 +980,102 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
     return Row(
       children: [
-        Text(
-          '$_followingCount',
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey900,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _openFollowingList,
+          child: Row(
+            children: [
+              Text(
+                '$_followingCount',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey900,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                l10n.translate('moments_following'),
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 10,
+                  color: AppColors.grey400,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 5),
-        Text(
-          l10n.translate('moments_following'),
-          style: AppTextStyles.body.copyWith(
-            fontSize: 10,
-            color: AppColors.grey400,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          '$_followersCount',
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey900,
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          l10n.translate('moments_followers'),
-          style: AppTextStyles.body.copyWith(
-            fontSize: 10,
-            color: AppColors.grey400,
+        const SizedBox(width: 7),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _openFollowersList,
+          child: Row(
+            children: [
+              Text(
+                '$_followersCount',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey900,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                l10n.translate('moments_followers'),
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 10,
+                  color: AppColors.grey400,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildFollowStatColumn(String value, String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.grey900,
+  Widget _buildFollowStatColumn(
+    String value,
+    String label, {
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey900,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 10,
-            color: AppColors.grey400,
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 10,
+              color: AppColors.grey400,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  void _openFollowingList() {
+    final userId = _profileWalletAddress;
+    if (userId.isEmpty) return;
+    context.push('/moment-following?userId=$userId');
+  }
+
+  void _openFollowersList() {
+    final userId = _profileWalletAddress;
+    if (userId.isEmpty) return;
+    context.push('/moment-followers?userId=$userId');
   }
 
   /// Dynamic 区域

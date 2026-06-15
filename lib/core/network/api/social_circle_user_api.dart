@@ -1,4 +1,6 @@
 import '../../../modules/account/manager/account_manager.dart';
+import '../../models/social_circle_blocked_user_model.dart';
+import '../../models/social_circle_relation_model.dart';
 import '../../models/social_Invitation_model.dart';
 import '../../models/social_wallet_address.dart';
 import '../client/friend_circle_base_client.dart';
@@ -13,14 +15,36 @@ class SocialCircleUserApi {
   /// =========================
   /// 通用解析
   /// =========================
-  static List<String> _parseStringList(dynamic data) {
-    if (data is! List) return [];
-    return data.cast<String>();
-  }
-
   static List<SocialInvitationModel> _parseInvitationList(dynamic data) {
     if (data is! List) return [];
     return data.map((e) => SocialInvitationModel.fromJson(e)).toList();
+  }
+
+  static List<SocialCircleBlockedUserModel> _parseBlockedUserList(
+    dynamic data,
+  ) {
+    if (data is! List) return [];
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => SocialCircleBlockedUserModel.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .where((item) => item.blockUserId.isNotEmpty)
+        .toList();
+  }
+
+  static List<SocialCircleRelationModel> _parseRelationList(dynamic data) {
+    if (data is! List) return [];
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => SocialCircleRelationModel.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .toList();
   }
 
   static bool _isOk(dynamic res) => res?["code"] == 1;
@@ -50,33 +74,79 @@ class SocialCircleUserApi {
   /// =========================
   /// GET 列表
   /// =========================
-  static Future<List<String>> getSocialCircleUserBlock() async {
+  static Future<List<SocialCircleBlockedUserModel>>
+  getSocialCircleUserBlockRecords() async {
     final res = await _httpUtil.get(
       "/app/user/block",
       params: {"user_id": _userId},
     );
 
-    return _parseStringList(res["data"]);
+    return _parseBlockedUserList(res["data"]);
+  }
+
+  static Future<List<String>> getSocialCircleUserBlock() async {
+    final records = await getSocialCircleUserBlockRecords();
+    return records.map((item) => item.blockUserId).toList();
+  }
+
+  static Future<List<SocialCircleRelationModel>>
+  getSocialCircleUserFollowRecords({
+    String? userId,
+    int page = 0,
+    int size = 20,
+  }) async {
+    final res = await _httpUtil.get(
+      "/app/user/follow",
+      params: {"user_id": _resolveUserId(userId), "page": page, "size": size},
+    );
+
+    return _parseRelationList(res["data"]);
   }
 
   static Future<List<String>> getSocialCircleUserFollow({
     String? userId,
+    int page = 0,
+    int size = 20,
   }) async {
-    final res = await _httpUtil.get(
-      "/app/user/follow",
-      params: {"user_id": _resolveUserId(userId)},
+    final records = await getSocialCircleUserFollowRecords(
+      userId: userId,
+      page: page,
+      size: size,
     );
-
-    return _parseStringList(res["data"]);
+    return records
+        .map((item) => item.getFollowingUserId())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 
-  static Future<List<String>> getSocialCircleUserFans({String? userId}) async {
+  static Future<List<SocialCircleRelationModel>>
+  getSocialCircleUserFansRecords({
+    String? userId,
+    int page = 0,
+    int size = 20,
+  }) async {
     final res = await _httpUtil.get(
       "/app/user/fans",
-      params: {"user_id": _resolveUserId(userId)},
+      params: {"user_id": _resolveUserId(userId), "page": page, "size": size},
     );
 
-    return _parseStringList(res["data"]);
+    return _parseRelationList(res["data"]);
+  }
+
+  static Future<List<String>> getSocialCircleUserFans({
+    String? userId,
+    int page = 0,
+    int size = 20,
+  }) async {
+    final records = await getSocialCircleUserFansRecords(
+      userId: userId,
+      page: page,
+      size: size,
+    );
+    return records
+        .map((item) => item.getFanUserId())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 
   static Future<List<SocialInvitationModel>> getSocialCircleUserNote() async {

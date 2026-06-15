@@ -148,6 +148,7 @@ class ChatDetailController extends ChangeNotifier {
 
   StreamSubscription? _profileChangeSub;
 
+  StreamSubscription? _groupMemberChangeSub;
   /// =========================
   /// init
   /// =========================
@@ -173,8 +174,6 @@ class ChatDetailController extends ChangeNotifier {
     _subscribeMessages();
 
     _subscribeVoice();
-
-    _listenConversation();
 
     _listenConversation();
 
@@ -222,6 +221,8 @@ class ChatDetailController extends ChangeNotifier {
     _groupChangeSub?.cancel();
 
     _profileChangeSub?.cancel();
+
+    _groupMemberChangeSub?.cancel();
 
     super.dispose();
   }
@@ -858,6 +859,7 @@ class ChatDetailController extends ChangeNotifier {
           GroupStateCenter().getCachedGroup(groupId) ??
           await GroupStateCenter().getGroup(groupId, forceRefresh: true);
       if (info == null) return;
+      memberCount = info.membersCount ?? 0;
       final group = GroupModel(info: info);
       final name = await group.name;
       _setGroupMuted(isGroupMuteAll(info));
@@ -872,6 +874,11 @@ class ChatDetailController extends ChangeNotifier {
     });
 
     _fetchGroupMembers();
+    _groupMemberChangeSub = ImDataCenter().groupMemberStream.listen((groupIds) async {
+      if (!groupIds.contains(args?.targetId)) return;
+      _fetchGroupMembers();
+    });
+
   }
 
   bool get shouldShowGroupNotice =>

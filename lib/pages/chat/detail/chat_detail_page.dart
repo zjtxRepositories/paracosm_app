@@ -124,6 +124,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       onClearQuote: controller.clearQuote,
                       onToggleVoiceMode: controller.toggleVoice,
                       onTextFieldTap: controller.handleTextFieldTap,
+                      onTextSubmitted: (_) => controller.sendText(),
                       onEmojiTap: controller.toggleEmojiPanel,
                       onActionTap: controller.toggleAction,
                       onVoiceLongPressStart: (d) => controller.voiceStart(),

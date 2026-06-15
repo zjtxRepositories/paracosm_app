@@ -42,10 +42,13 @@ class _MomentsPageState extends State<MomentsPage> {
 
   void _onAccountChanged() {
     final accountId = _currentAccountId;
-    if (accountId == _accountId) return;
-    _accountId = accountId;
-    _hasNewMessages = false;
-    controller.init();
+    if (accountId != _accountId) {
+      _accountId = accountId;
+      if (mounted) {
+        setState(() => _hasNewMessages = false);
+      }
+      controller.init();
+    }
     _checkNewMessages();
   }
 

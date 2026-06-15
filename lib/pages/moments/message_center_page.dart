@@ -32,7 +32,6 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
   final MomentMessageCache _messageCache = MomentMessageCache();
   List<MomentMessageModel> _items = const [];
   bool _loading = true;
-  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -41,10 +40,6 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
   }
 
   Future<void> _loadMessages() async {
-    if (!_loading && mounted) {
-      setState(() => _loadFailed = false);
-    }
-
     try {
       final accountId =
           AccountManager().currentAccount?.accountId.toLowerCase() ?? '';
@@ -93,14 +88,10 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
           if (user != null) _users[entry.key] = user;
         }
         _loading = false;
-        _loadFailed = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _loadFailed = true;
-      });
+      setState(() => _loading = false);
     }
   }
 
@@ -117,18 +108,6 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
   Widget _buildBody(AppLocalizations l10n) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_loadFailed && _items.isEmpty) {
-      return Center(
-        child: TextButton(
-          onPressed: () {
-            setState(() => _loading = true);
-            _loadMessages();
-          },
-          child: Text(l10n.translate('common_request_failed')),
-        ),
-      );
     }
 
     return RefreshIndicator(

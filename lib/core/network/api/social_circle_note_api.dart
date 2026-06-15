@@ -57,6 +57,18 @@ class SocialCircleNoteApi {
     return _parseList(res["data"]);
   }
 
+  static Future<List<SocialInvitationModel>> getSocialCircleCollectList({
+    required int page,
+    required int size,
+  }) async {
+    final res = await _client.get(
+      "/app/note/collect",
+      params: {"user_id": _userId, "page": page, "size": size},
+    );
+
+    return _parseList(res["data"]);
+  }
+
   static Future<List<SocialInvitationModel>> getSocialCircleUserNoteList(
     String walletAddress,
   ) async {

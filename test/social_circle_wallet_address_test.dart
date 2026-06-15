@@ -109,6 +109,120 @@ void main() {
       expect(bodies[1]['block_user_id'], _mixedCaseWallet.toLowerCase());
     });
 
+    test('parses blocked user records and derives block user ids', () async {
+      final paths = <String>[];
+      final queryParams = <Map<String, dynamic>>[];
+      final client = FriendCircleBaseClient(
+        dio: _dioWithHandler((options) {
+          paths.add(options.path);
+          queryParams.add(options.queryParameters);
+          return {
+            'code': 1,
+            'data': [
+              {
+                'user_id': _currentWallet.toUpperCase(),
+                'block_user_id': _mixedCaseWallet,
+                'timestamp': '1718083200',
+              },
+            ],
+          };
+        }),
+      );
+      SocialCircleUserApi.setClientForTesting(client);
+
+      final records =
+          await SocialCircleUserApi.getSocialCircleUserBlockRecords();
+      final blockIds = await SocialCircleUserApi.getSocialCircleUserBlock();
+
+      expect(paths, ['/app/user/block', '/app/user/block']);
+      expect(queryParams.first['user_id'], _currentWallet);
+      expect(records, hasLength(1));
+      expect(records.first.userId, _currentWallet);
+      expect(records.first.blockUserId, _mixedCaseWallet.toLowerCase());
+      expect(records.first.timestamp, 1718083200);
+      expect(blockIds, [_mixedCaseWallet.toLowerCase()]);
+    });
+
+    test(
+      'parses relation object lists without casting map to string',
+      () async {
+        final queryParams = <Map<String, dynamic>>[];
+        final client = FriendCircleBaseClient(
+          dio: _dioWithHandler((options) {
+            queryParams.add(options.queryParameters);
+            if (options.path == '/app/user/fans') {
+              return {
+                'code': 1,
+                'data': [
+                  {'fans_user_id': _mixedCaseWallet},
+                ],
+              };
+            }
+            return {
+              'code': 1,
+              'data': [
+                {'follow_user_id': _mixedCaseWallet},
+              ],
+            };
+          }),
+        );
+        SocialCircleUserApi.setClientForTesting(client);
+
+        final followRecords =
+            await SocialCircleUserApi.getSocialCircleUserFollowRecords(
+              page: 2,
+              size: 20,
+            );
+        final fanRecords =
+            await SocialCircleUserApi.getSocialCircleUserFansRecords(
+              page: 3,
+              size: 20,
+            );
+        final following = await SocialCircleUserApi.getSocialCircleUserFollow();
+        final fans = await SocialCircleUserApi.getSocialCircleUserFans();
+
+        expect(queryParams[0]['user_id'], _currentWallet);
+        expect(queryParams[0]['page'], 2);
+        expect(queryParams[0]['size'], 20);
+        expect(queryParams[1]['page'], 3);
+        expect(
+          followRecords.single.getFollowingUserId(),
+          _mixedCaseWallet.toLowerCase(),
+        );
+        expect(
+          fanRecords.single.getFanUserId(),
+          _mixedCaseWallet.toLowerCase(),
+        );
+        expect(following, [_mixedCaseWallet.toLowerCase()]);
+        expect(fans, [_mixedCaseWallet.toLowerCase()]);
+      },
+    );
+
+    test('unblock sends normalized block user id', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final paths = <String>[];
+      final client = FriendCircleBaseClient(
+        dio: _dioWithHandler((options) {
+          paths.add(options.path);
+          bodies.add(_decodeBody(options.data));
+          return {'code': 1};
+        }),
+      );
+      SocialCircleUserApi.setClientForTesting(client);
+
+      expect(
+        await SocialCircleUserApi.socialCircleUserBlockToggle(
+          _mixedCaseWallet,
+          false,
+        ),
+        isTrue,
+      );
+
+      expect(paths, ['/app/user/unblock']);
+      expect(bodies.single['user_id'], _currentWallet);
+      expect(bodies.single['block_user_id'], _mixedCaseWallet.toLowerCase());
+    });
+
     test(
       'does not send request when target wallet address is missing',
       () async {
@@ -174,6 +288,45 @@ void main() {
       expect(bodies[1]['to_user_id'], _mixedCaseWallet.toLowerCase());
       expect(bodies[2]['from_user_id'], _currentWallet);
       expect(bodies[2]['to_user_id'], _mixedCaseWallet.toLowerCase());
+    });
+
+    test('loads collect list with page and size params', () async {
+      final paths = <String>[];
+      final queryParams = <Map<String, dynamic>>[];
+      final client = FriendCircleBaseClient(
+        dio: _dioWithHandler((options) {
+          paths.add(options.path);
+          queryParams.add(options.queryParameters);
+          return {
+            'code': 1,
+            'data': [
+              {
+                'note_id': 'note-collect-1',
+                'user_id': _mixedCaseWallet,
+                'timestamp': 1718083200,
+                'content': 'collected post',
+                'media': [],
+                'is_collect': true,
+              },
+            ],
+          };
+        }),
+      );
+      SocialCircleNoteApi.setClientForTesting(client);
+
+      final list = await SocialCircleNoteApi.getSocialCircleCollectList(
+        page: 0,
+        size: 20,
+      );
+
+      expect(paths, ['/app/note/collect']);
+      expect(queryParams.single['user_id'], _currentWallet);
+      expect(queryParams.single['page'], 0);
+      expect(queryParams.single['size'], 20);
+      expect(list, hasLength(1));
+      expect(list.single.noteId, 'note-collect-1');
+      expect(list.single.content, 'collected post');
+      expect(list.single.isCollect, isTrue);
     });
   });
 }

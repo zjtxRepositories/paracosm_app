@@ -15,6 +15,7 @@ class ChatInputBar extends StatelessWidget {
     required this.isInputEmpty,
     required this.onToggleVoiceMode,
     required this.onTextFieldTap,
+    required this.onTextSubmitted,
     required this.onEmojiTap,
     required this.onActionTap,
     required this.onVoiceLongPressStart,
@@ -35,6 +36,7 @@ class ChatInputBar extends StatelessWidget {
   final bool isInputEmpty;
   final VoidCallback onToggleVoiceMode;
   final VoidCallback onTextFieldTap;
+  final ValueChanged<String> onTextSubmitted;
   final VoidCallback onEmojiTap;
   final VoidCallback onActionTap;
   final GestureLongPressStartCallback onVoiceLongPressStart;
@@ -174,6 +176,9 @@ class ChatInputBar extends StatelessWidget {
                         child: TextField(
                           controller: controller,
                           onTap: onTextFieldTap,
+                          textInputAction: TextInputAction.send,
+                          cursorColor: AppColors.success,
+                          onSubmitted: onTextSubmitted,
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.zero,

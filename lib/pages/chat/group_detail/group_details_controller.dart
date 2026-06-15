@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
+import 'package:paracosm/modules/im/group_ban_state.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
@@ -11,7 +11,6 @@ import 'package:paracosm/modules/im/manager/im_message_manager.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/custom_message_model.dart';
 import '../../../core/models/group_member_model.dart';
@@ -50,6 +49,8 @@ class GroupDetailsController extends ChangeNotifier {
     if (groupId == null || groupId.isEmpty) {
       return;
     }
+    isMuted = args?.isMuted ?? false;
+    notifyListeners();
 
     _loadCachedGroup(groupId);
     _loadCachedMembers(groupId);
@@ -80,6 +81,7 @@ class GroupDetailsController extends ChangeNotifier {
     final groupInfo = GroupStateCenter().getCachedGroup(groupId);
     if (groupInfo == null) return;
     group = GroupModel(info: groupInfo);
+    isMuted = isGroupMuteAll(groupInfo);
     notifyListeners();
   }
 
@@ -96,17 +98,8 @@ class GroupDetailsController extends ChangeNotifier {
       return;
     }
     group = GroupModel(info: groupInfo);
+    isMuted = isGroupMuteAll(groupInfo);
     notifyListeners();
-
-    unawaited(_fetchBanStatus(groupId));
-  }
-
-  Future<void> _fetchBanStatus(String groupId) async {
-    final banned = await RongGroupBanApi.isBanned(groupId);
-    if (banned != null) {
-      isMuted = banned;
-      notifyListeners();
-    }
   }
 
   Future<void> _fetchGroupMembers(String groupId) async {
@@ -132,6 +125,7 @@ class GroupDetailsController extends ChangeNotifier {
     if (targetId == null || targetId.isEmpty) {
       return;
     }
+    notifyListeners();
     final isTop = await ImConversationManager().getConversationTopStatus(
       type: args?.conversationType ?? RCIMIWConversationType.private,
       targetId: targetId,
@@ -156,21 +150,16 @@ class GroupDetailsController extends ChangeNotifier {
     if (args == null) return;
     final groupId = args!.targetId;
     if (groupId.isEmpty) return;
+    final banned = !isMuted;
     final isOk = await ImGroupManager().setGroupBan(
       groupId: groupId,
-      banned: !isMuted,
+      banned: banned,
     );
     if (!isOk) {
       notifyListeners();
       return;
     }
-    isMuted = !isMuted;
-    final groupInfo = group?.info;
-    if (groupInfo != null) {
-      groupInfo.groupStatus = isMuted
-          ? RCIMIWGroupStatus.muted
-          : RCIMIWGroupStatus.using;
-    }
+    isMuted = banned;
     notifyListeners();
   }
 

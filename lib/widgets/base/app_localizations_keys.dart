@@ -680,6 +680,10 @@ extension AppLocalizationsKeys on AppLocalizations {
   );
   String chatGroupDisbandedMessage(String user) =>
       translate('chat_group_disbanded_message', {'user': user});
+  String chatGroupBanEnabledMessage(String user) =>
+      translate('chat_group_ban_enabled_message', {'user': user});
+  String chatGroupBanDisabledMessage(String user) =>
+      translate('chat_group_ban_disabled_message', {'user': user});
   String get chatMe => translate('chat_me');
   String get callVideoPrefix => translate('call_video_prefix');
   String get callAudioPrefix => translate('call_audio_prefix');

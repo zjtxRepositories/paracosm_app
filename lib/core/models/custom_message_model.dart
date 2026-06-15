@@ -11,6 +11,8 @@ enum CustomMessageType {
   groupRemoved,
   groupManagerSet,
   groupDisbanded,
+  groupBanEnabled,
+  groupBanDisabled,
   customFace,
   momentPost,
   unknown,
@@ -42,6 +44,10 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.groupManagerSet;
     case 'group_disbanded':
       return CustomMessageType.groupDisbanded;
+    case 'group_ban_enabled':
+      return CustomMessageType.groupBanEnabled;
+    case 'group_ban_disabled':
+      return CustomMessageType.groupBanDisabled;
     case 'custom_face':
       return CustomMessageType.customFace;
     case 'moment_post':
@@ -181,6 +187,10 @@ class CustomMessageModel {
         return 'group_manager_set';
       case CustomMessageType.groupDisbanded:
         return 'group_disbanded';
+      case CustomMessageType.groupBanEnabled:
+        return 'group_ban_enabled';
+      case CustomMessageType.groupBanDisabled:
+        return 'group_ban_disabled';
       case CustomMessageType.customFace:
         return 'custom_face';
       case CustomMessageType.momentPost:

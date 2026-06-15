@@ -7,6 +7,7 @@ class ChatSessionArgs {
     required this.name,
     this.channelId,
     this.isGroup = false,
+    this.isMuted = false,
     this.avatar,
     this.anchorSentTime,
     this.anchorMessageId,
@@ -18,6 +19,7 @@ class ChatSessionArgs {
   final String name;
   final String? channelId;
   final bool isGroup;
+  final bool isMuted;
   final String? avatar;
   final int? anchorSentTime;
   final String? anchorMessageId;
@@ -29,6 +31,7 @@ class ChatSessionArgs {
     String? name,
     String? channelId,
     bool? isGroup,
+    bool? isMuted,
     String? avatar,
     int? anchorSentTime,
     String? anchorMessageId,
@@ -40,6 +43,7 @@ class ChatSessionArgs {
       name: name ?? this.name,
       channelId: channelId ?? this.channelId,
       isGroup: isGroup ?? this.isGroup,
+      isMuted: isMuted ?? this.isMuted,
       avatar: avatar ?? this.avatar,
       anchorSentTime: anchorSentTime ?? this.anchorSentTime,
       anchorMessageId: anchorMessageId ?? this.anchorMessageId,

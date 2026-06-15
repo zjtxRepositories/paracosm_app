@@ -1,20 +1,21 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../modules/account/manager/account_manager.dart';
-import '../../../modules/wallet/chains/evm/evm_service.dart';
-import '../../../modules/im/service/im_service.dart';
 import '../../../modules/wallet/chains/evm/evm_facade.dart';
+import '../../../modules/wallet/chains/evm/evm_service.dart';
 
 class RongGroupBanApi {
   static const String _baseUrl = 'https://rj.zjtxy.top';
   static const String _addPath = '/group/ban/add.json';
   static const String _rollbackPath = '/group/ban/rollback.json';
   static const String _queryPath = '/group/ban/query.json';
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
+  static final Map<String, _RongGroupBanCacheEntry> _statusCache = {};
 
   static final Dio _dio = Dio(
     BaseOptions(
@@ -99,7 +100,11 @@ class RongGroupBanApi {
         return null;
       }
 
-      return RongGroupBanStatus.fromList(data['groupinfo']);
+      final result = RongGroupBanStatus.fromList(data['groupinfo']);
+      for (final item in result) {
+        _writeCache(userId, item.groupId, item.isBanned);
+      }
+      return result;
     } on DioException catch (e) {
       debugPrint(
         'RongGroupBanApi query error: '
@@ -113,15 +118,44 @@ class RongGroupBanApi {
   }
 
   static Future<bool?> isBanned(String groupId) async {
-    final result = await query(groupId: groupId);
+    final id = groupId.trim();
+    if (id.isEmpty) {
+      return null;
+    }
+
+    final userId = _currentSignerAddress();
+    if (userId.isEmpty) {
+      return null;
+    }
+    final cached = _readCache(userId, id);
+    if (cached != null) {
+      return cached;
+    }
+
+    final result = await query(groupId: id);
     if (result == null) {
       return null;
     }
-    final id = groupId.trim();
     return result
         .where((item) => item.groupId == id)
         .map((item) => item.isBanned)
         .firstOrNull;
+  }
+
+  static bool? getCachedStatus(String groupId) {
+    final id = groupId.trim();
+    if (id.isEmpty) {
+      return null;
+    }
+    final userId = _currentSignerAddress();
+    if (userId.isEmpty) {
+      return null;
+    }
+    return _readCache(userId, id);
+  }
+
+  static void clearCache() {
+    _statusCache.clear();
   }
 
   static String _nonce() {
@@ -132,7 +166,6 @@ class RongGroupBanApi {
   static String? _businessToken() {
     return AccountManager().currentAccount?.token;
   }
-
 
   static String _signatureMessage({
     required bool isAdd,
@@ -337,6 +370,9 @@ class RongGroupBanApi {
             'http=${response.statusCode}, code=$code, data=$data',
           );
         }
+        if (success) {
+          _writeCache(userId, id, isAdd);
+        }
         return success;
       }
 
@@ -346,6 +382,9 @@ class RongGroupBanApi {
           'RongGroupBanApi failed: path=$path, '
           'http=${response.statusCode}, data=$data',
         );
+      }
+      if (success) {
+        _writeCache(userId, id, isAdd);
       }
       return success;
     } on DioException catch (e) {
@@ -370,6 +409,40 @@ class RongGroupBanApi {
     }
     return data;
   }
+
+  static bool? _readCache(String userId, String groupId) {
+    final key = _cacheKey(userId, groupId);
+    final entry = _statusCache[key];
+    if (entry == null) {
+      return null;
+    }
+    if (DateTime.now().difference(entry.updatedAt) >= _cacheDuration) {
+      _statusCache.remove(key);
+      return null;
+    }
+    return entry.isBanned;
+  }
+
+  static void _writeCache(String userId, String groupId, bool isBanned) {
+    _statusCache[_cacheKey(userId, groupId)] = _RongGroupBanCacheEntry(
+      isBanned: isBanned,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  static String _cacheKey(String userId, String groupId) {
+    return '${userId.toLowerCase()}:${groupId.trim()}';
+  }
+}
+
+class _RongGroupBanCacheEntry {
+  final bool isBanned;
+  final DateTime updatedAt;
+
+  const _RongGroupBanCacheEntry({
+    required this.isBanned,
+    required this.updatedAt,
+  });
 }
 
 class RongGroupBanStatus {

@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:paracosm/core/models/group_model.dart';
-import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
 import 'package:paracosm/core/network/api/upload_file_api.dart';
+import 'package:paracosm/modules/im/group_ban_state.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/manager/im_burn_after_reading_manager.dart';
@@ -35,6 +35,7 @@ import '../../../core/models/media_item.dart';
 import '../../../modules/call/rong_call_manager.dart';
 import '../../../modules/call/rong_call_summary_parser.dart';
 import '../../../modules/im/message/base/im_message.dart';
+import '../../../modules/im/message/custom_message_identity.dart';
 import '../../../modules/im/message/custom_face_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/manager/voice_player_manager.dart';
@@ -852,14 +853,14 @@ class ChatDetailController extends ChangeNotifier {
   void _listenGroup() {
     _groupChangeSub = ImDataCenter().groupInfoStream.listen((groupIds) async {
       if (!groupIds.contains(args?.targetId)) return;
-      final info = await GroupStateCenter().getGroup(
-        args?.targetId ?? '',
-        forceRefresh: true,
-      );
+      final groupId = args?.targetId ?? '';
+      final info =
+          GroupStateCenter().getCachedGroup(groupId) ??
+          await GroupStateCenter().getGroup(groupId, forceRefresh: true);
       if (info == null) return;
       final group = GroupModel(info: info);
       final name = await group.name;
-      await _refreshGroupMuteStatus();
+      _setGroupMuted(isGroupMuteAll(info));
       _applyGroupNotice(info.notice);
       unawaited(_loadGroupNoticeBanner());
       args = args?.copyWith(
@@ -930,11 +931,12 @@ class ChatDetailController extends ChangeNotifier {
       return;
     }
 
-    final banned = await RongGroupBanApi.isBanned(session.targetId);
-    if (banned == null) {
-      return;
+    final info =
+        GroupStateCenter().getCachedGroup(session.targetId) ??
+        await GroupStateCenter().getGroup(session.targetId);
+    if (info != null) {
+      _setGroupMuted(isGroupMuteAll(info));
     }
-    _setGroupMuted(banned);
   }
 
   void _setGroupMuted(bool muted) {
@@ -943,6 +945,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     isGroupMuted = muted;
+    args = args?.copyWith(isMuted: muted);
     if (muted) {
       isMenuExpanded = false;
       isEmojiPanelExpanded = false;
@@ -2890,6 +2893,10 @@ class ChatDetailController extends ChangeNotifier {
         oldRaw.senderUserId != newRaw.senderUserId ||
         oldRaw.messageType != newRaw.messageType) {
       return false;
+    }
+
+    if (hasSameCustomClientMessageId(oldRaw, newRaw)) {
+      return true;
     }
 
     final oldUid = oldRaw.messageUId;

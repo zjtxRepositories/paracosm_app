@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../call/rong_call_summary_parser.dart';
+import '../message/custom_message_identity.dart';
 import '../result/im_result.dart';
 import 'im_burn_after_reading_manager.dart';
 import 'im_engine_manager.dart';
@@ -876,6 +877,12 @@ class ImMessageManager {
 
     if (callSummaryKey != null) {
       return callSummaryKey;
+    }
+
+    /// 普通自定义消息由客户端生成稳定 identifier，SDK 重试时 messageId 会变化。
+    final customId = customClientMessageId(message);
+    if (customId != null) {
+      return 'custom:$customId';
     }
 
     final mediaKey = _mediaMessageCacheKey(message);

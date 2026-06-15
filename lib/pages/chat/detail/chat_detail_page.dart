@@ -89,6 +89,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   isGroup: controller.isGroupSession,
                   avatar: controller.headerAvatar,
                   targetId: controller.targetId,
+                  memberCount: controller.memberCount,
                   isOnline: controller.isOnline,
                   onMoreTap: controller.navigateToSettings,
                   onAvatarTap: controller.navigateToProfile,

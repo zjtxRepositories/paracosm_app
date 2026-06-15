@@ -265,6 +265,7 @@ class ChatDetailController extends ChangeNotifier {
 
   String? get anchorMessageId => args?.anchorMessageId;
 
+
   /// =========================
   /// 初始加载
   /// =========================
@@ -868,6 +869,8 @@ class ChatDetailController extends ChangeNotifier {
       );
       notifyListeners();
     });
+
+    _fetchGroupMembers();
   }
 
   bool get shouldShowGroupNotice =>
@@ -3055,4 +3058,13 @@ class ChatDetailController extends ChangeNotifier {
   String get targetId => args?.targetId ?? '';
 
   String get headerAvatar => args?.avatar ?? '';
+
+  int memberCount = 0;
+
+  Future<void> _fetchGroupMembers() async {
+    if (!isGroupSession) return;
+    final result = await GroupStateCenter().getGroupMembers(targetId);
+    memberCount = result.length;
+    notifyListeners();
+  }
 }

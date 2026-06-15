@@ -14,6 +14,7 @@ class ChatDetailHeader extends StatelessWidget {
     required this.isGroup,
     required this.avatar,
     required this.targetId,
+    required this.memberCount,
     required this.isOnline,
     required this.onMoreTap,
     this.onAvatarTap,
@@ -23,6 +24,7 @@ class ChatDetailHeader extends StatelessWidget {
   final bool isGroup;
   final String avatar;
   final String targetId;
+  final int memberCount;
   final bool isOnline;
   final VoidCallback onMoreTap;
   final VoidCallback? onAvatarTap;
@@ -60,11 +62,19 @@ class ChatDetailHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h2.copyWith(fontSize: 16),
+                Row(
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h2.copyWith(fontSize: 16),
+                    ),
+                    Text(
+                      '($memberCount)',
+                      style: AppTextStyles.h2.copyWith(fontSize: 16),
+                    ),
+                  ],
                 ),
                 Row(
                   children: [

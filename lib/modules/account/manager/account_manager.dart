@@ -6,6 +6,7 @@ import '../../../core/db/dao/account_dao.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../../core/db/dao/wallet_dao.dart';
 import '../../../core/network/friend_circle/friend_circle_token_manager.dart';
+import '../../im/manager/im_conversation_manager.dart';
 import '../../im/service/im_service.dart';
 import '../../user/model/user_info.dart';
 import '../../wallet/manager/wallet_manager.dart';
@@ -72,6 +73,7 @@ class AccountManager extends ChangeNotifier {
 
     accounts = await AccountDao().getAccounts();
 
+    ImConversationManager().resetForAccountSwitch(account.accountId);
     _currentAccount = account;
     _currentWallet = wallet;
 
@@ -126,6 +128,7 @@ class AccountManager extends ChangeNotifier {
     if (account == null) return;
     final wallet = result[1] as WalletModel?;
 
+    ImConversationManager().resetForAccountSwitch(account.accountId);
     _currentAccount = account;
     _currentWallet = wallet;
 
@@ -201,6 +204,9 @@ class AccountManager extends ChangeNotifier {
     accounts = await AccountDao().getAccounts();
 
     if (isCurrent) {
+      ImConversationManager().resetForAccountSwitch(
+        accounts.isNotEmpty ? accounts.first.accountId : '',
+      );
       await ImService.logout();
 
       _currentAccount = accounts.isNotEmpty ? accounts.first : null;

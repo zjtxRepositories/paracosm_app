@@ -713,6 +713,8 @@
   "chat_group_manager_set_message": "{members}已被设置成管理员",
   "chat_group_transferred_message": "{user}将群聊转让给{target}",
   "chat_group_disbanded_message": "{user}已解散群聊",
+  "chat_group_ban_enabled_message": "{user}已开启全体禁言",
+  "chat_group_ban_disabled_message": "{user}已取消全体禁言",
   "chat_me": "你",
   "im_error_success": "成功",
   "im_error_user_not_found": "用户不存在",

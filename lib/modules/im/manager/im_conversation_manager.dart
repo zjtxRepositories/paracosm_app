@@ -86,11 +86,10 @@ class ImConversationManager {
   /// tab -> conversation list
   final Map<int, List<RCIMIWConversation>> _tabCache = {};
 
-  /// tab -> page state
-  final Map<int, _ConversationPageState> _tabPageStates = {};
+  /// 所有 tab 共用一套分页状态，远端只拉取一次后再按 tab 分类。
+  _ConversationPageState _pageState = _ConversationPageState();
 
   static const int _maxPageSize = 50;
-  static const int _maxFilteredFetchRounds = 10;
 
   /// =========================
   /// tabs
@@ -118,6 +117,9 @@ class ImConversationManager {
   bool _inited = false;
   bool _loading = false;
   bool _disposed = false;
+  bool _acceptRealtimeUpdates = true;
+  int _dataVersion = 0;
+  String? _expectedAccountId;
 
   StreamSubscription<MessageEvent>? _messageSubscription;
   StreamSubscription<String>? _connectionSubscription;
@@ -271,6 +273,11 @@ class ImConversationManager {
 
   void _onConnectionEvent(String event) {
     if (event != ImEvent.connected) return;
+    final currentAccountId = IMEngineManager().currentUserId?.toLowerCase();
+    if (_expectedAccountId != null && currentAccountId != _expectedAccountId) {
+      return;
+    }
+    _acceptRealtimeUpdates = true;
 
     unawaited(
       getRemoteConversationList().catchError((error) {
@@ -283,17 +290,33 @@ class ImConversationManager {
     await _initAllTabs(pageSize: pageSize);
   }
 
+  /// 切换账号时立即清空旧账号的会话，避免登录失败后仍展示旧数据。
+  void resetForAccountSwitch(String accountId) {
+    _dataVersion++;
+    _loading = false;
+    _acceptRealtimeUpdates = false;
+    _expectedAccountId = accountId.toLowerCase();
+    _debounce?.cancel();
+    _debounce = null;
+    _allMap.clear();
+    _tabIds.clear();
+    _tabCache.clear();
+    _resetPageState();
+
+    if (_disposed || _controller.isClosed) return;
+    _controller.add(const <int, List<RCIMIWConversation>>{});
+  }
+
   Future<void> loadMoreConversations(int tabIndex, {int pageSize = 10}) async {
     if (tabIndex < 0 || tabIndex >= tabTypes.length) {
       return;
     }
 
-    final state = _pageState(tabIndex);
-    if (state.loading || !state.hasMore) {
+    if (_pageState.loading || !_pageState.hasMore) {
       return;
     }
 
-    await _loadTab(tabIndex, pageSize: pageSize);
+    await _loadPage(pageSize: pageSize);
 
     _sortAllTabs();
 
@@ -302,12 +325,12 @@ class ImConversationManager {
     _notify();
   }
 
-  bool isTabLoading(int tabIndex) => _pageState(tabIndex).loading;
+  bool isTabLoading(int tabIndex) => _pageState.loading;
 
-  bool hasMore(int tabIndex) => _pageState(tabIndex).hasMore;
+  bool hasMore(int tabIndex) => _pageState.hasMore;
 
-  _ConversationPageState _pageState(int tabIndex) {
-    return _tabPageStates.putIfAbsent(tabIndex, _ConversationPageState.new);
+  void _resetPageState() {
+    _pageState = _ConversationPageState();
   }
 
   /// =========================
@@ -316,21 +339,20 @@ class ImConversationManager {
   Future<void> _initAllTabs({required int pageSize}) async {
     if (_loading) return;
 
+    final dataVersion = _dataVersion;
     _loading = true;
 
     try {
       _allMap.clear();
       _tabIds.clear();
       _tabCache.clear();
-      _tabPageStates.clear();
-
-      final futures = <Future>[];
-
+      _resetPageState();
       for (int i = 0; i < tabTypes.length; i++) {
-        futures.add(_loadTab(i, pageSize: pageSize));
+        _tabIds[i] = [];
       }
 
-      await Future.wait(futures);
+      await _loadPage(pageSize: pageSize, dataVersion: dataVersion);
+      if (dataVersion != _dataVersion) return;
 
       _sortAllTabs();
 
@@ -338,12 +360,15 @@ class ImConversationManager {
 
       _notify();
     } finally {
-      _loading = false;
+      if (dataVersion == _dataVersion) {
+        _loading = false;
+      }
     }
   }
 
-  Future<void> _loadTab(int tabIndex, {required int pageSize}) async {
-    final state = _pageState(tabIndex);
+  Future<void> _loadPage({required int pageSize, int? dataVersion}) async {
+    final requestVersion = dataVersion ?? _dataVersion;
+    final state = _pageState;
     if (state.loading || !state.hasMore) {
       return;
     }
@@ -351,55 +376,47 @@ class ImConversationManager {
     state.loading = true;
 
     final count = pageSize.clamp(1, _maxPageSize).toInt();
-    final existingIds = _tabIds.putIfAbsent(tabIndex, () => []);
-    var addedCount = 0;
-    var fetchRounds = 0;
 
     try {
-      while (state.hasMore &&
-          addedCount < count &&
-          fetchRounds < _maxFilteredFetchRounds) {
-        fetchRounds++;
+      final startTime = state.cursorTime;
+      final result = await _fetchConversationPage(
+        startTime: startTime,
+        count: count,
+      );
+      if (requestVersion != _dataVersion) return;
 
-        final startTime = state.cursorTime;
-        final result = await _fetchConversationPage(
-          tabIndex,
-          startTime: startTime,
-          count: count,
-        );
+      for (final conv in result.conversations) {
+        final type = conv.conversationType;
+        final targetId = conv.targetId;
 
-        for (final conv in result.conversations) {
-          final type = conv.conversationType;
-          final targetId = conv.targetId;
+        if (type == null || targetId == null) {
+          continue;
+        }
 
-          if (type == null || targetId == null) {
-            continue;
-          }
+        final key = _buildKey(type, targetId);
+        _allMap[key] = _cloneConversation(conv);
 
+        for (int tabIndex = 0; tabIndex < tabTypes.length; tabIndex++) {
           if (!_matchTab(tabIndex, type, targetId)) {
             continue;
           }
 
-          final key = _buildKey(type, targetId);
-
-          _allMap[key] = _cloneConversation(conv);
-
-          if (!existingIds.contains(key)) {
-            existingIds.add(key);
-            addedCount++;
+          final ids = _tabIds.putIfAbsent(tabIndex, () => []);
+          if (!ids.contains(key)) {
+            ids.add(key);
           }
         }
+      }
 
-        state.hasMore = result.hasMore;
-        if (result.nextCursorTime > 0) {
-          state.cursorTime = result.nextCursorTime;
-        } else {
-          state.hasMore = false;
-        }
+      state.hasMore = result.hasMore;
+      if (result.nextCursorTime > 0) {
+        state.cursorTime = result.nextCursorTime;
+      } else {
+        state.hasMore = false;
+      }
 
-        if (state.cursorTime == startTime) {
-          state.hasMore = false;
-        }
+      if (state.cursorTime == startTime) {
+        state.hasMore = false;
       }
     } catch (error) {
       debugPrint('Load conversations failed: $error');
@@ -409,8 +426,7 @@ class ImConversationManager {
     }
   }
 
-  Future<_ConversationFetchResult> _fetchConversationPage(
-    int tabIndex, {
+  Future<_ConversationFetchResult> _fetchConversationPage({
     required int startTime,
     required int count,
   }) async {
@@ -427,8 +443,6 @@ class ImConversationManager {
 
     final callback = IRCIMIWGetConversationsCallback(
       onSuccess: (list) {
-
-        print('list------$tabIndex:${list?.length}');
         final conversations = list ?? [];
         var minTime = startTime == 0 ? null : startTime;
 
@@ -460,7 +474,7 @@ class ImConversationManager {
     );
 
     final code = await engine.getConversations(
-      tabTypes[tabIndex],
+      tabTypes.first,
       null,
       startTime,
       count,
@@ -487,6 +501,9 @@ class ImConversationManager {
   /// message event
   /// =========================
   void _onMessageEvent(MessageEvent event) async {
+    if (!_acceptRealtimeUpdates) return;
+    final eventDataVersion = _dataVersion;
+
     final targetId = event.targetId ?? event.message?.targetId;
 
     final type = event.conversationType ?? event.message?.conversationType;
@@ -545,7 +562,9 @@ class ImConversationManager {
     /// =========================
     final conv = await getConversation(type: type, targetId: targetId);
 
-    if (conv == null) {
+    if (conv == null ||
+        !_acceptRealtimeUpdates ||
+        eventDataVersion != _dataVersion) {
       return;
     }
 
@@ -607,6 +626,8 @@ class ImConversationManager {
   /// read sync
   /// =========================
   void _onReadSync(RCIMIWConversationType? type, String? targetId) {
+    if (!_acceptRealtimeUpdates) return;
+
     if (type == null || targetId == null) {
       return;
     }
@@ -635,6 +656,8 @@ class ImConversationManager {
     bool? top, {
     int? operationTime,
   }) {
+    if (!_acceptRealtimeUpdates) return;
+
     if (type == null || targetId == null) {
       return;
     }
@@ -764,7 +787,7 @@ class ImConversationManager {
     _allMap.clear();
     _tabIds.clear();
     _tabCache.clear();
-    _tabPageStates.clear();
+    _resetPageState();
   }
 
   /// =========================

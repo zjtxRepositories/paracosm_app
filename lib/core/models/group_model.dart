@@ -35,7 +35,10 @@ class GroupModel {
     if (memberList.isEmpty) return '';
     final List<String> list = [];
     for (final e in memberList) {
-      if (e.item.userId == IMEngineManager().currentUserId) continue;
+      if (e.item.userId == IMEngineManager().currentUserId) {
+        list.add('@ ${e.name}');
+        continue;
+      }
       final name = e.name;
       list.add(name);
     }

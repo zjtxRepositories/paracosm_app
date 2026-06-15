@@ -26,9 +26,9 @@ class ImConnectionManager {
   bool _connected = false;
 
   int _retryCount = 0;
-  final int _maxRetry = 5;
 
   bool _isReconnecting = false;
+  Timer? _reconnectTimer;
 
   void initListener() {
     IMEngineManager().engine?.onConnectionStatusChanged =
@@ -43,6 +43,8 @@ class ImConnectionManager {
         _connected = true;
         _retryCount = 0;
         _isReconnecting = false;
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
 
         _eventController.add(ImEvent.connected);
         final accountId = IMEngineManager().currentUserId;
@@ -53,7 +55,7 @@ class ImConnectionManager {
             }),
           );
         }
-        print("IM 已连接");
+        debugPrint('IM 已连接');
         break;
 
       case RCIMIWConnectionStatus.timeout:
@@ -62,7 +64,7 @@ class ImConnectionManager {
         _connected = false;
         _eventController.add(ImEvent.disconnected);
         _tryReconnect();
-        print("IM 已断开");
+        debugPrint('IM 已断开');
         break;
 
       case RCIMIWConnectionStatus.tokenIncorrect:
@@ -71,7 +73,7 @@ class ImConnectionManager {
         ImService.refreshToken();
         break;
       case RCIMIWConnectionStatus.connecting:
-        print("连接中");
+        debugPrint('连接中');
         break;
       case RCIMIWConnectionStatus.kickedOfflineByOtherClient:
         // TODO: Handle this case.
@@ -96,31 +98,39 @@ class ImConnectionManager {
 
   /// 重连核心逻辑
   Future<void> _tryReconnect() async {
-    if (_isReconnecting) return;
-    if (_retryCount >= _maxRetry) {
-      print("❌ 达到最大重试次数");
+    if (_connected || _isReconnecting || _reconnectTimer?.isActive == true) {
       return;
     }
 
-    _isReconnecting = true;
+    final delaySeconds = (2 * (_retryCount + 1)).clamp(2, 10).toInt();
     _retryCount++;
 
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      _reconnectTimer = null;
+      unawaited(_reconnect());
+    });
+  }
+
+  Future<void> _reconnect() async {
+    if (_connected || _isReconnecting) return;
+
+    _isReconnecting = true;
+
     try {
-      await Future.delayed(Duration(seconds: 2 * _retryCount));
-
       await ImService.reconnect();
-
-      _retryCount = 0;
     } catch (e) {
-      print("❌ 重连失败: $e");
-      await Future.delayed(const Duration(seconds: 1));
-      _tryReconnect(); // 👈 受控递归
+      debugPrint('IM 重连失败: $e');
     } finally {
       _isReconnecting = false;
+      if (!_connected) {
+        unawaited(_tryReconnect());
+      }
     }
   }
 
   Future<void> disconnect() async {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     await IMEngineManager().disconnect();
     _connected = false;
     _eventController.add(ImEvent.disconnected);

@@ -202,6 +202,16 @@ class ConversationResolver {
         return AppLocalizations.currentText('chat_group_disbanded_message', {
           'user': user,
         });
+      case CustomMessageType.groupBanEnabled:
+        final user = await _getUserName(message.fromUserId);
+        return AppLocalizations.currentText('chat_group_ban_enabled_message', {
+          'user': user,
+        });
+      case CustomMessageType.groupBanDisabled:
+        final user = await _getUserName(message.fromUserId);
+        return AppLocalizations.currentText('chat_group_ban_disabled_message', {
+          'user': user,
+        });
       case CustomMessageType.customFace:
         return AppLocalizations.currentText('chat_detail_custom_face');
       case CustomMessageType.momentPost:

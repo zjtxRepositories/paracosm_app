@@ -50,6 +50,7 @@ class ChatDetailMessage {
     this.quoteSenderUserId,
     this.quoteMessageType,
     this.combineSummaries,
+    this.isSending = false,
     this.mediaSendStatus = MediaSendStatus.sent,
     this.mediaSendProgress = 100,
     this.showReadReceipt = false,
@@ -86,6 +87,7 @@ class ChatDetailMessage {
   final String? quoteSenderUserId;
   final int? quoteMessageType;
   final List<String>? combineSummaries;
+  final bool isSending;
   final MediaSendStatus mediaSendStatus;
   final int mediaSendProgress;
   final bool showReadReceipt;
@@ -121,6 +123,7 @@ class ChatDetailMessage {
     String? quoteSenderUserId,
     int? quoteMessageType,
     List<String>? combineSummaries,
+    bool? isSending,
     MediaSendStatus? mediaSendStatus,
     int? mediaSendProgress,
     bool? showReadReceipt,
@@ -157,12 +160,13 @@ class ChatDetailMessage {
       quoteSenderUserId: quoteSenderUserId ?? this.quoteSenderUserId,
       quoteMessageType: quoteMessageType ?? this.quoteMessageType,
       combineSummaries: combineSummaries ?? this.combineSummaries,
+      isSending: isSending ?? this.isSending,
       mediaSendStatus: mediaSendStatus ?? this.mediaSendStatus,
       mediaSendProgress: mediaSendProgress ?? this.mediaSendProgress,
       showReadReceipt: showReadReceipt ?? this.showReadReceipt,
       isRead: isRead ?? this.isRead,
       groupReadCount: groupReadCount ?? this.groupReadCount,
-      senderUserId: this.senderUserId,
+      senderUserId: senderUserId,
     );
   }
 }

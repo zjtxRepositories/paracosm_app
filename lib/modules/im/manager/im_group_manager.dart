@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:paracosm/core/models/custom_message_model.dart';
 import 'package:paracosm/core/network/api/rong_group_ban_api.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../group_ban_state.dart';
 import '../listener/group_state_center.dart';
+import '../message/base/im_message.dart';
+import '../message/send/im_sender.dart';
 import 'im_engine_manager.dart';
 
 /// =======================================================
@@ -86,6 +90,8 @@ class ImGroupManager {
   bool _initialized = false;
 
   final Set<String> _locallyRemovedGroupIds = {};
+
+  final Map<String, Future<bool>> _groupBanOperations = {};
 
   RCIMIWEngine? get _engine => IMEngineManager().engine;
 
@@ -781,11 +787,28 @@ class ImGroupManager {
   /// =======================================================
   /// 设置/取消群组全体禁言
   /// =======================================================
-  Future<bool> setGroupBan({
-    required String groupId,
-    required bool banned,
-  }) async {
-    if (groupId.isEmpty) return false;
+  Future<bool> setGroupBan({required String groupId, required bool banned}) {
+    final id = groupId.trim();
+    if (id.isEmpty) return Future.value(false);
+
+    final running = _groupBanOperations[id];
+    if (running != null) {
+      return running;
+    }
+
+    final operation = _setGroupBan(id, banned);
+    _groupBanOperations[id] = operation;
+    return operation.whenComplete(() {
+      if (_groupBanOperations[id] == operation) {
+        _groupBanOperations.remove(id);
+      }
+    });
+  }
+
+  Future<bool> _setGroupBan(String groupId, bool banned) async {
+    if (banned) {
+      await _sendGroupBanNotification(groupId, banned: true);
+    }
 
     final success = banned
         ? await RongGroupBanApi.add(groupId: groupId)
@@ -795,21 +818,42 @@ class ImGroupManager {
     }
 
     final groupInfo = await GroupStateCenter().getGroup(groupId);
-    if (groupInfo != null) {
-      groupInfo.groupStatus = banned
-          ? RCIMIWGroupStatus.muted
-          : RCIMIWGroupStatus.using;
-      ImDataCenter().setGroup(groupInfo);
-      GroupEventBus.instance.fire(
-        GroupEvent(
-          type: GroupEventType.infoChanged,
-          groupId: groupId,
-          groupInfo: groupInfo,
-        ),
-      );
+    if (groupInfo == null) {
+      return false;
+    }
+    groupInfo.extProfile = groupExtProfileWithMuteAll(
+      groupInfo.extProfile,
+      banned: banned,
+    );
+    final updated = await updateGroupInfo(groupInfo);
+    if (!updated) {
+      return false;
     }
 
+    if (!banned) {
+      await _sendGroupBanNotification(groupId, banned: false);
+    }
     return true;
+  }
+
+  Future<void> _sendGroupBanNotification(
+    String groupId, {
+    required bool banned,
+  }) async {
+    final messageSent = await ImSender.instance.sendAndWait(
+      message: CustomMessage(
+        targetId: groupId,
+        customMessageType: banned
+            ? CustomMessageType.groupBanEnabled
+            : CustomMessageType.groupBanDisabled,
+        conversationType: RCIMIWConversationType.group,
+      ),
+    );
+    if (!messageSent) {
+      debugPrint(
+        'Send group ban notification failed: groupId=$groupId, banned=$banned',
+      );
+    }
   }
 
   /// =======================================================

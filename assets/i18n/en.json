@@ -720,6 +720,8 @@
   "chat_group_manager_set_message": "{members} were set as admins",
   "chat_group_transferred_message": "{user} transferred the group chat to {target}",
   "chat_group_disbanded_message": "{user} disbanded the group chat",
+  "chat_group_ban_enabled_message": "{user} enabled group-wide muting",
+  "chat_group_ban_disabled_message": "{user} disabled group-wide muting",
   "chat_me": "You",
   "im_error_success": "Success",
   "im_error_user_not_found": "User does not exist",

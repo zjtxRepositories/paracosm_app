@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paracosm/modules/update/app_update_service.dart';
@@ -18,6 +19,13 @@ import 'app/app_init.dart';
 Future<void> main() async {
   // 确保 Flutter 框架已初始化，这对 ScreenUtilInit 是必需的
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle.dark.copyWith(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ),
+  );
   await AppInit.init();
   // 加载持久化的语言设置
   final initialLocale = await SettingsNotifier.loadLocale();

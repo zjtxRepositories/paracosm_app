@@ -18,6 +18,7 @@ class ChatMessageItem extends StatelessWidget {
     this.isFlashing = false,
     this.readReceiptText,
     this.bottom,
+    this.leading,
   });
 
   final bool isMe;
@@ -29,6 +30,7 @@ class ChatMessageItem extends StatelessWidget {
   final String? avatarUrl;
   final String? readReceiptText;
   final Widget? bottom;
+  final Widget? leading;
   final GestureLongPressStartCallback onLongPressStart;
 
   @override
@@ -60,6 +62,10 @@ class ChatMessageItem extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    if (isMe && leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 8),
+                    ],
                     Flexible(
                       child: GestureDetector(
                         onLongPressStart: onLongPressStart,

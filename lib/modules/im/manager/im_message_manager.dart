@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../call/rong_call_summary_parser.dart';
+import '../message/custom_message_identity.dart';
 import '../result/im_result.dart';
 import 'im_burn_after_reading_manager.dart';
 import 'im_engine_manager.dart';
@@ -820,9 +821,29 @@ class ImMessageManager {
       _messageCache[id] = DateTime.now().millisecondsSinceEpoch;
     }
 
+    final bufferedIndex = _buffer.indexWhere(
+      (buffered) => _isSamePendingMessage(buffered, message),
+    );
+    if (bufferedIndex >= 0) {
+      _buffer[bufferedIndex] = message;
+      return;
+    }
+
     _messageController.add(
       MessageEvent(type: MessageEventType.update, message: message),
     );
+  }
+
+  bool _isSamePendingMessage(RCIMIWMessage pending, RCIMIWMessage incoming) {
+    if (identical(pending, incoming)) return true;
+
+    return pending.conversationType == incoming.conversationType &&
+        pending.targetId == incoming.targetId &&
+        pending.channelId == incoming.channelId &&
+        pending.senderUserId == incoming.senderUserId &&
+        pending.messageType == incoming.messageType &&
+        pending.sentTime != null &&
+        pending.sentTime == incoming.sentTime;
   }
 
   /// =========================
@@ -876,6 +897,12 @@ class ImMessageManager {
 
     if (callSummaryKey != null) {
       return callSummaryKey;
+    }
+
+    /// 普通自定义消息由客户端生成稳定 identifier，SDK 重试时 messageId 会变化。
+    final customId = customClientMessageId(message);
+    if (customId != null) {
+      return 'custom:$customId';
     }
 
     final mediaKey = _mediaMessageCacheKey(message);

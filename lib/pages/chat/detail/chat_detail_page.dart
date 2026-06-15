@@ -89,6 +89,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   isGroup: controller.isGroupSession,
                   avatar: controller.headerAvatar,
                   targetId: controller.targetId,
+                  memberCount: controller.memberCount,
                   isOnline: controller.isOnline,
                   onMoreTap: controller.navigateToSettings,
                   onAvatarTap: controller.navigateToProfile,
@@ -786,6 +787,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           showBubble: message.showBubble,
           isFlashing: _flashMessageId == message.messageId,
           readReceiptText: _readReceiptText(message),
+          leading: message.isSending
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: AppColors.grey400,
+                  ),
+                )
+              : null,
           bottom: _buildBurnAfterReadingCountdown(message),
           onLongPressStart: (d) =>
               _showContextMenu(context, d.globalPosition, message),
@@ -795,7 +806,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   String? _readReceiptText(ChatDetailMessage message) {
-    if (!message.showReadReceipt || !message.isMe) {
+    if (!message.showReadReceipt || !message.isMe || message.isSending) {
       return null;
     }
 

@@ -109,7 +109,6 @@ class ImGroupMemberManager {
 
         final info = result.info;
         final data = info?.data ?? [];
-
         if (_shouldRetryPage(
           data: data,
           totalCount: info?.totalCount,

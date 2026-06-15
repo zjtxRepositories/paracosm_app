@@ -73,10 +73,10 @@ class ChatDetailHeader extends StatelessWidget {
                         style: AppTextStyles.h2.copyWith(fontSize: 16),
                       ),
                     ),
-                    Text(
+                    isGroup ? Text(
                       '($memberCount)',
                       style: AppTextStyles.h2.copyWith(fontSize: 16),
-                    ),
+                    ) : SizedBox(),
                   ],
                 ),
                 Row(

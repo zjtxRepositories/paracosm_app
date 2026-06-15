@@ -27,6 +27,20 @@ class MomentMessageModel {
   final int readTimestamp;
   final int createTimestamp;
 
+  String get cacheKey {
+    if (messageId.isNotEmpty) return messageId;
+    return [
+      type,
+      action.name,
+      noteId,
+      reviewId,
+      fromUserId,
+      toUserId,
+      content,
+      createTimestamp,
+    ].join('|');
+  }
+
   factory MomentMessageModel.fromJson(Map<String, dynamic> json) {
     final type = _asInt(json['type']);
     return MomentMessageModel(

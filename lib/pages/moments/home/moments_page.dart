@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/social_circle_user_api.dart';
+import 'package:paracosm/core/network/friend_circle/moment_message_cache.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 
 import '../../../theme/app_colors.dart';
@@ -20,7 +22,10 @@ class MomentsPage extends StatefulWidget {
 class _MomentsPageState extends State<MomentsPage> {
   final MomentsController controller = MomentsController();
   final AccountManager _accountManager = AccountManager();
+  final MomentMessageCache _messageCache = MomentMessageCache();
   String _accountId = '';
+  bool _hasNewMessages = false;
+  int _messageCheckVersion = 0;
 
   @override
   void initState() {
@@ -29,6 +34,7 @@ class _MomentsPageState extends State<MomentsPage> {
     _accountId = _currentAccountId;
     _accountManager.addListener(_onAccountChanged);
     controller.init();
+    _checkNewMessages();
   }
 
   String get _currentAccountId =>
@@ -38,7 +44,9 @@ class _MomentsPageState extends State<MomentsPage> {
     final accountId = _currentAccountId;
     if (accountId == _accountId) return;
     _accountId = accountId;
+    _hasNewMessages = false;
     controller.init();
+    _checkNewMessages();
   }
 
   void _onUpdate() {
@@ -78,9 +86,38 @@ class _MomentsPageState extends State<MomentsPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: controller.refresh,
+      onRefresh: _refresh,
       child: controller.items.isEmpty ? _buildEmptyBody() : _buildPostList(),
     );
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([controller.refresh(), _checkNewMessages()]);
+  }
+
+  Future<void> _checkNewMessages() async {
+    final version = ++_messageCheckVersion;
+    final accountId = _currentAccountId;
+    if (accountId.isEmpty) {
+      if (mounted) setState(() => _hasNewMessages = false);
+      return;
+    }
+
+    try {
+      final messages = await SocialCircleUserApi.getMomentMessages();
+      final hasNewMessages = await _messageCache.hasNewMessages(
+        accountId,
+        messages,
+      );
+      if (!mounted ||
+          version != _messageCheckVersion ||
+          accountId != _currentAccountId) {
+        return;
+      }
+      setState(() => _hasNewMessages = hasNewMessages);
+    } catch (_) {
+      // 消息检查失败不影响动态列表。
+    }
   }
 
   Widget _buildEmptyBody() {
@@ -176,8 +213,10 @@ class _MomentsPageState extends State<MomentsPage> {
           ),
 
           _MessageButton(
-            onTap: () {
-              context.push('/message-center');
+            hasNewMessages: _hasNewMessages,
+            onTap: () async {
+              await context.push('/message-center');
+              await _checkNewMessages();
             },
           ),
         ],
@@ -218,8 +257,9 @@ class _MomentsPageState extends State<MomentsPage> {
 
 class _MessageButton extends StatelessWidget {
   final VoidCallback onTap;
+  final bool hasNewMessages;
 
-  const _MessageButton({required this.onTap});
+  const _MessageButton({required this.onTap, required this.hasNewMessages});
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +267,9 @@ class _MessageButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Image.asset(
-        'assets/images/moments/icon_message.png',
+        hasNewMessages
+            ? 'assets/images/moments/icon_message_new.png'
+            : 'assets/images/moments/icon_message.png',
         width: 32,
         height: 32,
       ),

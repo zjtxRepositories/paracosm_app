@@ -18,6 +18,13 @@ class GroupMemberModel {
     if (nickname.isNotEmpty) {
       return nickname;
     }
-    return item.name ?? '';
+    final itemName = item.name ?? '';
+    if (remark.isNotEmpty) return itemName;
+
+    final userId = item.userId ?? '';
+    if (userId.isEmpty) return '';
+    return userId.length > 8
+        ? userId.substring(userId.length - 8)
+        : userId;
   }
 }

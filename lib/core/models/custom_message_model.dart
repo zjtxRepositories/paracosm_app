@@ -90,11 +90,34 @@ class CustomMessageModel {
     this.mediaType,
   });
 
+  bool get isNotification {
+    switch (type) {
+      case CustomMessageType.friendAdd:
+      case CustomMessageType.groupInvited:
+      case CustomMessageType.groupJoined:
+      case CustomMessageType.systemNotice:
+      case CustomMessageType.createDao:
+      case CustomMessageType.createClub:
+      case CustomMessageType.recall:
+      case CustomMessageType.transfer:
+      case CustomMessageType.quitGroup:
+      case CustomMessageType.groupRemoved:
+      case CustomMessageType.groupManagerSet:
+      case CustomMessageType.groupDisbanded:
+      case CustomMessageType.groupBanEnabled:
+      case CustomMessageType.groupBanDisabled:
+        return true;
+      case CustomMessageType.customFace:
+      case CustomMessageType.momentPost:
+      case CustomMessageType.unknown:
+        return false;
+    }
+  }
+
   /// =========================
   /// fromJson
   /// =========================
   factory CustomMessageModel.fromJson(Map<String, dynamic> json) {
-
     return CustomMessageModel(
       type: _typeFromString(json['type']),
       fromUserId: json['fromUserId'] ?? '',
@@ -200,7 +223,6 @@ class CustomMessageModel {
         return 'unknown';
     }
   }
-
 }
 
 List<String>? _parseUserIds(dynamic value) {

@@ -15,12 +15,14 @@ class RemoveMemberModal extends StatefulWidget {
   final List<GroupMemberModel>? members;
   final String? title;
   final List<String>? defaultSelectedUserIds;
+  final bool singleSelection;
 
   const RemoveMemberModal({
     super.key,
     this.members,
     this.title,
     this.defaultSelectedUserIds,
+    this.singleSelection = false,
   });
 
   /// 显示弹窗
@@ -29,6 +31,7 @@ class RemoveMemberModal extends StatefulWidget {
     List<GroupMemberModel>? members,
     String? title,
     List<String>? defaultSelectedUserIds,
+    bool singleSelection = false,
   }) {
     return showModalBottomSheet<List<String>>(
       context: context,
@@ -39,6 +42,7 @@ class RemoveMemberModal extends StatefulWidget {
         members: members,
         title: title,
         defaultSelectedUserIds: defaultSelectedUserIds,
+        singleSelection: singleSelection,
       ),
     );
   }
@@ -67,7 +71,9 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
 
     return AppModal(
       title: widget.title ?? AppLocalizations.of(context)!.chatRemoveMembers,
-      confirmText: _selectedMembers.isNotEmpty
+      confirmText: widget.singleSelection
+          ? AppLocalizations.of(context)!.commonDone
+          : _selectedMembers.isNotEmpty
           ? AppLocalizations.of(
               context,
             )!.commonDoneCount(_selectedMembers.length)
@@ -117,13 +123,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
                     final member = _filterMembers[index];
                     return GestureDetector(
                       onTap: () {
-                        setState(() {
-                          if (_selectedMembers.contains(member.item.userId)) {
-                            _selectedMembers.remove(member.item.userId);
-                          } else {
-                            _selectedMembers.add(member.item.userId ?? '');
-                          }
-                        });
+                        _toggleMember(member.item.userId);
                       },
                       child: _buildMemberItem(
                         member: member,
@@ -174,13 +174,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
         opacity: 1,
         child: GestureDetector(
           onTap: () {
-            setState(() {
-              if (_selectedMembers.contains(member.item.userId)) {
-                _selectedMembers.remove(member.item.userId);
-              } else {
-                _selectedMembers.add(member.item.userId ?? '');
-              }
-            });
+            _toggleMember(member.item.userId);
           },
           child: Container(
             margin: EdgeInsets.symmetric(horizontal: 20),
@@ -245,15 +239,7 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
                         AppCheckbox(
                           value: selected,
                           onChanged: (val) {
-                            setState(() {
-                              if (_selectedMembers.contains(
-                                member.item.userId,
-                              )) {
-                                _selectedMembers.remove(member.item.userId);
-                              } else {
-                                _selectedMembers.add(member.item.userId ?? '');
-                              }
-                            });
+                            _toggleMember(member.item.userId);
                           },
                         ),
                       ],
@@ -266,5 +252,22 @@ class _RemoveMemberModalState extends State<RemoveMemberModal> {
         ),
       ),
     );
+  }
+
+  void _toggleMember(String? userId) {
+    if (userId == null || userId.isEmpty) return;
+    setState(() {
+      if (_selectedMembers.contains(userId)) {
+        _selectedMembers.remove(userId);
+        return;
+      }
+      if (widget.singleSelection) {
+        _selectedMembers
+          ..clear()
+          ..add(userId);
+        return;
+      }
+      _selectedMembers.add(userId);
+    });
   }
 }

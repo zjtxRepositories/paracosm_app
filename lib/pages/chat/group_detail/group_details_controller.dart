@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/group_info_update_builder.dart';
 import 'package:paracosm/modules/im/group_ban_state.dart';
+import 'package:paracosm/modules/im/group_permission_policy.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
@@ -34,10 +36,10 @@ class GroupDetailsController extends ChangeNotifier {
   List<GroupMemberModel> members = [];
 
   bool get isMemberMore => members.length > 13;
-  bool get isManager =>
-      group?.info.role == RCIMIWGroupMemberRole.manager ||
-      group?.info.role == RCIMIWGroupMemberRole.owner;
-  bool get isOwner => group?.info.role == RCIMIWGroupMemberRole.owner;
+  GroupPermissionPolicy get permission =>
+      GroupPermissionPolicy(groupInfo: group?.info);
+  bool get isManager => permission.isManager;
+  bool get isOwner => permission.isOwner;
 
   bool isPinned = false;
   bool isMuted = false;
@@ -148,6 +150,7 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> toggleMute() async {
     if (args == null) return;
+    if (!_ensurePermission(permission.canMuteAll)) return;
     final groupId = args!.targetId;
     if (groupId.isEmpty) return;
     final banned = !isMuted;
@@ -164,6 +167,7 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> toggleDisband(BuildContext context) async {
+    if (!_ensurePermission(permission.canDismissGroup)) return;
     final disbandedText = AppLocalizations.of(context)!.chatGroupDisbanded;
     AppConfirmDialog.show(
       context,
@@ -193,7 +197,7 @@ class GroupDetailsController extends ChangeNotifier {
   Future<void> toggleLeave(BuildContext context) async {
     final leftText = AppLocalizations.of(context)!.chatGroupLeft;
     final leaveFailedText = AppLocalizations.of(context)!.chatLeaveGroupFailed;
-    if (isOwner) {
+    if (permission.canTransferOwner) {
       final nextOwner = members
           .where(
             (member) =>
@@ -272,20 +276,27 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> updateGroupInfo({String? notice, String? introduction}) async {
-    final groupInfo = group?.info;
-    if (groupInfo == null) return;
-    if (notice != null) {
-      groupInfo.notice = notice;
-    }
-    if (introduction != null) {
-      groupInfo.introduction = introduction;
-    }
+    if (!_ensurePermission(permission.canEditGroupInfo)) return;
+    final currentGroupInfo = group?.info;
+    if (currentGroupInfo == null) return;
+    final groupInfo = GroupInfoUpdateBuilder.build(
+      groupId: currentGroupInfo.groupId ?? '',
+      groupName: currentGroupInfo.groupName ?? '',
+      portraitUri: currentGroupInfo.portraitUri,
+      introduction: introduction ?? currentGroupInfo.introduction,
+      notice: notice ?? currentGroupInfo.notice,
+      extProfile: currentGroupInfo.extProfile,
+    );
     group?.setNoticeViewed(false);
     final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
     if (!isOk) {
       AppToast.show(AppLocalizations.currentText('common_update_failed'));
       return;
     }
+    GroupInfoUpdateBuilder.applyToLocal(
+      target: currentGroupInfo,
+      update: groupInfo,
+    );
     notifyListeners();
   }
 
@@ -309,6 +320,7 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> inviteUsersToGroup(List<String> userIds) async {
+    if (!_ensurePermission(permission.canInviteMembers)) return;
     final groupId = args?.targetId;
     if (groupId == null) return;
     AppLoading.show();
@@ -329,6 +341,7 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> kickGroupMembers(List<String> userIds) async {
+    if (!_ensurePermission(permission.canKickMembers)) return;
     final groupId = args?.targetId;
     if (groupId == null) return;
 
@@ -358,6 +371,7 @@ class GroupDetailsController extends ChangeNotifier {
   }
 
   Future<void> updateGroupManagers(List<String> selectedUserIds) async {
+    if (!_ensurePermission(permission.canManageManagers)) return;
     final groupId = args?.targetId;
     if (groupId == null) return;
 
@@ -395,5 +409,41 @@ class GroupDetailsController extends ChangeNotifier {
 
     await _fetchGroupMembers(groupId);
     AppToast.show(AppLocalizations.currentText('chat_set_manager_success'));
+  }
+
+  Future<void> transferGroupOwner(String newOwnerId) async {
+    if (!_ensurePermission(permission.canTransferOwner)) return;
+    final groupId = args?.targetId;
+    if (groupId == null || groupId.isEmpty || newOwnerId.isEmpty) return;
+
+    AppLoading.show();
+    final isOk = await ImGroupManager().transferGroupOwner(
+      groupId,
+      newOwnerId,
+      quitGroup: false,
+    );
+
+    if (!isOk) {
+      AppLoading.dismiss();
+      AppToast.show(AppLocalizations.currentText('chat_transfer_owner_failed'));
+      return;
+    }
+
+    final message = CustomMessage(
+      targetId: groupId,
+      customMessageType: CustomMessageType.transfer,
+      conversationType: RCIMIWConversationType.group,
+      userIds: [newOwnerId],
+    );
+    await ImSender.instance.send(message: message);
+    await Future.wait([_fetchGroupInfo(groupId), _fetchGroupMembers(groupId)]);
+    AppLoading.dismiss();
+    AppToast.show(AppLocalizations.currentText('chat_transfer_owner_success'));
+  }
+
+  bool _ensurePermission(bool allowed) {
+    if (allowed) return true;
+    AppToast.show(AppLocalizations.currentText('chat_group_no_permission'));
+    return false;
   }
 }

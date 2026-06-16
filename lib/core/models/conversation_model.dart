@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/message/group_transfer_message_formatter.dart';
 import 'package:paracosm/modules/im/message/recall_message_formatter.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -191,12 +192,7 @@ class ConversationResolver {
           'members': members ?? '',
         });
       case CustomMessageType.transfer:
-        final user = await _getUserName(message.fromUserId);
-        final target = await _getUserName(message.userIds?.firstOrNull ?? '');
-        return AppLocalizations.currentText('chat_group_transferred_message', {
-          'user': user,
-          'target': target,
-        });
+        return GroupTransferMessageFormatter.format(message);
       case CustomMessageType.groupDisbanded:
         final user = await _getUserName(message.fromUserId);
         return AppLocalizations.currentText('chat_group_disbanded_message', {

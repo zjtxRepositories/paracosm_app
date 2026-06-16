@@ -16,6 +16,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get commonApprove => translate('common_approve');
   String get commonConnect => translate('common_connect');
   String get commonCreate => translate('common_create');
+  String get chatGroupNoPermission => translate('chat_group_no_permission');
 
   // --- 钱包启动页 ---
   String get walletStartWelcome => translate('wallet_start_welcome');
@@ -641,6 +642,12 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatLeaveGroupFailed => translate('chat_leave_group_failed');
   String get chatSetManagerSuccess => translate('chat_set_manager_success');
   String get chatSetManagerFailed => translate('chat_set_manager_failed');
+  String get chatTransferOwner => translate('chat_transfer_owner');
+  String chatTransferOwnerConfirm(String name) =>
+      translate('chat_transfer_owner_confirm', {'name': name});
+  String get chatTransferOwnerSuccess =>
+      translate('chat_transfer_owner_success');
+  String get chatTransferOwnerFailed => translate('chat_transfer_owner_failed');
   String get chatClearHistorySuccess => translate('chat_clear_history_success');
   String get chatClearHistoryFailed => translate('chat_clear_history_failed');
   String get chatInviteFailed => translate('chat_invite_failed');
@@ -674,6 +681,10 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_members_removed_message', {'members': members});
   String chatGroupManagerSetMessage(String members) =>
       translate('chat_group_manager_set_message', {'members': members});
+  String chatGroupTransferredByMe(String target) =>
+      translate('chat_group_transferred_by_me', {'target': target});
+  String chatGroupTransferredToMe(String user) =>
+      translate('chat_group_transferred_to_me', {'user': user});
   String chatGroupTransferredMessage(String user, String target) => translate(
     'chat_group_transferred_message',
     {'user': user, 'target': target},

@@ -288,6 +288,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return const Center(child: CircularProgressIndicator());
     }
     _scheduleAnchorScroll();
+    _syncMessageKeys();
     return NotificationListener<ScrollNotification>(
       onNotification: (scroll) {
         if (scroll.metrics.pixels <= 100 && controller.messages.isNotEmpty) {
@@ -303,7 +304,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           final message = controller.messages[index];
           final node = _buildMessageNode(message);
           return KeyedSubtree(
-            key: _keyForMessage(message.messageId),
+            key: _keyForMessage(message.messageId, index),
             child: _isSelectingMessages
                 ? _buildSelectableMessageNode(message, node)
                 : controller.isGroupMuted
@@ -335,8 +336,39 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  GlobalKey _keyForMessage(String messageId) {
-    return _messageKeys.putIfAbsent(messageId, GlobalKey.new);
+  GlobalKey _keyForMessage(String messageId, int index) {
+    final keyId = _messageKeyId(messageId, index);
+    return _messageKeys.putIfAbsent(keyId, GlobalKey.new);
+  }
+
+  String _messageKeyId(String messageId, int index) {
+    return '$messageId#$index';
+  }
+
+  void _syncMessageKeys() {
+    final visibleKeyIds = <String>{
+      for (var i = 0; i < controller.messages.length; i++)
+        _messageKeyId(controller.messages[i].messageId, i),
+    };
+    _messageKeys.removeWhere((key, value) => !visibleKeyIds.contains(key));
+  }
+
+  BuildContext? _contextForMessageId(String messageId) {
+    final exactContext = _messageKeys[messageId]?.currentContext;
+    if (exactContext != null && exactContext.mounted) {
+      return exactContext;
+    }
+
+    final prefix = '$messageId#';
+    for (final entry in _messageKeys.entries) {
+      if (!entry.key.startsWith(prefix)) continue;
+      final context = entry.value.currentContext;
+      if (context != null && context.mounted) {
+        return context;
+      }
+    }
+
+    return null;
   }
 
   List<ChatDetailMessage> get _selectedMessages {
@@ -533,7 +565,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _didScrollToAnchor) return;
 
-      final targetContext = _messageKeys[anchorMessageId]?.currentContext;
+      final targetContext = _contextForMessageId(anchorMessageId);
       if (targetContext == null) return;
 
       _didScrollToAnchor = true;
@@ -666,7 +698,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<bool> _scrollToMessage(String messageId) async {
-    var targetContext = _messageKeys[messageId]?.currentContext;
+    var targetContext = _contextForMessageId(messageId);
     if (targetContext != null) {
       await _ensureVisibleMessage(targetContext);
       return true;
@@ -700,7 +732,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return false;
     }
 
-    final visibleContext = _messageKeys[messageId]?.currentContext;
+    final visibleContext = _contextForMessageId(messageId);
     if (visibleContext == null || !visibleContext.mounted) {
       return false;
     }
@@ -740,7 +772,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   String? _messageIdForContext(BuildContext targetContext) {
     for (final entry in _messageKeys.entries) {
       if (entry.value.currentContext == targetContext) {
-        return entry.key;
+        return entry.key.split('#').first;
       }
     }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/group_permission_policy.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -44,11 +45,10 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   late bool _isJoined;
   late List<RCIMIWGroupMemberInfo> _qrMembers;
 
-  /// 是否群管理员/群主
-  bool get _isManager =>
-      _isJoined &&
-      (_group.info.role == RCIMIWGroupMemberRole.manager ||
-          _group.info.role == RCIMIWGroupMemberRole.owner);
+  GroupPermissionPolicy get _permission =>
+      GroupPermissionPolicy(groupInfo: _group.info, isJoined: _isJoined);
+
+  bool get _canEditGroupInfo => _permission.canEditGroupInfo;
 
   @override
   void initState() {
@@ -79,7 +79,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     if (group != null) {
       _group = GroupModel(info: group);
     }
-    if (_isManager) {
+    if (_canEditGroupInfo) {
       _nameController.text = _group.displayName ?? '';
 
       _noteController.text = _group.info.notice ?? '';
@@ -142,7 +142,10 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   }
 
   Future<void> updateGroupInfo() async {
-    if (!_isManager) return;
+    if (!_canEditGroupInfo) {
+      AppToast.show(AppLocalizations.currentText('chat_group_no_permission'));
+      return;
+    }
     final updateFailedText = AppLocalizations.of(context)!.commonUpdateFailed;
     final updateSuccessText = AppLocalizations.of(context)!.commonUpdateSuccess;
 
@@ -264,7 +267,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _isManager
+                        _canEditGroupInfo
                             ? Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -311,7 +314,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _isManager
+                        _canEditGroupInfo
                             ? Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -363,7 +366,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
                         // Save Button
                         _isJoined
-                            ? _isManager
+                            ? _canEditGroupInfo
                                   ? AppButton(
                                       text: AppLocalizations.of(
                                         context,
@@ -396,17 +399,5 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       portraitUri: _group.info.portraitUri,
       initialMembers: _qrMembers,
     );
-  }
-
-  String _qrMemberNames() {
-    final names = _qrMembers
-        .map((member) {
-          final nickname = (member.nickname ?? '').replaceAll(' ', '');
-          if (nickname.isNotEmpty) return nickname;
-          return member.name ?? '';
-        })
-        .where((name) => name.isNotEmpty)
-        .toList();
-    return names.join('、');
   }
 }

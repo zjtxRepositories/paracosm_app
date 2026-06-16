@@ -98,6 +98,64 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     controller.updateGroupManagers(result);
   }
 
+  Future<void> showTransferOwner() async {
+    final members = controller.members
+        .where(
+          (item) =>
+              (item.item.userId ?? '') != IMEngineManager().currentUserId &&
+              item.item.role != RCIMIWGroupMemberRole.owner,
+        )
+        .toList();
+
+    final result = await RemoveMemberModal.show(
+      context,
+      members: members,
+      title: AppLocalizations.of(context)!.chatTransferOwner,
+      singleSelection: true,
+    );
+    final newOwnerId = result?.firstOrNull;
+    if (newOwnerId == null || newOwnerId.isEmpty) return;
+
+    final member = members
+        .where((item) => item.item.userId == newOwnerId)
+        .firstOrNull;
+    final name = member?.name ?? newOwnerId;
+
+    if (!mounted) return;
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.chatTransferOwner,
+      description: AppLocalizations.of(context)!.chatTransferOwnerConfirm(name),
+      confirmText: AppLocalizations.of(context)!.commonConfirm,
+      cancelText: AppLocalizations.of(context)!.chatRequestCancel,
+      confirmWidth: 161,
+      cancelWidth: 161,
+      cancelBorder: const BorderSide(color: AppColors.grey300),
+      icon: Image.asset(
+        'assets/images/wallet/bell-icon.png',
+        width: 120,
+        height: 120,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 120,
+          height: 120,
+          decoration: const BoxDecoration(
+            color: AppColors.grey100,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.notifications_active_outlined,
+            size: 64,
+            color: AppColors.warning,
+          ),
+        ),
+      ),
+      onConfirm: () {
+        context.pop();
+        controller.transferGroupOwner(newOwnerId);
+      },
+    );
+  }
+
   /// 显示清空记录确认弹窗
   void _showClearHistoryModal() {
     AppModal.show(
@@ -135,6 +193,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final permission = controller.permission;
+
     return AppPage(
       title: AppLocalizations.of(context)!.chatSettingTitle,
       backgroundColor: Colors.white,
@@ -200,8 +260,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   subtitle: (controller.group?.info.introduction ?? '').isEmpty
                       ? AppLocalizations.of(context)!.chatSettingIntroEmpty
                       : controller.group?.info.introduction ?? '',
-                  isArrow: controller.isManager,
-                  onTap: controller.isManager
+                  isArrow: permission.canEditGroupInfo,
+                  onTap: permission.canEditGroupInfo
                       ? () async {
                           final text = await context.push<String>(
                             '/group-introduction',
@@ -225,8 +285,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       ? AppLocalizations.of(context)!.chatSettingIntroEmpty
                       : controller.group?.info.notice ?? '',
                   isFullBorder: true,
-                  isArrow: controller.isManager,
-                  onTap: controller.isManager
+                  isArrow: permission.canEditGroupInfo,
+                  onTap: permission.canEditGroupInfo
                       ? () async {
                           final text = await context.push<String>(
                             '/group-introduction',
@@ -272,7 +332,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
                   ),
                 ),
-                controller.isManager
+                permission.canMuteAll
                     ? _buildOptionItem(
                         AppLocalizations.of(context)!.chatSettingMuteAll,
                         isFullBorder: true,
@@ -292,13 +352,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.grey100),
                 ),
-                controller.isOwner
+                permission.canTransferOwner
+                    ? _buildOptionItem(
+                        AppLocalizations.of(context)!.chatTransferOwner,
+                        onTap: showTransferOwner,
+                      )
+                    : SizedBox(),
+                permission.canManageManagers
                     ? _buildOptionItem(
                         AppLocalizations.of(context)!.chatSetManager,
                         onTap: showSetManagers,
                       )
                     : SizedBox(),
-                controller.isOwner
+                permission.canDismissGroup
                     ? _buildOptionItem(
                         AppLocalizations.of(context)!.chatSettingDisband,
                         isFullBorder: true,
@@ -353,9 +419,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Widget _buildMemberGrid() {
     final visibleMembers = controller.visibleMembers();
 
-    final items = [...visibleMembers, 'add'];
+    final items = <Object>[...visibleMembers];
 
-    if (controller.isManager) {
+    if (controller.permission.canInviteMembers) {
+      items.add('add');
+    }
+
+    if (controller.permission.canKickMembers) {
       items.add('remove');
     }
 
@@ -376,6 +446,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
           if (item == 'add') {
             return GestureDetector(
+              key: const ValueKey('group-details-add-member'),
               onTap: showChooseMembers,
               child: _buildActionMemberItem(
                 'assets/images/common/add-member.png',
@@ -385,6 +456,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
           if (item == 'remove') {
             return GestureDetector(
+              key: const ValueKey('group-details-remove-member'),
               onTap: () => showRemoveMembers(),
               child: _buildActionMemberItem(
                 'assets/images/common/remove-member.png',
@@ -392,7 +464,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             );
           }
           if (item is GroupMemberModel) {
-            return _buildMemberItem(item);
+            return _buildMemberItem(
+              item,
+              key: ValueKey('group-details-member-${item.item.userId}-$index'),
+            );
           }
           return SizedBox();
         },
@@ -401,12 +476,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   }
 
   /// 单个成员项 (参考 session_details_page.dart)
-  Widget _buildMemberItem(GroupMemberModel member) {
+  Widget _buildMemberItem(GroupMemberModel member, {Key? key}) {
     final String name = member.name;
     String? avatarPath = member.item.portraitUri;
     final roleText = _roleText(member.item.role);
 
     return GestureDetector(
+      key: key,
       onTap: () {
         context.push('/user-profile', extra: member.item.userId ?? '');
       },

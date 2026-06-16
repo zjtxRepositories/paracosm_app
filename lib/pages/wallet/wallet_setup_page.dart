@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:paracosm/providers/settings_provider.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
-import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_checkbox.dart';
-import 'package:go_router/go_router.dart';
+import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 
 import '../../core/network/config/config_service.dart';
@@ -12,14 +15,14 @@ import '../../core/network/config/config_service.dart';
 /// 钱包设置/选择页
 ///
 /// 提供创建钱包和导入钱包两个选项。
-class WalletSetupPage extends StatefulWidget {
+class WalletSetupPage extends ConsumerStatefulWidget {
   const WalletSetupPage({super.key});
 
   @override
-  State<WalletSetupPage> createState() => _WalletSetupPageState();
+  ConsumerState<WalletSetupPage> createState() => _WalletSetupPageState();
 }
 
-class _WalletSetupPageState extends State<WalletSetupPage> {
+class _WalletSetupPageState extends ConsumerState<WalletSetupPage> {
   bool _isAgreed = false;
 
   @override
@@ -32,6 +35,7 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final localeCode = ref.watch(settingsProvider).locale.languageCode;
     return AppPage(
       showNav: false,
       child: Stack(
@@ -109,12 +113,30 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          margin: const EdgeInsets.only(top: 16),
-                          child: Image.asset(
-                            'assets/images/wallet/global.png',
-                            width: 24,
-                            height: 24,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _showLanguageSelector(context),
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 16),
+                            padding: const EdgeInsets.all(8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'assets/images/wallet/global.png',
+                                  width: 24,
+                                  height: 24,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  localeCode == 'zh' ? '中文' : 'EN',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.grey900,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -196,6 +218,85 @@ class _WalletSetupPageState extends State<WalletSetupPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLanguageSelector(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final selectedCode = ref.read(settingsProvider).locale.languageCode;
+
+    AppModal.show(
+      context,
+      title: loc.profileLanguageSettingsChangeLanguage,
+      confirmText: null,
+      onConfirm: () {},
+      contentPadding: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildLanguageItem(
+            context: context,
+            code: 'zh',
+            name: '中文',
+            desc: '简体中文',
+            selected: selectedCode == 'zh',
+          ),
+          const Divider(height: 1, color: AppColors.grey100),
+          _buildLanguageItem(
+            context: context,
+            code: 'en',
+            name: 'EN',
+            desc: 'English',
+            selected: selectedCode == 'en',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageItem({
+    required BuildContext context,
+    required String code,
+    required String name,
+    required String desc,
+    required bool selected,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pop();
+        ref.read(settingsProvider.notifier).updateLocale(Locale(code));
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            AppCheckbox(value: selected, isRadio: true, size: 20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.grey900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    desc,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.grey500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -19,8 +19,7 @@ class GroupMemberModel {
       return nickname;
     }
     final itemName = item.name ?? '';
-    if (remark.isNotEmpty) return itemName;
-
+    if (itemName.isNotEmpty) return itemName;
     final userId = item.userId ?? '';
     if (userId.isEmpty) return '';
     return userId.length > 8

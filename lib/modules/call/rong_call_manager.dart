@@ -16,6 +16,9 @@ import '../im/listener/group_state_center.dart';
 import '../im/manager/im_send_manager.dart';
 import '../im/manager/im_engine_manager.dart';
 import '../im/manager/im_user_manager.dart';
+import 'rong_call_invite_update_message.dart';
+import 'rong_call_join_request_message.dart';
+import 'rong_group_call_status_message.dart';
 import 'rong_call_summary_parser.dart';
 
 enum RongCallStatus {
@@ -49,6 +52,8 @@ class RongCallState {
     this.localVideoView,
     this.remoteVideoView,
     this.connectedTimeMs = 0,
+    this.invitedUserIds = const [],
+    this.speakingUserIds = const [],
   });
 
   const RongCallState.idle() : this(status: RongCallStatus.idle);
@@ -72,6 +77,8 @@ class RongCallState {
   final RCCallView? localVideoView;
   final RCCallView? remoteVideoView;
   final int connectedTimeMs;
+  final List<String> invitedUserIds;
+  final List<String> speakingUserIds;
 
   bool get isVideo => mediaType == RCCallMediaType.audio_video;
   bool get isActive =>
@@ -100,6 +107,8 @@ class RongCallState {
     RCCallView? localVideoView,
     RCCallView? remoteVideoView,
     int? connectedTimeMs,
+    List<String>? invitedUserIds,
+    List<String>? speakingUserIds,
   }) {
     return RongCallState(
       status: status ?? this.status,
@@ -121,6 +130,8 @@ class RongCallState {
       localVideoView: localVideoView ?? this.localVideoView,
       remoteVideoView: remoteVideoView ?? this.remoteVideoView,
       connectedTimeMs: connectedTimeMs ?? this.connectedTimeMs,
+      invitedUserIds: invitedUserIds ?? this.invitedUserIds,
+      speakingUserIds: speakingUserIds ?? this.speakingUserIds,
     );
   }
 }
@@ -129,6 +140,9 @@ class RongCallManager {
   RongCallManager._();
   static final RongCallManager _instance = RongCallManager._();
   factory RongCallManager() => _instance;
+
+  static const int _speakingVolumeThreshold = 4;
+  static const int _speakingHoldMs = 1200;
 
   static const MethodChannel _engineChannel = MethodChannel(
     'cn.rongcloud.call.flutter/engine',
@@ -139,15 +153,24 @@ class RongCallManager {
 
   RCCallEngine? _engine;
   RongCallState _state = const RongCallState.idle();
+  StreamSubscription<RongCallInviteUpdate>? _inviteUpdateSub;
+  StreamSubscription<RongCallJoinRequest>? _joinRequestSub;
   Timer? _groupCallSessionRefreshTimer;
   Timer? _singleMemberGroupCallTimer;
+  Timer? _speakingCleanupTimer;
   bool _isInitializing = false;
   bool _nativeCallSummaryDisabled = false;
+  bool _callSummaryMessageRegistered = false;
+  bool _callInviteUpdateMessageRegistered = false;
+  bool _groupCallStatusMessageRegistered = false;
   bool _isRefreshingGroupCallSession = false;
   Future<void>? _videoViewsFuture;
   bool _localVideoViewBound = false;
   bool _remoteVideoViewBound = false;
   final Set<String> _sentSummaryKeys = <String>{};
+  final Map<String, int> _speakingUntilMsByUserId = {};
+  RongGroupCallStatus? _pendingJoinStatus;
+  String _lastGroupCallStatusKey = '';
 
   Stream<RongCallState> get stateStream => _stateController.stream;
   RongCallState get state => _state;
@@ -158,6 +181,12 @@ class RongCallManager {
     try {
       _engine = await RCCallEngine.create();
       _bindListeners();
+      _inviteUpdateSub ??= RongCallInviteUpdateCenter().stream.listen(
+        _handleInviteUpdate,
+      );
+      _joinRequestSub ??= RongCallJoinRequestCenter().stream.listen(
+        _handleJoinRequest,
+      );
       await _disableNativeCallSummary();
       await _engine?.setVideoConfig(
         RCCallVideoConfig.create(
@@ -229,6 +258,7 @@ class RongCallManager {
     required String targetId,
     required String displayName,
     required RCCallMediaType mediaType,
+    List<String>? inviteeUserIds,
   }) async {
     await init();
     if (!IMEngineManager().connection.isConnected) {
@@ -245,8 +275,11 @@ class RongCallManager {
       );
       return false;
     }
-    final members = await _groupCallMembers(targetId);
-    final userIds = members.map((item) => item.userId ?? '').toList();
+    final userIds =
+        inviteeUserIds ??
+        (await _groupCallMembers(
+          targetId,
+        )).map((item) => item.userId ?? '').toList();
     if (userIds.isEmpty) {
       AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
       return false;
@@ -262,6 +295,7 @@ class RongCallManager {
         isOutgoing: true,
         speakerEnabled: mediaType == RCCallMediaType.audio_video,
         cameraEnabled: mediaType == RCCallMediaType.audio_video,
+        invitedUserIds: userIds,
       ),
     );
 
@@ -286,6 +320,7 @@ class RongCallManager {
               _state.isGroupCall || session.callType == RCCallCallType.group,
         ),
       );
+      unawaited(_publishGroupCallStatus(_state, force: true));
       return true;
     } catch (_) {
       _setState(_state.copyWith(status: RongCallStatus.error));
@@ -314,20 +349,263 @@ class RongCallManager {
     return true;
   }
 
+  Future<bool> joinActiveGroupCall(RongGroupCallStatus status) async {
+    return requestJoinActiveGroupCall(status);
+  }
+
+  Future<bool> requestJoinActiveGroupCall(RongGroupCallStatus status) async {
+    await init();
+    if (!status.isActive || status.targetId.isEmpty) return false;
+    if (!IMEngineManager().connection.isConnected) {
+      AppToast.showInfo(AppLocalizations.currentText('call_im_not_connected'));
+      return false;
+    }
+    if (_state.isActive) {
+      if (_state.isGroupCall && _state.targetId == status.targetId) {
+        return true;
+      }
+      AppToast.showInfo(AppLocalizations.currentText('call_in_progress'));
+      return false;
+    }
+    if (!await _ensurePermissions(status.mediaType)) {
+      AppToast.showInfo(
+        AppLocalizations.currentText('call_permission_required'),
+      );
+      return false;
+    }
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final notifyUserIds = status.activeUserIds
+        .where((userId) => userId.isNotEmpty && userId != currentUserId)
+        .toSet()
+        .toList();
+    if (currentUserId == null ||
+        currentUserId.isEmpty ||
+        notifyUserIds.isEmpty) {
+      AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
+      return false;
+    }
+
+    final engine = IMEngineManager().engine;
+    if (engine == null) return false;
+    if (!await _ensureCallJoinRequestMessageRegistered(engine)) return false;
+
+    try {
+      final message = await engine.createNativeCustomMessage(
+        RCIMIWConversationType.group,
+        status.targetId,
+        null,
+        RongCallJoinRequestMessage.objectName,
+        {
+          'targetId': status.targetId,
+          'mediaType': status.mediaType.index,
+          'displayName': status.displayName,
+          'requesterUserId': currentUserId,
+          'sentAt': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+      if (message == null) return false;
+      final completer = Completer<bool>();
+      final ret = await engine.sendGroupMessageToDesignatedUsers(
+        message,
+        notifyUserIds,
+        callback: RCIMIWSendGroupMessageToDesignatedUsersCallback(
+          onMessageSent: (code, _) {
+            if (!completer.isCompleted) {
+              completer.complete(code == 0);
+            }
+          },
+        ),
+      );
+      if (ret != 0) return false;
+      final sent = await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => false,
+      );
+      if (sent) {
+        _pendingJoinStatus = status;
+      }
+      return sent;
+    } catch (e) {
+      debugPrint('send group call join request failed: $e');
+      return false;
+    }
+  }
+
   Future<List<RCIMIWGroupMemberInfo>> _groupCallMembers(String groupId) async {
     final currentUserId = IMEngineManager().currentUserId;
     final members = await GroupStateCenter().getGroupMembers(groupId);
     return members.where((item) => item.userId != currentUserId).toList();
   }
 
+  Future<bool> inviteGroupCallMembers(List<String> userIds) async {
+    await init();
+    final session = _state.session;
+    final targetId = session?.targetId ?? _state.targetId;
+    if (targetId.isEmpty || userIds.isEmpty) return false;
+    if (!_state.isGroupCall || !_state.isActive) {
+      AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
+      return false;
+    }
+
+    try {
+      final nextSession = await _engine?.startCall(
+        targetId,
+        _state.mediaType,
+        _state.displayName,
+        RCCallCallType.group,
+        userIds,
+      );
+      if (nextSession == null) {
+        AppToast.showInfo(AppLocalizations.currentText('chat_invite_failed'));
+        return false;
+      }
+      _setState(
+        _state.copyWith(
+          session: nextSession,
+          invitedUserIds: {..._state.invitedUserIds, ...userIds}.toList(),
+        ),
+      );
+      unawaited(_sendGroupCallInviteUpdate(userIds));
+      unawaited(_publishGroupCallStatus(_state, force: true));
+      return true;
+    } catch (_) {
+      AppToast.showInfo(AppLocalizations.currentText('chat_invite_failed'));
+      return false;
+    }
+  }
+
+  Future<void> _handleInviteUpdate(RongCallInviteUpdate update) async {
+    final currentUserId = IMEngineManager().currentUserId;
+    if (update.senderUserId == currentUserId) return;
+    if (!_state.isGroupCall ||
+        !_state.isActive ||
+        _state.targetId != update.targetId) {
+      return;
+    }
+
+    _setState(
+      _state.copyWith(
+        invitedUserIds: {
+          ..._state.invitedUserIds,
+          ...update.invitedUserIds,
+        }.toList(),
+      ),
+    );
+    unawaited(_publishGroupCallStatus(_state, force: true));
+    await _refreshGroupCallSession();
+  }
+
+  Future<void> _handleJoinRequest(RongCallJoinRequest request) async {
+    final currentUserId = IMEngineManager().currentUserId;
+    if (currentUserId == null ||
+        currentUserId.isEmpty ||
+        request.requesterUserId == currentUserId ||
+        request.targetId != _state.targetId ||
+        !_state.isGroupCall ||
+        _state.status != RongCallStatus.inCall) {
+      return;
+    }
+
+    final status = RongGroupCallStatusCenter().statusFor(request.targetId);
+    final activeUserIds =
+        (status?.activeUserIds.toSet() ??
+                <String>{currentUserId, ..._activeRemoteUserIds()})
+            .where((userId) => userId.isNotEmpty)
+            .toList()
+          ..sort();
+    if (activeUserIds.isEmpty) return;
+
+    final responderUserId =
+        status?.initiatorUserId.isNotEmpty == true &&
+            activeUserIds.contains(status!.initiatorUserId)
+        ? status.initiatorUserId
+        : activeUserIds.first;
+    if (responderUserId != currentUserId) return;
+
+    final alreadyInCall = {
+      currentUserId,
+      ..._activeRemoteUserIds(),
+      ..._state.invitedUserIds,
+    }.contains(request.requesterUserId);
+    if (alreadyInCall) return;
+
+    await inviteGroupCallMembers([request.requesterUserId]);
+  }
+
+  Future<void> _sendGroupCallInviteUpdate(List<String> invitedUserIds) async {
+    final engine = IMEngineManager().engine;
+    final targetId = _state.targetId;
+    if (engine == null || targetId.isEmpty || invitedUserIds.isEmpty) return;
+    if (!await _ensureCallInviteUpdateMessageRegistered(engine)) return;
+
+    final notifyUserIds = _activeRemoteUserIds();
+    if (notifyUserIds.isEmpty) return;
+
+    try {
+      final message = await engine.createNativeCustomMessage(
+        RCIMIWConversationType.group,
+        targetId,
+        null,
+        RongCallInviteUpdateMessage.objectName,
+        {
+          'targetId': targetId,
+          'invitedUserIds': invitedUserIds,
+          'sentAt': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+      if (message == null) return;
+
+      final completer = Completer<bool>();
+      final ret = await engine.sendGroupMessageToDesignatedUsers(
+        message,
+        notifyUserIds,
+        callback: RCIMIWSendGroupMessageToDesignatedUsersCallback(
+          onMessageSent: (code, _) {
+            if (!completer.isCompleted) {
+              completer.complete(code == 0);
+            }
+          },
+        ),
+      );
+      if (ret != 0) return;
+      await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => false,
+      );
+    } catch (e) {
+      debugPrint('send group call invite update failed: $e');
+    }
+  }
+
+  List<String> _activeRemoteUserIds() {
+    final currentUserId = IMEngineManager().currentUserId;
+    final users = _state.session?.users ?? const <RCCallUserProfile>[];
+    return users
+        .where(
+          (user) =>
+              user.userId.isNotEmpty &&
+              user.userId != currentUserId &&
+              (user.mediaId?.isNotEmpty ?? false),
+        )
+        .map((user) => user.userId)
+        .toSet()
+        .toList();
+  }
+
   Future<void> hangup() async {
+    final endingState = _state;
     if (_engine == null) {
+      _clearSpeakingUsers();
       _setState(const RongCallState.idle());
+      unawaited(_publishGroupCallEnded(endingState));
       return;
     }
     await _disableNativeCallSummary();
     await _engine?.hangup();
+    _clearSpeakingUsers();
     _setState(_state.copyWith(status: RongCallStatus.ended));
+    unawaited(_publishGroupCallEnded(endingState));
   }
 
   Future<void> toggleMicrophone() async {
@@ -688,6 +966,7 @@ class RongCallManager {
   }
 
   void markIdle() {
+    _clearSpeakingUsers();
     _setState(const RongCallState.idle());
   }
 
@@ -702,6 +981,7 @@ class RongCallManager {
   }) async {
     final engine = IMEngineManager().engine;
     if (engine == null || targetId.isEmpty) return;
+    if (!await _ensureCallSummaryMessageRegistered(engine)) return;
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final startedAt = durationMs > 0 ? now - durationMs : now;
@@ -760,11 +1040,20 @@ class RongCallManager {
           ? session.targetId
           : (session.caller?.userId ?? session.targetId);
       final displayName = targetId;
+      final pendingJoinStatus = _pendingJoinStatus;
+      final shouldAutoAcceptJoin =
+          isGroupCall &&
+          pendingJoinStatus != null &&
+          pendingJoinStatus.targetId == targetId;
       _setState(
         RongCallState(
-          status: RongCallStatus.incoming,
+          status: shouldAutoAcceptJoin
+              ? RongCallStatus.connecting
+              : RongCallStatus.incoming,
           targetId: targetId,
-          displayName: displayName,
+          displayName: pendingJoinStatus?.displayName.isNotEmpty == true
+              ? pendingJoinStatus!.displayName
+              : displayName,
           inviter: session.inviter?.userId ?? '',
           mediaType: session.mediaType,
           isGroupCall: isGroupCall,
@@ -772,8 +1061,14 @@ class RongCallManager {
           session: session,
           cameraEnabled: session.mediaType == RCCallMediaType.audio_video,
           speakerEnabled: session.mediaType == RCCallMediaType.audio_video,
+          invitedUserIds: pendingJoinStatus?.invitedUserIds ?? const [],
         ),
       );
+      if (shouldAutoAcceptJoin) {
+        _pendingJoinStatus = null;
+        unawaited(accept());
+        return;
+      }
       _openIncomingCallPage(
         displayName: displayName,
         targetId: targetId,
@@ -819,6 +1114,7 @@ class RongCallManager {
         ),
       );
       unawaited(_applyConnectedMediaSettings(engine, _state));
+      unawaited(_publishGroupCallStatus(_state, force: true));
     };
 
     engine.onDisconnect = (reason) {
@@ -827,6 +1123,7 @@ class RongCallManager {
         disconnectReason: reason,
       );
       _setState(endedState);
+      unawaited(_publishGroupCallEnded(endedState));
       unawaited(_sendCallSummaryFallback(endedState, reason));
       AppToast.showInfo(_disconnectText(reason));
     };
@@ -854,6 +1151,61 @@ class RongCallManager {
       _remoteVideoViewBound = false;
       _setState(_state.copyWith(remoteCameraEnabled: enabled));
     };
+
+    engine.onAudioVolume = (user, volume) {
+      _handleAudioVolume(user, volume);
+    };
+  }
+
+  void _handleAudioVolume(RCCallUserProfile user, int volume) {
+    if (!_state.isGroupCall ||
+        _state.status != RongCallStatus.inCall ||
+        user.userId.isEmpty ||
+        !user.enableMicrophone) {
+      return;
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (volume < _speakingVolumeThreshold) {
+      _syncSpeakingUsers(now);
+      return;
+    }
+
+    _speakingUntilMsByUserId[user.userId] = now + _speakingHoldMs;
+    _syncSpeakingUsers(now);
+    _speakingCleanupTimer ??= Timer.periodic(
+      const Duration(milliseconds: 300),
+      (_) => _syncSpeakingUsers(DateTime.now().millisecondsSinceEpoch),
+    );
+  }
+
+  void _syncSpeakingUsers(int now) {
+    _speakingUntilMsByUserId.removeWhere((_, untilMs) => untilMs <= now);
+    final nextUserIds = _speakingUntilMsByUserId.keys.toList(growable: false);
+    if (_sameStringSet(nextUserIds, _state.speakingUserIds)) {
+      if (nextUserIds.isEmpty) {
+        _speakingCleanupTimer?.cancel();
+        _speakingCleanupTimer = null;
+      }
+      return;
+    }
+    _setState(_state.copyWith(speakingUserIds: nextUserIds));
+    if (nextUserIds.isEmpty) {
+      _speakingCleanupTimer?.cancel();
+      _speakingCleanupTimer = null;
+    }
+  }
+
+  bool _sameStringSet(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final values = a.toSet();
+    return b.every(values.contains);
+  }
+
+  void _clearSpeakingUsers() {
+    _speakingCleanupTimer?.cancel();
+    _speakingCleanupTimer = null;
+    _speakingUntilMsByUserId.clear();
   }
 
   void _upsertSessionUser(RCCallUserProfile user) {
@@ -908,6 +1260,7 @@ class RongCallManager {
       }
 
       _setState(_state.copyWith(session: session));
+      unawaited(_publishGroupCallStatus(_state));
     } catch (e) {
       debugPrint('refresh group call session failed: $e');
     } finally {
@@ -1022,6 +1375,7 @@ class RongCallManager {
     final engine = IMEngineManager().engine;
     final targetId = state.targetId;
     if (engine == null || targetId.isEmpty) return;
+    if (!await _ensureCallSummaryMessageRegistered(engine)) return;
 
     final key = _callSummaryKey(state, reason);
     if (!_sentSummaryKeys.add(key)) return;
@@ -1077,6 +1431,182 @@ class RongCallManager {
   bool _shouldSendCallSummaryFallback(RongCallState state) {
     if (state.targetId.isEmpty) return false;
     return _isCurrentUserCallInitiator(state);
+  }
+
+  Future<bool> _ensureCallSummaryMessageRegistered(RCIMIWEngine engine) async {
+    if (_callSummaryMessageRegistered) return true;
+    try {
+      final code = await engine.registerNativeCustomMessage(
+        RongCallSummaryParser.objectName,
+        RCIMIWNativeCustomMessagePersistentFlag.persisted,
+      );
+      if (code == 0) {
+        _callSummaryMessageRegistered = true;
+        return true;
+      }
+      debugPrint('register call summary message failed before send: $code');
+      return false;
+    } catch (e) {
+      debugPrint('register call summary message failed before send: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _ensureCallInviteUpdateMessageRegistered(
+    RCIMIWEngine engine,
+  ) async {
+    if (_callInviteUpdateMessageRegistered) return true;
+    try {
+      final code = await engine.registerNativeCustomMessage(
+        RongCallInviteUpdateMessage.objectName,
+        RCIMIWNativeCustomMessagePersistentFlag.status,
+      );
+      if (code == 0) {
+        _callInviteUpdateMessageRegistered = true;
+        return true;
+      }
+      debugPrint('register call invite update message failed: $code');
+      return false;
+    } catch (e) {
+      debugPrint('register call invite update message failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _ensureCallJoinRequestMessageRegistered(
+    RCIMIWEngine engine,
+  ) async {
+    try {
+      final code = await engine.registerNativeCustomMessage(
+        RongCallJoinRequestMessage.objectName,
+        RCIMIWNativeCustomMessagePersistentFlag.status,
+      );
+      if (code == 0) {
+        return true;
+      }
+      debugPrint('register call join request message failed: $code');
+      return false;
+    } catch (e) {
+      debugPrint('register call join request message failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _ensureGroupCallStatusMessageRegistered(
+    RCIMIWEngine engine,
+  ) async {
+    if (_groupCallStatusMessageRegistered) return true;
+    try {
+      final code = await engine.registerNativeCustomMessage(
+        RongGroupCallStatusMessage.objectName,
+        RCIMIWNativeCustomMessagePersistentFlag.status,
+      );
+      if (code == 0) {
+        _groupCallStatusMessageRegistered = true;
+        return true;
+      }
+      debugPrint('register group call status message failed: $code');
+      return false;
+    } catch (e) {
+      debugPrint('register group call status message failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> _publishGroupCallStatus(
+    RongCallState state, {
+    bool force = false,
+    Iterable<String> extraActiveUserIds = const [],
+  }) async {
+    if (!state.isGroupCall || !state.isActive || state.targetId.isEmpty) return;
+    final engine = IMEngineManager().engine;
+    if (engine == null) return;
+    if (!await _ensureGroupCallStatusMessageRegistered(engine)) return;
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final activeUserIds = {
+      if (currentUserId != null && currentUserId.isNotEmpty) currentUserId,
+      ...extraActiveUserIds.where((userId) => userId.isNotEmpty),
+      ..._activeRemoteUserIds(),
+    }.toList();
+    final sortedActive = [...activeUserIds]..sort();
+    final sortedInvited = state.invitedUserIds.toSet().toList()..sort();
+    final statusKey = [
+      state.targetId,
+      state.mediaType.index,
+      sortedActive.join(','),
+      sortedInvited.join(','),
+    ].join(':');
+    if (!force && statusKey == _lastGroupCallStatusKey) return;
+    _lastGroupCallStatusKey = statusKey;
+
+    final status = RongGroupCallStatus(
+      targetId: state.targetId,
+      action: RongGroupCallStatusAction.active,
+      mediaType: state.mediaType,
+      displayName: state.displayName,
+      initiatorUserId: _callInitiatorUserId(state) ?? currentUserId ?? '',
+      activeUserIds: activeUserIds,
+      invitedUserIds: state.invitedUserIds,
+      sentAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    RongGroupCallStatusCenter().updateLocal(status);
+    await _sendGroupCallStatusMessage(engine, status);
+  }
+
+  Future<void> _publishGroupCallEnded(RongCallState state) async {
+    if (!state.isGroupCall || state.targetId.isEmpty) return;
+    final engine = IMEngineManager().engine;
+    if (engine == null) return;
+    if (!await _ensureGroupCallStatusMessageRegistered(engine)) return;
+    _lastGroupCallStatusKey = '';
+
+    final status = RongGroupCallStatus(
+      targetId: state.targetId,
+      action: RongGroupCallStatusAction.ended,
+      mediaType: state.mediaType,
+      displayName: state.displayName,
+      initiatorUserId:
+          _callInitiatorUserId(state) ?? IMEngineManager().currentUserId ?? '',
+      activeUserIds: const [],
+      invitedUserIds: state.invitedUserIds,
+      sentAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    RongGroupCallStatusCenter().updateLocal(status);
+    await _sendGroupCallStatusMessage(engine, status);
+  }
+
+  Future<void> _sendGroupCallStatusMessage(
+    RCIMIWEngine engine,
+    RongGroupCallStatus status,
+  ) async {
+    try {
+      final message = await engine.createNativeCustomMessage(
+        RCIMIWConversationType.group,
+        status.targetId,
+        null,
+        RongGroupCallStatusMessage.objectName,
+        {
+          'targetId': status.targetId,
+          'action': status.action == RongGroupCallStatusAction.ended
+              ? 'ended'
+              : 'active',
+          'mediaType': status.mediaType.index,
+          'displayName': status.displayName,
+          'initiatorUserId': status.initiatorUserId,
+          'activeUserIds': status.activeUserIds,
+          'invitedUserIds': status.invitedUserIds,
+          'sentAt': status.sentAt,
+        },
+      );
+      if (message == null) return;
+      await ImSendManager.instance.sendMessage(
+        message,
+        pushSavedMessage: false,
+      );
+    } catch (e) {
+      debugPrint('send group call status failed: $e');
+    }
   }
 
   bool _isCurrentUserCallInitiator(RongCallState state) {
@@ -1217,6 +1747,11 @@ class RongCallManager {
   }
 
   void _setState(RongCallState state) {
+    if (state.status != RongCallStatus.inCall &&
+        state.speakingUserIds.isNotEmpty) {
+      _clearSpeakingUsers();
+      state = state.copyWith(speakingUserIds: const []);
+    }
     _state = state;
     _syncGroupCallSessionRefresh(_state);
     _stateController.add(_state);

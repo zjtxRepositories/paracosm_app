@@ -290,7 +290,7 @@ class ChatDetailMessageMapper {
         extra: message,
       );
     }
-
+    print('message----${message.messageType}');
     return ChatDetailMessage(
       messageId: messageKey,
       kind: ChatDetailMessageKind.text,

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../../call/rong_call_invite_update_message.dart';
+import '../../call/rong_call_join_request_message.dart';
+import '../../call/rong_group_call_status_message.dart';
 import '../../call/rong_call_summary_parser.dart';
 import '../message/custom_message_identity.dart';
 import '../result/im_result.dart';
@@ -194,6 +197,16 @@ class ImMessageManager {
 
     if (_isRecallMessage(message)) {
       onMessageRecalled(message);
+      return;
+    }
+
+    if (RongCallInviteUpdateCenter().notifyIfCallInviteUpdate(message)) {
+      return;
+    }
+    if (RongCallJoinRequestCenter().notifyIfCallJoinRequest(message)) {
+      return;
+    }
+    if (RongGroupCallStatusCenter().notifyIfGroupCallStatus(message)) {
       return;
     }
 

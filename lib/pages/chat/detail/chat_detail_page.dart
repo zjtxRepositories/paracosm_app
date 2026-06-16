@@ -104,6 +104,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               return Column(
                 children: [
                   if (controller.shouldShowGroupNotice) _buildGroupNoticeBar(),
+                  if (controller.shouldShowGroupCallBanner)
+                    _buildGroupCallBanner(),
                   Expanded(child: _buildMessageList()),
                   if (_isSelectingMessages)
                     _buildSelectionActionBar()
@@ -232,6 +234,52 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             color: AppColors.grey900,
             fontSize: 15,
             height: 1.45,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupCallBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(controller.openActiveGroupCall()),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/images/chat/call/call-status.png',
+                width: 20,
+                height: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  controller.groupCallBannerText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.grey900,
+                    fontSize: 14,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_right,
+                size: 22,
+                color: AppColors.grey500,
+              ),
+            ],
           ),
         ),
       ),

@@ -97,7 +97,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   Future<void> _getGroupMembers() async {
-    final sessionUsers = _callState.session?.users ?? [];
+    final sessionUsers = _callUsersWithInvitedPlaceholders();
     final activeUserIds = sessionUsers
         .where(_isActiveRemoteParticipant)
         .map((user) => user.userId)
@@ -105,13 +105,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     if (_isInCall) {
       _joinedParticipantUserIds.addAll(activeUserIds);
     }
-    final users = _isInCall
-        ? sessionUsers
-              .where(
-                (user) => _shouldShowParticipantInStrip(user, activeUserIds),
-              )
-              .toList()
-        : sessionUsers;
+    final users = _sortCallUsersByJoinState(
+      _isInCall
+          ? sessionUsers
+                .where(
+                  (user) => _shouldShowParticipantInStrip(user, activeUserIds),
+                )
+                .toList()
+          : sessionUsers,
+      activeUserIds,
+    );
     final models = <UserDisplayModel>[];
     for (final user in users) {
       final model = await UserDisplayStateCenter().getUser(user.userId);
@@ -132,6 +135,30 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         });
       }
     }
+  }
+
+  List<RCCallUserProfile> _callUsersWithInvitedPlaceholders() {
+    final users = [...?_callState.session?.users];
+    final existingUserIds = users.map((user) => user.userId).toSet();
+    final currentUserId = _callState.session?.mine.userId;
+    for (final userId in _callState.invitedUserIds) {
+      if (userId.isEmpty ||
+          userId == currentUserId ||
+          existingUserIds.contains(userId)) {
+        continue;
+      }
+      users.add(
+        RCCallUserProfile.fromJson({
+          'userType': 0,
+          'mediaType': _callState.mediaType.index,
+          'userId': userId,
+          'mediaId': '',
+          'enableCamera': false,
+          'enableMicrophone': false,
+        }),
+      );
+    }
+    return users;
   }
 
   bool _isActiveRemoteParticipant(RCCallUserProfile user) {
@@ -159,6 +186,20 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       }
     }
     return null;
+  }
+
+  List<RCCallUserProfile> _sortCallUsersByJoinState(
+    List<RCCallUserProfile> users,
+    Set<String> activeUserIds,
+  ) {
+    final indexedUsers = users.asMap().entries.toList();
+    indexedUsers.sort((a, b) {
+      final aJoined = activeUserIds.contains(a.value.userId);
+      final bJoined = activeUserIds.contains(b.value.userId);
+      if (aJoined != bJoined) return aJoined ? -1 : 1;
+      return a.key.compareTo(b.key);
+    });
+    return indexedUsers.map((entry) => entry.value).toList();
   }
 
   @override
@@ -1172,9 +1213,7 @@ class _GroupParticipantTileState extends State<_GroupParticipantTile> {
           ),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: SizedBox.expand(
-              child: widget.videoView ?? SizedBox(),
-            ),
+            child: SizedBox.expand(child: widget.videoView ?? SizedBox()),
           ),
           if (widget.isInCall)
             Positioned(

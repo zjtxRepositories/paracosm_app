@@ -147,6 +147,8 @@ class ImSendManager {
     T callbackMessage,
     RCIMIWMessage originalMessage,
   ) {
+    callbackMessage.conversationType ??= originalMessage.conversationType;
+    callbackMessage.targetId ??= originalMessage.targetId;
     callbackMessage.sentTime = originalMessage.sentTime;
     callbackMessage.senderUserId ??= originalMessage.senderUserId;
     callbackMessage.channelId ??= originalMessage.channelId;

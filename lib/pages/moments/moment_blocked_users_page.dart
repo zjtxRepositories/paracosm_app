@@ -38,7 +38,9 @@ class _MomentBlockedUsersPageState extends State<MomentBlockedUsersPage> {
     try {
       final records =
           await SocialCircleUserApi.getSocialCircleUserBlockRecords();
-      if (!mounted) return;
+      // if (!mounted) return;
+
+      print("Loaded blocked users: ${records.length}");
       setState(() {
         _items
           ..clear()

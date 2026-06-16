@@ -561,11 +561,11 @@ class ImConversationManager {
     /// =========================
     /// insert
     /// =========================
-    final conv = await getConversation(type: type, targetId: targetId);
+    final conv =
+        await getConversation(type: type, targetId: targetId) ??
+        _conversationFromMessage(msg, type: type, targetId: targetId);
 
-    if (conv == null ||
-        !_acceptRealtimeUpdates ||
-        eventDataVersion != _dataVersion) {
+    if (!_acceptRealtimeUpdates || eventDataVersion != _dataVersion) {
       return;
     }
 
@@ -592,6 +592,26 @@ class ImConversationManager {
     _emitChange(ConversationChangeType.insert, key, conversation: conv);
 
     _notify();
+  }
+
+  RCIMIWConversation _conversationFromMessage(
+    RCIMIWMessage message, {
+    required RCIMIWConversationType type,
+    required String targetId,
+  }) {
+    final conversation = RCIMIWConversation.create();
+    final sentTime = message.sentTime ?? message.receivedTime ?? 0;
+    conversation.conversationType = type;
+    conversation.targetId = targetId;
+    conversation.channelId = message.channelId;
+    conversation.lastMessage = message;
+    conversation.operationTime = sentTime;
+    conversation.unreadCount =
+        message.senderUserId != IMEngineManager().currentUserId &&
+            _shouldCountUnread(message)
+        ? 1
+        : 0;
+    return conversation;
   }
 
   bool _shouldCountUnread(RCIMIWMessage message) {

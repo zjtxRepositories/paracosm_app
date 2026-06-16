@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/group_info_update_builder.dart';
 import 'package:paracosm/modules/im/group_ban_state.dart';
 import 'package:paracosm/modules/im/group_permission_policy.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
@@ -276,20 +277,26 @@ class GroupDetailsController extends ChangeNotifier {
 
   Future<void> updateGroupInfo({String? notice, String? introduction}) async {
     if (!_ensurePermission(permission.canEditGroupInfo)) return;
-    final groupInfo = group?.info;
-    if (groupInfo == null) return;
-    if (notice != null) {
-      groupInfo.notice = notice;
-    }
-    if (introduction != null) {
-      groupInfo.introduction = introduction;
-    }
+    final currentGroupInfo = group?.info;
+    if (currentGroupInfo == null) return;
+    final groupInfo = GroupInfoUpdateBuilder.build(
+      groupId: currentGroupInfo.groupId ?? '',
+      groupName: currentGroupInfo.groupName ?? '',
+      portraitUri: currentGroupInfo.portraitUri,
+      introduction: introduction ?? currentGroupInfo.introduction,
+      notice: notice ?? currentGroupInfo.notice,
+      extProfile: currentGroupInfo.extProfile,
+    );
     group?.setNoticeViewed(false);
     final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
     if (!isOk) {
       AppToast.show(AppLocalizations.currentText('common_update_failed'));
       return;
     }
+    GroupInfoUpdateBuilder.applyToLocal(
+      target: currentGroupInfo,
+      update: groupInfo,
+    );
     notifyListeners();
   }
 

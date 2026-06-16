@@ -247,9 +247,15 @@ extension AppLocalizationsKeys on AppLocalizations {
 
   // --- 聊天组信息 ---
   String get chatGroupInfoTitle => translate('chat_group_info_title');
+  String get chatGroupInfoAvatar => translate('chat_group_info_avatar');
   String get chatGroupInfoName => translate('chat_group_info_name');
-  String get chatGroupInfoNote => translate('chat_group_info_note');
-  String get chatGroupInfoHint => translate('chat_group_info_hint');
+  String get chatGroupInfoIntro => translate('chat_group_info_intro');
+  String get chatGroupInfoIntroHint => translate('chat_group_info_intro_hint');
+  String get chatGroupInfoNotice => translate('chat_group_info_notice');
+  String get chatGroupInfoNoticeHint =>
+      translate('chat_group_info_notice_hint');
+  String get chatGroupInfoNameRequired =>
+      translate('chat_group_info_name_required');
 
   // --- 会话详情 ---
   String get sessionDetailsTitle => translate('session_details_title');

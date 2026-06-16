@@ -1,14 +1,20 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/upload_file_api.dart';
+import 'package:paracosm/modules/im/group_info_update_builder.dart';
 import 'package:paracosm/modules/im/group_permission_policy.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/util/media_handle_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
+import 'package:paracosm/widgets/common/image_picker_sheet.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/custom_message_model.dart';
@@ -38,10 +44,12 @@ class GroupInformationPage extends StatefulWidget {
 
 class _GroupInformationPageState extends State<GroupInformationPage> {
   late TextEditingController _nameController;
-  late TextEditingController _noteController;
+  late TextEditingController _introductionController;
+  late TextEditingController _noticeController;
 
   late GroupModel _group;
   String _groupName = '';
+  String? _pickedAvatarPath;
   late bool _isJoined;
   late List<RCIMIWGroupMemberInfo> _qrMembers;
 
@@ -60,7 +68,10 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
     _nameController = TextEditingController(text: widget.group.displayName);
 
-    _noteController = TextEditingController(text: widget.group.info.notice);
+    _introductionController = TextEditingController(
+      text: widget.group.info.introduction,
+    );
+    _noticeController = TextEditingController(text: widget.group.info.notice);
 
     getGroup();
   }
@@ -81,8 +92,8 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     }
     if (_canEditGroupInfo) {
       _nameController.text = _group.displayName ?? '';
-
-      _noteController.text = _group.info.notice ?? '';
+      _introductionController.text = _group.info.introduction ?? '';
+      _noticeController.text = _group.info.notice ?? '';
     } else if (!_isJoined) {
       _groupName = _group.displayName ?? _group.info.groupName ?? '';
       if (_groupName.isEmpty || _groupName == '[默认]') {
@@ -137,8 +148,18 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _noteController.dispose();
+    _introductionController.dispose();
+    _noticeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickGroupAvatar() async {
+    if (!_canEditGroupInfo) return;
+    final path = await ImagePickerSheet.show(context);
+    if (path == null || path.isEmpty || !mounted) return;
+    setState(() {
+      _pickedAvatarPath = path;
+    });
   }
 
   Future<void> updateGroupInfo() async {
@@ -148,35 +169,63 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     }
     final updateFailedText = AppLocalizations.of(context)!.commonUpdateFailed;
     final updateSuccessText = AppLocalizations.of(context)!.commonUpdateSuccess;
+    final uploadFailedText = AppLocalizations.of(context)!.commonUploadFailed;
+    final groupName = _nameController.text.trim();
+    if (groupName.isEmpty) {
+      AppToast.show(AppLocalizations.of(context)!.chatGroupInfoNameRequired);
+      return;
+    }
 
     FocusScope.of(context).unfocus();
 
     AppLoading.show();
 
-    final groupInfo = _group.info;
+    try {
+      final currentGroupInfo = _group.info;
+      var portraitUri = currentGroupInfo.portraitUri;
+      final pickedAvatarPath = _pickedAvatarPath;
+      if (pickedAvatarPath != null && pickedAvatarPath.isNotEmpty) {
+        final compressed = await MediaHandleUtil.compressedImageQuality(
+          pickedAvatarPath,
+        );
+        final url = await UploadFileApi.uploadFileByPath(compressed);
+        if (url == null || url.isEmpty) {
+          AppToast.show(uploadFailedText);
+          return;
+        }
+        portraitUri = url;
+      }
 
-    if (_nameController.text.trim().isNotEmpty) {
-      groupInfo.groupName = _nameController.text.trim();
+      final groupInfo = GroupInfoUpdateBuilder.build(
+        groupId: currentGroupInfo.groupId ?? '',
+        groupName: groupName,
+        portraitUri: portraitUri,
+        introduction: _introductionController.text.trim(),
+        notice: _noticeController.text.trim(),
+        extProfile: currentGroupInfo.extProfile,
+      );
+
+      final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
+
+      if (!mounted) return;
+
+      if (!isOk) {
+        AppToast.show(updateFailedText);
+        return;
+      }
+
+      GroupInfoUpdateBuilder.applyToLocal(
+        target: currentGroupInfo,
+        update: groupInfo,
+      );
+      _group = GroupModel(info: currentGroupInfo);
+      _pickedAvatarPath = null;
+
+      AppToast.show(updateSuccessText);
+      context.pop();
+    } finally {
+      AppLoading.dismiss();
     }
-
-    if (_noteController.text.trim().isNotEmpty) {
-      groupInfo.notice = _noteController.text.trim();
-    }
-
-    final isOk = await ImGroupManager().updateGroupInfo(groupInfo);
-
-    AppLoading.dismiss();
-
-    if (!mounted) return;
-
-    if (!isOk) {
-      AppToast.show(updateFailedText);
-      return;
-    }
-
-    AppToast.show(updateSuccessText);
-
-    context.pop();
   }
 
   @override
@@ -255,7 +304,21 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                         // 群头像预览 (叠加在内容区上方)
                         Transform.translate(
                           offset: const Offset(0, -60),
-                          child: _buildGroupAvatar(),
+                          child: Center(child: _buildGroupAvatar()),
+                        ),
+
+                        Transform.translate(
+                          offset: const Offset(0, -40),
+                          child: Center(
+                            child: Text(
+                              AppLocalizations.of(context)!.chatGroupInfoAvatar,
+                              style: AppTextStyles.caption.copyWith(
+                                color: _canEditGroupInfo
+                                    ? AppColors.grey600
+                                    : AppColors.grey400,
+                              ),
+                            ),
+                          ),
                         ),
 
                         // Group name
@@ -305,9 +368,9 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
                         const SizedBox(height: 24),
 
-                        // Group note
+                        // Group introduction
                         Text(
-                          AppLocalizations.of(context)!.chatGroupInfoNote,
+                          AppLocalizations.of(context)!.chatGroupInfoIntro,
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.grey600,
                             fontSize: 14,
@@ -326,13 +389,13 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     TextField(
-                                      controller: _noteController,
+                                      controller: _introductionController,
                                       maxLines: 5,
                                       maxLength: 80,
                                       decoration: InputDecoration(
                                         hintText: AppLocalizations.of(
                                           context,
-                                        )!.chatGroupInfoHint,
+                                        )!.chatGroupInfoIntroHint,
                                         hintStyle: AppTextStyles.body.copyWith(
                                           color: AppColors.grey400,
                                         ),
@@ -346,7 +409,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                                       ),
                                     ),
                                     Text(
-                                      '${_noteController.text.length}/80',
+                                      '${_introductionController.text.length}/80',
                                       style: AppTextStyles.caption.copyWith(
                                         color: AppColors.grey400,
                                       ),
@@ -355,7 +418,65 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                                 ),
                               )
                             : Text(
-                                _group.info.notice ?? '-',
+                                _emptyText(_group.info.introduction),
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.grey900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+
+                        const SizedBox(height: 24),
+
+                        // Group notice
+                        Text(
+                          AppLocalizations.of(context)!.chatGroupInfoNotice,
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.grey600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _canEditGroupInfo
+                            ? Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.grey200),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    TextField(
+                                      controller: _noticeController,
+                                      maxLines: 5,
+                                      maxLength: 200,
+                                      decoration: InputDecoration(
+                                        hintText: AppLocalizations.of(
+                                          context,
+                                        )!.chatGroupInfoNoticeHint,
+                                        hintStyle: AppTextStyles.body.copyWith(
+                                          color: AppColors.grey400,
+                                        ),
+                                        border: InputBorder.none,
+                                        counterText: '',
+                                      ),
+                                      onChanged: (val) => setState(() {}),
+                                      style: AppTextStyles.body.copyWith(
+                                        color: AppColors.grey900,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${_noticeController.text.length}/200',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.grey400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Text(
+                                _emptyText(_group.info.notice),
                                 style: AppTextStyles.body.copyWith(
                                   color: AppColors.grey900,
                                   fontWeight: FontWeight.w500,
@@ -393,11 +514,61 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   }
 
   Widget _buildGroupAvatar() {
-    return GroupAvatarWidget(
-      groupId: _group.info.groupId ?? '',
-      size: 80,
-      portraitUri: _group.info.portraitUri,
-      initialMembers: _qrMembers,
+    final pickedAvatarPath = _pickedAvatarPath;
+    final avatar = pickedAvatarPath == null || pickedAvatarPath.isEmpty
+        ? GroupAvatarWidget(
+            groupId: _group.info.groupId ?? '',
+            size: 80,
+            portraitUri: _group.info.portraitUri,
+            initialMembers: _qrMembers,
+          )
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              File(pickedAvatarPath),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => GroupAvatarWidget(
+                groupId: _group.info.groupId ?? '',
+                size: 80,
+                portraitUri: _group.info.portraitUri,
+                initialMembers: _qrMembers,
+              ),
+            ),
+          );
+
+    return GestureDetector(
+      onTap: _canEditGroupInfo ? _pickGroupAvatar : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          avatar,
+          if (_canEditGroupInfo)
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.photo_camera_outlined,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  String _emptyText(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty ? '-' : text;
   }
 }

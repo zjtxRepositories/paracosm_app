@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../modules/account/manager/account_manager.dart';
 import '../../../modules/wallet/chains/evm/evm_facade.dart';
@@ -109,15 +110,24 @@ class RongGetTokenApi {
     final businessToken = _businessToken();
 
     try {
+      final requestBody = await _requestBody(
+        userId: userId,
+        name: name,
+        portraitUri: portraitUri,
+        timestamp: timestamp,
+        nonce: nonce,
+      );
+      debugPrint(
+        'RongGetTokenApi request: url=$_baseUrl$_path, '
+        'params=${{...requestBody, 'signature': _mask(requestBody['signature']?.toString()), 'hasBusinessToken': businessToken?.isNotEmpty == true}}',
+      );
+      debugPrint(
+        'RongGetTokenApi request: url=$_baseUrl$_path, '
+            'params=${{...requestBody, 'signature': _mask(requestBody['signature']?.toString()), 'hasBusinessToken': businessToken?.isNotEmpty == true}}',
+      );
       final response = await _dio.post(
         _path,
-        data: await _requestBody(
-          userId: userId,
-          name: name,
-          portraitUri: portraitUri,
-          timestamp: timestamp,
-          nonce: nonce,
-        ),
+        data: requestBody,
         options: Options(
           contentType: Headers.jsonContentType,
           headers: {
@@ -144,13 +154,13 @@ class RongGetTokenApi {
         'Invalid response: http=${response.statusCode}, data=$data',
       );
     } on DioException catch (e) {
-      print(
+      debugPrint(
         '❌ RongGetTokenApi error: $e, '
         'status=${e.response?.statusCode}, data=${e.response?.data}',
       );
       return null;
     } catch (e) {
-      print('❌ RongGetTokenApi error: $e');
+      debugPrint('❌ RongGetTokenApi error: $e');
       return null;
     }
   }
@@ -184,6 +194,12 @@ class RongGetTokenApi {
         data['message']?.toString() ??
         data['msg']?.toString() ??
         data['error']?.toString();
+  }
+
+  static String _mask(String? value) {
+    if (value == null || value.isEmpty) return '';
+    if (value.length <= 12) return '***';
+    return '${value.substring(0, 6)}...${value.substring(value.length - 6)}';
   }
 
   static void setHttpClientAdapterForTesting(HttpClientAdapter adapter) {

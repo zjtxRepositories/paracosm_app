@@ -86,12 +86,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> fetchData({bool forceRefresh = false}) async {
     final version = ++_fetchVersion;
+    final isSelf = IMEngineManager().currentUserId == widget.userId;
 
-    _isSelf = IMEngineManager().currentUserId == widget.userId;
+    final cachedUser = UserDisplayStateCenter().getCached(widget.userId);
+    final displayUser = cachedUser ?? UserDisplayModel.empty(widget.userId);
 
-    final user = await UserDisplayStateCenter().getUser(
+    if (!mounted || version != _fetchVersion) return;
+
+    setState(() {
+      _isSelf = isSelf;
+      _user = displayUser;
+      _isFriend = displayUser.isFriend;
+    });
+
+    var user = await UserDisplayStateCenter().getUser(
       widget.userId,
-      forceRefresh: forceRefresh,
+      forceRefresh: forceRefresh || cachedUser != null,
     );
 
     if (!mounted) return;
@@ -99,11 +109,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
     /// 已有更新请求
     if (version != _fetchVersion) return;
 
-    if (user == null) return;
+    user ??= UserDisplayModel.empty(widget.userId);
 
     setState(() {
       _user = user;
-      _isFriend = user.isFriend;
+      _isFriend = user!.isFriend;
     });
   }
 

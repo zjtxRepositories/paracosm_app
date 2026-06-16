@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:paracosm/core/models/custom_message_model.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
@@ -537,7 +538,7 @@ class ImConversationManager {
 
       if (msg.senderUserId != IMEngineManager().currentUserId &&
           event.type == MessageEventType.add &&
-          event.message?.messageType != RCIMIWMessageType.nativeCustom) {
+          _shouldCountUnread(msg)) {
         old.unreadCount =
             (old.unreadCount ?? 0) +
             (!(event.message?.receivedStatusInfo?.read ?? false) ? 1 : 0);
@@ -591,6 +592,27 @@ class ImConversationManager {
     _emitChange(ConversationChangeType.insert, key, conversation: conv);
 
     _notify();
+  }
+
+  bool _shouldCountUnread(RCIMIWMessage message) {
+    if (message.messageType == RCIMIWMessageType.nativeCustom) {
+      return false;
+    }
+
+    if (message.messageType != RCIMIWMessageType.custom) {
+      return true;
+    }
+
+    final customMessage = RCIMIWCustomMessage.fromJson(message.toJson());
+    final fields = customMessage.fields;
+    if (fields == null) {
+      return true;
+    }
+
+    final model = CustomMessageModel.fromJson(
+      Map<String, dynamic>.from(fields),
+    );
+    return !model.isNotification;
   }
 
   /// =========================

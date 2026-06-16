@@ -90,6 +90,30 @@ class CustomMessageModel {
     this.mediaType,
   });
 
+  bool get isNotification {
+    switch (type) {
+      case CustomMessageType.friendAdd:
+      case CustomMessageType.groupInvited:
+      case CustomMessageType.groupJoined:
+      case CustomMessageType.systemNotice:
+      case CustomMessageType.createDao:
+      case CustomMessageType.createClub:
+      case CustomMessageType.recall:
+      case CustomMessageType.transfer:
+      case CustomMessageType.quitGroup:
+      case CustomMessageType.groupRemoved:
+      case CustomMessageType.groupManagerSet:
+      case CustomMessageType.groupDisbanded:
+      case CustomMessageType.groupBanEnabled:
+      case CustomMessageType.groupBanDisabled:
+        return true;
+      case CustomMessageType.customFace:
+      case CustomMessageType.momentPost:
+      case CustomMessageType.unknown:
+        return false;
+    }
+  }
+
   /// =========================
   /// fromJson
   /// =========================
@@ -99,7 +123,7 @@ class CustomMessageModel {
       fromUserId: json['fromUserId'] ?? '',
       toUserId: json['toUserId'] ?? '',
       content: json['content'] ?? '',
-      userIds: (json['userIds'] as List?)?.map((e) => e.toString()).toList(),
+      userIds: _parseUserIds(json['userIds']),
       facePackId: json['facePackId']?.toString(),
       faceName: json['faceName']?.toString(),
       noteId: json['noteId']?.toString(),
@@ -199,4 +223,18 @@ class CustomMessageModel {
         return 'unknown';
     }
   }
+}
+
+List<String>? _parseUserIds(dynamic value) {
+  if (value == null) return null;
+
+  if (value is List) {
+    return value.map((e) => e.toString()).toList();
+  }
+
+  if (value is String) {
+    return [value];
+  }
+
+  return null;
 }

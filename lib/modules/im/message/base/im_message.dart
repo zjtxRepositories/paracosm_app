@@ -67,7 +67,9 @@ class CustomMessage extends ImMessage {
       conversationType,
       targetId,
       channelId,
-      RCIMIWCustomMessagePolicy.normal,
+      model.isNotification
+          ? RCIMIWCustomMessagePolicy.storage
+          : RCIMIWCustomMessagePolicy.normal,
       messageID,
       model.toJson(),
     );

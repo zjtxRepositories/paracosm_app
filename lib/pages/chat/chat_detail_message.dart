@@ -14,6 +14,7 @@ enum ChatDetailMessageKind {
   customFace,
   momentPost,
   fm,
+  unknown,
 }
 
 enum MediaSendStatus { sent, sending, failed }

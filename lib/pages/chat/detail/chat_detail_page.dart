@@ -859,6 +859,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               _showContextMenu(context, d.globalPosition, message),
           child: _buildCenterTextMessage(message),
         );
+      case ChatDetailMessageKind.unknown:
+        return SizedBox();
       default:
         return ChatMessageItem(
           isMe: message.isMe,

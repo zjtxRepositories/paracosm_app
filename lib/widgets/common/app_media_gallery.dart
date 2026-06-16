@@ -119,16 +119,16 @@ class _AppMediaGalleryState extends State<AppMediaGallery> {
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
               child: Container(
-                width: 90,
-                height: 90,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 child: Icon(
                   controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                  size: 50,
+                  size: 34,
                   color: Colors.white,
                 ),
               ),

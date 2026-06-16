@@ -26,14 +26,28 @@ class SocialCircleUserApi {
   ) {
     if (data is! List) return [];
     return data
-        .whereType<Map>()
-        .map(
-          (item) => SocialCircleBlockedUserModel.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
+        .map(_parseBlockedUserItem)
+        .whereType<SocialCircleBlockedUserModel>()
         .where((item) => item.blockUserId.isNotEmpty)
         .toList();
+  }
+
+  static SocialCircleBlockedUserModel? _parseBlockedUserItem(dynamic item) {
+    if (item is String) {
+      final blockUserId = SocialWalletAddress.normalize(item);
+      if (blockUserId.isEmpty) return null;
+      return SocialCircleBlockedUserModel(
+        userId: '',
+        blockUserId: blockUserId,
+        timestamp: 0,
+      );
+    }
+    if (item is Map) {
+      return SocialCircleBlockedUserModel.fromJson(
+        Map<String, dynamic>.from(item),
+      );
+    }
+    return null;
   }
 
   static List<SocialCircleRelationModel> _parseRelationList(dynamic data) {

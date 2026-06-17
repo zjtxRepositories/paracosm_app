@@ -7,11 +7,21 @@ class RongCallInviteUpdate {
     required this.targetId,
     required this.invitedUserIds,
     required this.senderUserId,
+    required this.mediaTypeIndex,
+    required this.displayName,
+    required this.initiatorUserId,
+    required this.activeUserIds,
+    required this.sentAt,
   });
 
   final String targetId;
   final List<String> invitedUserIds;
   final String senderUserId;
+  final int mediaTypeIndex;
+  final String displayName;
+  final String initiatorUserId;
+  final List<String> activeUserIds;
+  final int sentAt;
 }
 
 class RongCallInviteUpdateMessage {
@@ -41,7 +51,24 @@ class RongCallInviteUpdateMessage {
       targetId: targetId,
       invitedUserIds: invitedUserIds,
       senderUserId: (message.senderUserId ?? '').trim(),
+      mediaTypeIndex: _readInt(data['mediaType']) ?? 0,
+      displayName: (data['displayName'] ?? '').toString().trim(),
+      initiatorUserId: (data['initiatorUserId'] ?? message.senderUserId ?? '')
+          .toString()
+          .trim(),
+      activeUserIds: _readStringList(data['activeUserIds']),
+      sentAt:
+          _readInt(data['sentAt']) ??
+          message.sentTime ??
+          message.receivedTime ??
+          DateTime.now().millisecondsSinceEpoch,
     );
+  }
+
+  static int? _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 
   static List<String> _readStringList(dynamic value) {

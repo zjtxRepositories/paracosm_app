@@ -176,17 +176,16 @@ class RongCallManager {
   RongCallState get state => _state;
 
   Future<void> init() async {
-    if (_engine != null || _isInitializing) return;
+    if (_engine != null) {
+      _ensureCallMessageSubscriptions();
+      return;
+    }
+    if (_isInitializing) return;
     _isInitializing = true;
     try {
       _engine = await RCCallEngine.create();
       _bindListeners();
-      _inviteUpdateSub ??= RongCallInviteUpdateCenter().stream.listen(
-        _handleInviteUpdate,
-      );
-      _joinRequestSub ??= RongCallJoinRequestCenter().stream.listen(
-        _handleJoinRequest,
-      );
+      _ensureCallMessageSubscriptions();
       await _disableNativeCallSummary();
       await _engine?.setVideoConfig(
         RCCallVideoConfig.create(
@@ -196,6 +195,15 @@ class RongCallManager {
     } finally {
       _isInitializing = false;
     }
+  }
+
+  void _ensureCallMessageSubscriptions() {
+    _inviteUpdateSub ??= RongCallInviteUpdateCenter().stream.listen(
+      _handleInviteUpdate,
+    );
+    _joinRequestSub ??= RongCallJoinRequestCenter().stream.listen(
+      _handleJoinRequest,
+    );
   }
 
   Future<bool> startPrivateCall({
@@ -362,10 +370,13 @@ class RongCallManager {
     }
     if (_state.isActive) {
       if (_state.isGroupCall && _state.targetId == status.targetId) {
-        return true;
+        final isSyntheticIncomingInvite =
+            _state.status == RongCallStatus.incoming && _state.session == null;
+        if (!isSyntheticIncomingInvite) return true;
+      } else {
+        AppToast.showInfo(AppLocalizations.currentText('call_in_progress'));
+        return false;
       }
-      AppToast.showInfo(AppLocalizations.currentText('call_in_progress'));
-      return false;
     }
     if (!await _ensurePermissions(status.mediaType)) {
       AppToast.showInfo(
@@ -478,6 +489,12 @@ class RongCallManager {
   Future<void> _handleInviteUpdate(RongCallInviteUpdate update) async {
     final currentUserId = IMEngineManager().currentUserId;
     if (update.senderUserId == currentUserId) return;
+    if (currentUserId != null &&
+        update.invitedUserIds.contains(currentUserId) &&
+        !_state.isActive) {
+      _handleIncomingGroupCallInviteUpdate(update);
+      return;
+    }
     if (!_state.isGroupCall ||
         !_state.isActive ||
         _state.targetId != update.targetId) {
@@ -496,6 +513,55 @@ class RongCallManager {
     await _refreshGroupCallSession();
   }
 
+  void _handleIncomingGroupCallInviteUpdate(RongCallInviteUpdate update) {
+    final mediaType = update.mediaTypeIndex == RCCallMediaType.audio_video.index
+        ? RCCallMediaType.audio_video
+        : RCCallMediaType.audio;
+    final activeUserIds = {
+      ...update.activeUserIds,
+      if (update.senderUserId.isNotEmpty) update.senderUserId,
+    }.where((userId) => userId.isNotEmpty).toList();
+    final status = RongGroupCallStatus(
+      targetId: update.targetId,
+      action: RongGroupCallStatusAction.active,
+      mediaType: mediaType,
+      displayName: update.displayName,
+      initiatorUserId: update.initiatorUserId.isNotEmpty
+          ? update.initiatorUserId
+          : update.senderUserId,
+      activeUserIds: activeUserIds,
+      invitedUserIds: update.invitedUserIds,
+      sentAt: update.sentAt,
+    );
+    RongGroupCallStatusCenter().updateLocal(status);
+    _setState(
+      RongCallState(
+        status: RongCallStatus.incoming,
+        targetId: update.targetId,
+        displayName: update.displayName.isNotEmpty
+            ? update.displayName
+            : update.targetId,
+        inviter: update.senderUserId,
+        mediaType: mediaType,
+        isGroupCall: true,
+        isOutgoing: false,
+        session: null,
+        cameraEnabled: mediaType == RCCallMediaType.audio_video,
+        speakerEnabled: mediaType == RCCallMediaType.audio_video,
+        invitedUserIds: update.invitedUserIds,
+      ),
+    );
+    _openIncomingCallPage(
+      displayName: update.displayName.isNotEmpty
+          ? update.displayName
+          : update.targetId,
+      targetId: update.targetId,
+      mediaType: mediaType,
+      isGroupCall: true,
+    );
+    unawaited(_resolveIncomingGroupName(update.targetId));
+  }
+
   Future<void> _handleJoinRequest(RongCallJoinRequest request) async {
     final currentUserId = IMEngineManager().currentUserId;
     if (currentUserId == null ||
@@ -503,30 +569,14 @@ class RongCallManager {
         request.requesterUserId == currentUserId ||
         request.targetId != _state.targetId ||
         !_state.isGroupCall ||
-        _state.status != RongCallStatus.inCall) {
+        !_state.isActive ||
+        _state.session == null) {
       return;
     }
-
-    final status = RongGroupCallStatusCenter().statusFor(request.targetId);
-    final activeUserIds =
-        (status?.activeUserIds.toSet() ??
-                <String>{currentUserId, ..._activeRemoteUserIds()})
-            .where((userId) => userId.isNotEmpty)
-            .toList()
-          ..sort();
-    if (activeUserIds.isEmpty) return;
-
-    final responderUserId =
-        status?.initiatorUserId.isNotEmpty == true &&
-            activeUserIds.contains(status!.initiatorUserId)
-        ? status.initiatorUserId
-        : activeUserIds.first;
-    if (responderUserId != currentUserId) return;
 
     final alreadyInCall = {
       currentUserId,
       ..._activeRemoteUserIds(),
-      ..._state.invitedUserIds,
     }.contains(request.requesterUserId);
     if (alreadyInCall) return;
 
@@ -539,10 +589,14 @@ class RongCallManager {
     if (engine == null || targetId.isEmpty || invitedUserIds.isEmpty) return;
     if (!await _ensureCallInviteUpdateMessageRegistered(engine)) return;
 
-    final notifyUserIds = _activeRemoteUserIds();
+    final notifyUserIds = {
+      ..._activeRemoteUserIds(),
+      ...invitedUserIds,
+    }.where((userId) => userId.isNotEmpty).toList();
     if (notifyUserIds.isEmpty) return;
 
     try {
+      final status = RongGroupCallStatusCenter().statusFor(targetId);
       final message = await engine.createNativeCustomMessage(
         RCIMIWConversationType.group,
         targetId,
@@ -551,6 +605,17 @@ class RongCallManager {
         {
           'targetId': targetId,
           'invitedUserIds': invitedUserIds,
+          'mediaType': _state.mediaType.index,
+          'displayName': _state.displayName,
+          'initiatorUserId':
+              _callInitiatorUserId(_state) ?? IMEngineManager().currentUserId,
+          'activeUserIds':
+              status?.activeUserIds ??
+              [
+                if (IMEngineManager().currentUserId?.isNotEmpty == true)
+                  IMEngineManager().currentUserId!,
+                ..._activeRemoteUserIds(),
+              ],
           'sentAt': DateTime.now().millisecondsSinceEpoch,
         },
       );
@@ -612,11 +677,13 @@ class RongCallManager {
     final next = !_state.micEnabled;
     if (_state.status == RongCallStatus.incoming) {
       _setState(_state.copyWith(micEnabled: next));
+      if (!next) _removeSpeakingUser(IMEngineManager().currentUserId);
       return;
     }
     final code = await _engine?.enableMicrophone(next) ?? -1;
     if (code == 0) {
       _setState(_state.copyWith(micEnabled: next));
+      if (!next) _removeSpeakingUser(IMEngineManager().currentUserId);
     }
   }
 
@@ -1045,6 +1112,12 @@ class RongCallManager {
           isGroupCall &&
           pendingJoinStatus != null &&
           pendingJoinStatus.targetId == targetId;
+      final isSameIncomingGroupCall =
+          isGroupCall &&
+          _state.isGroupCall &&
+          _state.isActive &&
+          _state.targetId == targetId &&
+          _state.status == RongCallStatus.incoming;
       _setState(
         RongCallState(
           status: shouldAutoAcceptJoin
@@ -1069,12 +1142,14 @@ class RongCallManager {
         unawaited(accept());
         return;
       }
-      _openIncomingCallPage(
-        displayName: displayName,
-        targetId: targetId,
-        mediaType: session.mediaType,
-        isGroupCall: isGroupCall,
-      );
+      if (!isSameIncomingGroupCall) {
+        _openIncomingCallPage(
+          displayName: displayName,
+          targetId: targetId,
+          mediaType: session.mediaType,
+          isGroupCall: isGroupCall,
+        );
+      }
       if (isGroupCall) {
         _resolveIncomingGroupName(targetId);
       } else {
@@ -1144,6 +1219,7 @@ class RongCallManager {
     engine.onRemoteUserDidChangeMicrophoneState = (user, enabled) {
       _upsertSessionUser(user);
       _setState(_state.copyWith(remoteMicEnabled: enabled));
+      if (!enabled) _removeSpeakingUser(user.userId);
     };
 
     engine.onRemoteUserDidChangeCameraState = (user, enabled) {
@@ -1206,6 +1282,22 @@ class RongCallManager {
     _speakingCleanupTimer?.cancel();
     _speakingCleanupTimer = null;
     _speakingUntilMsByUserId.clear();
+    if (_state.speakingUserIds.isNotEmpty) {
+      _setState(_state.copyWith(speakingUserIds: const []));
+    }
+  }
+
+  void _removeSpeakingUser(String? userId) {
+    if (userId == null || userId.isEmpty) return;
+    _speakingUntilMsByUserId.remove(userId);
+    if (!_state.speakingUserIds.contains(userId)) return;
+    _setState(
+      _state.copyWith(
+        speakingUserIds: _state.speakingUserIds
+            .where((item) => item != userId)
+            .toList(growable: false),
+      ),
+    );
   }
 
   void _upsertSessionUser(RCCallUserProfile user) {

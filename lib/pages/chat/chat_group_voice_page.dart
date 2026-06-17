@@ -136,16 +136,21 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       activeUserIds,
     );
     List<GroupMemberModel> models = [];
-    final members = await GroupStateCenter().getGroupMembers(_callState.targetId);
+    final members = await GroupStateCenter().getGroupMembers(
+      _callState.targetId,
+    );
     for (final user in users) {
-      final member = members.firstWhere((item)=> item.userId == user.userId);
+      final member = members.firstWhere((item) => item.userId == user.userId);
       models.add(GroupMemberModel(item: member));
     }
     final mine = _isUninvitedJoinPreview
         ? null
         : await _localParticipantModel();
     if (mine != null) {
-      models = [mine, ...models.where((model) => model.item.userId != mine.item.userId)];
+      models = [
+        mine,
+        ...models.where((model) => model.item.userId != mine.item.userId),
+      ];
     }
     if (!mounted) return;
     setState(() {
@@ -165,11 +170,13 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     final currentUserId = IMEngineManager().currentUserId;
     if (currentUserId == null || currentUserId.isEmpty) return null;
     final currentUser = UserDisplayStateCenter().getDisplayModel(currentUserId);
-    return GroupMemberModel(item: RCIMIWGroupMemberInfo.fromJson({
-      'userId': currentUserId,
-      'nickname': currentUser.name,
-      'portraitUri': currentUser.avatar,
-    }));
+    return GroupMemberModel(
+      item: RCIMIWGroupMemberInfo.fromJson({
+        'userId': currentUserId,
+        'nickname': currentUser.name,
+        'portraitUri': currentUser.avatar,
+      }),
+    );
   }
 
   List<RCCallUserProfile> _callUsersWithInvitedPlaceholders() {
@@ -395,7 +402,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
         children: [
           _buildBackground(),
           _buildCloseButton(context),
-          if (_canInviteMembers) _buildAddMemberButton(context),
+          // if (_canInviteMembers) _buildAddMemberButton(context),
           Align(
             alignment: const Alignment(0, -0.5),
             child: _buildCenterContent(),
@@ -516,7 +523,6 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
   Widget _buildAddMemberButton(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + 12;
-
     return Positioned(
       right: 20,
       top: topPadding,
@@ -571,19 +577,35 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     final groupId = _groupId;
     final currentUserId = IMEngineManager().currentUserId;
     final status = RongGroupCallStatusCenter().statusFor(groupId);
-    final existingUserIds = {
+    final sessionUsers =
+        _callState.session?.users ?? const <RCCallUserProfile>[];
+    final joinedUserIds = {
       currentUserId,
       ...?status?.activeUserIds,
-      ...?status?.invitedUserIds,
-      ..._callState.invitedUserIds,
-      ...(_callState.session?.users ?? []).map((user) => user.userId),
+      ...sessionUsers
+          .where(_isActiveRemoteParticipant)
+          .map((user) => user.userId),
+    };
+    final waitingUserIds = {
+      ...sessionUsers
+          .where(
+            (user) =>
+                user.userId.isNotEmpty &&
+                user.userId != currentUserId &&
+                !joinedUserIds.contains(user.userId) &&
+                !_joinedParticipantUserIds.contains(user.userId) &&
+                !_timedOutParticipantUserIds.contains(user.userId),
+          )
+          .map((user) => user.userId),
     };
     final members = await GroupStateCenter().getGroupMembers(groupId);
 
     return members
         .where((member) {
           final userId = member.userId ?? '';
-          return userId.isNotEmpty && !existingUserIds.contains(userId);
+          return userId.isNotEmpty &&
+              !joinedUserIds.contains(userId) &&
+              !waitingUserIds.contains(userId);
         })
         .map(
           (member) => RCIMIWFriendInfo.create(
@@ -628,12 +650,12 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
   Widget _buildCenterContent() {
     print(
-        '_buildCenterContent '
-            'status=$_status '
-            'isIncoming=$_isIncoming '
-            'isInCall=$_isInCall '
-            'isJoin=$_isJoin '
-            'count=${_inCallParticipants.length}'
+      '_buildCenterContent '
+      'status=$_status '
+      'isIncoming=$_isIncoming '
+      'isInCall=$_isInCall '
+      'isJoin=$_isJoin '
+      'count=${_inCallParticipants.length}',
     );
     if (_isUninvitedJoinPreview) {
       return _buildUninvitedJoinPreviewMembers();
@@ -766,7 +788,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   }
 
   Widget _buildParticipantCell(
-      GroupMemberModel participant,
+    GroupMemberModel participant,
     bool isOverflow,
     int hiddenCount,
   ) {
@@ -804,7 +826,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   }
 
   Widget _buildParticipantAvatar(
-      GroupMemberModel participant,
+    GroupMemberModel participant,
     bool isOverflow,
     int hiddenCount,
   ) {
@@ -814,14 +836,12 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     final isConnected =
         isLocalUser ||
         (callUser != null && _isActiveRemoteParticipant(callUser));
-    final microphoneEnabled = isLocalUser
-        ? _micEnabled
-        : (callUser?.enableMicrophone ?? false);
-    final isSpeaking =
-        isConnected &&
-        microphoneEnabled &&
-        _callState.speakingUserIds.contains(userId);
-    final shouldShowMic = isConnected && (!microphoneEnabled || isSpeaking);
+    final micState = _participantMicState(
+      userId: userId,
+      callUser: callUser,
+      isLocalUser: isLocalUser,
+      isConnected: isConnected,
+    );
     return SizedBox(
       width: 60,
       height: 60,
@@ -873,12 +893,12 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
                     ),
             ),
           ),
-          if (!isOverflow && shouldShowMic)
+          if (!isOverflow && micState.shouldShow)
             Positioned(
               right: -2,
               bottom: -2,
               child: Image.asset(
-                microphoneEnabled
+                micState.isSpeaking
                     ? 'assets/images/chat/call/mic-active.png'
                     : 'assets/images/chat/call/mic-close.png',
                 width: 18,
@@ -887,6 +907,26 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
             ),
         ],
       ),
+    );
+  }
+
+  _ParticipantMicState _participantMicState({
+    required String userId,
+    required RCCallUserProfile? callUser,
+    required bool isLocalUser,
+    required bool isConnected,
+  }) {
+    if (!isConnected) return const _ParticipantMicState.hidden();
+
+    final isMuted = isLocalUser
+        ? !_micEnabled
+        : !(callUser?.enableMicrophone ?? false);
+    final isSpeaking = !isMuted && _callState.speakingUserIds.contains(userId);
+
+    return _ParticipantMicState(
+      isMuted: isMuted,
+      isSpeaking: isSpeaking,
+      shouldShow: isMuted || isSpeaking,
     );
   }
 
@@ -1390,10 +1430,22 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   }
 
   Future<void> _answerVoiceSession() async {
-    if (RongCallManager().state.isActive) {
+    print('_answerVoiceSession-----');
+    final callState = RongCallManager().state;
+    if (callState.isActive && callState.session != null) {
+      print('_answerVoiceSession-----1');
+
       await RongCallManager().accept();
       return;
     }
+    if (_isIncoming || _isJoin) {
+      print('_answerVoiceSession-----2');
+
+      await _joinVoiceSession();
+      return;
+    }
+    print('_answerVoiceSession-----3');
+
     setState(() {
       _status = 'in_call';
     });
@@ -1414,6 +1466,8 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     final requested = await RongCallManager().requestJoinActiveGroupCall(
       status,
     );
+    print('_answerVoiceSession-----3--$requested');
+
     if (!mounted) return;
     if (!requested) {
       setState(() {
@@ -1975,4 +2029,21 @@ class _FloatingDotSpec {
     this.bottom,
     required this.color,
   });
+}
+
+class _ParticipantMicState {
+  const _ParticipantMicState({
+    required this.isMuted,
+    required this.isSpeaking,
+    required this.shouldShow,
+  });
+
+  const _ParticipantMicState.hidden()
+    : isMuted = false,
+      isSpeaking = false,
+      shouldShow = false;
+
+  final bool isMuted;
+  final bool isSpeaking;
+  final bool shouldShow;
 }

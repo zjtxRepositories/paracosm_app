@@ -17,7 +17,9 @@ class SelectMembersModal extends StatefulWidget {
   final bool showSelectedCount;
   final List<RCIMIWFriendInfo>? friends;
   final List<String>? defaultSelectedUserIds;
+  final List<String>? initialSelectedUserIds;
   final int? minSelectedCount;
+  final bool showSelectAllControl;
 
   const SelectMembersModal({
     super.key,
@@ -26,7 +28,9 @@ class SelectMembersModal extends StatefulWidget {
     this.showSelectedCount = false,
     this.friends,
     this.defaultSelectedUserIds,
+    this.initialSelectedUserIds,
     this.minSelectedCount,
+    this.showSelectAllControl = false,
   });
 
   /// 显示弹窗
@@ -37,7 +41,9 @@ class SelectMembersModal extends StatefulWidget {
     bool showSelectedCount = false,
     List<RCIMIWFriendInfo>? friends,
     List<String>? defaultSelectedUserIds,
+    List<String>? initialSelectedUserIds,
     int? minSelectedCount,
+    bool showSelectAllControl = false,
   }) {
     return showModalBottomSheet<List<String>>(
       context: context,
@@ -50,7 +56,9 @@ class SelectMembersModal extends StatefulWidget {
         showSelectedCount: showSelectedCount,
         friends: friends,
         defaultSelectedUserIds: defaultSelectedUserIds,
+        initialSelectedUserIds: initialSelectedUserIds,
         minSelectedCount: minSelectedCount,
+        showSelectAllControl: showSelectAllControl,
       ),
     );
   }
@@ -63,12 +71,34 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
   List<RCIMIWFriendInfo> get _members => widget.friends ?? [];
   List<String> get _defaultSelectedUserIds =>
       widget.defaultSelectedUserIds ?? [];
+  List<String> get _initialSelectedUserIds =>
+      widget.initialSelectedUserIds ?? [];
   final Set<String> _selectedMembers = {};
   late List<RCIMIWFriendInfo> _filterMembers;
+
+  List<String> get _selectableUserIds => _members
+      .map((member) => member.userId ?? '')
+      .where(
+        (userId) =>
+            userId.isNotEmpty && !_defaultSelectedUserIds.contains(userId),
+      )
+      .toList();
+
+  bool get _isAllSelected {
+    final selectable = _selectableUserIds;
+    return selectable.isNotEmpty && selectable.every(_selectedMembers.contains);
+  }
+
   @override
   void initState() {
     super.initState();
     _filterMembers = _members;
+    _selectedMembers.addAll(
+      _initialSelectedUserIds.where(
+        (userId) =>
+            userId.isNotEmpty && !_defaultSelectedUserIds.contains(userId),
+      ),
+    );
   }
 
   @override
@@ -177,9 +207,53 @@ class _SelectMembersModalState extends State<SelectMembersModal> {
               ],
             ),
           ),
+          if (widget.showSelectAllControl) _buildSelectAllControl(),
         ],
       ),
     );
+  }
+
+  Widget _buildSelectAllControl() {
+    final l10n = AppLocalizations.of(context)!;
+    final allSelected = _isAllSelected;
+
+    return GestureDetector(
+      onTap: _toggleSelectAll,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.grey100, width: 1)),
+        ),
+        child: Row(
+          children: [
+            AppCheckbox(
+              value: allSelected,
+              onChanged: (_) => _toggleSelectAll(),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              l10n.commonSelectAll,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.grey900,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_isAllSelected) {
+        _selectedMembers.removeAll(_selectableUserIds);
+      } else {
+        _selectedMembers.addAll(_selectableUserIds);
+      }
+    });
   }
 
   Widget _buildMemberItem({

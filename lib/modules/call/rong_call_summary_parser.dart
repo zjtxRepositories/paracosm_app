@@ -24,7 +24,12 @@ class RongCallSummary {
 class RongCallSummaryParser {
   RongCallSummaryParser._();
 
-  static const String objectName = 'RC:VCSummary';
+  static const String objectName = 'PC:VCSummary';
+  static const String legacyObjectName = 'RC:VCSummary';
+
+  static bool isCallSummaryIdentifier(String? value) {
+    return value == objectName || value == legacyObjectName;
+  }
 
   static RongCallSummary? tryParse(RCIMIWMessage message) {
     final data = _callSummaryData(message);
@@ -71,16 +76,18 @@ class RongCallSummaryParser {
   }
 
   static Map<String, dynamic>? _callSummaryData(RCIMIWMessage message) {
-    if (message is RCIMIWUnknownMessage && message.objectName == objectName) {
+    if (message is RCIMIWUnknownMessage &&
+        isCallSummaryIdentifier(message.objectName)) {
       return _decodeDynamic(message.rawData);
     }
 
     if (message is RCIMIWNativeCustomMessage &&
-        message.messageIdentifier == objectName) {
+        isCallSummaryIdentifier(message.messageIdentifier)) {
       return _decodeDynamic(message.fields);
     }
 
-    if (message is RCIMIWCustomMessage && message.identifier == objectName) {
+    if (message is RCIMIWCustomMessage &&
+        isCallSummaryIdentifier(message.identifier)) {
       return _decodeDynamic(message.fields);
     }
 

@@ -37,7 +37,7 @@ class GroupModel {
     for (final e in memberList) {
       if (e.item.userId == IMEngineManager().currentUserId) {
         if (memberList.length == 1){
-          list.add('@ ${e.name}');
+          list.add(e.name);
         }
         continue;
       }

@@ -556,6 +556,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get commonQuote => translate('common_quote');
   String get commonRecall => translate('common_recall');
   String get commonSelect => translate('common_select');
+  String get commonSelectAll => translate('common_select_all');
   String get commonFriend => translate('common_friend');
   String get commonGroupChat => translate('common_group_chat');
   String get commonRequestFailed => translate('common_request_failed');
@@ -753,6 +754,7 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('call_error_code', {'code': code});
   String get callPeerNoAnswer => translate('call_peer_no_answer');
   String get callDisconnected => translate('call_disconnected');
+  String get callJoinNow => translate('call_join_now');
   String get communityJoinFailed => translate('community_join_failed');
   String get communityJoinSuccess => translate('community_join_success');
   String get communityNoDao => translate('community_no_dao');
@@ -848,10 +850,21 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get callNotifications => translate('call_notifications');
   String get callInviteVideo => translate('call_invite_video');
   String get callInviteVoice => translate('call_invite_voice');
+  String get callInviteGroupVoice => translate('call_invite_group_voice');
+  String callInviteNamedGroupVoice(String name) =>
+      translate('call_invite_named_group_voice', {'name': name});
   String get callWaitingAccept => translate('call_waiting_accept');
   String get callInviteGroupSession => translate('call_invite_group_session');
   String callWaitingGroupJoin(String name) =>
       translate('call_waiting_group_join', {'name': name});
+  String callGroupVoiceOneActive(String name) =>
+      translate('call_group_voice_one_active', {'name': name});
+  String callGroupVoiceManyActive(int count) =>
+      translate('call_group_voice_many_active', {'count': count});
+  String callGroupVoiceJoined(String name) =>
+      translate('call_group_voice_joined', {'name': name});
+  String callGroupVoiceLeft(String name) =>
+      translate('call_group_voice_left', {'name': name});
   String get momentsMomentTitle => translate('moments_moment_title');
   String get momentsLikeFailed => translate('moments_like_failed');
   String get momentsShare => translate('moments_share');

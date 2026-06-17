@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/call/rong_group_call_status_message.dart';
+import 'package:paracosm/modules/call/rong_call_invite_update_message.dart';
+import 'package:paracosm/modules/call/rong_call_join_request_message.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -45,10 +48,34 @@ class ImInit {
       RongCallSummaryParser.objectName,
       RCIMIWNativeCustomMessagePersistentFlag.persisted,
     );
+    final inviteUpdateCode = await engine.registerNativeCustomMessage(
+      RongCallInviteUpdateMessage.objectName,
+      RCIMIWNativeCustomMessagePersistentFlag.status,
+    );
+    final groupCallStatusCode = await engine.registerNativeCustomMessage(
+      RongGroupCallStatusMessage.objectName,
+      RCIMIWNativeCustomMessagePersistentFlag.status,
+    );
+    final joinRequestCode = await engine.registerNativeCustomMessage(
+      RongCallJoinRequestMessage.objectName,
+      RCIMIWNativeCustomMessagePersistentFlag.status,
+    );
 
     if (kDebugMode && code != 0) {
       debugPrint('register call summary message failed: $code');
     }
+    if (kDebugMode && inviteUpdateCode != 0) {
+      debugPrint(
+        'register call invite update message failed: $inviteUpdateCode',
+      );
+    }
+    if (kDebugMode && groupCallStatusCode != 0) {
+      debugPrint(
+        'register group call status message failed: $groupCallStatusCode',
+      );
+    }
+    if (kDebugMode && joinRequestCode != 0) {
+      debugPrint('register call join request message failed: $joinRequestCode');
+    }
   }
-
 }

@@ -13,6 +13,7 @@ import 'package:paracosm/core/network/api/upload_file_api.dart';
 import 'package:paracosm/modules/im/group_ban_state.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/manager/im_burn_after_reading_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_conversation_manager.dart';
@@ -25,6 +26,7 @@ import 'package:paracosm/pages/chat/detail/scroll_engine.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
+import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_module.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_compress/video_compress.dart';
@@ -32,6 +34,7 @@ import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
 
 import '../../../core/models/media_item.dart';
+import '../../../modules/call/rong_group_call_status_message.dart';
 import '../../../modules/call/rong_call_manager.dart';
 import '../../../modules/call/rong_call_summary_parser.dart';
 import '../../../modules/im/message/base/im_message.dart';
@@ -44,6 +47,7 @@ import '../../../util/media_handle_util.dart';
 import '../../../util/string_util.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
 import '../../../widgets/base/app_localizations.dart';
+import '../../../widgets/chat/select_members_modal.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
 import '../../../widgets/common/app_media_gallery.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -149,6 +153,12 @@ class ChatDetailController extends ChangeNotifier {
   StreamSubscription? _profileChangeSub;
 
   StreamSubscription? _groupMemberChangeSub;
+  StreamSubscription<RongGroupCallStatus?>? _groupCallStatusSub;
+  StreamSubscription<RongCallState>? _callStateSub;
+
+  RongGroupCallStatus? activeGroupCallStatus;
+  String _activeGroupCallInitiatorName = '';
+
   /// =========================
   /// init
   /// =========================
@@ -180,6 +190,8 @@ class ChatDetailController extends ChangeNotifier {
     _listenProfile();
 
     _listenGroup();
+
+    _listenGroupCallStatus();
 
     unawaited(_loadGroupNoticeBanner());
 
@@ -224,6 +236,10 @@ class ChatDetailController extends ChangeNotifier {
 
     _groupMemberChangeSub?.cancel();
 
+    _groupCallStatusSub?.cancel();
+
+    _callStateSub?.cancel();
+
     super.dispose();
   }
 
@@ -266,7 +282,6 @@ class ChatDetailController extends ChangeNotifier {
   bool get hasAnchor => args?.anchorSentTime != null;
 
   String? get anchorMessageId => args?.anchorMessageId;
-
 
   /// =========================
   /// 初始加载
@@ -874,11 +889,81 @@ class ChatDetailController extends ChangeNotifier {
     });
 
     _fetchGroupMembers();
-    _groupMemberChangeSub = ImDataCenter().groupMemberStream.listen((groupIds) async {
+    _groupMemberChangeSub = ImDataCenter().groupMemberStream.listen((
+      groupIds,
+    ) async {
       if (!groupIds.contains(args?.targetId)) return;
       _fetchGroupMembers();
     });
+  }
 
+  void _listenGroupCallStatus() {
+    if (!isGroupSession) return;
+    activeGroupCallStatus = RongGroupCallStatusCenter().statusFor(targetId);
+    _resolveGroupCallInitiatorName(activeGroupCallStatus);
+
+    _groupCallStatusSub = RongGroupCallStatusCenter().stream.listen((status) {
+      if (status?.targetId != targetId) return;
+      activeGroupCallStatus = status?.isActive == true ? status : null;
+      _resolveGroupCallInitiatorName(activeGroupCallStatus);
+      notifyListeners();
+    });
+
+    _callStateSub = RongCallManager().stateStream.listen((state) {
+      if (!state.isGroupCall || state.targetId != targetId) return;
+      if (state.isActive) {
+        final currentUserId = IMEngineManager().currentUserId;
+        activeGroupCallStatus = RongGroupCallStatus(
+          targetId: state.targetId,
+          action: RongGroupCallStatusAction.active,
+          mediaType: state.mediaType,
+          displayName: state.displayName,
+          initiatorUserId: currentUserId ?? '',
+          activeUserIds: [
+            if (currentUserId != null && currentUserId.isNotEmpty)
+              currentUserId,
+            ..._activeRemoteUserIds(state),
+          ],
+          invitedUserIds: state.invitedUserIds,
+          sentAt: DateTime.now().millisecondsSinceEpoch,
+        );
+      } else {
+        activeGroupCallStatus = null;
+      }
+      _resolveGroupCallInitiatorName(activeGroupCallStatus);
+      notifyListeners();
+    });
+  }
+
+  void _resolveGroupCallInitiatorName(RongGroupCallStatus? status) {
+    final userId = status?.initiatorUserId ?? '';
+    if (userId.isEmpty || userId == IMEngineManager().currentUserId) {
+      _activeGroupCallInitiatorName = '';
+      return;
+    }
+    unawaited(() async {
+      final user = await UserDisplayStateCenter().getUser(userId);
+      final name = user?.name.trim() ?? '';
+      if (activeGroupCallStatus?.initiatorUserId != userId || name.isEmpty) {
+        return;
+      }
+      _activeGroupCallInitiatorName = name;
+      notifyListeners();
+    }());
+  }
+
+  List<String> _activeRemoteUserIds(RongCallState state) {
+    final currentUserId = IMEngineManager().currentUserId;
+    return (state.session?.users ?? const <RCCallUserProfile>[])
+        .where(
+          (user) =>
+              user.userId.isNotEmpty &&
+              user.userId != currentUserId &&
+              (user.mediaId?.isNotEmpty ?? false),
+        )
+        .map((user) => user.userId)
+        .toSet()
+        .toList();
   }
 
   bool get shouldShowGroupNotice =>
@@ -916,7 +1001,6 @@ class ChatDetailController extends ChangeNotifier {
     }
     groupNotice = next;
     notifyListeners();
-
   }
 
   Future<void> markGroupNoticeViewed() async {
@@ -3036,6 +3120,61 @@ class ChatDetailController extends ChangeNotifier {
     context?.push('/user-profile', extra: args?.targetId ?? '');
   }
 
+  bool get shouldShowGroupCallBanner {
+    return false;
+  }
+
+  String get groupCallBannerText {
+    final status = activeGroupCallStatus;
+    if (status == null) return '';
+    final count = status.participantCount;
+    if (count <= 1) {
+      return _tr('call_group_voice_one_active', {
+        'name': _groupCallInitiatorName(status),
+      });
+    }
+    return _tr('call_group_voice_many_active', {'count': count});
+  }
+
+  bool get isCurrentUserInActiveGroupCall {
+    final state = RongCallManager().state;
+    return state.isGroupCall &&
+        state.isActive &&
+        state.targetId == targetId &&
+        state.status == RongCallStatus.inCall;
+  }
+
+  Future<void> openActiveGroupCall() async {
+    final status = activeGroupCallStatus;
+    if (status == null) return;
+    final displayName = status.displayName.isNotEmpty
+        ? status.displayName
+        : sessionName;
+    final encodedName = Uri.encodeComponent(displayName);
+    final encodedTargetId = Uri.encodeQueryComponent(status.targetId);
+    final pageStatus = isCurrentUserInActiveGroupCall ? 'in_call' : 'join';
+    final currentContext = context;
+    if (currentContext == null || !currentContext.mounted) return;
+    currentContext.push(
+      '/chat-group-voice/$encodedName?status=$pageStatus&targetId=$encodedTargetId',
+    );
+  }
+
+  String _groupCallInitiatorName(RongGroupCallStatus status) {
+    final currentUserId = IMEngineManager().currentUserId;
+    if (status.initiatorUserId.isNotEmpty &&
+        status.initiatorUserId == currentUserId) {
+      return _tr('moments_me');
+    }
+    if (_activeGroupCallInitiatorName.isNotEmpty) {
+      return _activeGroupCallInitiatorName;
+    }
+    final fallback = status.displayName.isNotEmpty
+        ? status.displayName
+        : sessionName;
+    return fallback.isNotEmpty ? fallback : _tr('chat_filter_others');
+  }
+
   Future<void> openCallPage({required bool isVideo}) async {
     final media = isVideo ? 'video' : 'voice';
     final displayName = sessionName.isNotEmpty ? sessionName : targetId;
@@ -3045,12 +3184,16 @@ class ChatDetailController extends ChangeNotifier {
     if (args?.isGroup ?? false) {
       isMenuExpanded = false;
       notifyListeners();
+      final inviteeUserIds = await _selectGroupCallMembers();
+      if (inviteeUserIds == null || inviteeUserIds.isEmpty) return;
+
       final started = await RongCallManager().startGroupCall(
         targetId: targetId,
         displayName: displayName,
         mediaType: isVideo
             ? RCCallMediaType.audio_video
             : RCCallMediaType.audio,
+        inviteeUserIds: inviteeUserIds,
       );
       if (!started) return;
       context?.push('/chat-group-$media/$encoded?targetId=$encodedTargetId');
@@ -3067,6 +3210,47 @@ class ChatDetailController extends ChangeNotifier {
     );
     if (!started) return;
     context?.push('/chat-private-$media/$encoded');
+  }
+
+  Future<List<String>?> _selectGroupCallMembers() async {
+    final currentContext = context;
+    if (currentContext == null) return null;
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final members = await GroupStateCenter().getGroupMembers(targetId);
+    final candidates = members
+        .where((member) {
+          final userId = member.userId ?? '';
+          return userId.isNotEmpty && userId != currentUserId;
+        })
+        .map(
+          (member) => RCIMIWFriendInfo.create(
+            userId: member.userId,
+            name: member.nickname?.isNotEmpty == true
+                ? member.nickname
+                : member.name,
+            portrait: member.portraitUri,
+          ),
+        )
+        .toList();
+
+    if (candidates.isEmpty) {
+      AppToast.show(AppLocalizations.currentText('call_start_failed'));
+      return null;
+    }
+
+    if (!currentContext.mounted) return null;
+    return SelectMembersModal.show(
+      currentContext,
+      friends: candidates,
+      confirmText: '发起通话',
+      showSelectedCount: true,
+      initialSelectedUserIds: candidates
+          .map((member) => member.userId ?? '')
+          .where((userId) => userId.isNotEmpty)
+          .toList(),
+      showSelectAllControl: true,
+    );
   }
 
   String get sessionName => args?.name ?? '';

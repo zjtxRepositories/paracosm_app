@@ -290,7 +290,18 @@ class ChatDetailMessageMapper {
         extra: message,
       );
     }
-
+    if (message.messageType == RCIMIWMessageType.nativeCustom) {
+      return ChatDetailMessage(
+        messageId: messageKey,
+        kind: ChatDetailMessageKind.unknown,
+        isMe: isMe,
+        isSending: isSending,
+        text: '',
+        sentTime: sentTime,
+        extra: message,
+      );
+    }
+      print('message----${message.messageType}');
     return ChatDetailMessage(
       messageId: messageKey,
       kind: ChatDetailMessageKind.text,

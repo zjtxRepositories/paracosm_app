@@ -80,6 +80,7 @@ class _ChatPageState extends State<ChatPage> {
     return Column(
       children: [
         _buildFriendRequestCard(),
+        _buildGroupApplicationCard(),
         _buildFilterBar(),
         Expanded(
           child: controller.conversations.isEmpty
@@ -217,6 +218,78 @@ class _ChatPageState extends State<ChatPage> {
                                           controller
                                               .friendApplicationUnhandledCount,
                                         ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Image.asset(
+                              'assets/images/chat/go.png',
+                              width: 16,
+                              height: 16,
+                              fit: BoxFit.contain,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/images/chat/friend-img.png',
+                    width: 56,
+                    height: 64,
+                    fit: BoxFit.contain,
+                  ),
+                ],
+              ),
+            ),
+          );
+  }
+
+  Widget _buildGroupApplicationCard() {
+    return controller.groupApplicationUnhandledCount == 0
+        ? SizedBox()
+        : GestureDetector(
+            onTap: () => context.push('/group-applications'),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.grey200, width: 1),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.chatGroupApplications,
+                          style: AppTextStyles.h2.copyWith(
+                            color: AppColors.grey900,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.grey400,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: AppLocalizations.of(
+                                      context,
+                                    )!.chatGroupApplicationCount(
+                                      controller.groupApplicationUnhandledCount,
+                                    ),
                                   ),
                                 ],
                               ),

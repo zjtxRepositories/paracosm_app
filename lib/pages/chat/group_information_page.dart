@@ -112,20 +112,36 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     final joinFailedText = AppLocalizations.of(context)!.scanGroupJoinFailed;
 
     AppLoading.show();
-    final isOk = await ImGroupManager().joinGroup(groupId);
+    final result = await ImGroupManager().joinGroupWithResult(
+      groupId,
+      groupInfo: _group.info,
+    );
     AppLoading.dismiss();
 
     if (!mounted) return;
 
-    if (!isOk) {
-      AppToast.show(joinFailedText);
+    switch (result.status) {
+      case JoinGroupStatus.waitingManagerApproval:
+        AppToast.show(
+          AppLocalizations.of(context)!.chatGroupJoinWaitingApproval,
+        );
+        return;
+      case JoinGroupStatus.failed:
+        AppToast.show(joinFailedText);
+        return;
+      case JoinGroupStatus.joined:
+        break;
+    }
+
+    final currentUserId = IMEngineManager().currentUserId;
+    if (currentUserId == null || currentUserId.isEmpty) {
       return;
     }
     final message = CustomMessage(
       targetId: groupId,
       customMessageType: CustomMessageType.groupJoined,
       conversationType: RCIMIWConversationType.group,
-      userIds: [IMEngineManager().currentUserId!],
+      userIds: [currentUserId],
     );
     await ImSender.instance.send(message: message);
 

@@ -27,6 +27,30 @@ enum GroupEventType {
   ownerTransferred,
 }
 
+enum JoinGroupStatus { joined, waitingManagerApproval, failed }
+
+class JoinGroupResult {
+  const JoinGroupResult(this.status, {this.code});
+
+  final JoinGroupStatus status;
+  final int? code;
+
+  bool get isJoined => status == JoinGroupStatus.joined;
+}
+
+JoinGroupResult joinGroupResultFromCode(int? code) {
+  if (code == 0) {
+    return const JoinGroupResult(JoinGroupStatus.joined, code: 0);
+  }
+  if (code == 25424) {
+    return const JoinGroupResult(
+      JoinGroupStatus.waitingManagerApproval,
+      code: 25424,
+    );
+  }
+  return JoinGroupResult(JoinGroupStatus.failed, code: code);
+}
+
 /// =======================================================
 /// 群事件
 /// =======================================================
@@ -372,10 +396,11 @@ class ImGroupManager {
       groupId: groupId,
       groupName: groupName ?? '[默认]',
       invitePermission: RCIMIWGroupOperationPermission.everyone,
-      joinPermission: RCIMIWGroupJoinPermission.free,
+      joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
+      inviteHandlePermission: RCIMIWGroupInviteHandlePermission.inviteeverify,
       role: RCIMIWGroupMemberRole.owner,
       groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
-      removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager
+      removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager,
     );
 
     return createByGroupInfo(groupInfo, inviteeUserIds);
@@ -436,16 +461,26 @@ class ImGroupManager {
   /// =======================================================
   /// 加入群
   /// =======================================================
-  Future<bool> joinGroup(String groupId) async {
-    final completer = Completer<bool>();
+  Future<JoinGroupResult> joinGroupWithResult(
+    String groupId, {
+    RCIMIWGroupInfo? groupInfo,
+  }) async {
+    final completer = Completer<JoinGroupResult>();
 
     final code = await _engine?.joinGroup(
       groupId,
       callback: IRCIMIWJoinGroupCallback(
-        onSuccess: (code) async {
-          if (code != 0) {
+        onSuccess: (processCode) async {
+          final result = joinGroupResultFromCode(processCode);
+          if (result.status == JoinGroupStatus.waitingManagerApproval) {
             if (!completer.isCompleted) {
-              completer.complete(false);
+              completer.complete(result);
+            }
+            return;
+          }
+          if (!result.isJoined) {
+            if (!completer.isCompleted) {
+              completer.complete(result);
             }
             return;
           }
@@ -461,14 +496,16 @@ class ImGroupManager {
           );
 
           if (!completer.isCompleted) {
-            completer.complete(true);
+            completer.complete(result);
           }
         },
         onError: (e) {
-          debugPrint('inviteUsersToGroup error: $e');
+          debugPrint('joinGroup error: $e');
 
           if (!completer.isCompleted) {
-            completer.complete(false);
+            completer.complete(
+              JoinGroupResult(JoinGroupStatus.failed, code: e),
+            );
           }
         },
       ),
@@ -476,10 +513,15 @@ class ImGroupManager {
 
     /// SDK 调用失败
     if (code != 0) {
-      return false;
+      return JoinGroupResult(JoinGroupStatus.failed, code: code);
     }
 
     return completer.future;
+  }
+
+  Future<bool> joinGroup(String groupId) async {
+    final result = await joinGroupWithResult(groupId);
+    return result.isJoined;
   }
 
   /// =======================================================
@@ -759,6 +801,7 @@ class ImGroupManager {
   /// =======================================================
   Future<bool> updateGroupInfo(RCIMIWGroupInfo groupInfo) async {
     final completer = Completer<bool>();
+    final groupId = groupInfo.groupId ?? '';
 
     final ret = await _engine?.updateGroupInfo(
       groupInfo,
@@ -773,15 +816,40 @@ class ImGroupManager {
     }
     final success = await completer.future;
     if (success) {
+      final mergedGroupInfo = _mergeUpdatedGroupInfo(groupInfo);
       GroupEventBus.instance.fire(
         GroupEvent(
           type: GroupEventType.infoChanged,
-          groupId: groupInfo.groupId ?? '',
-          groupInfo: groupInfo,
+          groupId: groupId,
+          groupInfo: mergedGroupInfo,
         ),
       );
     }
     return success;
+  }
+
+  RCIMIWGroupInfo _mergeUpdatedGroupInfo(RCIMIWGroupInfo update) {
+    final groupId = update.groupId ?? '';
+    final cached = GroupStateCenter().getCachedGroup(groupId);
+    if (cached == null) return update;
+
+    cached.groupName = update.groupName ?? cached.groupName;
+    cached.portraitUri = update.portraitUri ?? cached.portraitUri;
+    cached.introduction = update.introduction ?? cached.introduction;
+    cached.notice = update.notice ?? cached.notice;
+    cached.extProfile = update.extProfile ?? cached.extProfile;
+    cached.joinPermission = update.joinPermission ?? cached.joinPermission;
+    cached.removeMemberPermission =
+        update.removeMemberPermission ?? cached.removeMemberPermission;
+    cached.invitePermission =
+        update.invitePermission ?? cached.invitePermission;
+    cached.inviteHandlePermission =
+        update.inviteHandlePermission ?? cached.inviteHandlePermission;
+    cached.groupInfoEditPermission =
+        update.groupInfoEditPermission ?? cached.groupInfoEditPermission;
+    cached.memberInfoEditPermission =
+        update.memberInfoEditPermission ?? cached.memberInfoEditPermission;
+    return cached;
   }
 
   /// =======================================================

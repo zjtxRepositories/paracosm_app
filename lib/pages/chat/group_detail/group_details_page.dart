@@ -15,6 +15,7 @@ import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../../core/models/group_member_model.dart';
+import '../../../core/models/group_model.dart';
 import '../../../widgets/chat/select_members_modal.dart';
 import '../chat_session_args.dart';
 import 'group_details_controller.dart';
@@ -346,6 +347,36 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             height: 28,
                           ),
                         ),
+                      )
+                    : SizedBox(),
+                permission.canViewGroupApplications
+                    ? _buildOptionItem(
+                        AppLocalizations.of(context)!.chatGroupApplications,
+                        onTap: () {
+                          context.push(
+                            '/group-applications',
+                            extra: controller.group?.info.groupId,
+                          );
+                        },
+                      )
+                    : SizedBox(),
+                permission.canManageJoinInviteSettings
+                    ? _buildOptionItem(
+                        AppLocalizations.of(
+                          context,
+                        )!.chatGroupJoinInviteSettings,
+                        isFullBorder: true,
+                        onTap: () async {
+                          final group = controller.group;
+                          if (group == null) return;
+                          final result = await context.push<GroupModel>(
+                            '/group-join-invite-settings',
+                            extra: group,
+                          );
+                          if (result != null) {
+                            controller.refreshGroupInfo();
+                          }
+                        },
                       )
                     : SizedBox(),
                 Container(

@@ -122,6 +122,18 @@ class GroupDetailsController extends ChangeNotifier {
         .toList();
   }
 
+  void updateLocalGroup(GroupModel updatedGroup) {
+    group = updatedGroup;
+    isMuted = isGroupMuteAll(updatedGroup.info);
+    notifyListeners();
+  }
+
+  Future<void> refreshGroupInfo() async {
+    final groupId = args?.targetId;
+    if (groupId == null || groupId.isEmpty) return;
+    await _fetchGroupInfo(groupId);
+  }
+
   Future<void> _fetchPinned() async {
     final targetId = args?.targetId;
     if (targetId == null || targetId.isEmpty) {

@@ -25,6 +25,8 @@ import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
 import 'package:paracosm/pages/chat/group_introduction_page.dart';
 import 'package:paracosm/pages/chat/group_information_page.dart';
+import 'package:paracosm/pages/chat/group_applications_page.dart';
+import 'package:paracosm/pages/chat/group_join_invite_settings_page.dart';
 import 'package:paracosm/pages/chat/group_qr_code_page.dart';
 import 'package:paracosm/pages/chat/group_detail/group_details_page.dart';
 import 'package:paracosm/pages/chat/chat_history_search_page.dart';
@@ -420,6 +422,21 @@ class AppRouter {
                   isJoined: isJoined,
                   qrMembers: members,
                 );
+        },
+      ),
+      GoRoute(
+        path: '/group-applications',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const GroupApplicationsPage(),
+      ),
+      GoRoute(
+        path: '/group-join-invite-settings',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final group = state.extra as GroupModel?;
+          return group == null
+              ? const SizedBox()
+              : GroupJoinInviteSettingsPage(group: group);
         },
       ),
       // 群二维码页

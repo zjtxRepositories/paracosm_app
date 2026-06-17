@@ -31,6 +31,25 @@ class GroupPermissionPolicy {
 
   bool get canManageInvite => isManager;
 
+  bool get canManageJoinInviteSettings => isOwner;
+
+  bool get canViewGroupApplications {
+    if (!isJoined) return false;
+
+    final permission = groupInfo?.joinPermission;
+    if (permission == null) return false;
+
+    switch (permission) {
+      case RCIMIWGroupJoinPermission.ownerormanagerverify:
+        return isManager;
+      case RCIMIWGroupJoinPermission.ownerverify:
+      case RCIMIWGroupJoinPermission.nooneallowed:
+        return isOwner;
+      case RCIMIWGroupJoinPermission.free:
+        return false;
+    }
+  }
+
   bool get canInviteMembers {
     if (!isJoined) return false;
 

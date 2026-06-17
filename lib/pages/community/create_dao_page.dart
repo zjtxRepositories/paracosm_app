@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/network/api/create_community_api.dart';
-import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -84,23 +82,26 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
     );
     if (!isCreate) {
       AppLoading.dismiss();
+      if (!mounted) return;
       AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
       return;
     }
     final groupInfo = RCIMIWGroupInfo.create(
-        groupId: groupId,
-        groupName: name,
-        portraitUri: avatarUrl,
-        introduction: desc,
-        invitePermission: RCIMIWGroupOperationPermission.everyone,
-        joinPermission: RCIMIWGroupJoinPermission.free,
-        role: RCIMIWGroupMemberRole.owner,
-        groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
-        removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager
+      groupId: groupId,
+      groupName: name,
+      portraitUri: avatarUrl,
+      introduction: desc,
+      invitePermission: RCIMIWGroupOperationPermission.everyone,
+      joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
+      inviteHandlePermission: RCIMIWGroupInviteHandlePermission.inviteeverify,
+      role: RCIMIWGroupMemberRole.owner,
+      groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
+      removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager,
     );
     final result = await ImGroupManager().createByGroupInfo(groupInfo, []);
     if (result == null) {
       AppLoading.dismiss();
+      if (!mounted) return;
       AppToast.show(AppLocalizations.of(context)!.commonCreateGroupFailed);
       return;
     }
@@ -119,6 +120,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
     if (conversation == null) return;
     final model = ConversationModel(info: conversation);
     await ConversationResolver().resolve(model);
+    if (!mounted) return;
     AppToast.show(AppLocalizations.of(context)!.commonCreatedSuccess);
     context.pop();
   }
@@ -151,12 +153,11 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                             borderRadius: BorderRadius.circular(34),
                           ),
                           child: Center(
-                            child:AppNetworkImage(
+                            child: AppNetworkImage(
                               url: widget.token.logo,
                               width: 65,
                               height: 65,
                               fit: BoxFit.contain,
-
                             ),
                           ),
                         ),

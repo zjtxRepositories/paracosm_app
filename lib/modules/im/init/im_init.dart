@@ -6,7 +6,6 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../manager/im_engine_manager.dart';
 import '../manager/im_token_manager.dart';
-import '../manager/im_user_manager.dart';
 import '../service/im_service.dart';
 
 class ImInit {
@@ -25,6 +24,7 @@ class ImInit {
     IMEngineManager().message.initListener();
     IMEngineManager().friend.initListener();
     IMEngineManager().friendApplication.initListener();
+    IMEngineManager().groupApplication.initListener();
     IMEngineManager().conversation.initListener();
     IMEngineManager().group.initListener();
     IMEngineManager().subscribe.initListener();

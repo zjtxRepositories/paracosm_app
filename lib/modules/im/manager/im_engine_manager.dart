@@ -10,6 +10,7 @@ import '../service/im_service.dart';
 import 'im_connection_manager.dart';
 import 'im_friend_applications_manager.dart';
 import 'im_friend_manager.dart';
+import 'im_group_applications_manager.dart';
 import 'im_message_manager.dart';
 
 class IMEngineManager {
@@ -21,6 +22,7 @@ class IMEngineManager {
   final message = ImMessageManager();
   final friend = ImFriendManager();
   final friendApplication = ImFriendApplicationsManager();
+  final groupApplication = ImGroupApplicationsManager();
   final user = ImUserManager();
   final conversation = ImConversationManager();
   final group = ImGroupManager();

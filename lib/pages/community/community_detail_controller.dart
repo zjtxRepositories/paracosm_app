@@ -152,11 +152,26 @@ class CommunityDetailController extends ChangeNotifier {
   Future<void> joined() async {
     final groupInfo = group;
     if (groupInfo == null) return;
-    final isJoined = await ImGroupManager().joinGroup(
+    final result = await ImGroupManager().joinGroupWithResult(
       groupInfo.info.groupId ?? '',
+      groupInfo: groupInfo.info,
     );
-    if (!isJoined) {
-      AppToast.show(AppLocalizations.currentText('community_join_failed'));
+
+    switch (result.status) {
+      case JoinGroupStatus.waitingManagerApproval:
+        AppToast.show(
+          AppLocalizations.currentText('chat_group_join_waiting_approval'),
+        );
+        return;
+      case JoinGroupStatus.failed:
+        AppToast.show(AppLocalizations.currentText('community_join_failed'));
+        return;
+      case JoinGroupStatus.joined:
+        break;
+    }
+
+    final currentUserId = IMEngineManager().currentUserId;
+    if (currentUserId == null || currentUserId.isEmpty) {
       return;
     }
     AppToast.show(AppLocalizations.currentText('community_join_success'));
@@ -166,16 +181,16 @@ class CommunityDetailController extends ChangeNotifier {
       targetId: groupInfo.info.groupId ?? '',
       customMessageType: CustomMessageType.groupJoined,
       conversationType: RCIMIWConversationType.group,
-      userIds: [IMEngineManager().currentUserId!],
+      userIds: [currentUserId],
     );
     await ImSender.instance.send(message: message);
   }
 
   void toggleMedia(
-      List<SocialMediaModel> medias,
-      int initialIndex,
-      BuildContext context,
-      ) {
+    List<SocialMediaModel> medias,
+    int initialIndex,
+    BuildContext context,
+  ) {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => AppMediaGallery(
@@ -185,7 +200,6 @@ class CommunityDetailController extends ChangeNotifier {
       ),
     );
   }
-
 
   /// 销毁
   void disposeController() {

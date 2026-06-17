@@ -40,6 +40,7 @@ class ChatController extends ChangeNotifier {
   int selectedFilterIndex = 0;
 
   int friendApplicationUnhandledCount = 0;
+  int groupApplicationUnhandledCount = 0;
 
   /// =========================
   /// conversations
@@ -75,6 +76,7 @@ class ChatController extends ChangeNotifier {
     _listenFriendList();
     _listenGroupList();
     _listenFriendApplication();
+    _listenGroupApplication();
   }
 
   /// =========================
@@ -99,6 +101,20 @@ class ChatController extends ChangeNotifier {
   void fetchData() {
     _engineManager.conversation.getRemoteConversationList();
     _engineManager.friendApplication.fetch();
+    _engineManager.groupApplication.fetch(
+      directions: const [
+        RCIMIWGroupApplicationDirection.applicationreceived,
+        RCIMIWGroupApplicationDirection.invitationreceived,
+      ],
+      statuses: const [
+        RCIMIWGroupApplicationStatus.managerunhandled,
+        RCIMIWGroupApplicationStatus.managerrefused,
+        RCIMIWGroupApplicationStatus.inviteeunhandled,
+        RCIMIWGroupApplicationStatus.inviteerefused,
+        RCIMIWGroupApplicationStatus.joined,
+        RCIMIWGroupApplicationStatus.expired,
+      ],
+    );
     _engineManager.friend.fetchFriends();
     _engineManager.group.getAllJoinedGroups();
   }
@@ -286,6 +302,16 @@ class ChatController extends ChangeNotifier {
     final sub = _engineManager.friendApplication.stream.listen((list) {
       friendApplicationUnhandledCount =
           _engineManager.friendApplication.unhandledCount;
+      _notify();
+    });
+
+    _subs.add(sub);
+  }
+
+  void _listenGroupApplication() {
+    final sub = _engineManager.groupApplication.stream.listen((list) {
+      groupApplicationUnhandledCount =
+          _engineManager.groupApplication.unhandledCount;
       _notify();
     });
 

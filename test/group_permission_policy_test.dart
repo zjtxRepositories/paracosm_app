@@ -116,17 +116,99 @@ void main() {
       expect(managerPolicy.canInviteMembers, isFalse);
       expect(ownerPolicy.canInviteMembers, isTrue);
     });
+
+    test('only owner can manage join and invite settings', () {
+      final ownerPolicy = GroupPermissionPolicy(
+        groupInfo: _groupInfo(role: RCIMIWGroupMemberRole.owner),
+      );
+      final managerPolicy = GroupPermissionPolicy(
+        groupInfo: _groupInfo(role: RCIMIWGroupMemberRole.manager),
+      );
+      final normalPolicy = GroupPermissionPolicy(
+        groupInfo: _groupInfo(role: RCIMIWGroupMemberRole.normal),
+      );
+
+      expect(ownerPolicy.canManageJoinInviteSettings, isTrue);
+      expect(managerPolicy.canManageJoinInviteSettings, isFalse);
+      expect(normalPolicy.canManageJoinInviteSettings, isFalse);
+    });
+
+    test('group applications entry follows join permission', () {
+      final ownerManagerVerifyOwner = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.owner,
+          joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
+        ),
+      );
+      final ownerManagerVerifyManager = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.manager,
+          joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
+        ),
+      );
+      final ownerManagerVerifyNormal = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.normal,
+          joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
+        ),
+      );
+      final ownerVerifyOwner = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.owner,
+          joinPermission: RCIMIWGroupJoinPermission.ownerverify,
+        ),
+      );
+      final ownerVerifyManager = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.manager,
+          joinPermission: RCIMIWGroupJoinPermission.ownerverify,
+        ),
+      );
+      final freeOwner = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.owner,
+          joinPermission: RCIMIWGroupJoinPermission.free,
+        ),
+      );
+      final noOneAllowedOwner = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.owner,
+          joinPermission: RCIMIWGroupJoinPermission.nooneallowed,
+        ),
+      );
+      final noOneAllowedManager = GroupPermissionPolicy(
+        groupInfo: _groupInfo(
+          role: RCIMIWGroupMemberRole.manager,
+          joinPermission: RCIMIWGroupJoinPermission.nooneallowed,
+        ),
+      );
+      final missingJoinPermissionManager = GroupPermissionPolicy(
+        groupInfo: _groupInfo(role: RCIMIWGroupMemberRole.manager),
+      );
+
+      expect(ownerManagerVerifyOwner.canViewGroupApplications, isTrue);
+      expect(ownerManagerVerifyManager.canViewGroupApplications, isTrue);
+      expect(ownerManagerVerifyNormal.canViewGroupApplications, isFalse);
+      expect(ownerVerifyOwner.canViewGroupApplications, isTrue);
+      expect(ownerVerifyManager.canViewGroupApplications, isFalse);
+      expect(freeOwner.canViewGroupApplications, isFalse);
+      expect(noOneAllowedOwner.canViewGroupApplications, isTrue);
+      expect(noOneAllowedManager.canViewGroupApplications, isFalse);
+      expect(missingJoinPermissionManager.canViewGroupApplications, isFalse);
+    });
   });
 }
 
 RCIMIWGroupInfo _groupInfo({
   required RCIMIWGroupMemberRole role,
   RCIMIWGroupOperationPermission? invitePermission,
+  RCIMIWGroupJoinPermission? joinPermission,
 }) {
   return RCIMIWGroupInfo.create(
     groupId: 'group-1',
     groupName: 'Group',
     role: role,
     invitePermission: invitePermission,
+    joinPermission: joinPermission,
   );
 }

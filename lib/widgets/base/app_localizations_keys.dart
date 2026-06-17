@@ -199,6 +199,35 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatSetManager => translate('chat_set_manager');
   String get chatGroupOwner => translate('chat_group_owner');
   String get chatGroupManager => translate('chat_group_manager');
+  String get chatGroupApplications => translate('chat_group_applications');
+  String chatGroupApplicationCount(int count) => translate(
+    'chat_group_application_count',
+  ).replaceAll('{count}', count.toString());
+  String get chatGroupJoinApplications =>
+      translate('chat_group_join_applications');
+  String get chatGroupInviteConfirmations =>
+      translate('chat_group_invite_confirmations');
+  String get chatGroupJoinInviteSettings =>
+      translate('chat_group_join_invite_settings');
+  String get chatGroupJoinPermission => translate('chat_group_join_permission');
+  String get chatGroupInviteConfirmation =>
+      translate('chat_group_invite_confirmation');
+  String get chatGroupJoinFree => translate('chat_group_join_free');
+  String get chatGroupJoinOwnerManagerVerify =>
+      translate('chat_group_join_owner_manager_verify');
+  String get chatGroupJoinOwnerVerify =>
+      translate('chat_group_join_owner_verify');
+  String get chatGroupInviteFree => translate('chat_group_invite_free');
+  String get chatGroupInviteNeedConfirm =>
+      translate('chat_group_invite_need_confirm');
+  String get chatGroupApplicationEmpty =>
+      translate('chat_group_application_empty');
+  String get chatGroupApplicationWaitInvitee =>
+      translate('chat_group_application_wait_invitee');
+  String get chatGroupJoinWaitingApproval =>
+      translate('chat_group_join_waiting_approval');
+  String chatGroupInviterName(String name) =>
+      translate('chat_group_inviter_name', {'name': name});
   String chatSettingViewMore(int count) => translate(
     'chat_setting_view_more',
   ).replaceAll('{count}', count.toString());

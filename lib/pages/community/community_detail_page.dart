@@ -35,7 +35,6 @@ class CommunityDetailPage extends StatefulWidget {
 }
 
 class _CommunityDetailPageState extends State<CommunityDetailPage> {
-
   late CommunityDetailController controller;
   Offset? _sendMomentOffset;
   bool _sendMomentInitialized = false;
@@ -44,16 +43,20 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   @override
   void initState() {
     super.initState();
-    controller = CommunityDetailController(communityModel: widget.communityModel);
+    controller = CommunityDetailController(
+      communityModel: widget.communityModel,
+    );
     controller.addListener(_onRefresh);
 
     controller.init();
   }
+
   void _onRefresh() {
     if (mounted) {
       setState(() {});
     }
   }
+
   @override
   void dispose() {
     controller.removeListener(_onRefresh);
@@ -61,6 +64,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
     super.dispose();
   }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -76,6 +80,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
     _sendMomentInitialized = true;
   }
+
   Future<void> navigateToConversationDetail() async {
     final group = controller.group;
     final name = await group?.name;
@@ -84,15 +89,14 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     context.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
-          targetId: group!.info.groupId ?? '',
-          conversationType: RCIMIWConversationType.group,
-          name: name,
-          isGroup: true,
-          avatar: group.info.portraitUri
+        targetId: group!.info.groupId ?? '',
+        conversationType: RCIMIWConversationType.group,
+        name: name,
+        isGroup: true,
+        avatar: group.info.portraitUri,
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +149,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                               _buildCommunityTitleAndAddress(),
                               const SizedBox(height: 8),
                               // 1.3 社区描述
-                              _buildDescription(controller.communityModel.desc ?? ''),
+                              _buildDescription(
+                                controller.communityModel.desc ?? '',
+                              ),
                               const SizedBox(height: 8),
                               // 1.4 社区标签
                               _buildTags(controller.communityModel.tags ?? []),
@@ -179,8 +185,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               top: _sendMomentOffset!.dy,
               child: GestureDetector(
                 onTap: () async {
-                 await context.push('/new-post?retweet=0',extra: controller.roomId);
-                 controller.refresh();
+                  await context.push(
+                    '/new-post?retweet=0',
+                    extra: controller.roomId,
+                  );
+                  controller.refresh();
                 },
                 behavior: HitTestBehavior.opaque,
                 onPanUpdate: (details) {
@@ -245,7 +254,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   }
 
   /// 构建头像及加入按钮
-  Widget _buildAvatarAndJoinAction(BuildContext context, AppLocalizations l10n) {
+  Widget _buildAvatarAndJoinAction(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     // 根据 Tab 动态切换按钮文字和样式
     return SizedBox(
       height: 64, // 占位高度，决定了下方内容（标题）的垂直位置
@@ -257,8 +269,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             top: -16, // 向上偏移半个头像的高度
             left: 0,
             child: GroupAvatarWidget(
-                portraitUri: controller.communityModel.avatarUrl,
-                groupId: controller.communityModel.communityParam?.groupId ?? '',
+              portraitUri: controller.communityModel.avatarUrl,
+              groupId: controller.communityModel.communityParam?.groupId ?? '',
               size: 64,
             ),
           ),
@@ -269,19 +281,22 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             child: controller.isJoined
                 ? AppButton(
                     text: l10n.communityDetailBtnChat,
-                    onPressed:navigateToConversationDetail,
+                    onPressed: navigateToConversationDetail,
                     width: 100,
                     height: 32,
                     borderRadius: 32,
                     backgroundColor: AppColors.white,
                     textColor: AppColors.grey900,
-                    border: const BorderSide(color: AppColors.grey200, width: 1),
+                    border: const BorderSide(
+                      color: AppColors.grey200,
+                      width: 1,
+                    ),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   )
                 : AppButton(
                     text: l10n.communityDetailBtnJoin,
-                    onPressed:controller.joined,
+                    onPressed: controller.joined,
                     width: 85,
                     height: 28,
                     borderRadius: 28,
@@ -346,32 +361,40 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             ),
             const SizedBox(width: 8),
             // 地址展示芯片
-            controller.communityModel.tokenAddress.isNotEmpty ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                border: Border.all(color: AppColors.grey200, width: 1),
-                borderRadius: BorderRadius.circular(61),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/images/common/copy-black.png',
-                    width: 12,
-                    height: 12,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    ellipsisMiddle(controller.communityModel.tokenAddress,tail: 4),
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 10,
-                      color: AppColors.grey900,
+            controller.communityModel.tokenAddress.isNotEmpty
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
                     ),
-                  ),
-                ],
-              ),
-            ) : SizedBox(),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      border: Border.all(color: AppColors.grey200, width: 1),
+                      borderRadius: BorderRadius.circular(61),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/common/copy-black.png',
+                          width: 12,
+                          height: 12,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          ellipsisMiddle(
+                            controller.communityModel.tokenAddress,
+                            tail: 4,
+                          ),
+                          style: AppTextStyles.body.copyWith(
+                            fontSize: 10,
+                            color: AppColors.grey900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : SizedBox(),
           ],
         ),
       ],
@@ -392,7 +415,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
   /// 构建标签列表
   Widget _buildTags(List<String> tags) {
-
     return Wrap(
       spacing: 4,
       runSpacing: 4,
@@ -424,10 +446,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final showMore = members.length > 6;
 
     /// 整体宽度
-    final width =
-        ((list.length - 1) * 14) +
-            20 +
-            (showMore ? 24 : 0);
+    final width = ((list.length - 1) * 14) + 20 + (showMore ? 24 : 0);
 
     return Row(
       children: [
@@ -460,18 +479,14 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 final member = list[index];
 
                 return Positioned(
-                  right:
-                  (showMore ? 24 : 0) + (index * 14),
+                  right: (showMore ? 24 : 0) + (index * 14),
 
                   child: Container(
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.white,
-                        width: 1.5,
-                      ),
+                      border: Border.all(color: AppColors.white, width: 1.5),
                     ),
                     child: UserAvatarWidget(
                       userId: member.item.userId,
@@ -537,13 +552,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   Widget _buildContentList(AppLocalizations l10n) {
     // switch (_tabController.index) {
     //   case 0:
-        return _buildDashboardTabContent(l10n);
-      // case 1:
-      //   return _buildAssetTabContent(l10n);
-      // case 2:
-      //   return _buildPickTabContent(l10n);
-      // default:
-      //   return const SizedBox.shrink();
+    return _buildDashboardTabContent(l10n);
+    // case 1:
+    //   return _buildAssetTabContent(l10n);
+    // case 2:
+    //   return _buildPickTabContent(l10n);
+    // default:
+    //   return const SizedBox.shrink();
     // }
   }
 
@@ -794,9 +809,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 搜索框
-          AppSearchInput(
-            hintText: l10n.communityModalSearchTokenHint,
-          ),
+          AppSearchInput(hintText: l10n.communityModalSearchTokenHint),
           const SizedBox(height: 12),
           // 网络筛选 Chip 列表
           SingleChildScrollView(
@@ -858,7 +871,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     bool showArrow = false,
   }) {
     return Container(
-      padding: const EdgeInsets.only(left: 4,top: 5, right: 12, bottom: 5),
+      padding: const EdgeInsets.only(left: 4, top: 5, right: 12, bottom: 5),
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primary : Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -888,8 +901,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ),
           if (showArrow) ...[
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 16, color: AppColors.grey400),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: AppColors.grey400,
+            ),
           ],
         ],
       ),
@@ -993,7 +1009,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               width: 48,
               height: 48,
               errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.stars,size: 48, color: AppColors.grey400),
+                  const Icon(Icons.stars, size: 48, color: AppColors.grey400),
             ),
             const SizedBox(width: 16),
             // 文本信息
@@ -1067,7 +1083,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 const SizedBox(height: 10),
                 // Donate 按钮
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.white,
                     border: Border.all(color: AppColors.grey200, width: 1),
@@ -1267,9 +1286,24 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildDonorItem(0, l10n.communityDetailMockDonorName1, l10n.communityDetailMockDonorAddress, l10n.communityMockDonorAmount1),
-          _buildDonorItem(1, l10n.communityDetailMockDonorName2, l10n.communityDetailMockDonorAddress, l10n.communityMockDonorAmount2),
-          _buildDonorItem(2, l10n.communityDetailMockDonorName3, l10n.communityDetailMockDonorAddress, l10n.communityMockDonorAmount3),
+          _buildDonorItem(
+            0,
+            l10n.communityDetailMockDonorName1,
+            l10n.communityDetailMockDonorAddress,
+            l10n.communityMockDonorAmount1,
+          ),
+          _buildDonorItem(
+            1,
+            l10n.communityDetailMockDonorName2,
+            l10n.communityDetailMockDonorAddress,
+            l10n.communityMockDonorAmount2,
+          ),
+          _buildDonorItem(
+            2,
+            l10n.communityDetailMockDonorName3,
+            l10n.communityDetailMockDonorAddress,
+            l10n.communityMockDonorAmount3,
+          ),
         ],
       ),
     );
@@ -1456,11 +1490,21 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                _buildActivityInfoRow(l10n.communityDetailActivityLabelDonor, donor),
+                _buildActivityInfoRow(
+                  l10n.communityDetailActivityLabelDonor,
+                  donor,
+                ),
                 const SizedBox(height: 4),
-                _buildActivityInfoRow(l10n.communityDetailActivityLabelFrom, from, hasChevron: true),
+                _buildActivityInfoRow(
+                  l10n.communityDetailActivityLabelFrom,
+                  from,
+                  hasChevron: true,
+                ),
                 const SizedBox(height: 4),
-                _buildActivityInfoRow(l10n.communityDetailActivityLabelTime, time),
+                _buildActivityInfoRow(
+                  l10n.communityDetailActivityLabelTime,
+                  time,
+                ),
               ],
             ),
           ),
@@ -1556,10 +1600,12 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         // 用户信息
         Row(
           children: [
-            UserAvatarWidget(userId: item.user?.userId,
+            UserAvatarWidget(
+              userId: item.user?.userId,
               avatarUrl: item.user?.avatar,
               size: 36,
-              borderRadius: BorderRadius.all(Radius.circular(8)),),
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+            ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1587,7 +1633,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         const SizedBox(height: 16),
         // 文字内容
         Text(
-         item.content?.content ?? '',
+          item.content?.content ?? '',
           style: AppTextStyles.body.copyWith(
             fontSize: 14,
             color: const Color(0xFF404040),
@@ -1601,11 +1647,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         const SizedBox(height: 12),
         const SizedBox(height: 12),
 
-        const Divider(
-          height: 1,
-          thickness: 1,
-          color: AppColors.grey200,
-        ),
+        const Divider(height: 1, thickness: 1, color: AppColors.grey200),
       ],
     );
   }
@@ -1614,8 +1656,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   Widget _buildPostImageGrid(List<SocialMediaModel> medias) {
     return ImageGrid(
       medias: medias,
-      onTap: (index) =>
-          controller.toggleMedia(medias, index, context),
+      onTap: (index) => controller.toggleMedia(medias, index, context),
     );
     return LayoutBuilder(
       builder: (context, constraints) {

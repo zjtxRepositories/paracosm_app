@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/modals/community_modals.dart';
@@ -19,7 +18,6 @@ class _CreateClubPageState extends State<CreateClubPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final int _maxDescriptionLength = 80;
-bool _isNft = false;
 
   @override
   void dispose() {
@@ -60,7 +58,11 @@ bool _isNft = false;
                               'assets/images/chat/avatar.png',
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.token, size: 60, color: AppColors.grey400),
+                                  const Icon(
+                                    Icons.token,
+                                    size: 60,
+                                    color: AppColors.grey400,
+                                  ),
                             ),
                           ),
                         ),
@@ -101,7 +103,10 @@ bool _isNft = false;
                           color: AppColors.grey400,
                           fontSize: 14,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 15,
+                        ),
                         border: InputBorder.none,
                       ),
                       style: AppTextStyles.h2.copyWith(
@@ -116,9 +121,11 @@ bool _isNft = false;
                   // 新增: Choose the NFT to stake
                   GestureDetector(
                     onTap: () {
-                      CommunityModals.showSelectedDao(context: context, onSelected: (select){
-
-                      });
+                      CommunityModals.showSelectedDao(
+                        context: context,
+                        onTokenSelected: (select) {},
+                        onNftSelected: (select) {},
+                      );
                     },
                     child: Container(
                       height: 52,
@@ -178,7 +185,10 @@ bool _isNft = false;
                               color: AppColors.grey400,
                               fontSize: 14,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             border: InputBorder.none,
                             counterText: '', // 隐藏默认计数器，使用自定义
                           ),
@@ -223,9 +233,11 @@ bool _isNft = false;
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: AppButton(
               text: l10n.commonConfirm,
-              onPressed: _nameController.text.isNotEmpty && _isNft ? () {
-                // TODO: 提交逻辑
-              } : null,
+              onPressed: _nameController.text.isNotEmpty
+                  ? () {
+                      // TODO: 提交逻辑
+                    }
+                  : null,
             ),
           ),
         ],

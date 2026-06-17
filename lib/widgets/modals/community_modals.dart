@@ -1,9 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
-import 'package:paracosm/widgets/modals/wallet_select_token_modal.dart';
 
+import '../../modules/wallet/model/nft_asset_model.dart';
 import '../../modules/wallet/model/token_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -13,7 +12,8 @@ import '../common/app_modal.dart';
 class CommunityModals {
   static Future<void> showSelectedDao({
     required BuildContext context,
-    required Function(TokenModel) onSelected,
+    required Function(TokenModel) onTokenSelected,
+    Function(NftAssetModel)? onNftSelected,
   }) async {
     final l10n = AppLocalizations.of(context)!;
     AppModal.show(
@@ -32,7 +32,10 @@ class CommunityModals {
               await Future.delayed(const Duration(milliseconds: 200));
 
               if (context.mounted) {
-                showSelectTokenModal(context: context, type: AssetType.token,onSelected: onSelected);
+                showSelectTokenModal(
+                  context: context,
+                  onSelected: onTokenSelected,
+                );
               }
             },
           ),
@@ -45,7 +48,7 @@ class CommunityModals {
               await Future.delayed(const Duration(milliseconds: 200));
 
               if (context.mounted) {
-                showSelectTokenModal(context: context, type: AssetType.nft,onSelected: onSelected);
+                showSelectNftModal(context: context, onSelected: onNftSelected);
               }
             },
           ),
@@ -54,10 +57,10 @@ class CommunityModals {
       ),
     );
   }
+
   /// 显示选择代币弹窗
-  static showSelectTokenModal({
+  static void showSelectTokenModal({
     required BuildContext context,
-    required AssetType type,
     required Function(TokenModel) onSelected,
   }) {
     final currentWallet = AccountManager().currentWallet;
@@ -65,12 +68,28 @@ class CommunityModals {
     WalletModals.showTokenSelector(
       context: context,
       wallet: currentWallet,
-      type: type,
       onSelected: (token) {
         onSelected(token);
       },
     );
   }
+
+  /// 显示选择 NFT 弹窗
+  static void showSelectNftModal({
+    required BuildContext context,
+    Function(NftAssetModel)? onSelected,
+  }) {
+    final currentWallet = AccountManager().currentWallet;
+    if (currentWallet == null) return;
+    WalletModals.showNftSelector(
+      context: context,
+      wallet: currentWallet,
+      onSelected: (asset) {
+        onSelected?.call(asset);
+      },
+    );
+  }
+
   static Widget _buildDaoTypeCard({
     required String icon,
     required String title,
@@ -94,7 +113,7 @@ class CommunityModals {
               width: 48,
               height: 48,
               errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.stars,size: 48, color: AppColors.grey400),
+                  const Icon(Icons.stars, size: 48, color: AppColors.grey400),
             ),
             const SizedBox(width: 16),
             // 文本信息
@@ -130,124 +149,4 @@ class CommunityModals {
       ),
     );
   }
-
-  /// 构建弹窗中的网络筛选 Chip
- static Widget _buildNetworkChip({
-    required String icon,
-    required String label,
-    required bool isSelected,
-    bool showArrow = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.only(left: 4,top: 5, right: 12, bottom: 5),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isSelected ? Colors.transparent : AppColors.grey200,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            icon,
-            width: 20,
-            height: 20,
-            errorBuilder: (_, __, ___) =>
-            const Icon(Icons.public, size: 20, color: AppColors.grey400),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTextStyles.body.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: AppColors.grey900,
-            ),
-          ),
-          if (showArrow) ...[
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 16, color: AppColors.grey400),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// 构建弹窗中的代币列表项
-  static Widget _buildTokenModalItem({
-    required String icon,
-    required String symbol,
-    required String amount,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        // 代币图标
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Image.asset(
-            icon,
-            width: 44,
-            height: 44,
-            errorBuilder: (_, __, ___) =>
-            const Icon(Icons.token, size: 44, color: AppColors.grey200),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // 右侧内容区域（带下划线）
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AppColors.grey100, width: 1),
-              ),
-            ),
-            child: Row(
-              children: [
-                // 符号
-                Expanded(
-                  child: Text(
-                    symbol,
-                    style: AppTextStyles.h2.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.grey900,
-                    ),
-                  ),
-                ),
-                // 数量和价值
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      amount,
-                      style: AppTextStyles.h2.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.grey900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: AppTextStyles.body.copyWith(
-                        fontSize: 12,
-                        color: AppColors.grey700,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
 }

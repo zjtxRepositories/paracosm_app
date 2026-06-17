@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/network/api/create_community_api.dart';
+import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -25,8 +26,8 @@ import '../../widgets/common/app_toast.dart';
 
 /// 创建 DAO 页面
 class CreateDaoPage extends StatefulWidget {
-  final TokenModel token;
-  const CreateDaoPage({super.key, required this.token});
+  final Object asset;
+  const CreateDaoPage({super.key, required this.asset});
 
   @override
   State<CreateDaoPage> createState() => _CreateDaoPageState();
@@ -41,8 +42,15 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    _nameController.text = widget.token.name;
+    _nameController.text = _assetName;
   }
+
+  bool get _isNft => widget.asset is NftAssetModel;
+  TokenModel get _token => widget.asset as TokenModel;
+  NftAssetModel get _nft => widget.asset as NftAssetModel;
+
+  String get _assetName => _isNft ? _nft.displayLabel : _token.name;
+  String get _assetLogo => _isNft ? _nft.imageUrl : _token.logo;
 
   @override
   void dispose() {
@@ -52,22 +60,21 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
   }
 
   Future<void> _createCommunity() async {
-    final asset = widget.token;
-    String jid = asset.address;
+    String jid = _isNft ? _nft.contractAddress : _token.address;
     final name = _nameController.text;
     final desc = _descriptionController.text;
-    final avatarUrl = asset.logo;
+    final avatarUrl = _assetLogo;
     final roomType = 1;
-    final communityType = 1;
+    final communityType = _isNft ? 2 : 1;
     if (jid.isEmpty) {
-      jid = "${asset.symbol.toLowerCase()}_${asset.chainId}_native";
+      jid = "${_token.symbol.toLowerCase()}_${_token.chainId}_native";
     }
     final groupId = generateGroupId(GroupType.dao);
     final param = CommunityParam(
-      symbol: asset.symbol,
-      chainId: asset.chainId,
-      tokenAddress: asset.address,
-      isNative: asset.address.isEmpty,
+      symbol: _isNft ? _nft.name : _token.symbol,
+      chainId: _isNft ? _nft.chainId : _token.chainId,
+      tokenAddress: _isNft ? _nft.contractAddress : _token.address,
+      isNative: !_isNft && _token.address.isEmpty,
       groupId: groupId,
     );
     AppLoading.show();
@@ -75,7 +82,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
       jid,
       name,
       desc,
-      asset.address.isNotEmpty ? avatarUrl : '',
+      _isNft || _token.address.isNotEmpty ? avatarUrl : '',
       roomType,
       communityType,
       jsonEncode(param.toJson()),
@@ -154,7 +161,7 @@ class _CreateDaoPageState extends State<CreateDaoPage> {
                           ),
                           child: Center(
                             child: AppNetworkImage(
-                              url: widget.token.logo,
+                              url: _assetLogo,
                               width: 65,
                               height: 65,
                               fit: BoxFit.contain,

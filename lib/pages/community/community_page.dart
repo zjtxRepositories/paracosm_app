@@ -65,10 +65,10 @@ class _CommunityPageState extends State<CommunityPage>
   }
 
   Future<void> _fetchRecommendCommunity() async {
-   final data = await RecommendCommunityApi.get();
-   setState(() {
-     _recommends = data;
-   });
+    final data = await RecommendCommunityApi.get();
+    setState(() {
+      _recommends = data;
+    });
   }
 
   /// 显示筛选底部弹窗
@@ -96,11 +96,17 @@ class _CommunityPageState extends State<CommunityPage>
   }
 
   void _showSelectDaoTypeModal() {
-    CommunityModals.showSelectedDao(context: context,
-    onSelected: (token){
-      context.pop();
-      context.push('/create-dao',extra: token);
-    });
+    CommunityModals.showSelectedDao(
+      context: context,
+      onTokenSelected: (token) {
+        context.pop();
+        context.push('/create-dao', extra: token);
+      },
+      onNftSelected: (asset) {
+        context.pop();
+        context.push('/create-dao', extra: asset);
+      },
+    );
   }
 
   @override
@@ -126,12 +132,12 @@ class _CommunityPageState extends State<CommunityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _recommends.isEmpty ? SizedBox(): const SizedBox(height: 12),
+          _recommends.isEmpty ? SizedBox() : const SizedBox(height: 12),
 
           /// 推荐社区
-          _recommends.isEmpty ? SizedBox():  _buildRecommendedSection(),
+          _recommends.isEmpty ? SizedBox() : _buildRecommendedSection(),
 
-          _recommends.isEmpty ? SizedBox():  const SizedBox(height: 16),
+          _recommends.isEmpty ? SizedBox() : const SizedBox(height: 16),
 
           /// TabBar
           _buildTabBarSection(tabs),
@@ -141,12 +147,8 @@ class _CommunityPageState extends State<CommunityPage>
             child: TabBarView(
               controller: _tabController,
               children: const [
-                CommunityListPage(
-                  type: RoomType.dao,
-                ),
-                CommunityListPage(
-                  type: RoomType.club,
-                ),
+                CommunityListPage(type: RoomType.dao),
+                CommunityListPage(type: RoomType.club),
               ],
             ),
           ),
@@ -209,7 +211,7 @@ class _CommunityPageState extends State<CommunityPage>
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/dao.png',
                     label: l10n.communityMenuCreateDao,
-                    onTap: _showSelectDaoTypeModal
+                    onTap: _showSelectDaoTypeModal,
                     // onTap: () => context.push('/create-dao'),
                   ),
                   AppActionPopMenuItem(
@@ -280,14 +282,13 @@ class _CommunityPageState extends State<CommunityPage>
     required String desc,
     required String groupId,
     required String avatar,
-
   }) {
     // 判断趋势是否为正 (上涨)
     // final bool isPositive = trend?.startsWith('+') ?? true;
     final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
-      onTap: () => context.push('/community-detail',extra: item),
+      onTap: () => context.push('/community-detail', extra: item),
       child: Container(
         width: 185,
         margin: const EdgeInsets.only(right: 12),
@@ -368,7 +369,7 @@ class _CommunityPageState extends State<CommunityPage>
                 const SizedBox(width: 2),
                 Expanded(
                   child: Text(
-                    ' ${ellipsisMiddle(address,head: 5,tail: 5)}',
+                    ' ${ellipsisMiddle(address, head: 5, tail: 5)}',
                     style: AppTextStyles.body.copyWith(
                       fontSize: 10,
                       color: AppColors.grey400,

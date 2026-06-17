@@ -16,6 +16,8 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get commonApprove => translate('common_approve');
   String get commonConnect => translate('common_connect');
   String get commonCreate => translate('common_create');
+  String get commonYes => translate('common_yes');
+  String get commonNo => translate('common_no');
   String get chatGroupNoPermission => translate('chat_group_no_permission');
 
   // --- 钱包启动页 ---
@@ -955,6 +957,26 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_token_detail_total_issue');
   String get profileTokenDetailContractAddress =>
       translate('profile_token_detail_contract_address');
+  String get profileNftDetailContractAddress =>
+      translate('profile_nft_detail_contract_address');
+  String get profileNftDetailTokenId =>
+      translate('profile_nft_detail_token_id');
+  String get profileNftDetailOwner => translate('profile_nft_detail_owner');
+  String get profileNftDetailTokenType =>
+      translate('profile_nft_detail_token_type');
+  String get profileNftDetailBalance => translate('profile_nft_detail_balance');
+  String get profileNftDetailMetadataUri =>
+      translate('profile_nft_detail_metadata_uri');
+  String get profileNftDetailCollection =>
+      translate('profile_nft_detail_collection');
+  String get profileNftDetailNetwork => translate('profile_nft_detail_network');
+  String get profileNftDetailDescription =>
+      translate('profile_nft_detail_description');
+  String get profileNftDetailLastSynced =>
+      translate('profile_nft_detail_last_synced');
+  String get profileNftDetailSpam => translate('profile_nft_detail_spam');
+  String get profileNftDetailHidden => translate('profile_nft_detail_hidden');
+  String get profileNftDetailStatus => translate('profile_nft_detail_status');
   String get profileTokenDetailFrom => translate('profile_token_detail_from');
   String get profileTokenDetailTo => translate('profile_token_detail_to');
   String get profileTokenDetailNetworkFees =>

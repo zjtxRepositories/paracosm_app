@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/chains/service/nft_portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
 import 'package:paracosm/widgets/common/app_network_image.dart';
 import 'package:paracosm/widgets/modals/wallet_modals.dart';
+import 'package:paracosm/widgets/wallet/nft_asset_tile.dart';
 
 /// 代币网络详情页面
 ///
@@ -59,6 +63,9 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
       _selectedNetwork = chain;
       _tokens = tokens;
     });
+    if (wallet != null) {
+      NftPortfolioService().start(wallet);
+    }
   }
 
   void _showNetworkSelector() {
@@ -164,18 +171,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildTokenList(),
-                Center(
-                  child: Text(
-                    AppLocalizations.of(context)!.profileTokenNetworkNoNft,
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 14,
-                      color: AppColors.grey500,
-                    ),
-                  ),
-                ),
-              ],
+              children: [_buildTokenList(), _buildNftList()],
             ),
           ),
         ],
@@ -520,6 +516,40 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNftList() {
+    return StreamBuilder<List<NftAssetModel>>(
+      stream: NftPortfolioService().stream,
+      initialData: NftPortfolioService().currentAssets,
+      builder: (context, snapshot) {
+        final chain = _selectedNetwork;
+        final nfts = (snapshot.data ?? const <NftAssetModel>[])
+            .where((asset) => chain == null || asset.chainId == chain.chainId)
+            .where((asset) => !asset.isSpam && !asset.isHidden)
+            .toList();
+        if (nfts.isEmpty) {
+          return AppEmptyView(
+            text: AppLocalizations.of(context)!.profileTokenNetworkNoNft,
+            imageSize: 96,
+            bottomOffset: 24,
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          itemCount: nfts.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final asset = nfts[index];
+            return NftAssetTile(
+              asset: asset,
+              networkLogo: chain?.logo,
+              onTap: () => context.push('/nft-detail', extra: asset),
+            );
+          },
         );
       },
     );

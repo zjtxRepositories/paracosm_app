@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/community_model.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/pages/dapp/dapp_page.dart';
@@ -58,6 +59,7 @@ import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
 import 'package:paracosm/pages/profile/wallet_manager_page.dart';
 import 'package:paracosm/pages/profile/wallet_edit_page.dart';
+import 'package:paracosm/pages/profile/nft_detail_page.dart';
 import 'package:paracosm/pages/profile/token_detail_page.dart';
 import 'package:paracosm/pages/profile/token_market_page.dart';
 import 'package:paracosm/pages/profile/token_receive_page.dart';
@@ -574,7 +576,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final data = state.extra as TokenModel?;
-          return data == null ? SizedBox() : CreateDaoPage(token: data);
+          return data == null ? SizedBox() : CreateDaoPage(asset: data);
         },
       ),
       // 创建俱乐部页
@@ -731,6 +733,15 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra as TokenModel?;
           return extra == null ? SizedBox() : TokenDetailPage(token: extra);
+        },
+      ),
+      // NFT 详情页
+      GoRoute(
+        path: '/nft-detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as NftAssetModel?;
+          return extra == null ? SizedBox() : NftDetailPage(asset: extra);
         },
       ),
       // 币种管理页

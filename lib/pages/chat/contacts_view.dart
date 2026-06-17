@@ -106,9 +106,7 @@ class _ContactsViewState extends State<ContactsView> {
 
     final List<Map<String, dynamic>> result = [];
 
-    if (widget.groups.isNotEmpty) {
-      result.add({'type': 'header'});
-    }
+    result.add({'type': 'header'});
 
     final keys = map.keys.toList();
 
@@ -119,10 +117,7 @@ class _ContactsViewState extends State<ContactsView> {
     });
 
     for (var key in keys) {
-      result.add({
-        'initial': key,
-        'contacts': map[key]!,
-      });
+      result.add({'initial': key, 'contacts': map[key]!});
     }
 
     return result;
@@ -160,7 +155,7 @@ class _ContactsViewState extends State<ContactsView> {
 
     for (var group in groups) {
       if (group['type'] == 'header') {
-        offset += 76.0;
+        offset += 152.0;
         continue;
       }
 
@@ -185,9 +180,7 @@ class _ContactsViewState extends State<ContactsView> {
     });
 
     if (contactGroups.isEmpty) {
-      return AppEmptyView(
-        text: AppLocalizations.of(context)!.chatSearchNoData,
-      );
+      return AppEmptyView(text: AppLocalizations.of(context)!.chatSearchNoData);
     }
 
     return Stack(
@@ -209,7 +202,10 @@ class _ContactsViewState extends State<ContactsView> {
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Text(
                     _buildGroupTitle(context, group['initial']),
                     style: AppTextStyles.body.copyWith(
@@ -218,22 +214,18 @@ class _ContactsViewState extends State<ContactsView> {
                     ),
                   ),
                 ),
-                ...List.generate(
-                  contacts.length,
-                      (i) {
-                    final friend = FriendModel(info: contacts[i]);
+                ...List.generate(contacts.length, (i) {
+                  final friend = FriendModel(info: contacts[i]);
 
-                    return ContactItem(
-                      name: friend.name,
-                      portraitUri: friend.info.portrait ?? '',
-                      userId: friend.info.userId ?? '',
-                      isStar: false,
-                      showDivider: i != contacts.length - 1,
-                      onTap: () =>
-                          widget.onTapContact(friend.info.userId ?? ''),
-                    );
-                  },
-                ),
+                  return ContactItem(
+                    name: friend.name,
+                    portraitUri: friend.info.portrait ?? '',
+                    userId: friend.info.userId ?? '',
+                    isStar: false,
+                    showDivider: i != contacts.length - 1,
+                    onTap: () => widget.onTapContact(friend.info.userId ?? ''),
+                  );
+                }),
               ],
             );
           },

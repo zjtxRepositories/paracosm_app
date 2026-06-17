@@ -124,6 +124,17 @@ extension AppLocalizationsKeys on AppLocalizations {
   String chatGroupManageCount(int count) => translate(
     'chat_group_manage_count',
   ).replaceAll('{count}', count.toString());
+  String get chatBlacklist => translate('chat_blacklist');
+  String get chatBlacklistManageHint => translate('chat_blacklist_manage_hint');
+  String get chatBlacklistEmpty => translate('chat_blacklist_empty');
+  String get chatBlacklistAdd => translate('chat_blacklist_add');
+  String get chatBlacklistAddSuccess => translate('chat_blacklist_add_success');
+  String get chatBlacklistAddFailed => translate('chat_blacklist_add_failed');
+  String get chatBlacklistRemove => translate('chat_blacklist_remove');
+  String get chatBlacklistRemoveSuccess =>
+      translate('chat_blacklist_remove_success');
+  String get chatBlacklistRemoveFailed =>
+      translate('chat_blacklist_remove_failed');
   String get chatFilterAll => translate('chat_filter_all');
   String chatFilterAllCount(int count) => translate(
     'chat_filter_all_count',

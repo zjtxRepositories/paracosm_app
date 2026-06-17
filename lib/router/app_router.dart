@@ -13,6 +13,7 @@ import 'package:paracosm/pages/wallet/wallet_backup_mnemonic_page.dart';
 import 'package:paracosm/pages/wallet/wallet_import_private_key_page.dart';
 import 'package:paracosm/widgets/business/main_tab_scaffold.dart';
 import 'package:paracosm/pages/chat/home/chat_page.dart';
+import 'package:paracosm/pages/chat/chat_blacklist_page.dart';
 import 'package:paracosm/pages/chat/chat_group_video_page.dart';
 import 'package:paracosm/pages/chat/chat_group_voice_page.dart';
 import 'package:paracosm/pages/chat/chat_combine_forward_detail_page.dart';
@@ -625,6 +626,12 @@ class AppRouter {
           final list = state.extra as List<RCIMIWGroupInfo>?;
           return GroupListPage(groups: list ?? []);
         },
+      ),
+      // 黑名单列表页
+      GoRoute(
+        path: '/chat-blacklist',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ChatBlacklistPage(),
       ),
       // 发现列表页
       GoRoute(

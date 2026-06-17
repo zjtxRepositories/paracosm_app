@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
@@ -21,6 +22,28 @@ class RongCallSummary {
   final int? reason;
 }
 
+class RongCallSummaryEvent {
+  const RongCallSummaryEvent({
+    required this.targetId,
+    required this.senderUserId,
+    required this.callId,
+    required this.sessionId,
+    required this.isGroupCall,
+    required this.reason,
+    required this.reasonName,
+    required this.connectedTime,
+  });
+
+  final String targetId;
+  final String senderUserId;
+  final String callId;
+  final String sessionId;
+  final bool isGroupCall;
+  final int? reason;
+  final String reasonName;
+  final int connectedTime;
+}
+
 class RongCallSummaryParser {
   RongCallSummaryParser._();
 
@@ -37,8 +60,13 @@ class RongCallSummaryParser {
 
     final duration = _readInt(data['duration']);
     final reason = _readInt(data['hangupReason']) ?? _readInt(data['reason']);
+    final connectedTime = _readInt(data['connectedTime']) ?? 0;
     final isVideo = _isVideoCall(data['mediaType']);
-    final text = _formatText(duration: duration, reason: reason);
+    final text = _formatText(
+      duration: duration,
+      reason: reason,
+      connectedTime: connectedTime,
+    );
     final prefix = isVideo
         ? AppLocalizations.currentText('call_video_prefix')
         : AppLocalizations.currentText('call_audio_prefix');
@@ -49,6 +77,22 @@ class RongCallSummaryParser {
       conversationText: '$prefix $text',
       duration: duration,
       reason: reason,
+    );
+  }
+
+  static RongCallSummaryEvent? tryParseEvent(RCIMIWMessage message) {
+    final data = _callSummaryData(message);
+    if (data == null) return null;
+
+    return RongCallSummaryEvent(
+      targetId: (message.targetId ?? '').trim(),
+      senderUserId: (message.senderUserId ?? '').trim(),
+      callId: _readString(data['callId']) ?? '',
+      sessionId: _readString(data['sessionId']) ?? '',
+      isGroupCall: message.conversationType == RCIMIWConversationType.group,
+      reason: _readInt(data['hangupReason']) ?? _readInt(data['reason']),
+      reasonName: _readString(data['reasonName']) ?? '',
+      connectedTime: _readInt(data['connectedTime']) ?? 0,
     );
   }
 
@@ -150,14 +194,19 @@ class RongCallSummaryParser {
     return false;
   }
 
-  static String _formatText({required int? duration, required int? reason}) {
-    if (duration != null && duration > 0) {
+  static String _formatText({
+    required int? duration,
+    required int? reason,
+    required int connectedTime,
+  }) {
+    if (connectedTime > 0 && duration != null && duration > 0) {
       return AppLocalizations.currentText('call_duration', {
         'duration': formatDurationFromMs(duration),
       });
     }
 
     switch (reason) {
+      case 0 when connectedTime <= 0:
       case 1:
       case 10:
       case 11:
@@ -190,5 +239,25 @@ class RongCallSummaryParser {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+}
+
+class RongCallSummaryCenter {
+  RongCallSummaryCenter._();
+
+  static final RongCallSummaryCenter _instance = RongCallSummaryCenter._();
+
+  factory RongCallSummaryCenter() => _instance;
+
+  final StreamController<RongCallSummaryEvent> _controller =
+      StreamController<RongCallSummaryEvent>.broadcast();
+
+  Stream<RongCallSummaryEvent> get stream => _controller.stream;
+
+  bool notifyIfCallSummary(RCIMIWMessage message) {
+    final event = RongCallSummaryParser.tryParseEvent(message);
+    if (event == null) return false;
+    _controller.add(event);
+    return true;
   }
 }

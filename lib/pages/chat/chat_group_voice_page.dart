@@ -18,23 +18,21 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_module.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-
 import '../../core/models/group_member_model.dart';
+import '../../modules/call/rong_call_types.dart';
 
 class ChatGroupVoicePage extends StatefulWidget {
   final String name;
   final String targetId;
-  final String status;
+  final Object? status;
 
   const ChatGroupVoicePage({
     super.key,
     required this.name,
     this.targetId = '',
-    this.status = 'dialing',
+    this.status = ChatCallStatus.dialing,
   });
-
   @override
   State<ChatGroupVoicePage> createState() => _ChatGroupVoicePageState();
 }
@@ -42,7 +40,7 @@ class ChatGroupVoicePage extends StatefulWidget {
 class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   static const Duration _participantAnswerTimeout = Duration(seconds: 60);
 
-  late String _status;
+  late ChatCallStatus _status;
   late bool _micEnabled;
   late bool _speakerEnabled;
   late RongCallState _callState;
@@ -56,10 +54,10 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
   String get name =>
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
-  String get status => _status;
-  bool get _isIncoming => _status == 'incoming';
-  bool get _isInCall => _status == 'in_call';
-  bool get _isJoin => _status == 'join';
+  ChatCallStatus get status => _status;
+  bool get _isIncoming => _status == ChatCallStatus.incoming;
+  bool get _isInCall => _status == ChatCallStatus.inCall;
+  bool get _isJoin => _status == ChatCallStatus.join;
   bool get _hasActiveCall => _callState.isActive;
   bool get _isUninvitedJoinPreview {
     if (!_isJoin) return false;
@@ -102,7 +100,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
+    _status = _normalizeInitialStatus(widget.status);
     _micEnabled = true;
     _speakerEnabled = true;
     _callState = RongCallManager().state;
@@ -113,6 +111,16 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       _startStaticCallTimer();
     }
     _getGroupMembers();
+  }
+
+  ChatCallStatus _normalizeInitialStatus(Object? status) {
+    if (status is ChatCallStatus) {
+      return status;
+    }
+    if (status is String) {
+      return ChatCallStatus.fromRoute(status);
+    }
+    return ChatCallStatus.dialing;
   }
 
   Future<void> _getGroupMembers() async {
@@ -263,7 +271,8 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   void _syncParticipantChangeToasts(RongCallState state) {
     final nextActiveUserIds = _activeRemoteUserIds(state);
     final shouldNotify =
-        _status == 'in_call' && state.status == RongCallStatus.inCall;
+        _status == ChatCallStatus.inCall &&
+        state.status == RongCallStatus.inCall;
     if (shouldNotify) {
       final joinedUserIds = nextActiveUserIds
           .where((userId) => !_activeRemoteParticipantUserIds.contains(userId))
@@ -1447,7 +1456,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     print('_answerVoiceSession-----3');
 
     setState(() {
-      _status = 'in_call';
+      _status = ChatCallStatus.inCall;
     });
     _startStaticCallTimer();
   }
@@ -1591,18 +1600,18 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     _callTimer = null;
   }
 
-  String _statusFromCallState(RongCallStatus status) {
+  ChatCallStatus _statusFromCallState(RongCallStatus status) {
     switch (status) {
       case RongCallStatus.incoming:
-        return 'incoming';
+        return ChatCallStatus.incoming;
       case RongCallStatus.inCall:
-        return 'in_call';
+        return ChatCallStatus.inCall;
       case RongCallStatus.connecting:
       case RongCallStatus.dialing:
       case RongCallStatus.idle:
       case RongCallStatus.ended:
       case RongCallStatus.error:
-        return 'dialing';
+        return ChatCallStatus.dialing;
     }
   }
 
@@ -1736,14 +1745,14 @@ class _GroupVoiceMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
   static String _targetId = '';
-  static String _status = 'dialing';
+  static ChatCallStatus _status = ChatCallStatus.dialing;
   static int _connectedTimeMs = 0;
 
   static void show({
     required BuildContext context,
     required String name,
     String targetId = '',
-    required String status,
+    required ChatCallStatus status,
     required int connectedTimeMs,
   }) {
     dismiss();
@@ -1767,7 +1776,7 @@ class _GroupVoiceMiniOverlayController {
           dismiss();
           final encodedTargetId = Uri.encodeQueryComponent(_targetId);
           rootContext.push(
-            '/chat-group-voice/$encodedName?status=$_status&targetId=$encodedTargetId',
+            '/chat-group-voice/$encodedName?status=${_status.routeValue}&targetId=$encodedTargetId',
           );
         },
       ),
@@ -1783,7 +1792,7 @@ class _GroupVoiceMiniOverlayController {
 
 class _GroupVoiceMiniBubble extends StatefulWidget {
   final String name;
-  final String status;
+  final ChatCallStatus status;
   final int connectedTimeMs;
   final VoidCallback onTap;
 
@@ -1815,7 +1824,7 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
     _callState = RongCallManager().state;
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
-    if (!_callState.isActive && widget.status == 'in_call') {
+    if (!_callState.isActive && widget.status == ChatCallStatus.inCall) {
       _updateStaticCallElapsed();
       _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _updateStaticCallElapsed();
@@ -1955,7 +1964,7 @@ class _GroupVoiceMiniBubbleState extends State<_GroupVoiceMiniBubble> {
 
   String _buildSubtitle() {
     if (_callState.status == RongCallStatus.inCall ||
-        widget.status == 'in_call') {
+        widget.status == ChatCallStatus.inCall) {
       return formatDurationFromMs(_callElapsedMs);
     }
     return AppLocalizations.currentText('call_waiting_short');

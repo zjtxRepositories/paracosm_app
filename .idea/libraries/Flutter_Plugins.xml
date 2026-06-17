@@ -54,7 +54,6 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_inappwebview_ios-1.1.2" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_inappwebview_android-1.1.3" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_image_compress_common-1.0.6" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_call_wrapper_plugin-5.32.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/permission_handler-12.0.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/shared_preferences-2.5.5" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/sqflite_darwin-2.4.2" />
@@ -71,6 +70,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/image_picker_for_web-3.1.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_macos-0.9.5" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_windows-0.9.3+5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_rtc_wrapper_plugin-5.32.0" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

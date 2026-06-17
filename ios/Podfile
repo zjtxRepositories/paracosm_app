@@ -50,7 +50,7 @@ end
 
 post_install do |installer|
   x86_only_simulator_targets = [
-    'rongcloud_call_wrapper_plugin',
+    'rongcloud_rtc_wrapper_plugin',
     'RongCloudRTC',
     'RongWrapperLog'
   ]

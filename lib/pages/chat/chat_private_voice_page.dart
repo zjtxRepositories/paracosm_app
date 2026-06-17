@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
+import 'package:paracosm/modules/call/rong_call_types.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -11,20 +12,20 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
-/// 私聊语音通话静态页
+/// 私聊语音通话页。
 ///
-/// 这份页面不接真实通话逻辑，只按照设计稿展示三个静态状态：
+/// 支持三个页面状态：
 /// - dialing：拨打中
 /// - incoming：来电中
 /// - in_call：通话中
 class ChatPrivateVoicePage extends StatefulWidget {
   final String name;
-  final String status;
+  final Object? status;
 
   const ChatPrivateVoicePage({
     super.key,
     required this.name,
-    this.status = 'dialing',
+    this.status = ChatCallStatus.dialing,
   });
 
   @override
@@ -32,26 +33,35 @@ class ChatPrivateVoicePage extends StatefulWidget {
 }
 
 class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
-  late String _status;
+  late ChatCallStatus _status;
   late RongCallState _callState;
   StreamSubscription<RongCallState>? _callSub;
   Timer? _callTimer;
   int _callElapsedMs = 0;
   bool _isClosing = false;
-
   String get name =>
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
-  String get status => _status;
-  bool get _isIncoming => _status == 'incoming';
-  bool get _isInCall => _status == 'in_call';
+  ChatCallStatus get status => _status;
+  bool get _isIncoming => _status == ChatCallStatus.incoming;
+  bool get _isInCall => _status == ChatCallStatus.inCall;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
+    _status = _normalizeInitialStatus(widget.status);
     _callState = RongCallManager().state;
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
+  }
+
+  ChatCallStatus _normalizeInitialStatus(Object? status) {
+    if (status is ChatCallStatus) {
+      return status;
+    }
+    if (status is String) {
+      return ChatCallStatus.fromRoute(status);
+    }
+    return ChatCallStatus.dialing;
   }
 
   @override
@@ -156,7 +166,7 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
     );
   }
 
-  /// 左上角关闭按钮。
+  /// 左上角缩小按钮。
   Widget _buildCloseButton(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + 12;
 
@@ -175,23 +185,30 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   }
 
   Future<bool> _minimizeCallBeforeBack() async {
-    _showMiniOverlay(context);
+    if (!_minimizeCallToOverlay(context)) {
+      return true;
+    }
     return true;
   }
 
   void _minimizeCall(BuildContext context) {
-    _showMiniOverlay(context);
+    _minimizeCallToOverlay(context);
     if (context.canPop()) {
       context.pop();
     }
   }
 
-  void _showMiniOverlay(BuildContext context) {
+  bool _minimizeCallToOverlay(BuildContext context) {
+    if (!RongCallManager().state.isActive) {
+      _VoiceMiniOverlayController.dismiss();
+      return false;
+    }
     _VoiceMiniOverlayController.show(
       context: context,
       name: name,
       status: status,
     );
+    return true;
   }
 
   /// 中部头像、昵称、状态文案。
@@ -302,7 +319,6 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
               onHangup: () => _closeVoiceSession(context),
             )
           : _VoiceControlButtons(
-              isInCall: _isInCall,
               micEnabled: _callState.micEnabled,
               speakerEnabled: _callState.speakerEnabled,
               onMicTap: () => RongCallManager().toggleMicrophone(),
@@ -335,8 +351,6 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
     );
   }
 
-  /// 拨打/通话中的红色挂断按钮。
-  /// 底部两侧音频控制按钮，直接使用资源图标。
   /// 通用圆形操作按钮，直接显示图片资源。
   Widget _buildImageActionButton({
     required String assetPath,
@@ -349,7 +363,6 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
     );
   }
 
-  /// 来电中间的等待点。
   /// 关闭当前通话页时，同时清理悬浮窗，避免小窗残留在屏幕上。
   Future<void> _closeVoiceSession(BuildContext context) async {
     if (_isClosing) return;
@@ -369,18 +382,12 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   void _syncCallState(RongCallState state) {
     if (!mounted) return;
     if (state.status == RongCallStatus.idle) {
-      _stopCallTimer();
+      _closePageForInactiveState();
       return;
     }
     if (state.status == RongCallStatus.ended ||
         state.status == RongCallStatus.error) {
-      _stopCallTimer();
-      if (_isClosing) return;
-      _isClosing = true;
-      _VoiceMiniOverlayController.dismiss();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).maybePop();
-      });
+      _closePageForInactiveState();
       return;
     }
     setState(() {
@@ -388,6 +395,16 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
       _status = _statusFromCallState(state.status);
     });
     _syncCallTimer(state);
+  }
+
+  void _closePageForInactiveState() {
+    _stopCallTimer();
+    if (_isClosing) return;
+    _isClosing = true;
+    _VoiceMiniOverlayController.dismiss();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   void _syncCallTimer(RongCallState state) {
@@ -417,18 +434,18 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
     _callTimer = null;
   }
 
-  String _statusFromCallState(RongCallStatus status) {
+  ChatCallStatus _statusFromCallState(RongCallStatus status) {
     switch (status) {
       case RongCallStatus.incoming:
-        return 'incoming';
+        return ChatCallStatus.incoming;
       case RongCallStatus.inCall:
-        return 'in_call';
+        return ChatCallStatus.inCall;
       case RongCallStatus.connecting:
       case RongCallStatus.dialing:
       case RongCallStatus.idle:
       case RongCallStatus.ended:
       case RongCallStatus.error:
-        return 'dialing';
+        return ChatCallStatus.dialing;
     }
   }
 
@@ -452,9 +469,7 @@ class _ChatPrivateVoicePageState extends State<ChatPrivateVoicePage> {
   }
 }
 
-/// ??????????
 class _VoiceControlButtons extends StatefulWidget {
-  final bool isInCall;
   final bool micEnabled;
   final bool speakerEnabled;
   final VoidCallback onMicTap;
@@ -462,7 +477,6 @@ class _VoiceControlButtons extends StatefulWidget {
   final VoidCallback onHangup;
 
   const _VoiceControlButtons({
-    required this.isInCall,
     required this.micEnabled,
     required this.speakerEnabled,
     required this.onMicTap,
@@ -515,16 +529,15 @@ class _VoiceControlButtonsState extends State<_VoiceControlButtons> {
   }
 }
 
-/// ??????????????
 class _VoiceMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
-  static String _status = 'dialing';
+  static ChatCallStatus _status = ChatCallStatus.dialing;
 
   static void show({
     required BuildContext context,
     required String name,
-    required String status,
+    required ChatCallStatus status,
   }) {
     dismiss();
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -534,7 +547,6 @@ class _VoiceMiniOverlayController {
     _entry = OverlayEntry(
       builder: (overlayContext) => _VoiceMiniBubble(
         name: _name ?? name,
-        status: _status,
         onTap: () {
           final encodedName = Uri.encodeComponent(_name ?? name);
           final rootContext = AppRouter.rootNavigatorKey.currentContext;
@@ -542,7 +554,9 @@ class _VoiceMiniOverlayController {
             return;
           }
           dismiss();
-          rootContext.push('/chat-private-voice/$encodedName?status=$_status');
+          rootContext.push(
+            '/chat-private-voice/$encodedName?status=${_status.routeValue}',
+          );
         },
       ),
     );
@@ -558,14 +572,9 @@ class _VoiceMiniOverlayController {
 /// 可拖动的通话悬浮窗，方便后续其他页面复用“缩小后悬浮”的交互。
 class _VoiceMiniBubble extends StatefulWidget {
   final String name;
-  final String status;
   final VoidCallback onTap;
 
-  const _VoiceMiniBubble({
-    required this.name,
-    required this.status,
-    required this.onTap,
-  });
+  const _VoiceMiniBubble({required this.name, required this.onTap});
 
   @override
   State<_VoiceMiniBubble> createState() => _VoiceMiniBubbleState();

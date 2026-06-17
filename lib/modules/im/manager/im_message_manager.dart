@@ -209,6 +209,7 @@ class ImMessageManager {
     if (RongGroupCallStatusCenter().notifyIfGroupCallStatus(message)) {
       return;
     }
+    RongCallSummaryCenter().notifyIfCallSummary(message);
 
     _debugLogMessage('收到消息', message);
 

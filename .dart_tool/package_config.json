@@ -1124,16 +1124,16 @@
       "languageVersion": "2.17"
     },
     {
-      "name": "rongcloud_call_wrapper_plugin",
-      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_call_wrapper_plugin-5.32.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "rongcloud_im_wrapper_plugin",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_im_wrapper_plugin-5.32.0",
       "packageUri": "lib/",
       "languageVersion": "2.15"
+    },
+    {
+      "name": "rongcloud_rtc_wrapper_plugin",
+      "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_rtc_wrapper_plugin-5.32.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "rxdart",

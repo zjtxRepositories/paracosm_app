@@ -4,6 +4,7 @@ import 'package:paracosm/core/models/community_model.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/call/rong_call_types.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import 'package:paracosm/pages/dapp/dapp_page.dart';
@@ -489,7 +490,9 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? '';
-          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final status = ChatCallStatus.fromRoute(
+            state.uri.queryParameters['status'],
+          );
           return ChatPrivateVoicePage(name: name, status: status);
         },
       ),
@@ -498,7 +501,9 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? '';
-          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final status = ChatCallStatus.fromRoute(
+            state.uri.queryParameters['status'],
+          );
           final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
           final remoteOnBackdrop =
               state.uri.queryParameters['backdrop'] == 'remote';
@@ -516,7 +521,9 @@ class AppRouter {
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? '';
           final targetId = state.uri.queryParameters['targetId'] ?? '';
-          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final status = ChatCallStatus.fromRoute(
+            state.uri.queryParameters['status'],
+          );
           return ChatGroupVoicePage(
             name: name,
             targetId: targetId,
@@ -530,7 +537,9 @@ class AppRouter {
         builder: (context, state) {
           final name = state.pathParameters['name'] ?? '';
           final targetId = state.uri.queryParameters['targetId'] ?? '';
-          final status = state.uri.queryParameters['status'] ?? 'dialing';
+          final status = ChatCallStatus.fromRoute(
+            state.uri.queryParameters['status'],
+          );
           final cameraEnabled = state.uri.queryParameters['camera'] != 'off';
           return ChatGroupVideoPage(
             name: name,

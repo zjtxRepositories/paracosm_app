@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import 'rong_call_types.dart';
 
 class RongCallJoinRequest {
   const RongCallJoinRequest({

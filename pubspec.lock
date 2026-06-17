@@ -1485,19 +1485,19 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.6.1"
-  rongcloud_call_wrapper_plugin:
-    dependency: "direct main"
-    description:
-      name: rongcloud_call_wrapper_plugin
-      sha256: "8cacdc4f02ba898c6858302340d355b2708ab5142daeba775fda01791d7df2ff"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "5.32.0"
   rongcloud_im_wrapper_plugin:
     dependency: "direct main"
     description:
       name: rongcloud_im_wrapper_plugin
       sha256: "412c84b19a298b7615e4904301989529af6718169819c70d71bc7077ec7f8249"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.32.0"
+  rongcloud_rtc_wrapper_plugin:
+    dependency: "direct main"
+    description:
+      name: rongcloud_rtc_wrapper_plugin
+      sha256: "9e124eb44b07ef753261d5f350bcd022b365dfa97fa1e6128c0d84d02931f7f5"
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "5.32.0"

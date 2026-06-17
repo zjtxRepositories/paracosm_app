@@ -13,20 +13,21 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
-import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+
+import '../../modules/call/rong_call_types.dart';
 
 class ChatGroupVideoPage extends StatefulWidget {
   final String name;
   final String targetId;
-  final String status;
+  final Object? status;
   final bool cameraEnabled;
 
   const ChatGroupVideoPage({
     super.key,
     required this.name,
     this.targetId = '',
-    this.status = 'dialing',
+    this.status = ChatCallStatus.dialing,
     this.cameraEnabled = true,
   });
 
@@ -35,7 +36,7 @@ class ChatGroupVideoPage extends StatefulWidget {
 }
 
 class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
-  late String _status;
+  late ChatCallStatus _status;
   late bool _micEnabled;
   late bool _cameraEnabled;
   late RongCallState _callState;
@@ -46,7 +47,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   bool _isMinimized = false;
   bool _summarySent = false;
   String? _miniOverlayName;
-  String _miniOverlayStatus = 'dialing';
+  ChatCallStatus _miniOverlayStatus = ChatCallStatus.dialing;
   bool _miniOverlayCameraEnabled = true;
   RCCallView? _localVideoView;
   RCCallView? _remoteVideoView;
@@ -70,20 +71,22 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   String get name =>
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
-  bool get _isIncoming => _status == 'incoming';
-  bool get _isInCall => _status == 'in_call';
+  bool get _isIncoming => _status == ChatCallStatus.incoming;
+  bool get _isInCall => _status == ChatCallStatus.inCall;
   bool get _hasActiveCall => _callState.isActive;
   String get _callDurationText => formatDurationFromMs(_callElapsedMs);
+
   String get _localUserName {
     final user = _inCallParticipants.firstOrNull;
     if (user == null) return '';
     return user.name;
   }
 
+
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
+    _status = _normalizeInitialStatus(widget.status);
     _micEnabled = true;
     _cameraEnabled = widget.cameraEnabled && !_isIncoming;
     _callState = RongCallManager().state;
@@ -94,6 +97,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     }
     _getGroupMembers();
     unawaited(_prepareVideoViewsIfNeeded());
+  }
+
+  ChatCallStatus _normalizeInitialStatus(Object? status) {
+    if (status is ChatCallStatus) {
+      return status;
+    }
+    if (status is String) {
+      return ChatCallStatus.fromRoute(status);
+    }
+    return ChatCallStatus.dialing;
   }
 
   Future<void> _getGroupMembers() async {
@@ -769,7 +782,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       return;
     }
     setState(() {
-      _status = 'in_call';
+      _status = ChatCallStatus.inCall;
       _cameraEnabled = true;
     });
     _startStaticCallTimer();
@@ -819,11 +832,22 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       return;
     }
 
+    final hadRemoteVideo = _shouldShowRemoteVideo(_callState);
     setState(() {
       _callState = state;
       _status = _statusFromCallState(state.status);
       _micEnabled = state.micEnabled;
       _cameraEnabled = state.cameraEnabled;
+      final hasRemoteVideo = _shouldShowRemoteVideo(state);
+      if (hasRemoteVideo && !hadRemoteVideo) {
+        _remoteVideoView = null;
+        _remoteVideoBound = false;
+        if (_localVideoView != null && !_localVideoInPreviewSlot) {
+          _localVideoView = null;
+          _localVideoBound = false;
+          _localVideoInPreviewSlot = false;
+        }
+      }
       if (!_shouldShowLocalVideo(state)) {
         _localVideoView = null;
         _localVideoBound = false;
@@ -870,7 +894,21 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     return state.isVideo &&
         !state.isGroupCall &&
         state.status == RongCallStatus.inCall &&
-        state.remoteCameraEnabled;
+        state.remoteCameraEnabled &&
+        _hasRemoteVideoStream(state);
+  }
+
+  bool _hasRemoteVideoStream(RongCallState state) {
+    final targetId = state.targetId;
+    if (targetId.isEmpty) return false;
+    return state.session?.users.any(
+          (user) =>
+              user.userId == targetId &&
+              (user.mediaId?.isNotEmpty ?? false) &&
+              user.enableCamera &&
+              user.mediaType == RCCallMediaType.audio_video,
+        ) ??
+        false;
   }
 
   Future<void> _prepareVideoViewsIfNeeded() async {
@@ -924,6 +962,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           !_localVideoInPreviewSlot) {
         _localVideoView = null;
         _localVideoBound = false;
+        _localVideoInPreviewSlot = false;
       }
       _remoteVideoView = view;
     });
@@ -937,6 +976,8 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       if (!isBound) {
         _remoteVideoView = null;
         _blockRemoteVideoRetry();
+      } else if (_shouldShowLocalVideo(_callState) && _localVideoView == null) {
+        _scheduleLocalVideoPrepare();
       }
       _isPreparingRemoteVideo = false;
     });
@@ -1146,18 +1187,18 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     _callTimer = null;
   }
 
-  String _statusFromCallState(RongCallStatus status) {
+  ChatCallStatus _statusFromCallState(RongCallStatus status) {
     switch (status) {
       case RongCallStatus.incoming:
-        return 'incoming';
+        return ChatCallStatus.incoming;
       case RongCallStatus.inCall:
-        return 'in_call';
+        return ChatCallStatus.inCall;
       case RongCallStatus.connecting:
       case RongCallStatus.dialing:
       case RongCallStatus.idle:
       case RongCallStatus.ended:
       case RongCallStatus.error:
-        return 'dialing';
+        return ChatCallStatus.dialing;
     }
   }
 }
@@ -1343,14 +1384,14 @@ class _GroupVideoMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
   static String _targetId = '';
-  static String _status = 'dialing';
+  static ChatCallStatus _status = ChatCallStatus.dialing;
   static bool _cameraEnabled = true;
 
   static void show({
     required BuildContext context,
     required String name,
     String targetId = '',
-    required String status,
+    required ChatCallStatus status,
     required bool cameraEnabled,
   }) {
     dismiss();
@@ -1372,7 +1413,7 @@ class _GroupVideoMiniOverlayController {
           RongCallManager().clearVideoViews();
           final encodedTargetId = Uri.encodeQueryComponent(_targetId);
           rootContext.push(
-            '/chat-group-video/$encodedName?status=$_status&camera=${_cameraEnabled ? 'on' : 'off'}&targetId=$encodedTargetId',
+            '/chat-group-video/$encodedName?status=${_status.routeValue}&camera=${_cameraEnabled ? 'on' : 'off'}&targetId=$encodedTargetId',
           );
         },
       ),

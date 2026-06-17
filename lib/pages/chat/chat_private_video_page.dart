@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
+import 'package:paracosm/modules/call/rong_call_types.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -10,7 +11,6 @@ import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
-import 'package:rongcloud_call_wrapper_plugin/rongcloud_call_wrapper_plugin.dart';
 
 import '../../widgets/chat/waiting_dots.dart';
 
@@ -22,14 +22,14 @@ import '../../widgets/chat/waiting_dots.dart';
 /// - in_call: 通话中
 class ChatPrivateVideoPage extends StatefulWidget {
   final String name;
-  final String status;
+  final Object? status;
   final bool cameraEnabled;
   final bool initialRemoteOnBackdrop;
 
   const ChatPrivateVideoPage({
     super.key,
     required this.name,
-    this.status = 'dialing',
+    this.status = ChatCallStatus.dialing,
     this.cameraEnabled = true,
     this.initialRemoteOnBackdrop = false,
   });
@@ -39,7 +39,7 @@ class ChatPrivateVideoPage extends StatefulWidget {
 }
 
 class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
-  late String _status;
+  late ChatCallStatus _status;
   late bool _micEnabled;
   late bool _cameraEnabled;
   late RongCallState _callState;
@@ -49,7 +49,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   bool _isClosing = false;
   bool _isMinimized = false;
   String? _miniOverlayName;
-  String _miniOverlayStatus = 'dialing';
+  ChatCallStatus _miniOverlayStatus = ChatCallStatus.dialing;
   bool _miniOverlayCameraEnabled = true;
   late bool _isRemoteOnBackdrop;
   RCCallView? _backdropVideoView;
@@ -61,16 +61,15 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   Timer? _videoRetryTimer;
   String? _boundLayoutKey;
   int _videoLayoutVersion = 0;
-
   String get name =>
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
-  bool get _isIncoming => _status == 'incoming';
-  bool get _isInCall => _status == 'in_call';
+  bool get _isIncoming => _status == ChatCallStatus.incoming;
+  bool get _isInCall => _status == ChatCallStatus.inCall;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
+    _status = _normalizeInitialStatus(widget.status);
     _micEnabled = true;
     _cameraEnabled = widget.cameraEnabled;
     _isRemoteOnBackdrop = widget.initialRemoteOnBackdrop;
@@ -78,6 +77,16 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
     unawaited(_prepareAndBindVideoSlots());
+  }
+
+  ChatCallStatus _normalizeInitialStatus(Object? status) {
+    if (status is ChatCallStatus) {
+      return status;
+    }
+    if (status is String) {
+      return ChatCallStatus.fromRoute(status);
+    }
+    return ChatCallStatus.dialing;
   }
 
   @override
@@ -208,7 +217,6 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   }
 
   Widget _buildVideoLayer() {
-    print('_isInCall------$_isInCall--$_previewVideoView---$_isRemoteOnBackdrop');
     return Stack(
       children: [
         if (_backdropVideoView != null)
@@ -271,9 +279,7 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
             ),
           ),
 
-          const Center(
-            child: WaitingDots(),
-          ),
+          const Center(child: WaitingDots()),
         ],
       ),
     );
@@ -333,7 +339,9 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   }
 
   Future<bool> _minimizeCallBeforeBack() async {
-    _minimizeCallToOverlay();
+    if (!_minimizeCallToOverlay()) {
+      return true;
+    }
     return true;
   }
 
@@ -344,12 +352,17 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     }
   }
 
-  void _minimizeCallToOverlay() {
+  bool _minimizeCallToOverlay() {
+    if (!RongCallManager().state.isActive) {
+      _VideoMiniOverlayController.dismiss();
+      return false;
+    }
     _isMinimized = true;
     _miniOverlayName = name;
     _miniOverlayStatus = _status;
     _miniOverlayCameraEnabled = _cameraEnabled;
     _VideoMiniOverlayController.remoteOnBackdrop = _isRemoteOnBackdrop;
+    return true;
   }
 
   void _showMiniOverlayAfterDispose() {
@@ -677,27 +690,27 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   void _syncCallState(RongCallState state) {
     if (!mounted) return;
     if (state.status == RongCallStatus.idle) {
-      _stopCallTimer();
+      _closePageForInactiveState();
       return;
     }
     if (state.status == RongCallStatus.ended ||
         state.status == RongCallStatus.error) {
-      _stopCallTimer();
-      if (_isClosing) return;
-      _isClosing = true;
-      _isMinimized = false;
-      _VideoMiniOverlayController.dismiss();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).maybePop();
-      });
+      _closePageForInactiveState();
       return;
     }
+    final hadRemoteVideo = _canShowRemoteVideo();
     setState(() {
       _callState = state;
       _status = _statusFromCallState(state.status);
       _micEnabled = state.micEnabled;
       _cameraEnabled = state.cameraEnabled;
-      if (_isRemoteOnBackdrop && !state.remoteCameraEnabled) {
+      final hasRemoteVideo = _canShowRemoteVideo();
+      if (hasRemoteVideo && !hadRemoteVideo) {
+        _isRemoteOnBackdrop = false;
+        _clearVideoViewsForRebuild();
+        _scheduleVideoSlotsRebind();
+      }
+      if (_isRemoteOnBackdrop && !hasRemoteVideo) {
         _isRemoteOnBackdrop = false;
         _clearVideoViewsForRebuild();
       }
@@ -712,6 +725,27 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     unawaited(_prepareAndBindVideoSlots());
   }
 
+  void _scheduleVideoSlotsRebind() {
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() {
+        _clearVideoViewsForRebuild();
+      });
+      unawaited(_prepareAndBindVideoSlots());
+    });
+  }
+
+  void _closePageForInactiveState() {
+    _stopCallTimer();
+    if (_isClosing) return;
+    _isClosing = true;
+    _isMinimized = false;
+    _VideoMiniOverlayController.dismiss();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).maybePop();
+    });
+  }
+
   bool _canShowLocalVideo() {
     return _callState.isVideo &&
         _callState.isActive &&
@@ -720,7 +754,22 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
   }
 
   bool _canShowRemoteVideo() {
-    return _isInCall && _callState.remoteCameraEnabled;
+    return _isInCall &&
+        _callState.remoteCameraEnabled &&
+        _hasRemoteVideoStream(_callState);
+  }
+
+  bool _hasRemoteVideoStream(RongCallState state) {
+    final currentUserId = state.session?.mine.userId;
+    return state.session?.users.any(
+          (user) =>
+              user.userId.isNotEmpty &&
+              user.userId != currentUserId &&
+              (user.mediaId?.isNotEmpty ?? false) &&
+              user.enableCamera &&
+              user.mediaType == RCCallMediaType.audio_video,
+        ) ??
+        false;
   }
 
   Future<void> _prepareAndBindVideoSlots() async {
@@ -892,18 +941,18 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
     _callTimer = null;
   }
 
-  String _statusFromCallState(RongCallStatus status) {
+  ChatCallStatus _statusFromCallState(RongCallStatus status) {
     switch (status) {
       case RongCallStatus.incoming:
-        return 'incoming';
+        return ChatCallStatus.incoming;
       case RongCallStatus.inCall:
-        return 'in_call';
+        return ChatCallStatus.inCall;
       case RongCallStatus.connecting:
       case RongCallStatus.dialing:
       case RongCallStatus.idle:
       case RongCallStatus.ended:
       case RongCallStatus.error:
-        return 'dialing';
+        return ChatCallStatus.dialing;
     }
   }
 }
@@ -912,14 +961,14 @@ class _ChatPrivateVideoPageState extends State<ChatPrivateVideoPage> {
 class _VideoMiniOverlayController {
   static OverlayEntry? _entry;
   static String? _name;
-  static String _status = 'dialing';
+  static ChatCallStatus _status = ChatCallStatus.dialing;
   static bool _cameraEnabled = true;
   static bool remoteOnBackdrop = false;
 
   static void show({
     required BuildContext context,
     required String name,
-    required String status,
+    required ChatCallStatus status,
     required bool cameraEnabled,
     required bool remoteOnBackdrop,
   }) {
@@ -945,7 +994,7 @@ class _VideoMiniOverlayController {
               ? 'remote'
               : 'local';
           rootContext.push(
-            '/chat-private-video/$encodedName?status=$_status&camera=${_cameraEnabled ? 'on' : 'off'}&backdrop=$layout',
+            '/chat-private-video/$encodedName?status=${_status.routeValue}&camera=${_cameraEnabled ? 'on' : 'off'}&backdrop=$layout',
           );
         },
       ),
@@ -1156,9 +1205,15 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
       return;
     }
     if (!mounted) return;
+    final hadRemoteVideo = _shouldShowRemoteVideo(_callState);
     setState(() {
       _callState = state;
-      if (_isRemoteOnBackdrop && !state.remoteCameraEnabled) {
+      final hasRemoteVideo = _shouldShowRemoteVideo(state);
+      if (hasRemoteVideo && !hadRemoteVideo) {
+        _isRemoteOnBackdrop = false;
+        _VideoMiniOverlayController.remoteOnBackdrop = false;
+      }
+      if (_isRemoteOnBackdrop && !hasRemoteVideo) {
         _isRemoteOnBackdrop = false;
         _VideoMiniOverlayController.remoteOnBackdrop = false;
       }
@@ -1189,7 +1244,21 @@ class _VideoMiniBubbleState extends State<_VideoMiniBubble> {
   bool _shouldShowRemoteVideo(RongCallState state) {
     return state.isVideo &&
         state.status == RongCallStatus.inCall &&
-        state.remoteCameraEnabled;
+        state.remoteCameraEnabled &&
+        _hasRemoteVideoStream(state);
+  }
+
+  bool _hasRemoteVideoStream(RongCallState state) {
+    final currentUserId = state.session?.mine.userId;
+    return state.session?.users.any(
+          (user) =>
+              user.userId.isNotEmpty &&
+              user.userId != currentUserId &&
+              (user.mediaId?.isNotEmpty ?? false) &&
+              user.enableCamera &&
+              user.mediaType == RCCallMediaType.audio_video,
+        ) ??
+        false;
   }
 
   Future<void> _prepareVideoViewsIfNeeded() async {

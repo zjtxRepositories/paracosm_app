@@ -21,10 +21,10 @@ import 'package:paracosm/widgets/common/app_loading.dart';
 
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
-import 'package:rongcloud_call_wrapper_plugin/wrapper/rongcloud_call_constants.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/network/api/upload_file_api.dart';
+import '../../modules/call/rong_call_types.dart';
 import '../../modules/im/listener/im_data_center.dart';
 import '../../modules/im/manager/im_engine_manager.dart';
 import '../../util/media_handle_util.dart';

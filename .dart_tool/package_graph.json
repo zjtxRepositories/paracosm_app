@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "paracosm",
-      "version": "1.0.2026061502",
+      "version": "1.0.2026061701",
       "dependencies": [
         "audioplayers",
         "bdk_flutter",
@@ -48,8 +48,8 @@
         "pointycastle",
         "pretty_qr_code",
         "record",
-        "rongcloud_call_wrapper_plugin",
         "rongcloud_im_wrapper_plugin",
+        "rongcloud_rtc_wrapper_plugin",
         "screenshot",
         "shared_preferences",
         "solana",
@@ -396,7 +396,7 @@
       ]
     },
     {
-      "name": "rongcloud_call_wrapper_plugin",
+      "name": "rongcloud_rtc_wrapper_plugin",
       "version": "5.32.0",
       "dependencies": [
         "flutter",

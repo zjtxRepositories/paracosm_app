@@ -12,6 +12,9 @@ class RongCallInviteUpdate {
     required this.initiatorUserId,
     required this.activeUserIds,
     required this.sentAt,
+    required this.isGroupCall,
+    required this.action,
+    required this.callId,
   });
 
   final String targetId;
@@ -22,6 +25,9 @@ class RongCallInviteUpdate {
   final String initiatorUserId;
   final List<String> activeUserIds;
   final int sentAt;
+  final bool isGroupCall;
+  final String action;
+  final String callId;
 }
 
 class RongCallInviteUpdateMessage {
@@ -62,6 +68,11 @@ class RongCallInviteUpdateMessage {
           message.sentTime ??
           message.receivedTime ??
           DateTime.now().millisecondsSinceEpoch,
+      isGroupCall:
+          _readBool(data['isGroupCall']) ??
+          (message.conversationType == RCIMIWConversationType.group),
+      action: (data['action'] ?? 'invite').toString().trim().toLowerCase(),
+      callId: (data['callId'] ?? data['roomId'] ?? '').toString().trim(),
     );
   }
 
@@ -86,6 +97,14 @@ class RongCallInviteUpdateMessage {
           .toList();
     }
     return const [];
+  }
+
+  static bool? _readBool(dynamic value) {
+    if (value is bool) return value;
+    final text = value?.toString().trim().toLowerCase();
+    if (text == 'true' || text == '1') return true;
+    if (text == 'false' || text == '0') return false;
+    return null;
   }
 }
 

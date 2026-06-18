@@ -549,9 +549,7 @@ class _ProfilePageState extends State<ProfilePage> {
           final category = index == 0
               ? _ProfileAssetCategory.token
               : _ProfileAssetCategory.nft;
-          final label = index == 0
-              ? l10n.profileTokenNetworkTokens
-              : l10n.profileTokenNetworkNfts;
+          final label = index == 0 ? l10n.profileTokenNetworkTokens : 'NFT';
           final isSelected = _selectedAssetCategory == category;
           return GestureDetector(
             onTap: () {
@@ -600,11 +598,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildTokenListContent(List<TokenModel> tokens) {
-    if (tokens.isEmpty) {
-      return _buildAssetEmptyState(
-        AppLocalizations.of(context)!.profileTokenNetworkNoTokens,
-      );
-    }
     return Column(
       children: tokens.map((token) {
         return _buildTokenItem(
@@ -629,12 +622,12 @@ class _ProfilePageState extends State<ProfilePage> {
             .where((asset) => !asset.isSpam && !asset.isHidden)
             .toList();
         if (nfts.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 20),
+          return SizedBox(
+            height: _profileNftEmptyHeight(context),
             child: AppEmptyView(
               text: AppLocalizations.of(context)!.profileTokenNetworkNoNft,
               imageSize: 96,
-              bottomOffset: 24,
+              bottomOffset: 0,
             ),
           );
         }
@@ -659,6 +652,12 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       },
     );
+  }
+
+  double _profileNftEmptyHeight(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final reservedHeight = media.padding.top + 420;
+    return (media.size.height - reservedHeight).clamp(320.0, 520.0);
   }
 
   Widget _buildAssetEmptyState(String text) {

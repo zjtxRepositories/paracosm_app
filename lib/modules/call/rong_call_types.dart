@@ -148,6 +148,8 @@ class RCCallView extends StatelessWidget {
 class RCCallEngine {
   RCCallEngine._(this._engine, this._currentUserId, this._rtcEngine);
 
+  static const int _joinSameRoomCode = 50002;
+
   static Future<RCCallEngine> create(
     RCIMIWEngine? engine, {
     String? currentUserId,
@@ -162,6 +164,8 @@ class RCCallEngine {
   String _currentUserId;
   final RCRTCEngine _rtcEngine;
   RCCallSession? _currentSession;
+  Future<int>? _leavingRoomFuture;
+  String? _joinedRoomId;
   bool _microphoneEnabled = true;
   bool _speakerEnabled = true;
   bool _cameraEnabled = true;
@@ -170,6 +174,7 @@ class RCCallEngine {
   Function()? onCallDidMake;
   Function(String userId)? onRemoteUserDidRing;
   Function(RCCallUserProfile user)? onRemoteUserDidJoin;
+  Function(String userId)? onRemoteUserDidLeave;
   Function(RCCallUserProfile user, RCCallMediaType mediaType)?
   onRemoteUserDidChangeMediaType;
   Function()? onConnect;
@@ -188,7 +193,10 @@ class RCCallEngine {
   }
 
   void _bindRtcListeners() {
+    unawaited(_rtcEngine.setStatsListener(_RCCallStatsListener(this)));
+
     _rtcEngine.onUserJoined = (roomId, userId) {
+      debugPrint('onUserJoined------------');
       if (_currentSession?.callId != roomId || userId == _currentUserId) {
         return;
       }
@@ -218,19 +226,66 @@ class RCCallEngine {
       );
     };
     _rtcEngine.onUserLeft = (roomId, userId) {
-      if (_currentSession?.callId == roomId &&
-          _currentSession?.callType == RCCallCallType.single &&
-          userId != _currentUserId) {
-        onDisconnect?.call(RCCallDisconnectReason.remote_hangup);
+      if (_currentSession?.callId != roomId || userId == _currentUserId) {
+        return;
       }
+      if (_currentSession?.callType == RCCallCallType.single) {
+        onDisconnect?.call(RCCallDisconnectReason.remote_hangup);
+        return;
+      }
+      onRemoteUserDidLeave?.call(userId);
     };
     _rtcEngine.onUserOffline = (roomId, userId) {
-      if (_currentSession?.callId == roomId &&
-          _currentSession?.callType == RCCallCallType.single &&
-          userId != _currentUserId) {
-        onDisconnect?.call(RCCallDisconnectReason.remote_network_error);
+      if (_currentSession?.callId != roomId || userId == _currentUserId) {
+        return;
       }
+      if (_currentSession?.callType == RCCallCallType.single) {
+        onDisconnect?.call(RCCallDisconnectReason.remote_network_error);
+        return;
+      }
+      onRemoteUserDidLeave?.call(userId);
     };
+  }
+
+  void _handleLocalAudioStats(RCRTCLocalAudioStats stats) {
+    final session = _currentSession;
+    final mine = session?.mine;
+    if (session == null || mine == null || mine.userId.isEmpty) return;
+
+    onAudioVolume?.call(
+      RCCallUserProfile(
+        userId: mine.userId,
+        mediaId: mine.mediaId,
+        mediaType: session.mediaType,
+        enableMicrophone: _microphoneEnabled,
+        enableCamera: _cameraEnabled,
+      ),
+      stats.volume,
+    );
+  }
+
+  void _handleRemoteAudioStats(
+    String roomId,
+    String userId,
+    RCRTCRemoteAudioStats stats,
+  ) {
+    final session = _currentSession;
+    if (session == null ||
+        session.callId != roomId ||
+        userId.isEmpty ||
+        userId == _currentUserId) {
+      return;
+    }
+
+    final user = session.users.firstWhere(
+      (item) => item.userId == userId,
+      orElse: () => RCCallUserProfile(
+        userId: userId,
+        mediaType: session.mediaType,
+        enableMicrophone: true,
+      ),
+    );
+    onAudioVolume?.call(user, stats.volume);
   }
 
   Future<RCCallSession?> startCall(
@@ -281,6 +336,7 @@ class RCCallEngine {
   Future<int> joinCurrentRoom({bool notifyConnected = true}) async {
     final session = _currentSession;
     if (session == null || session.callId.isEmpty) return -1;
+    await _waitForPendingLeave();
     final mediaType = _rtcMediaType(session.mediaType);
     final preconnectCode = await _rtcEngine.preconnectToMediaServer();
     if (preconnectCode != 0) {
@@ -307,6 +363,9 @@ class RCCallEngine {
     );
     if (joinRet != 0) {
       _rtcEngine.onRoomJoined = previousOnRoomJoined;
+      if (joinRet == _joinSameRoomCode && _joinedRoomId == session.callId) {
+        return _completeAlreadyJoinedRoom(session, notifyConnected);
+      }
       debugPrint(
         'rtc join room failed: code=$joinRet roomId=${session.callId}',
       );
@@ -318,7 +377,12 @@ class RCCallEngine {
       onTimeout: () => -2,
     );
     _rtcEngine.onRoomJoined = previousOnRoomJoined;
-    if (joinCode != 0) return joinCode;
+    if (joinCode != 0) {
+      if (joinCode == _joinSameRoomCode && _joinedRoomId == session.callId) {
+        return _completeAlreadyJoinedRoom(session, notifyConnected);
+      }
+      return joinCode;
+    }
 
     await _rtcEngine.enableSpeaker(_speakerEnabled);
     await _rtcEngine.enableMicrophone(_microphoneEnabled);
@@ -340,6 +404,26 @@ class RCCallEngine {
     }
 
     session.connectedTime = DateTime.now().millisecondsSinceEpoch;
+    _joinedRoomId = session.callId;
+    if (notifyConnected) {
+      onConnect?.call();
+    }
+    return 0;
+  }
+
+  Future<void> _waitForPendingLeave() async {
+    final leaving = _leavingRoomFuture;
+    if (leaving == null) return;
+    await leaving.timeout(const Duration(seconds: 2), onTimeout: () => -2);
+  }
+
+  Future<int> _completeAlreadyJoinedRoom(
+    RCCallSession session,
+    bool notifyConnected,
+  ) async {
+    session.connectedTime = session.connectedTime == 0
+        ? DateTime.now().millisecondsSinceEpoch
+        : session.connectedTime;
     if (notifyConnected) {
       onConnect?.call();
     }
@@ -348,12 +432,48 @@ class RCCallEngine {
 
   Future<int> hangup({bool notifyDisconnect = true}) async {
     _currentSession?.endTime = DateTime.now().millisecondsSinceEpoch;
-    await _rtcEngine.leaveRoom();
+    await _leaveRoom();
     if (notifyDisconnect) {
       onDisconnect?.call(RCCallDisconnectReason.hangup);
     }
     _currentSession = null;
     return 0;
+  }
+
+  Future<int> _leaveRoom() {
+    final leaving = _leavingRoomFuture;
+    if (leaving != null) return leaving;
+
+    final completer = Completer<int>();
+    final previousOnRoomLeft = _rtcEngine.onRoomLeft;
+    _rtcEngine.onRoomLeft = (code, message) {
+      if (!completer.isCompleted) {
+        completer.complete(code);
+      }
+      if (code != 0) {
+        debugPrint('rtc room left failed: code=$code message=$message');
+      }
+      previousOnRoomLeft?.call(code, message);
+    };
+
+    _leavingRoomFuture = (() async {
+      final leaveRet = await _rtcEngine.leaveRoom();
+      if (leaveRet != 0) {
+        if (!completer.isCompleted) {
+          completer.complete(leaveRet);
+        }
+      }
+      final code = await completer.future.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => leaveRet,
+      );
+      _rtcEngine.onRoomLeft = previousOnRoomLeft;
+      _joinedRoomId = null;
+      _leavingRoomFuture = null;
+      return code;
+    })();
+
+    return _leavingRoomFuture!;
   }
 
   Future<int> enableMicrophone(bool enabled) async {
@@ -413,5 +533,25 @@ class RCCallEngine {
       RCCallCamera.none => RCRTCCamera.none,
       _ => RCRTCCamera.front,
     };
+  }
+}
+
+class _RCCallStatsListener extends RCRTCStatsListener {
+  _RCCallStatsListener(this.engine);
+
+  final RCCallEngine engine;
+
+  @override
+  void onLocalAudioStats(RCRTCLocalAudioStats stats) {
+    engine._handleLocalAudioStats(stats);
+  }
+
+  @override
+  void onRemoteAudioStats(
+    String roomId,
+    String userId,
+    RCRTCRemoteAudioStats stats,
+  ) {
+    engine._handleRemoteAudioStats(roomId, userId, stats);
   }
 }

@@ -872,6 +872,7 @@
   "call_group_voice_many_active": "{count}人正在进行通话",
   "call_group_voice_joined": "{name}加入了语音通话",
   "call_group_voice_left": "{name}退出了语音通话",
+  "call_group_members_title": "通话成员({count}人)",
   "call_waiting_short": "等待中...",
   "moments_like_failed": "点赞失败！",
   "moments_collect_failed": "收藏失败！",

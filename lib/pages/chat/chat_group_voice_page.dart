@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_group_call_status_message.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
@@ -45,6 +44,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
   late bool _speakerEnabled;
   late RongCallState _callState;
   StreamSubscription<RongCallState>? _callSub;
+  StreamSubscription<RongGroupCallStatus?>? _groupCallStatusSub;
   Timer? _callTimer;
   int? _callStartedAtMs;
   int _callElapsedMs = 0;
@@ -107,6 +107,10 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     _activeRemoteParticipantUserIds.addAll(_activeRemoteUserIds(_callState));
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    _syncGroupCallStatus(RongGroupCallStatusCenter().statusFor(_groupId));
+    _groupCallStatusSub = RongGroupCallStatusCenter().stream.listen(
+      _syncGroupCallStatus,
+    );
     if (!_hasActiveCall && _isInCall) {
       _startStaticCallTimer();
     }
@@ -144,12 +148,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       activeUserIds,
     );
     List<GroupMemberModel> models = [];
-    final members = await GroupStateCenter().getGroupMembers(
-      _callState.targetId,
-    );
+    final members = await GroupStateCenter().getGroupMembers(_groupId);
     for (final user in users) {
-      final member = members.firstWhere((item) => item.userId == user.userId);
-      models.add(GroupMemberModel(item: member));
+      final member = members.where((item) => item.userId == user.userId);
+      if (member.isEmpty) continue;
+      models.add(GroupMemberModel(item: member.first));
     }
     final mine = _isUninvitedJoinPreview
         ? null
@@ -396,6 +399,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     }
     _participantAnswerTimers.clear();
     _callSub?.cancel();
+    _groupCallStatusSub?.cancel();
     super.dispose();
   }
 
@@ -411,7 +415,8 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
         children: [
           _buildBackground(),
           _buildCloseButton(context),
-          // if (_canInviteMembers) _buildAddMemberButton(context),
+          if (_canInviteMembers) _buildAddMemberButton(context),
+          if (_isUninvitedJoinPreview) _buildJoinPreviewTitle(context),
           Align(
             alignment: const Alignment(0, -0.5),
             child: _buildCenterContent(),
@@ -421,6 +426,33 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
             child: _buildBottomControls(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildJoinPreviewTitle(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top + 19;
+    return Positioned(
+      top: topPadding,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: SizedBox(
+          width: 180,
+          child: Text(
+            AppLocalizations.currentText('call_group_members_title', {
+              'count': _uninvitedPreviewMemberCount,
+            }),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.h1.copyWith(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -630,6 +662,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
   Future<bool> _minimizeCallBeforeBack() async {
     if (_isUninvitedJoinPreview) return true;
+    if (_isClosing) return true;
     _showMiniOverlay(context);
     return true;
   }
@@ -735,22 +768,7 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
 
     return Transform.translate(
       offset: const Offset(0, -28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '通话成员($_uninvitedPreviewMemberCount人)',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildParticipantCell(participant, false, 0),
-        ],
-      ),
+      child: _buildParticipantCell(participant, false, 0),
     );
   }
 
@@ -801,23 +819,43 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     bool isOverflow,
     int hiddenCount,
   ) {
+    final userId = participant.item.userId ?? '';
+    final callUser = _callUserProfile(userId);
+    final isLocalUser = userId == IMEngineManager().currentUserId;
+
+    final isConnected =
+        isLocalUser ||
+        (callUser != null && _isActiveRemoteParticipant(callUser));
     return SizedBox(
       width: 64,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildParticipantAvatar(participant, isOverflow, hiddenCount),
+          _buildParticipantAvatar(
+            participant,
+            isOverflow,
+            hiddenCount,
+            isConnected,
+          ),
           const SizedBox(height: 12),
-          Text(
-            _participantName(participant.name),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
+          Stack(
+            children: [
+              Text(
+                _participantName(participant.name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              if (!isConnected)
+                Positioned.fill(
+                  child: Container(color: Colors.black.withValues(alpha: 0.48)),
+                ),
+            ],
           ),
         ],
       ),
@@ -838,13 +876,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     GroupMemberModel participant,
     bool isOverflow,
     int hiddenCount,
+    bool isConnected,
   ) {
     final userId = participant.item.userId ?? '';
     final callUser = _callUserProfile(userId);
     final isLocalUser = userId == IMEngineManager().currentUserId;
-    final isConnected =
-        isLocalUser ||
-        (callUser != null && _isActiveRemoteParticipant(callUser));
     final micState = _participantMicState(
       userId: userId,
       callUser: callUser,
@@ -857,61 +893,74 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          ClipOval(
-            child: SizedBox(
-              width: 60,
-              height: 60,
-              child: isOverflow
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                          child: UserAvatarWidget(
+          Container(
+            width: 60,
+            height: 60,
+            padding: EdgeInsets.all(micState.isSpeaking ? 2 : 0),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: micState.isSpeaking
+                  ? Border.all(color: AppColors.success, width: 2)
+                  : null,
+            ),
+            child: ClipOval(
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: isOverflow
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ImageFiltered(
+                            imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                            child: UserAvatarWidget(
+                              userId: userId,
+                              avatarUrl: participant.item.portraitUri,
+                              size: 60,
+                            ),
+                          ),
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.32),
+                          ),
+                          Center(
+                            child: Text(
+                              '+$hiddenCount',
+                              style: AppTextStyles.h1.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          UserAvatarWidget(
                             userId: userId,
                             avatarUrl: participant.item.portraitUri,
                             size: 60,
                           ),
-                        ),
-                        Container(color: Colors.black.withValues(alpha: 0.32)),
-                        Center(
-                          child: Text(
-                            '+$hiddenCount',
-                            style: AppTextStyles.h1.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                          if (!isConnected)
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.48),
                             ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        UserAvatarWidget(
-                          userId: userId,
-                          avatarUrl: participant.item.portraitUri,
-                          size: 60,
-                        ),
-                        if (!isConnected)
-                          Container(
-                            color: Colors.black.withValues(alpha: 0.48),
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
+              ),
             ),
           ),
           if (!isOverflow && micState.shouldShow)
             Positioned(
-              right: -2,
-              bottom: -2,
+              right: micState.isSpeaking ? -4 : -2,
+              bottom: micState.isSpeaking ? -4 : -2,
               child: Image.asset(
                 micState.isSpeaking
                     ? 'assets/images/chat/call/mic-active.png'
                     : 'assets/images/chat/call/mic-close.png',
-                width: 18,
-                height: 18,
+                width: micState.isSpeaking ? 22 : 18,
+                height: micState.isSpeaking ? 22 : 18,
               ),
             ),
         ],
@@ -1472,13 +1521,11 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     setState(() {
       _isJoiningGroupCall = true;
     });
-    final requested = await RongCallManager().requestJoinActiveGroupCall(
-      status,
-    );
-    print('_answerVoiceSession-----3--$requested');
+    final joined = await RongCallManager().joinActiveGroupCallDirectly(status);
+    print('_answerVoiceSession-----3--$joined');
 
     if (!mounted) return;
-    if (!requested) {
+    if (!joined) {
       setState(() {
         _isJoiningGroupCall = false;
       });
@@ -1551,6 +1598,19 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
     });
     _syncCallTimer(state);
     unawaited(_getGroupMembers());
+  }
+
+  void _syncGroupCallStatus(RongGroupCallStatus? status) {
+    if (!mounted || !_isJoin) return;
+    if (status != null && status.targetId != _groupId) return;
+    if (status?.isActive == true) return;
+
+    if (_isClosing) return;
+    _isClosing = true;
+    _GroupVoiceMiniOverlayController.dismiss();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   void _syncCallTimer(RongCallState state) {
@@ -1638,7 +1698,9 @@ class _ChatGroupVoicePageState extends State<ChatGroupVoicePage> {
               ),
               const SizedBox(height: 16),
               Text(
-                '通话成员(${_inCallParticipants.length})',
+                AppLocalizations.currentText('call_group_members_title', {
+                  'count': _inCallParticipants.length,
+                }),
                 style: AppTextStyles.h2.copyWith(
                   fontSize: 16,
                   color: Colors.white,

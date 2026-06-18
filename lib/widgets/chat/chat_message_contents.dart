@@ -700,11 +700,13 @@ class ChatCallMessageContent extends StatelessWidget {
     required this.text,
     required this.isVideo,
     required this.isMe,
+    this.onTap,
   });
 
   final String text;
   final bool isVideo;
   final bool isMe;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -714,7 +716,7 @@ class ChatCallMessageContent extends StatelessWidget {
               ? 'assets/images/chat/self-call.png'
               : 'assets/images/chat/other-call.png');
 
-    return Row(
+    final child = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!isMe) ...[
@@ -744,6 +746,13 @@ class ChatCallMessageContent extends StatelessWidget {
           ),
         ],
       ],
+    );
+
+    if (onTap == null) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: child,
     );
   }
 }

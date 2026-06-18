@@ -8,6 +8,9 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../../core/models/conversation_model.dart';
 import '../../../core/models/custom_message_model.dart';
 import '../../../core/models/group_model.dart';
+import '../../../modules/call/rong_call_manager.dart';
+import '../../../modules/call/rong_call_types.dart';
+import '../../../modules/call/rong_group_call_status_message.dart';
 import '../../../modules/im/listener/im_data_center.dart';
 import '../../../modules/im/manager/im_connection_manager.dart';
 import '../../../modules/im/manager/im_conversation_manager.dart';
@@ -48,6 +51,8 @@ class ChatController extends ChangeNotifier {
   final List<ConversationModel> conversations = [];
 
   final Map<String, ConversationModel> _conversationMap = {};
+  final Map<String, RongGroupCallStatus> _activeGroupCallStatuses = {};
+  final Map<String, String> _groupCallInitiatorNames = {};
 
   List<RCIMIWFriendInfo> friends = [];
   List<RCIMIWGroupInfo> groups = [];
@@ -77,6 +82,7 @@ class ChatController extends ChangeNotifier {
     _listenGroupList();
     _listenFriendApplication();
     _listenGroupApplication();
+    _listenGroupCallStatus();
   }
 
   /// =========================
@@ -156,6 +162,45 @@ class ChatController extends ChangeNotifier {
         }
       }
     });
+  }
+
+  void _listenGroupCallStatus() {
+    final sub = RongGroupCallStatusCenter().stream.listen((status) {
+      final targetId = status?.targetId ?? '';
+      if (targetId.isEmpty) return;
+      if (status?.isActive == true) {
+        _activeGroupCallStatuses[targetId] = status!;
+        unawaited(_resolveGroupCallInitiatorName(status));
+      } else {
+        _activeGroupCallStatuses.remove(targetId);
+        _groupCallInitiatorNames.remove(targetId);
+      }
+      _notify();
+    });
+    _subs.add(sub);
+  }
+
+  Future<void> _resolveGroupCallInitiatorName(
+    RongGroupCallStatus status,
+  ) async {
+    final userId = status.initiatorUserId;
+    if (userId.isEmpty) return;
+    final user = await UserDisplayStateCenter().getUser(userId);
+    final name = user?.name.trim() ?? '';
+    if (name.isEmpty) return;
+    _groupCallInitiatorNames[status.targetId] = name;
+    _notify();
+  }
+
+  RongGroupCallStatus? activeGroupCallStatusFor(String? targetId) {
+    final id = targetId ?? '';
+    if (id.isEmpty) return null;
+
+    final activeGroupCallStatus =
+        _activeGroupCallStatuses[id] ?? RongGroupCallStatusCenter().statusFor(id);
+    return activeGroupCallStatus?.isActive == true
+        ? activeGroupCallStatus
+        : null;
   }
 
   /// =========================

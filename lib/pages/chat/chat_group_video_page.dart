@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
+import 'package:paracosm/modules/call/rong_group_call_status_message.dart';
+import 'package:paracosm/modules/im/listener/group_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -12,7 +15,9 @@ import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
+import 'package:paracosm/widgets/chat/select_members_modal.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/call/rong_call_types.dart';
@@ -41,11 +46,13 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   late bool _cameraEnabled;
   late RongCallState _callState;
   StreamSubscription<RongCallState>? _callSub;
+  StreamSubscription<RongGroupCallStatus?>? _groupCallStatusSub;
   Timer? _callTimer;
   int _callElapsedMs = 0;
   bool _isClosing = false;
   bool _isMinimized = false;
   bool _summarySent = false;
+  bool _isJoiningGroupCall = false;
   String? _miniOverlayName;
   ChatCallStatus _miniOverlayStatus = ChatCallStatus.dialing;
   bool _miniOverlayCameraEnabled = true;
@@ -73,8 +80,31 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       _callState.displayName.isNotEmpty ? _callState.displayName : widget.name;
   bool get _isIncoming => _status == ChatCallStatus.incoming;
   bool get _isInCall => _status == ChatCallStatus.inCall;
+  bool get _isJoin => _status == ChatCallStatus.join;
+  bool get _isUninvitedJoinPreview {
+    if (!_isJoin) return false;
+    final currentUserId = IMEngineManager().currentUserId;
+    if (currentUserId == null || currentUserId.isEmpty) return false;
+    final status = RongGroupCallStatusCenter().statusFor(_groupId);
+    if (status == null || !status.isActive) return false;
+    return !status.activeUserIds.contains(currentUserId) &&
+        !status.invitedUserIds.contains(currentUserId);
+  }
+
+  bool get _canInviteMembers => !_isIncoming && !_isUninvitedJoinPreview;
   bool get _hasActiveCall => _callState.isActive;
+  int get _uninvitedPreviewMemberCount {
+    final count = RongGroupCallStatusCenter()
+        .statusFor(_groupId)
+        ?.activeUserIds
+        .toSet()
+        .length;
+    return count == null || count <= 0 ? 1 : count;
+  }
+
   String get _callDurationText => formatDurationFromMs(_callElapsedMs);
+  String get _groupId =>
+      widget.targetId.isNotEmpty ? widget.targetId : _callState.targetId;
 
   String get _localUserName {
     final user = _inCallParticipants.firstOrNull;
@@ -82,16 +112,19 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     return user.name;
   }
 
-
   @override
   void initState() {
     super.initState();
+
     _status = _normalizeInitialStatus(widget.status);
     _micEnabled = true;
     _cameraEnabled = widget.cameraEnabled && !_isIncoming;
     _callState = RongCallManager().state;
     _syncCallState(_callState);
     _callSub = RongCallManager().stateStream.listen(_syncCallState);
+    _groupCallStatusSub = RongGroupCallStatusCenter().stream.listen(
+      _syncGroupCallStatus,
+    );
     if (!_hasActiveCall && _isInCall) {
       _startStaticCallTimer();
     }
@@ -153,19 +186,54 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   List<RCCallUserProfile> _callUsersWithInvitedPlaceholders() {
     final users = [...?_callState.session?.users];
     final existingUserIds = users.map((user) => user.userId).toSet();
-    final currentUserId = _callState.session?.mine.userId;
-    for (final userId in _callState.invitedUserIds) {
+    final currentUserId =
+        _callState.session?.mine.userId ?? IMEngineManager().currentUserId;
+    final status = RongGroupCallStatusCenter().statusFor(_groupId);
+    if (_isUninvitedJoinPreview) {
+      final initiatorUserId = status?.initiatorUserId ?? '';
+      if (initiatorUserId.isEmpty) return const [];
+      final existingInitiator = users
+          .where((user) => user.userId == initiatorUserId)
+          .toList(growable: false);
+      if (existingInitiator.isNotEmpty) return existingInitiator;
+      return [
+        RCCallUserProfile.fromJson({
+          'userType': 0,
+          'mediaType': (status?.mediaType ?? _callState.mediaType).index,
+          'userId': initiatorUserId,
+          'mediaId': status?.activeUserIds.contains(initiatorUserId) == true
+              ? initiatorUserId
+              : '',
+          'enableCamera': false,
+          'enableMicrophone': false,
+        }),
+      ];
+    }
+
+    final statusActiveUserIds = _isJoin
+        ? (status?.activeUserIds ?? const <String>[])
+        : const <String>[];
+    final statusInvitedUserIds = _isJoin
+        ? (status?.invitedUserIds ?? const <String>[])
+        : const <String>[];
+
+    for (final userId in [
+      ...statusActiveUserIds,
+      ..._callState.invitedUserIds,
+      ...statusInvitedUserIds,
+    ]) {
       if (userId.isEmpty ||
           userId == currentUserId ||
           existingUserIds.contains(userId)) {
         continue;
       }
+      existingUserIds.add(userId);
       users.add(
         RCCallUserProfile.fromJson({
           'userType': 0,
           'mediaType': _callState.mediaType.index,
           'userId': userId,
-          'mediaId': '',
+          'mediaId': statusActiveUserIds.contains(userId) ? userId : '',
           'enableCamera': false,
           'enableMicrophone': false,
         }),
@@ -175,8 +243,10 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
   }
 
   bool _isActiveRemoteParticipant(RCCallUserProfile user) {
+    final localUserId =
+        _callState.session?.mine.userId ?? IMEngineManager().currentUserId;
     return user.userId.isNotEmpty &&
-        user.userId != _callState.session?.mine.userId &&
+        user.userId != localUserId &&
         (user.mediaId?.isNotEmpty ?? false);
   }
 
@@ -184,7 +254,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     RCCallUserProfile user,
     Set<String> activeUserIds,
   ) {
-    if (user.userId.isEmpty || user.userId == _callState.session?.mine.userId) {
+    final localUserId =
+        _callState.session?.mine.userId ?? IMEngineManager().currentUserId;
+    if (user.userId.isEmpty || user.userId == localUserId) {
       return false;
     }
     if (activeUserIds.contains(user.userId)) return true;
@@ -224,6 +296,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
       timer.cancel();
     }
     _callSub?.cancel();
+    _groupCallStatusSub?.cancel();
     _localVideoView = null;
     _remoteVideoView = null;
     for (final userId in _participantVideoViews.keys) {
@@ -250,6 +323,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
           _buildBackground(),
           _buildVideoLayer(),
           _buildCloseButton(context),
+          if (_canInviteMembers) _buildAddMemberButton(context),
           if (_isIncoming) _buildIncomingCenterContent(),
           if (!_isIncoming) _buildSessionHeader(),
           if (!_isIncoming) _buildParticipantStrip(),
@@ -271,12 +345,6 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/images/chat/call/video-bg.png',
-            fit: BoxFit.cover,
-          ),
-        ),
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -428,6 +496,27 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   Widget _buildCloseButton(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + 12;
+    if (_isUninvitedJoinPreview) {
+      return Positioned(
+        left: 20,
+        top: topPadding,
+        child: GestureDetector(
+          onTap: () {
+            if (context.canPop()) context.pop();
+          },
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: const Icon(Icons.close, color: Colors.white, size: 20),
+          ),
+        ),
+      );
+    }
 
     return Positioned(
       left: 20,
@@ -443,12 +532,98 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     );
   }
 
+  Widget _buildAddMemberButton(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top + 12;
+    return Positioned(
+      right: 20,
+      top: topPadding,
+      child: GestureDetector(
+        onTap: _showAddMemberSheet,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: const Icon(
+            Icons.person_add_alt_1_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddMemberSheet() async {
+    if (!_canInviteMembers) return;
+
+    final candidates = await _availableInviteMembers();
+    if (!mounted) return;
+    if (candidates.isEmpty) {
+      AppToast.show(AppLocalizations.currentText('chat_invite_failed'));
+      return;
+    }
+
+    final selected = await SelectMembersModal.show(
+      context,
+      friends: candidates,
+      confirmText: AppLocalizations.of(context)!.commonDone,
+      showSelectedCount: true,
+    );
+    if (selected == null || selected.isEmpty) return;
+
+    final success = await RongCallManager().inviteGroupCallMembers(selected);
+    if (!success || !mounted) return;
+    await _getGroupMembers();
+  }
+
+  Future<List<RCIMIWFriendInfo>> _availableInviteMembers() async {
+    final groupId = widget.targetId.isNotEmpty
+        ? widget.targetId
+        : _callState.targetId;
+    if (groupId.isEmpty) return const [];
+
+    final currentUserId = IMEngineManager().currentUserId;
+    final sessionUsers =
+        _callState.session?.users ?? const <RCCallUserProfile>[];
+    final unavailableUserIds = {
+      currentUserId,
+      ..._callState.invitedUserIds,
+      ...sessionUsers.map((user) => user.userId),
+    }..removeWhere((userId) => userId == null || userId.isEmpty);
+
+    final members = await GroupStateCenter().getGroupMembers(groupId);
+    return members
+        .where((member) {
+          final userId = member.userId ?? '';
+          return userId.isNotEmpty && !unavailableUserIds.contains(userId);
+        })
+        .map(
+          (member) => RCIMIWFriendInfo.create(
+            userId: member.userId,
+            name: member.nickname?.isNotEmpty == true
+                ? member.nickname
+                : member.name,
+            portrait: member.portraitUri,
+          ),
+        )
+        .toList();
+  }
+
   Future<bool> _minimizeCallBeforeBack() async {
+    if (_isUninvitedJoinPreview) return true;
     _minimizeCallToOverlay();
     return true;
   }
 
   void _minimizeCall(BuildContext context) {
+    if (_isUninvitedJoinPreview) {
+      if (context.canPop()) context.pop();
+      return;
+    }
     _minimizeCallToOverlay();
     if (context.canPop()) {
       context.pop();
@@ -483,7 +658,7 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   Widget _buildIncomingCenterContent() {
     final participantCount = _inCallParticipants.length;
-    final title = participantCount > 0 ? '$name($participantCount)' : name;
+    final title = name;
 
     return Align(
       alignment: const Alignment(0, -0.5),
@@ -492,14 +667,6 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
         children: [
           _buildGroupAvatarGrid(),
           const SizedBox(height: 32),
-          // Text(
-          //   title,
-          //   style: AppTextStyles.h1.copyWith(
-          //     fontSize: 16,
-          //     fontWeight: FontWeight.w600,
-          //     color: Colors.white,
-          //   ),
-          // ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 60),
             child: Padding(
@@ -519,14 +686,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
                       ),
                     ),
                   ),
-                  Text(
-                    '(${_inCallParticipants.length + 1})',
-                    style: AppTextStyles.h1.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  participantCount > 0
+                      ? Text(
+                          '(${_inCallParticipants.length + 1})',
+                          style: AppTextStyles.h1.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        )
+                      : SizedBox(),
                 ],
               ),
             ),
@@ -575,12 +744,16 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   Widget _buildSessionHeader() {
     final topPadding = MediaQuery.of(context).padding.top + 14;
-    final titleText = _isInCall
+    final titleText = _isUninvitedJoinPreview
+        ? AppLocalizations.currentText('call_group_members_title', {
+            'count': _uninvitedPreviewMemberCount,
+          })
+        : _isInCall
         ? _callDurationText
         : AppLocalizations.currentText('call_waiting_group_join', {
             'name': _localUserName,
           });
-    final titleStyle = _isInCall
+    final titleStyle = _isInCall || _isUninvitedJoinPreview
         ? AppTextStyles.h1.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -615,6 +788,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     if (_isIncoming) {
       return const SizedBox.shrink();
     }
+    if (_isUninvitedJoinPreview) {
+      return _buildUninvitedJoinPreviewMembers();
+    }
     if (_inCallParticipants.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -647,6 +823,21 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
             separatorBuilder: (context, index) => const SizedBox(width: 8),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUninvitedJoinPreviewMembers() {
+    final participant = _inCallParticipants.firstOrNull;
+    if (participant == null) return const SizedBox.shrink();
+
+    return Align(
+      alignment: const Alignment(0, -0.34),
+      child: _GroupParticipantTile(
+        key: ValueKey(participant.userId),
+        participant: participant,
+        isInCall: false,
+        micEnabled: false,
       ),
     );
   }
@@ -700,42 +891,68 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
     return Padding(
       padding: EdgeInsets.only(left: 48, right: 48, bottom: bottomPadding),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: _toggleMicrophone,
-            child: Image.asset(
-              _micEnabled
-                  ? 'assets/images/chat/call/mic-on.png'
-                  : 'assets/images/chat/call/mic-off.png',
-              width: 28,
-              height: 28,
+      child: _isJoin
+          ? _buildJoinControls(onJoin: _joinVideoSession)
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: _toggleMicrophone,
+                  child: Image.asset(
+                    _micEnabled
+                        ? 'assets/images/chat/call/mic-on.png'
+                        : 'assets/images/chat/call/mic-off.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _closeVideoSession(context),
+                  child: Image.asset(
+                    'assets/images/chat/call/voice-cancel.png',
+                    width: 72,
+                    height: 72,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _isInCall
+                      ? () => RongCallManager().switchCamera()
+                      : _toggleCamera,
+                  child: Image.asset(
+                    _cameraEnabled
+                        ? 'assets/images/chat/call/camera.png'
+                        : 'assets/images/chat/call/camera-off.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _buildJoinControls({required VoidCallback onJoin}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onJoin,
+      child: Container(
+        width: double.infinity,
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFBDD100),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Text(
+          AppLocalizations.currentText('call_join_now'),
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey900,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _closeVideoSession(context),
-            child: Image.asset(
-              'assets/images/chat/call/voice-cancel.png',
-              width: 72,
-              height: 72,
-            ),
-          ),
-          GestureDetector(
-            onTap: _isInCall
-                ? () => RongCallManager().switchCamera()
-                : _toggleCamera,
-            child: Image.asset(
-              _cameraEnabled
-                  ? 'assets/images/chat/call/camera.png'
-                  : 'assets/images/chat/call/camera-off.png',
-              width: 28,
-              height: 28,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -789,6 +1006,27 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     unawaited(_prepareVideoViewsIfNeeded());
   }
 
+  Future<void> _joinVideoSession() async {
+    if (_isJoiningGroupCall) return;
+    final status = RongGroupCallStatusCenter().statusFor(_groupId);
+    if (status == null || !status.isActive) {
+      AppToast.show(AppLocalizations.currentText('call_ended'));
+      if (mounted) Navigator.of(context).maybePop();
+      return;
+    }
+    setState(() {
+      _isJoiningGroupCall = true;
+    });
+    final joined = await RongCallManager().joinActiveGroupCallDirectly(status);
+    if (!mounted) return;
+    if (!joined) {
+      setState(() {
+        _isJoiningGroupCall = false;
+      });
+      return;
+    }
+  }
+
   Future<void> _toggleMicrophone() async {
     if (RongCallManager().state.isActive) {
       await RongCallManager().toggleMicrophone();
@@ -816,6 +1054,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
 
   void _syncCallState(RongCallState state) {
     if (!mounted) return;
+    if (_isJoin && !state.isActive) {
+      return;
+    }
     if (state.status == RongCallStatus.idle) {
       return;
     }
@@ -836,6 +1077,9 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     setState(() {
       _callState = state;
       _status = _statusFromCallState(state.status);
+      if (state.status == RongCallStatus.inCall) {
+        _isJoiningGroupCall = false;
+      }
       _micEnabled = state.micEnabled;
       _cameraEnabled = state.cameraEnabled;
       final hasRemoteVideo = _shouldShowRemoteVideo(state);
@@ -867,6 +1111,19 @@ class _ChatGroupVideoPageState extends State<ChatGroupVideoPage> {
     _syncCallTimer(state);
     unawaited(_getGroupMembers());
     unawaited(_prepareVideoViewsIfNeeded());
+  }
+
+  void _syncGroupCallStatus(RongGroupCallStatus? status) {
+    if (!mounted || !_isJoin) return;
+    if (status != null && status.targetId != _groupId) return;
+    if (status?.isActive == true) return;
+
+    if (_isClosing) return;
+    _isClosing = true;
+    _GroupVideoMiniOverlayController.dismiss();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   Widget? _featuredVideoView() {

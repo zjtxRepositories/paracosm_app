@@ -904,6 +904,7 @@ class ChatDetailController extends ChangeNotifier {
     _groupCallStatusSub = RongGroupCallStatusCenter().stream.listen((status) {
       if (status?.targetId != targetId) return;
       activeGroupCallStatus = status?.isActive == true ? status : null;
+
       _resolveGroupCallInitiatorName(activeGroupCallStatus);
       notifyListeners();
     });
@@ -918,6 +919,7 @@ class ChatDetailController extends ChangeNotifier {
           mediaType: state.mediaType,
           displayName: state.displayName,
           initiatorUserId: currentUserId ?? '',
+          callId: state.session?.callId ?? '',
           activeUserIds: [
             if (currentUserId != null && currentUserId.isNotEmpty)
               currentUserId,
@@ -927,7 +929,7 @@ class ChatDetailController extends ChangeNotifier {
           sentAt: DateTime.now().millisecondsSinceEpoch,
         );
       } else {
-        activeGroupCallStatus = null;
+        // activeGroupCallStatus = null;
       }
       _resolveGroupCallInitiatorName(activeGroupCallStatus);
       notifyListeners();
@@ -3120,7 +3122,7 @@ class ChatDetailController extends ChangeNotifier {
   }
 
   bool get shouldShowGroupCallBanner {
-    return false;
+    return isGroupSession && activeGroupCallStatus?.isActive == true;
   }
 
   String get groupCallBannerText {
@@ -3152,10 +3154,13 @@ class ChatDetailController extends ChangeNotifier {
     final encodedName = Uri.encodeComponent(displayName);
     final encodedTargetId = Uri.encodeQueryComponent(status.targetId);
     final pageStatus = isCurrentUserInActiveGroupCall ? 'in_call' : 'join';
+    final media = status.mediaType == RCCallMediaType.audio_video
+        ? 'video'
+        : 'voice';
     final currentContext = context;
     if (currentContext == null || !currentContext.mounted) return;
     currentContext.push(
-      '/chat-group-voice/$encodedName?status=$pageStatus&targetId=$encodedTargetId',
+      '/chat-group-$media/$encodedName?status=$pageStatus&targetId=$encodedTargetId',
     );
   }
 

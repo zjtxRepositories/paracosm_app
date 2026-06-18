@@ -36,9 +36,9 @@ class GroupModel {
     final List<String> list = [];
     for (final e in memberList) {
       if (e.item.userId == IMEngineManager().currentUserId) {
-        if (memberList.length == 1){
+        // if (memberList.length == 1){
           list.add(e.name);
-        }
+        // }
         continue;
       }
       final name = e.name;

@@ -879,6 +879,7 @@
   "call_group_voice_many_active": "{count} people are in a call",
   "call_group_voice_joined": "{name} joined the voice call",
   "call_group_voice_left": "{name} left the voice call",
+  "call_group_members_title": "Call members ({count})",
   "call_waiting_short": "Waiting...",
   "moments_like_failed": "Like failed!",
   "moments_collect_failed": "Collect failed!",

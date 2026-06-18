@@ -91,6 +91,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   targetId: controller.targetId,
                   memberCount: controller.memberCount,
                   isOnline: controller.isOnline,
+                  groupCallText: controller.shouldShowGroupCallBanner
+                      ? controller.groupCallBannerText
+                      : '',
                   onMoreTap: controller.navigateToSettings,
                   onAvatarTap: controller.navigateToProfile,
                 ),
@@ -1006,6 +1009,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           text: message.text ?? '',
           isVideo: message.isVideo,
           isMe: message.isMe,
+          onTap: () =>
+              unawaited(controller.openCallPage(isVideo: message.isVideo)),
         );
       default:
         return ChatTextMessageContent(message: message.text ?? '');

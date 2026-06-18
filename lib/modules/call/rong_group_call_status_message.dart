@@ -13,6 +13,7 @@ class RongGroupCallStatus {
     required this.mediaType,
     required this.displayName,
     required this.initiatorUserId,
+    this.callId = '',
     required this.activeUserIds,
     required this.invitedUserIds,
     required this.sentAt,
@@ -23,6 +24,7 @@ class RongGroupCallStatus {
   final RCCallMediaType mediaType;
   final String displayName;
   final String initiatorUserId;
+  final String callId;
   final List<String> activeUserIds;
   final List<String> invitedUserIds;
   final int sentAt;
@@ -61,6 +63,7 @@ class RongGroupCallStatusMessage {
         ? RCCallMediaType.audio_video
         : RCCallMediaType.audio;
 
+    print('action------$action');
     return RongGroupCallStatus(
       targetId: targetId,
       action: action,
@@ -69,6 +72,7 @@ class RongGroupCallStatusMessage {
       initiatorUserId: (data['initiatorUserId'] ?? message.senderUserId ?? '')
           .toString()
           .trim(),
+      callId: (data['callId'] ?? '').toString().trim(),
       activeUserIds: _readStringList(data['activeUserIds']),
       invitedUserIds: _readStringList(data['invitedUserIds']),
       sentAt:

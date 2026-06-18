@@ -20,6 +20,9 @@ class ChatListItem extends StatefulWidget {
   final VoidCallback? onAvatarTap;
   final VoidCallback? onPinTap;
   final VoidCallback? onDeleteTap;
+  final VoidCallback? onCallTap;
+  final bool showCallButton;
+  final bool showActiveCallIndicator;
 
   const ChatListItem({
     super.key,
@@ -36,6 +39,9 @@ class ChatListItem extends StatefulWidget {
     this.onAvatarTap,
     this.onPinTap,
     this.onDeleteTap,
+    this.onCallTap,
+    this.showCallButton = false,
+    this.showActiveCallIndicator = false,
   });
 
   @override
@@ -268,6 +274,14 @@ class _ChatListItemState extends State<ChatListItem>
                           const SizedBox(height: 4),
                           Row(
                             children: [
+                              if (widget.showActiveCallIndicator) ...[
+                                const Icon(
+                                  Icons.call_rounded,
+                                  color: AppColors.success,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                              ],
                               Expanded(
                                 child: Text(
                                   widget.subtitle,
@@ -300,6 +314,26 @@ class _ChatListItemState extends State<ChatListItem>
                                       fontWeight: FontWeight.w400,
                                     ),
                                     textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                              if (widget.showCallButton) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: widget.onCallTap,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.success,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.call_rounded,
+                                      color: AppColors.white,
+                                      size: 16,
+                                    ),
                                   ),
                                 ),
                               ],

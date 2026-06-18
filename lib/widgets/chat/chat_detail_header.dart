@@ -17,6 +17,7 @@ class ChatDetailHeader extends StatelessWidget {
     required this.memberCount,
     required this.isOnline,
     required this.onMoreTap,
+    this.groupCallText = '',
     this.onAvatarTap,
   });
 
@@ -27,6 +28,7 @@ class ChatDetailHeader extends StatelessWidget {
   final int memberCount;
   final bool isOnline;
   final VoidCallback onMoreTap;
+  final String groupCallText;
   final VoidCallback? onAvatarTap;
 
   @override
@@ -73,42 +75,41 @@ class ChatDetailHeader extends StatelessWidget {
                         style: AppTextStyles.h2.copyWith(fontSize: 16),
                       ),
                     ),
-                    isGroup ? Text(
-                      '($memberCount)',
-                      style: AppTextStyles.h2.copyWith(fontSize: 16),
-                    ) : SizedBox(),
+                    isGroup
+                        ? Text(
+                            '($memberCount)',
+                            style: AppTextStyles.h2.copyWith(fontSize: 16),
+                          )
+                        : SizedBox(),
                   ],
                 ),
-                Row(
-                  children: [
-                    isGroup
-                        ? SizedBox()
-                        : Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: isOnline
-                                  ? AppColors.onlineBg
-                                  : AppColors.grey400,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                    isGroup ? SizedBox() : const SizedBox(width: 4),
-                    isGroup
-                        ? SizedBox()
-                        : Text(
-                            isOnline
-                                ? AppLocalizations.of(context)!.chatDetailActive
-                                : AppLocalizations.of(
-                                    context,
-                                  )!.chatHeaderOffline,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.grey400,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ],
-                ),
+                if (isGroup)
+                  _buildGroupCallStatus()
+                else
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isOnline
+                              ? AppColors.onlineBg
+                              : AppColors.grey400,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isOnline
+                            ? AppLocalizations.of(context)!.chatDetailActive
+                            : AppLocalizations.of(context)!.chatHeaderOffline,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.grey400,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -136,5 +137,30 @@ class ChatDetailHeader extends StatelessWidget {
       );
     }
     return GroupAvatarWidget(groupId: targetId, portraitUri: avatar, size: 44);
+  }
+
+  Widget _buildGroupCallStatus() {
+    if (groupCallText.isEmpty) return const SizedBox(height: 16);
+    return Row(
+      children: [
+        Image.asset(
+          'assets/images/chat/call/call-status.png',
+          width: 12,
+          height: 12,
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            groupCallText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.grey500,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

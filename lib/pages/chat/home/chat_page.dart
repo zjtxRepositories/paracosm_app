@@ -120,6 +120,8 @@ class _ChatPageState extends State<ChatPage> {
                       return ListenableBuilder(
                         listenable: item,
                         builder: (context, child) {
+                          final activeGroupCallStatus = controller
+                              .activeGroupCallStatusFor(item.info.targetId);
                           return ChatListItem(
                             key: ValueKey(
                               '${item.info.conversationType}_${item.info.targetId}',
@@ -137,6 +139,10 @@ class _ChatPageState extends State<ChatPage> {
                             isMuted:
                                 item.info.notificationLevel ==
                                 RCIMIWPushNotificationLevel.blocked,
+                            showActiveCallIndicator:
+                                item.info.conversationType ==
+                                    RCIMIWConversationType.group &&
+                                activeGroupCallStatus?.isActive == true,
                             onTap: () {
                               controller.navigateToConversationDetail(
                                 context,
@@ -285,11 +291,11 @@ class _ChatPageState extends State<ChatPage> {
                                 ),
                                 children: [
                                   TextSpan(
-                                    text: AppLocalizations.of(
-                                      context,
-                                    )!.chatGroupApplicationCount(
-                                      controller.groupApplicationUnhandledCount,
-                                    ),
+                                    text: AppLocalizations.of(context)!
+                                        .chatGroupApplicationCount(
+                                          controller
+                                              .groupApplicationUnhandledCount,
+                                        ),
                                   ),
                                 ],
                               ),

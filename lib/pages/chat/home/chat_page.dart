@@ -339,60 +339,97 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 构建联系人顶部的 Group 入口
   Widget _buildGroupHeader() {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Column(
+      children: [
+        _buildContactShortcutItem(
+          title: l10n.chatGroup,
+          subtitle: l10n.chatGroupManageCount(controller.groups.length),
+          backgroundColor: AppColors.groupAvatarBg,
+          icon: Image.asset(
+            'assets/images/chat/group-icon.png',
+            width: 24,
+            height: 24,
+          ),
+          showDivider: true,
+          onTap: () => context.push('/group-list', extra: controller.groups),
+        ),
+        _buildContactShortcutItem(
+          title: l10n.chatBlacklist,
+          subtitle: l10n.chatBlacklistManageHint,
+          backgroundColor: AppColors.grey900,
+          icon: const Icon(Icons.block, size: 24, color: AppColors.white),
+          onTap: () => context.push('/chat-blacklist'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContactShortcutItem({
+    required String title,
+    required String subtitle,
+    required Color backgroundColor,
+    required Widget icon,
+    required VoidCallback onTap,
+    bool showDivider = false,
+  }) {
     return GestureDetector(
-      onTap: () => context.push('/group-list', extra: controller.groups),
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
+        height: 76,
         color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.only(left: 20),
         child: Row(
           children: [
-            // Group 图标 (蓝色背景)
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.groupAvatarBg,
+                color: backgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Center(
-                child: Image.asset(
-                  'assets/images/chat/group-icon.png', // 暂时借用 scanner 图标，样式类似截图
-                  width: 24,
-                  height: 24,
-                ),
-              ),
+              child: Center(child: icon),
             ),
-            const SizedBox(width: 8),
-            // 文字说明
+            const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.chatGroup,
-                    style: AppTextStyles.h2.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+              child: Container(
+                height: 76,
+                padding: const EdgeInsets.only(right: 20),
+                decoration: BoxDecoration(
+                  border: showDivider
+                      ? const Border(
+                          bottom: BorderSide(
+                            color: AppColors.grey100,
+                            width: 1,
+                          ),
+                        )
+                      : null,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.h2.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  RichText(
-                    text: TextSpan(
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.grey400,
                         fontSize: 12,
                       ),
-                      children: [
-                        TextSpan(
-                          text: AppLocalizations.of(
-                            context,
-                          )!.chatGroupManageCount(controller.groups.length),
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

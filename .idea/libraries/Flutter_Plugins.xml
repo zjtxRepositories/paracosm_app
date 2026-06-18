@@ -23,6 +23,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_secure_storage_windows-4.1.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/mobile_scanner-7.2.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/flutter_app_update-3.2.3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_rtc_wrapper_plugin-5.32.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/path_provider_foundation-2.6.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/video_compress-3.1.4" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/path_provider_android-2.3.1" />
@@ -70,7 +71,6 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/image_picker_for_web-3.1.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_macos-0.9.5" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/file_selector_windows-0.9.3+5" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.flutter-io.cn/rongcloud_rtc_wrapper_plugin-5.32.0" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

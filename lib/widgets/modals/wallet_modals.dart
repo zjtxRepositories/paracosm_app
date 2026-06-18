@@ -8,6 +8,7 @@ import '../../modules/account/model/account_model.dart';
 import '../../modules/wallet/chains/model/gas_fee.dart';
 import '../../modules/wallet/manager/wallet_manager.dart';
 import '../../modules/wallet/model/chain_account.dart';
+import '../../modules/wallet/model/nft_asset_model.dart';
 import '../../modules/wallet/model/token_model.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../theme/app_colors.dart';
@@ -75,23 +76,43 @@ class WalletModals {
     required BuildContext context,
     TokenModel? currentToken,
     required WalletModel wallet,
-    AssetType type = AssetType.token,
     required Function(TokenModel) onSelected,
   }) {
     final l10n = AppLocalizations.of(context)!;
     AppModal.show(
       context,
-      title: type == AssetType.token
-          ? l10n.walletSelectTokenTitle
-          : l10n.walletSelectNftTitle,
+      title: l10n.walletSelectTokenTitle,
       confirmText: null,
       onConfirm: () {},
       child: WalletSelectTokenModal(
         selectedToken: currentToken,
         wallet: wallet,
-        type: type,
         onSelected: (token) async {
           onSelected(token);
+          context.pop();
+        },
+      ),
+    );
+  }
+
+  /// =========================
+  /// NFT 选择
+  /// =========================
+  static void showNftSelector({
+    required BuildContext context,
+    required WalletModel wallet,
+    required Function(NftAssetModel) onSelected,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    AppModal.show(
+      context,
+      title: l10n.walletSelectNftTitle,
+      confirmText: null,
+      onConfirm: () {},
+      child: WalletSelectNftModal(
+        wallet: wallet,
+        onSelected: (asset) async {
+          onSelected(asset);
           context.pop();
         },
       ),

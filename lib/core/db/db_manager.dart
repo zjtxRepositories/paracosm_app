@@ -1,5 +1,6 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/db/dao/app_config_dao.dart';
+import 'package:paracosm/core/db/dao/nft_asset_dao.dart';
 import 'package:paracosm/core/db/dao/wallet_dao.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -60,6 +61,8 @@ class DBManager {
       await db.execute(AccountDao.createTableSql);
       await db.execute(AppConfigDao.createTableSql);
       await db.execute(WalletDao.createTableSql);
+      await db.execute(NftAssetDao.createTableSql);
+      await db.execute(NftSyncStateDao.createTableSql);
     } else {
       print('2-------');
     }

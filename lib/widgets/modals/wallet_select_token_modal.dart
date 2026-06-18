@@ -1,6 +1,9 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:paracosm/modules/wallet/chains/service/nft_portfolio_service.dart';
+import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
+import 'package:paracosm/widgets/wallet/nft_asset_tile.dart';
 import '../../modules/wallet/model/chain_account.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../theme/app_colors.dart';
@@ -9,12 +12,9 @@ import '../base/app_localizations.dart';
 import '../common/app_network_image.dart';
 import '../common/app_search_input.dart';
 
-enum AssetType { token, nft }
-
 class WalletSelectTokenModal extends StatefulWidget {
   final TokenModel? selectedToken;
   final WalletModel wallet;
-  final AssetType type;
 
   final Future<void> Function(TokenModel token) onSelected;
 
@@ -23,7 +23,6 @@ class WalletSelectTokenModal extends StatefulWidget {
     this.selectedToken,
     required this.onSelected,
     required this.wallet,
-    this.type = AssetType.token,
   });
 
   @override
@@ -35,9 +34,6 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  /// ⭐ 链滚动控制器
-  // final ScrollController _chainScrollController =
-  // ScrollController();
   late final ScrollController _chainScrollController;
   String _keyword = '';
   int _selectChainId = 0;
@@ -74,37 +70,41 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
   }
 
   @override
+  void dispose() {
+    _chainScrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     List<TokenModel> tokens = [];
-    if (widget.type == AssetType.token) {
-      final hasSearch = _keyword.isNotEmpty;
-      if (hasSearch) {
-        /// 👉 跨链搜索
-        for (var c in _chains) {
-          tokens.addAll(c.tokens);
-        }
-      } else {
-        /// 👉 当前链
-        final chain =
-            _chains.where((c) => c.chainId == _selectChainId).isNotEmpty
-            ? _chains.firstWhere((c) => c.chainId == _selectChainId)
-            : null;
-
-        tokens = chain?.tokens ?? [];
+    final hasSearch = _keyword.isNotEmpty;
+    if (hasSearch) {
+      /// 👉 跨链搜索
+      for (var c in _chains) {
+        tokens.addAll(c.tokens);
       }
+    } else {
+      /// 👉 当前链
+      final chain = _chains.where((c) => c.chainId == _selectChainId).isNotEmpty
+          ? _chains.firstWhere((c) => c.chainId == _selectChainId)
+          : null;
 
-      /// 🔍 搜索过滤
-      tokens = tokens.where((t) {
-        if (!hasSearch) return true;
-
-        return t.address.toLowerCase().contains(_keyword) ||
-            t.name.toLowerCase().contains(_keyword) ||
-            t.symbol.toLowerCase().contains(_keyword);
-      }).toList();
-
-      /// 📊 排序（余额高在前）
-      tokens.sort((a, b) => b.balance.compareTo(a.balance));
+      tokens = chain?.tokens ?? [];
     }
+
+    /// 🔍 搜索过滤
+    tokens = tokens.where((t) {
+      if (!hasSearch) return true;
+
+      return t.address.toLowerCase().contains(_keyword) ||
+          t.name.toLowerCase().contains(_keyword) ||
+          t.symbol.toLowerCase().contains(_keyword);
+    }).toList();
+
+    /// 📊 排序（余额高在前）
+    tokens.sort((a, b) => b.balance.compareTo(a.balance));
 
     final l10n = AppLocalizations.of(context)!;
     return Column(
@@ -114,9 +114,7 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
         // 搜索框
         AppSearchInput(
           controller: _searchController,
-          hintText: widget.type == AssetType.token
-              ? l10n.communityModalSearchTokenHint
-              : l10n.walletSearchNftNameOrContract,
+          hintText: l10n.communityModalSearchTokenHint,
           onChanged: (value) {
             if (_keyword == value) return;
 
@@ -128,6 +126,7 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
         const SizedBox(height: 12),
         // 网络筛选 Chip 列表
         SingleChildScrollView(
+          controller: _chainScrollController,
           scrollDirection: Axis.horizontal,
           child: Row(
             children: List.generate(_chains.length, (index) {
@@ -161,7 +160,7 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
               ? SizedBox()
               : ListView.separated(
                   itemCount: tokens.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final token = tokens[index];
 
@@ -305,6 +304,180 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class WalletSelectNftModal extends StatefulWidget {
+  const WalletSelectNftModal({
+    super.key,
+    required this.wallet,
+    required this.onSelected,
+  });
+
+  final WalletModel wallet;
+  final Future<void> Function(NftAssetModel asset) onSelected;
+
+  @override
+  State<WalletSelectNftModal> createState() => _WalletSelectNftModalState();
+}
+
+class _WalletSelectNftModalState extends State<WalletSelectNftModal> {
+  late final List<ChainAccount> _chains;
+  final TextEditingController _searchController = TextEditingController();
+  String _keyword = '';
+  int _selectChainId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _chains = widget.wallet.chains
+        .where((chain) => chain.chainType == ChainType.evm)
+        .toList();
+    _selectChainId = widget.wallet.currentChainId;
+    if (!_chains.any((chain) => chain.chainId == _selectChainId) &&
+        _chains.isNotEmpty) {
+      _selectChainId = _chains.first.chainId;
+    }
+    NftPortfolioService().start(widget.wallet);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSearchInput(
+          controller: _searchController,
+          hintText: l10n.walletSearchNftNameOrContract,
+          onChanged: (value) {
+            if (_keyword == value) return;
+            setState(() => _keyword = value.toLowerCase());
+          },
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(_chains.length, (index) {
+              final chain = _chains[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index == _chains.length - 1 ? 0 : 8,
+                ),
+                child: _buildNetworkChip(
+                  icon: chain.logo,
+                  label: chain.name,
+                  isSelected: chain.chainId == _selectChainId,
+                  onTap: () {
+                    if (_selectChainId == chain.chainId) return;
+                    setState(() => _selectChainId = chain.chainId);
+                  },
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 400,
+          child: StreamBuilder<List<NftAssetModel>>(
+            stream: NftPortfolioService().stream,
+            initialData: NftPortfolioService().currentAssets,
+            builder: (context, snapshot) {
+              final nfts = _filterAssets(snapshot.data ?? const []);
+              if (nfts.isEmpty) {
+                return AppEmptyView(
+                  text: l10n.profileTokenNetworkNoNft,
+                  imageSize: 72,
+                  bottomOffset: 24,
+                );
+              }
+              return ListView.separated(
+                itemCount: nfts.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final nft = nfts[index];
+                  final chain = _chains.firstWhere(
+                    (item) => item.chainId == nft.chainId,
+                    orElse: () => _chains.first,
+                  );
+                  return NftAssetTile(
+                    asset: nft,
+                    networkLogo: chain.logo,
+                    isCompact: true,
+                    onTap: () => widget.onSelected(nft),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<NftAssetModel> _filterAssets(List<NftAssetModel> assets) {
+    final keyword = _keyword.trim();
+    return assets.where((asset) {
+      if (asset.chainId != _selectChainId && keyword.isEmpty) return false;
+      if (keyword.isEmpty) return !asset.isSpam && !asset.isHidden;
+      return !asset.isSpam &&
+          !asset.isHidden &&
+          (asset.name.toLowerCase().contains(keyword) ||
+              asset.collectionName.toLowerCase().contains(keyword) ||
+              asset.contractAddress.toLowerCase().contains(keyword) ||
+              asset.tokenId.toLowerCase().contains(keyword));
+    }).toList();
+  }
+
+  Widget _buildNetworkChip({
+    required String icon,
+    required String label,
+    required bool isSelected,
+    GestureTapCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(left: 4, top: 5, right: 12, bottom: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : AppColors.grey200,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppNetworkImage(
+              url: icon,
+              width: 20,
+              height: 20,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: AppColors.grey900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

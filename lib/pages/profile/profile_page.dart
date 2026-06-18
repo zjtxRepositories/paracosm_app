@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/wallet/chains/service/nft_portfolio_service.dart';
 import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -15,6 +17,8 @@ import '../../modules/account/manager/account_manager.dart';
 import '../../modules/wallet/model/wallet_model.dart';
 import '../../util/string_util.dart';
 import '../../widgets/common/app_network_image.dart';
+import '../../widgets/common/app_empty_view.dart';
+import '../../widgets/wallet/nft_asset_tile.dart';
 
 /// 个人中心页面 (钱包首页)
 class ProfilePage extends StatefulWidget {
@@ -28,6 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
   late final AccountManager accountManager;
 
   bool _isBalanceVisible = true; // 控制余额显示/隐藏的状态
+  _ProfileAssetCategory _selectedAssetCategory = _ProfileAssetCategory.token;
 
   WalletModel? _walletModel;
   ChainAccount? _selectedNetwork;
@@ -64,6 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final generation = ++_loadGeneration;
     _accountChangedRefreshTimer?.cancel();
     PortfolioService().clean();
+    NftPortfolioService().clean();
     fetchData(generation: generation);
     _accountChangedRefreshTimer = Timer(const Duration(milliseconds: 350), () {
       if (!_isCurrentLoad(generation)) return;
@@ -112,6 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     PortfolioService().start(_tokens, ownerId: wallet.id);
+    NftPortfolioService().start(wallet);
   }
 
   bool _shouldShowToken(TokenModel token) {
@@ -154,7 +161,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Column(
                     children: [
                       _buildWalletCard(), // 钱包资产卡片
-                      _buildTokenList(), // 代币列表
+                      _buildAssetList(), // 资产列表
                     ],
                   ),
                 ),
@@ -451,7 +458,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildTokenList() {
+  Widget _buildAssetList() {
     return StreamBuilder<List<TokenModel>>(
       stream: PortfolioService().stream,
       builder: (context, snapshot) {
@@ -467,7 +474,6 @@ class _ProfilePageState extends State<ProfilePage> {
         } else {
           tokens.addAll(_tokens);
         }
-        if (tokens.isEmpty) return const SizedBox();
         tokens.sort((a, b) {
           return b.balance.compareTo(a.balance);
         });
@@ -514,26 +520,166 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              _buildAssetCategoryTabs(),
               const SizedBox(height: 8),
 
               /// 动态列表
-              ...tokens.map((token) {
-                return _buildTokenItem(
-                  token,
-                  token.name,
-                  token.symbol,
-                  token.market?.close ?? 0.0,
-                  token.market?.chg ?? 0.0,
-                  (token.market?.chg ?? 0.0) > 0,
-                  token.logo,
-                );
-              }),
+              _selectedAssetCategory == _ProfileAssetCategory.token
+                  ? _buildTokenListContent(tokens)
+                  : _buildNftListContent(),
 
               const SizedBox(height: 20),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAssetCategoryTabs() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 2,
+        itemBuilder: (context, index) {
+          final category = index == 0
+              ? _ProfileAssetCategory.token
+              : _ProfileAssetCategory.nft;
+          final label = index == 0
+              ? l10n.profileTokenNetworkTokens
+              : l10n.profileTokenNetworkNfts;
+          final isSelected = _selectedAssetCategory == category;
+          return GestureDetector(
+            onTap: () {
+              if (isSelected) return;
+              setState(() => _selectedAssetCategory = category);
+            },
+            child: Container(
+              margin: EdgeInsets.only(right: index == 0 ? 24 : 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: isSelected
+                        ? AppTextStyles.bodyMedium.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.grey900,
+                          )
+                        : AppTextStyles.body.copyWith(
+                            color: AppColors.grey400,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (isSelected)
+                    Container(
+                      width: 12,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 3),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTokenListContent(List<TokenModel> tokens) {
+    if (tokens.isEmpty) {
+      return _buildAssetEmptyState(
+        AppLocalizations.of(context)!.profileTokenNetworkNoTokens,
+      );
+    }
+    return Column(
+      children: tokens.map((token) {
+        return _buildTokenItem(
+          token,
+          token.name,
+          token.symbol,
+          token.market?.close ?? 0.0,
+          token.market?.chg ?? 0.0,
+          (token.market?.chg ?? 0.0) > 0,
+          token.logo,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildNftListContent() {
+    return StreamBuilder<List<NftAssetModel>>(
+      stream: NftPortfolioService().stream,
+      initialData: NftPortfolioService().currentAssets,
+      builder: (context, snapshot) {
+        final nfts = (snapshot.data ?? const <NftAssetModel>[])
+            .where((asset) => !asset.isSpam && !asset.isHidden)
+            .toList();
+        if (nfts.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: AppEmptyView(
+              text: AppLocalizations.of(context)!.profileTokenNetworkNoNft,
+              imageSize: 96,
+              bottomOffset: 24,
+            ),
+          );
+        }
+        return Column(
+          children: nfts.map((asset) {
+            ChainAccount? chain;
+            for (final item in _walletModel?.chains ?? <ChainAccount>[]) {
+              if (item.chainId == asset.chainId) {
+                chain = item;
+                break;
+              }
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: NftAssetTile(
+                asset: asset,
+                networkLogo: chain?.logo,
+                onTap: () => context.push('/nft-detail', extra: asset),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAssetEmptyState(String text) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.grey200, width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: AppTextStyles.body.copyWith(
+          fontSize: 14,
+          color: AppColors.grey500,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 
@@ -655,6 +801,8 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+
+enum _ProfileAssetCategory { token, nft }
 
 /// 趋势箭头绘制类
 class ArrowPainter extends CustomPainter {

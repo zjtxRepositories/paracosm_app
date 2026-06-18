@@ -271,20 +271,77 @@ class ImFriendManager {
   }
 
   Future<ImResult<void>> addToBlacklist(String userId) async {
-    final result = await ImCallbackWrapper.wrapAddBlock((callback) {
-      return IMEngineManager().engine!.addToBlacklist(
-        userId,
-        callback: IRCIMIWAddToBlacklistCallback(
-          onBlacklistAdded: (int? code, String? uid) {
-            if (uid != null && code == 0) {
-              ImDataCenter().removeFriend(userId, deletedMessage: false);
-            }
-          },
-        ),
-      );
-    });
+    final completer = Completer<ImResult<void>>();
+    final ret = await IMEngineManager().engine!.addToBlacklist(
+      userId,
+      callback: IRCIMIWAddToBlacklistCallback(
+        onBlacklistAdded: (int? code, String? uid) {
+          if (code == 0 && uid != null) {
+            ImDataCenter().removeFriend(userId, deletedMessage: false);
+            _completeIfPending(completer, ImResult.success());
+            return;
+          }
+          _completeIfPending(completer, ImResult.error(code: code ?? -1));
+        },
+      ),
+    );
 
-    return result;
+    if (ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
+
+  Future<ImResult<void>> removeFromBlacklist(String userId) async {
+    final completer = Completer<ImResult<void>>();
+    final ret = await IMEngineManager().engine!.removeFromBlacklist(
+      userId,
+      callback: IRCIMIWRemoveFromBlacklistCallback(
+        onBlacklistRemoved: (int? code, String? uid) {
+          if (code == 0 && uid != null) {
+            _completeIfPending(completer, ImResult.success());
+            return;
+          }
+          _completeIfPending(completer, ImResult.error(code: code ?? -1));
+        },
+      ),
+    );
+
+    if (ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
+
+  Future<ImResult<List<String>>> getBlacklist() async {
+    final completer = Completer<ImResult<List<String>>>();
+    final ret = await IMEngineManager().engine!.getBlacklist(
+      callback: IRCIMIWGetBlacklistCallback(
+        onSuccess: (List<String>? userIds) {
+          _completeIfPending(completer, ImResult.success(data: userIds ?? []));
+        },
+        onError: (int? code) {
+          _completeIfPending(completer, ImResult.error(code: code ?? -1));
+        },
+      ),
+    );
+
+    if (ret != 0) {
+      return ImResult.error(code: ret);
+    }
+
+    return completer.future;
+  }
+
+  void _completeIfPending<T>(
+    Completer<ImResult<T>> completer,
+    ImResult<T> result,
+  ) {
+    if (!completer.isCompleted) {
+      completer.complete(result);
+    }
   }
 
   // ======================================================

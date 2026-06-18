@@ -412,7 +412,6 @@ class RongCallManager {
     final code = await _engine?.accept() ?? -1;
     if (code != 0) {
       await _failActiveCall();
-      print('call_answer_failed_code------1');
       AppToast.showInfo(
         AppLocalizations.currentText('call_answer_failed_code', {'code': code}),
       );
@@ -484,7 +483,6 @@ class RongCallManager {
       }
       _clearSpeakingUsers();
       _setState(_state.copyWith(status: RongCallStatus.error, errorCode: code));
-      print('call_answer_failed_code------2');
       AppToast.showInfo(
         AppLocalizations.currentText('call_answer_failed_code', {'code': code}),
       );
@@ -1538,7 +1536,6 @@ class RongCallManager {
     if (engine == null) return;
 
     engine.onReceiveCall = (session) {
-      print('onReceiveCall------');
       _disableNativeCallSummary();
       final isGroupCall = session.callType == RCCallCallType.group;
       final targetId = isGroupCall
@@ -1556,7 +1553,6 @@ class RongCallManager {
           _state.isActive &&
           _state.targetId == targetId &&
           _state.status == RongCallStatus.incoming;
-      print('connect------3');
       _setState(
         RongCallState(
           status: shouldAutoAcceptJoin
@@ -1605,7 +1601,6 @@ class RongCallManager {
     };
 
     engine.onRemoteUserDidJoin = (user) {
-      print('onRemoteUserDidJoin---${user.userId}');
       _upsertSessionUser(user);
       if (!_state.isActive) return;
       final connectedTime = DateTime.now().millisecondsSinceEpoch;
@@ -1625,7 +1620,6 @@ class RongCallManager {
     };
 
     engine.onRemoteUserDidLeave = (userId) {
-      print('onRemoteUserDidLeave---${userId}');
       _removeSessionUser(userId);
       _removeSpeakingUser(userId);
       _remoteVideoViewBound = false;
@@ -1643,7 +1637,6 @@ class RongCallManager {
     };
 
     engine.onRemoteUserDidChangeMediaType = (user, _) {
-      print('onRemoteUserDidChangeMediaType-------');
       _upsertSessionUser(user);
       final connectedTime = DateTime.now().millisecondsSinceEpoch;
       _remoteVideoViewBound = false;
@@ -1672,7 +1665,6 @@ class RongCallManager {
           connectedTimeMs: connectedTime,
         ),
       );
-      print('connect------2');
 
       unawaited(_applyConnectedMediaSettings(engine, _state));
       unawaited(

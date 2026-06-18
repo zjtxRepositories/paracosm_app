@@ -855,6 +855,9 @@ class RongCallManager {
     }
 
     if (!status.isActive) {
+      if (_state.status == RongCallStatus.inCall) {
+        return;
+      }
       final endedState = _state.copyWith(
         status: RongCallStatus.ended,
         disconnectReason: RCCallDisconnectReason.remote_hangup,

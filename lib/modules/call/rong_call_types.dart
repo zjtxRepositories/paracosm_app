@@ -165,6 +165,7 @@ class RCCallEngine {
   final RCRTCEngine _rtcEngine;
   RCCallSession? _currentSession;
   Future<int>? _leavingRoomFuture;
+  Future<int>? _finishingCallFuture;
   String? _joinedRoomId;
   bool _microphoneEnabled = true;
   bool _speakerEnabled = true;
@@ -226,11 +227,14 @@ class RCCallEngine {
       );
     };
     _rtcEngine.onUserLeft = (roomId, userId) {
+      debugPrint('onUserLeft------------');
       if (_currentSession?.callId != roomId || userId == _currentUserId) {
         return;
       }
       if (_currentSession?.callType == RCCallCallType.single) {
-        onDisconnect?.call(RCCallDisconnectReason.remote_hangup);
+        unawaited(
+          _finishCall(disconnectReason: RCCallDisconnectReason.remote_hangup),
+        );
         return;
       }
       onRemoteUserDidLeave?.call(userId);
@@ -240,7 +244,11 @@ class RCCallEngine {
         return;
       }
       if (_currentSession?.callType == RCCallCallType.single) {
-        onDisconnect?.call(RCCallDisconnectReason.remote_network_error);
+        unawaited(
+          _finishCall(
+            disconnectReason: RCCallDisconnectReason.remote_network_error,
+          ),
+        );
         return;
       }
       onRemoteUserDidLeave?.call(userId);
@@ -431,13 +439,29 @@ class RCCallEngine {
   }
 
   Future<int> hangup({bool notifyDisconnect = true}) async {
-    _currentSession?.endTime = DateTime.now().millisecondsSinceEpoch;
-    await _leaveRoom();
-    if (notifyDisconnect) {
-      onDisconnect?.call(RCCallDisconnectReason.hangup);
-    }
-    _currentSession = null;
-    return 0;
+    return _finishCall(
+      disconnectReason: notifyDisconnect ? RCCallDisconnectReason.hangup : null,
+    );
+  }
+
+  Future<int> _finishCall({required RCCallDisconnectReason? disconnectReason}) {
+    final finishing = _finishingCallFuture;
+    if (finishing != null) return finishing;
+
+    _finishingCallFuture = (() async {
+      _currentSession?.endTime = DateTime.now().millisecondsSinceEpoch;
+      final code = await _leaveRoom();
+      if (disconnectReason != null) {
+        onDisconnect?.call(disconnectReason);
+      }
+      _currentSession = null;
+      return code;
+    })();
+
+    _finishingCallFuture = _finishingCallFuture!.whenComplete(() {
+      _finishingCallFuture = null;
+    });
+    return _finishingCallFuture!;
   }
 
   Future<int> _leaveRoom() {

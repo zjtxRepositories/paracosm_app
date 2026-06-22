@@ -319,10 +319,7 @@ class AppRouter {
             final account = AccountManager().currentAccount;
             userId = account?.userId.toLowerCase() ?? '';
           }
-          return MomentUserProfilePage(
-            userId: userId,
-            mode: mode,
-          );
+          return MomentUserProfilePage(userId: userId, mode: mode);
         },
       ),
       GoRoute(
@@ -472,9 +469,11 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final title = data?['title'];
           final initialIntroduction = data?['initial'];
+          final maxLength = data?['maxLength'];
           return GroupIntroductionPage(
             initialIntroduction: initialIntroduction,
             title: title,
+            maxLength: maxLength is int ? maxLength : null,
           );
         },
       ),

@@ -6,12 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
 import 'package:paracosm/core/models/social_wallet_address.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/modules/im/message/send/im_sender.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -29,6 +29,8 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/user_display_model.dart';
 import 'moment_post_card.dart';
+
+const String _profileIntroductionExtKey = 'ext_introduction';
 
 /// 个人主页详情页
 /// 保留社区详情页的主体结构，只显示看板下面的内容列表，移除 TabController 和其他 Tab 区域。
@@ -123,8 +125,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   @override
   void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.userId != widget.userId ||
-        oldWidget.mode != widget.mode) {
+    if (oldWidget.userId != widget.userId || oldWidget.mode != widget.mode) {
       _loadPosts();
     }
   }
@@ -245,16 +246,31 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     _isFollowingUser = stats.isFollowingUser;
   }
 
-  Future<_MomentProfileHeaderData?> _loadProfileHeader(
-    String userId,
-  ) async {
+  Future<_MomentProfileHeaderData?> _loadProfileHeader(String userId) async {
     final account = AccountManager().currentAccount;
     if (_isSelf && account != null) {
+      try {
+        final user = await UserDisplayStateCenter().getUser(
+          account.accountId,
+          forceRefresh: true,
+        );
+
+        if (user != null) {
+          return _MomentProfileHeaderData.fromUserDisplay(
+            user,
+            fallbackUserId: account.userId,
+          );
+        }
+      } catch (e) {
+        debugPrint('load self moment user profile failed: $e');
+      }
+
       return _MomentProfileHeaderData(
         userId: account.userId,
         nickname: account.name,
         avatar: account.avatar,
         account: account.accountId,
+        introduction: '',
       );
     }
 
@@ -549,6 +565,61 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     });
   }
 
+  Future<void> _openProfileIntroductionEditor() async {
+    final header = _profileHeader;
+    if (header == null) return;
+
+    final text = await context.push<String>(
+      '/group-introduction',
+      extra: {
+        'title': AppLocalizations.of(context)!.chatSettingIntroduction,
+        'initial': header.introduction,
+        'maxLength': 30,
+      },
+    );
+    if (!mounted || text == null) return;
+
+    await _updateProfileIntroduction(text);
+  }
+
+  Future<void> _updateProfileIntroduction(String introduction) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    try {
+      AppLoading.show();
+      final profile = await ImUserManager().getMyUserProfile();
+      if (profile == null) {
+        AppToast.show(l10n.commonUpdateFailed);
+        return;
+      }
+
+      final extProfile = Map<dynamic, dynamic>.from(
+        profile.userExtProfile ?? const {},
+      );
+      extProfile[_profileIntroductionExtKey] = introduction;
+      profile.userExtProfile = extProfile;
+
+      final result = await ImUserManager().updateMyUserProfile(
+        userProfile: profile,
+      );
+      if (!result) {
+        AppToast.show(l10n.commonUpdateFailed);
+        return;
+      }
+    } catch (e) {
+      debugPrint('update moment profile introduction failed: $e');
+      AppToast.show(l10n.commonUpdateFailed);
+      return;
+    } finally {
+      AppLoading.dismiss();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _profileHeader = _profileHeader?.copyWith(introduction: introduction);
+    });
+  }
+
   int _nextCount(int count, bool increment) {
     if (increment) return count + 1;
     return count > 0 ? count - 1 : 0;
@@ -793,6 +864,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             left: 0,
             child: _buildProfileAvatar(showPhotoIcon: _isSelf),
           ),
+          Positioned(
+            left: 80,
+            top: 14,
+            right: _isSelf ? 0 : 100,
+            child: _buildProfileIntroductionRow(context),
+          ),
           if (!_isSelf)
             Positioned(
               right: 0,
@@ -806,6 +883,49 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileIntroductionRow(BuildContext context) {
+    final header = _profileHeader;
+    if (header == null) return const SizedBox.shrink();
+
+    final l10n = AppLocalizations.of(context)!;
+    final introduction = header.introduction.isEmpty
+        ? l10n.translate('moments_no_introduction')
+        : header.introduction;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(
+          child: Text(
+            introduction,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              height: 1.35,
+              color: AppColors.grey400,
+            ),
+          ),
+        ),
+        if (_isSelf) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _openProfileIntroductionEditor,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                'assets/images/moments/edit.png',
+                width: 16,
+                height: 16,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1192,6 +1312,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
         nickname: userInfo.nickname,
         avatar: userInfo.avatar,
         account: userInfo.account,
+        introduction: '',
       );
     }
 
@@ -1223,12 +1344,14 @@ class _MomentProfileHeaderData {
   final String nickname;
   final String avatar;
   final String account;
+  final String introduction;
 
   const _MomentProfileHeaderData({
     required this.userId,
     required this.nickname,
     required this.avatar,
     required this.account,
+    required this.introduction,
   });
 
   factory _MomentProfileHeaderData.fromUserDisplay(
@@ -1240,7 +1363,29 @@ class _MomentProfileHeaderData {
       nickname: userInfo.name,
       avatar: userInfo.avatar,
       account: userInfo.userId,
+      introduction: _introductionFromProfile(userInfo.profile),
     );
+  }
+
+  _MomentProfileHeaderData copyWith({
+    String? userId,
+    String? nickname,
+    String? avatar,
+    String? account,
+    String? introduction,
+  }) {
+    return _MomentProfileHeaderData(
+      userId: userId ?? this.userId,
+      nickname: nickname ?? this.nickname,
+      avatar: avatar ?? this.avatar,
+      account: account ?? this.account,
+      introduction: introduction ?? this.introduction,
+    );
+  }
+
+  static String _introductionFromProfile(RCIMIWUserProfile? profile) {
+    final value = profile?.userExtProfile?[_profileIntroductionExtKey];
+    return value?.toString().trim() ?? '';
   }
 
   String get displayName {
@@ -1275,6 +1420,9 @@ class _MomentProfileHeaderData {
         userId: userId,
         portraitUri: avatar,
         name: nickname,
+        userExtProfile: introduction.isEmpty
+            ? null
+            : {_profileIntroductionExtKey: introduction},
       ),
     );
   }

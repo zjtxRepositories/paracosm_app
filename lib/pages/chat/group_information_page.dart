@@ -43,6 +43,11 @@ class GroupInformationPage extends StatefulWidget {
 }
 
 class _GroupInformationPageState extends State<GroupInformationPage> {
+  static const double _navBarHeight = 44;
+  static const double _contentTopSpacing = 180;
+  static const double _keyboardContentTopSpacing = 40;
+  static const double _coverExtraHeight = 120;
+
   late TextEditingController _nameController;
   late TextEditingController _introductionController;
   late TextEditingController _noticeController;
@@ -257,24 +262,32 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final coverHeight =
+        MediaQuery.paddingOf(context).top +
+        _navBarHeight +
+        _contentTopSpacing +
+        _coverExtraHeight;
+
     return Stack(
       children: [
-        // 1. 全屏背景图 (完全对齐 wallet_setup_page.dart L30-35)
-        Positioned.fill(
+        const Positioned.fill(child: ColoredBox(color: AppColors.white)),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: coverHeight,
           child: Image.asset(
             'assets/images/chat/group-bg.png',
             fit: BoxFit.cover,
           ),
         ),
-
-        // 2. 页面内容 (完全对齐 wallet_setup_page.dart L38-42 结构)
         Positioned.fill(
           child: Column(
             children: [
               // 自定义导航栏
               SafeArea(
                 child: Container(
-                  height: 44,
+                  height: _navBarHeight,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     children: [
@@ -310,7 +323,9 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                     final keyboardInset = MediaQuery.of(
                       context,
                     ).viewInsets.bottom;
-                    final topSpacing = keyboardInset > 0 ? 40.0 : 180.0;
+                    final topSpacing = keyboardInset > 0
+                        ? _keyboardContentTopSpacing
+                        : _contentTopSpacing;
                     final cardMinHeight = constraints.maxHeight > topSpacing
                         ? constraints.maxHeight - topSpacing
                         : 0.0;
@@ -336,7 +351,7 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                               ),
                               padding: const EdgeInsets.all(20),
                               decoration: const BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(32),
                                   topRight: Radius.circular(32),
@@ -364,8 +379,8 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       children: [
         // 群头像预览 (叠加在内容区上方)
         Transform.translate(
-          offset: const Offset(0, -60),
-          child: Center(child: _buildGroupAvatar()),
+          offset: const Offset(20, -60),
+          child: _buildGroupAvatar(),
         ),
 
         Transform.translate(

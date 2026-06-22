@@ -310,21 +310,17 @@ class AppRouter {
           final extra = state.extra;
           final mode = state.uri.queryParameters['mode'] ?? 'friend';
           var userId = '';
-          var imUserId = '';
           if (extra is String) {
             userId = extra;
           } else if (extra is Map<String, dynamic>) {
             userId = extra['userId']?.toString() ?? '';
-            imUserId = extra['imUserId']?.toString() ?? '';
           }
           if (userId.isEmpty && mode == 'self') {
             final account = AccountManager().currentAccount;
             userId = account?.userId.toLowerCase() ?? '';
-            imUserId = account?.accountId ?? '';
           }
           return MomentUserProfilePage(
             userId: userId,
-            imUserId: imUserId,
             mode: mode,
           );
         },

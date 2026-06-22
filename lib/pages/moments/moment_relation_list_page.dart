@@ -275,7 +275,7 @@ class _MomentRelationListPageState extends State<MomentRelationListPage> {
     if (userId.isEmpty) return;
     context.push(
       '/moment-user-profile',
-      extra: {'userId': userId, 'imUserId': userId},
+      extra: {'userId': userId},
     );
   }
 

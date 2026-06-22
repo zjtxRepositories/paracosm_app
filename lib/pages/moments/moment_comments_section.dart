@@ -261,7 +261,6 @@ class _MomentCommentItem extends StatelessWidget {
                   '/moment-user-profile',
                   extra: {
                     'userId': userId,
-                    'imUserId': imUserId,
                   },
                 );
               },

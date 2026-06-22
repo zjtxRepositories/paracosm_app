@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
-import 'package:paracosm/core/models/social_wallet_address.dart';
 import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
@@ -54,15 +53,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 防止并发请求乱序
   int _fetchVersion = 0;
-  String? _userId;
-  Future<void>? _initFuture;
-  bool _isOpeningMoment = false;
 
   @override
   void initState() {
     super.initState();
 
-    _initFuture = _init();
+    _init();
 
     _profileSub = ImDataCenter().profileStream.listen((userIds) {
       if (userIds.contains(widget.userId)) {
@@ -73,12 +69,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _init() async {
     await fetchData(forceRefresh: true);
-    if (_isSelf) {
-      _userId = AccountManager().currentAccount?.userId;
-      return;
-    }
-    final user = await GetUerInfoApi.search(widget.userId);
-    _userId = user?.userId;
   }
 
   @override
@@ -139,68 +129,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> toggleMoment() async {
-    if (_isOpeningMoment) return;
-
     final userId = _user?.userId.trim() ?? '';
     if (userId.isEmpty) {
       AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
       return;
     }
-
-    var profileUserId = _momentProfileUserId(userId);
-    if (profileUserId.isEmpty) {
-      _isOpeningMoment = true;
-      AppLoading.show();
-      try {
-        profileUserId = await _resolveMomentProfileUserId(userId);
-      } catch (e) {
-        debugPrint('resolve moment profile user id failed: $e');
-      } finally {
-        AppLoading.dismiss();
-        _isOpeningMoment = false;
-      }
-    }
-
-    if (!mounted) return;
-    if (profileUserId.isEmpty) {
-      AppToast.show(AppLocalizations.of(context)!.chatUserLoading);
-      return;
-    }
-
     context.push(
       '/moment-user-profile?mode=${_isSelf ? 'self' : 'friend'}',
-      extra: {'userId': profileUserId, 'imUserId': userId},
+      extra: {'userId': userId},
     );
-  }
-
-  Future<String> _resolveMomentProfileUserId(String imUserId) async {
-    try {
-      await _initFuture;
-    } catch (e) {
-      debugPrint('wait profile init failed: $e');
-    }
-
-    var profileUserId = _momentProfileUserId(imUserId);
-    if (profileUserId.isNotEmpty || _isSelf) {
-      return profileUserId;
-    }
-
-    try {
-      final user = await GetUerInfoApi.search(widget.userId);
-      _userId = user?.userId;
-    } catch (e) {
-      debugPrint('reload profile user id failed: $e');
-    }
-
-    return _momentProfileUserId(imUserId);
-  }
-
-  String _momentProfileUserId(String imUserId) {
-    final resolvedUserId = _userId?.trim();
-    if (resolvedUserId != null && resolvedUserId.isNotEmpty) {
-      return resolvedUserId;
-    }
-    return SocialWalletAddress.normalize(imUserId);
   }
 
   Future<void> toggleCall({required bool isVideo}) async {

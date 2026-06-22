@@ -341,7 +341,6 @@ class _MomentDetailHeader extends StatelessWidget {
                   '/moment-user-profile',
                   extra: {
                     'userId': model.item.userId,
-                    'imUserId': model.user?.userId,
                   },
                 );
               },

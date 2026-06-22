@@ -166,16 +166,17 @@ class GroupDetailsController extends ChangeNotifier {
     final groupId = args!.targetId;
     if (groupId.isEmpty) return;
     final banned = !isMuted;
+    isMuted = banned;
+    notifyListeners();
     final isOk = await ImGroupManager().setGroupBan(
       groupId: groupId,
       banned: banned,
     );
     if (!isOk) {
+      isMuted = !banned;
       notifyListeners();
       return;
     }
-    isMuted = banned;
-    notifyListeners();
   }
 
   Future<void> toggleDisband(BuildContext context) async {

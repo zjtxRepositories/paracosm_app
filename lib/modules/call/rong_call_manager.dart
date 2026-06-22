@@ -285,12 +285,6 @@ class RongCallManager {
       }
       await _disableNativeCallSummary();
       _setState(_state.copyWith(session: session));
-      final invited = await _sendPrivateCallInvite(targetId);
-      if (!invited) {
-        await _failActiveCall();
-        AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
-        return false;
-      }
       final joined =
           await _engine?.joinCurrentRoom(notifyConnected: false) ?? -1;
       if (joined != 0) {
@@ -298,6 +292,12 @@ class RongCallManager {
         AppToast.showInfo(
           AppLocalizations.currentText('call_error_code', {'code': joined}),
         );
+        return false;
+      }
+      final invited = await _sendPrivateCallInvite(targetId);
+      if (!invited) {
+        await _failActiveCall();
+        AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
         return false;
       }
       return true;
@@ -375,18 +375,18 @@ class RongCallManager {
               _state.isGroupCall || session.callType == RCCallCallType.group,
         ),
       );
+      final joined = await _engine?.joinCurrentRoom() ?? -1;
+      if (joined != 0) {
+        await _failActiveCall(errorCode: joined, publishGroupEnded: false);
+        AppToast.showInfo(
+          AppLocalizations.currentText('call_error_code', {'code': joined}),
+        );
+        return false;
+      }
       final invited = await _sendGroupCallInviteUpdate(userIds);
       if (!invited) {
         await _failActiveCall();
         AppToast.showInfo(AppLocalizations.currentText('call_start_failed'));
-        return false;
-      }
-      final joined = await _engine?.joinCurrentRoom() ?? -1;
-      if (joined != 0) {
-        await _failActiveCall(errorCode: joined);
-        AppToast.showInfo(
-          AppLocalizations.currentText('call_error_code', {'code': joined}),
-        );
         return false;
       }
       unawaited(_publishGroupCallStatus(_state, force: true));
@@ -1109,13 +1109,16 @@ class RongCallManager {
     }
   }
 
-  Future<void> _failActiveCall({int? errorCode}) async {
+  Future<void> _failActiveCall({
+    int? errorCode,
+    bool publishGroupEnded = true,
+  }) async {
     final failedState = _state.copyWith(
       status: RongCallStatus.error,
       errorCode: errorCode,
     );
     try {
-      await _engine?.hangup();
+      await _engine?.hangup(notifyDisconnect: publishGroupEnded);
     } catch (e) {
       debugPrint('hangup failed call failed: $e');
     }
@@ -1123,7 +1126,9 @@ class RongCallManager {
     _localVideoViewBound = false;
     _remoteVideoViewBound = false;
     _setState(failedState);
-    unawaited(_publishGroupCallEnded(failedState));
+    if (publishGroupEnded) {
+      unawaited(_publishGroupCallEnded(failedState));
+    }
   }
 
   Future<void> toggleMicrophone() async {

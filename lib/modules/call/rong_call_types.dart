@@ -149,6 +149,7 @@ class RCCallEngine {
   RCCallEngine._(this._engine, this._currentUserId, this._rtcEngine);
 
   static const int _joinSameRoomCode = 50002;
+  static const int _illegalStateCode = 50007;
 
   static Future<RCCallEngine> create(
     RCIMIWEngine? engine, {
@@ -162,7 +163,7 @@ class RCCallEngine {
 
   final RCIMIWEngine? _engine;
   String _currentUserId;
-  final RCRTCEngine _rtcEngine;
+  RCRTCEngine _rtcEngine;
   RCCallSession? _currentSession;
   Future<int>? _leavingRoomFuture;
   Future<int>? _finishingCallFuture;
@@ -255,6 +256,17 @@ class RCCallEngine {
     };
   }
 
+  Future<void> _recreateRtcEngine() async {
+    debugPrint('[RCCall] recreate rtc engine');
+    try {
+      await _rtcEngine.destroy();
+    } catch (error) {
+      debugPrint('[RCCall] destroy rtc engine failed: $error');
+    }
+    _rtcEngine = await RCRTCEngine.create();
+    _bindRtcListeners();
+  }
+
   void _handleLocalAudioStats(RCRTCLocalAudioStats stats) {
     final session = _currentSession;
     final mine = session?.mine;
@@ -342,13 +354,33 @@ class RCCallEngine {
   }
 
   Future<int> joinCurrentRoom({bool notifyConnected = true}) async {
+    var code = await _joinCurrentRoomOnce(notifyConnected: notifyConnected);
+    if (code == _illegalStateCode) {
+      await _recreateRtcEngine();
+      code = await _joinCurrentRoomOnce(notifyConnected: notifyConnected);
+    }
+    return code;
+  }
+
+  Future<int> _joinCurrentRoomOnce({required bool notifyConnected}) async {
     final session = _currentSession;
     if (session == null || session.callId.isEmpty) return -1;
     await _waitForPendingLeave();
     final mediaType = _rtcMediaType(session.mediaType);
+    debugPrint(
+      '[RCCall] joinCurrentRoom start '
+      'roomId=${session.callId} targetId=${session.targetId} '
+      'callType=${session.callType.name} mediaType=${session.mediaType.name} '
+      'currentUserId=$_currentUserId',
+    );
     final preconnectCode = await _rtcEngine.preconnectToMediaServer();
+    debugPrint(
+      '[RCCall] preconnectToMediaServer result: code=$preconnectCode '
+      'roomId=${session.callId}',
+    );
     if (preconnectCode != 0) {
       debugPrint('rtc preconnect failed: $preconnectCode');
+      return preconnectCode;
     }
 
     final roomJoinedCode = Completer<int>();
@@ -357,6 +389,10 @@ class RCCallEngine {
       if (!roomJoinedCode.isCompleted) {
         roomJoinedCode.complete(code);
       }
+      debugPrint(
+        '[RCCall] onRoomJoined: code=$code message=$message '
+        'roomId=${session.callId}',
+      );
       if (code != 0) {
         debugPrint('rtc room joined failed: code=$code message=$message');
       }
@@ -368,6 +404,9 @@ class RCCallEngine {
         mediaType: mediaType,
         role: RCRTCRole.meeting_member,
       ),
+    );
+    debugPrint(
+      '[RCCall] joinRoom return: code=$joinRet roomId=${session.callId}',
     );
     if (joinRet != 0) {
       _rtcEngine.onRoomJoined = previousOnRoomJoined;
@@ -384,6 +423,9 @@ class RCCallEngine {
       const Duration(seconds: 10),
       onTimeout: () => -2,
     );
+    debugPrint(
+      '[RCCall] onRoomJoined final code=$joinCode roomId=${session.callId}',
+    );
     _rtcEngine.onRoomJoined = previousOnRoomJoined;
     if (joinCode != 0) {
       if (joinCode == _joinSameRoomCode && _joinedRoomId == session.callId) {
@@ -398,6 +440,10 @@ class RCCallEngine {
       await _rtcEngine.enableCamera(_cameraEnabled, RCRTCCamera.front);
     }
     final publishCode = await _rtcEngine.publish(mediaType);
+    debugPrint(
+      '[RCCall] publish return: code=$publishCode roomId=${session.callId} '
+      'mediaType=$mediaType',
+    );
     if (publishCode != 0) {
       debugPrint(
         'rtc publish failed: code=$publishCode roomId=${session.callId}',

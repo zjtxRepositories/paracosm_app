@@ -13,6 +13,7 @@ import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/modules/im/message/send/im_sender.dart';
+import 'package:paracosm/modules/moments/moment_profile_identity.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';
@@ -75,12 +76,12 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   }
 
   String get _profileUserId {
-    final userId = widget.userId.trim().toLowerCase();
-    if (userId.isNotEmpty) return userId;
-    if (_isSelf) {
-      return _currentUserId;
-    }
-    return '';
+    return resolveMomentProfileUserId(
+      userId: widget.userId,
+      imUserId: widget.imUserId,
+      isSelf: _isSelf,
+      currentUserId: _currentUserId,
+    );
   }
 
   String get _currentUserId =>

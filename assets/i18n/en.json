@@ -913,6 +913,7 @@
   "moments_forward_failed": "Forward failed!",
   "moments_user_not_logged_in": "User is not logged in!",
   "moments_user_info_empty": "User information is empty!",
+  "moments_no_content": "There is no content",
   "moments_follow_failed": "Follow failed!",
   "moments_unfollow_failed": "Unfollow failed!",
   "moments_default_avatar": "Choose default avatar",

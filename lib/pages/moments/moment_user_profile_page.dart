@@ -1414,7 +1414,7 @@ class _NoContentPlaceholder extends StatelessWidget {
       width: double.infinity,
       child: Center(
         child: Text(
-          '-There is no content-',
+          AppLocalizations.of(context)!.momentsNoContent,
           textAlign: TextAlign.center,
           style: AppTextStyles.body.copyWith(
             fontSize: 14,

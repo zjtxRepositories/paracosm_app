@@ -37,6 +37,7 @@
         "image_picker",
         "intl",
         "k_chart_plus",
+        "lpinyin",
         "mobile_scanner",
         "oktoast",
         "open_filex",
@@ -653,6 +654,11 @@
     {
       "name": "cupertino_icons",
       "version": "1.0.9",
+      "dependencies": []
+    },
+    {
+      "name": "lpinyin",
+      "version": "2.0.3",
       "dependencies": []
     },
     {

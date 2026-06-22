@@ -14,6 +14,7 @@ import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_user_manager.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/modules/im/message/send/im_sender.dart';
+import 'package:paracosm/modules/moments/moment_profile_identity.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/util/string_util.dart';

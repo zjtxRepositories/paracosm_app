@@ -66,7 +66,9 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     _isJoined = widget.isJoined;
     _qrMembers = widget.qrMembers;
 
-    _nameController = TextEditingController(text: widget.group.displayName);
+    _nameController = TextEditingController(
+      text: widget.group.displayName ?? _fallbackGroupName(),
+    );
 
     _introductionController = TextEditingController(
       text: widget.group.info.introduction,
@@ -83,19 +85,28 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       groupId,
       forceRefresh: true,
     );
-    if (_isJoined) {
-      await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
+    List<RCIMIWGroupMemberInfo> members = const [];
+    try {
+      members = await GroupStateCenter().getGroupMembers(
+        groupId,
+        forceRefresh: true,
+      );
+    } catch (_) {
+      members = const [];
+    }
+    if (members.isNotEmpty) {
+      _qrMembers = members;
     }
 
     if (group != null) {
       _group = GroupModel(info: group);
     }
     if (_canEditGroupInfo) {
-      _nameController.text = _group.displayName ?? '';
+      _nameController.text = _group.displayName ?? _fallbackGroupName();
       _introductionController.text = _group.info.introduction ?? '';
       _noticeController.text = _group.info.notice ?? '';
     } else if (!_isJoined) {
-      _groupName = _group.displayName ?? _group.info.groupName ?? '';
+      _groupName = _group.displayName ?? _fallbackGroupName();
       if (_groupName.isEmpty || _groupName == '[默认]') {
         _groupName = '-';
       }
@@ -293,238 +304,257 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
                 ),
               ),
 
-              const SizedBox(height: 180),
-
-              // 白色圆角内容区
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                    ),
-                    clipBehavior: Clip.none, // 允许头像超出容器
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 群头像预览 (叠加在内容区上方)
-                        Transform.translate(
-                          offset: const Offset(0, -60),
-                          child: Center(child: _buildGroupAvatar()),
-                        ),
-
-                        Transform.translate(
-                          offset: const Offset(0, -40),
-                          child: Center(
-                            child: Text(
-                              AppLocalizations.of(context)!.chatGroupInfoAvatar,
-                              style: AppTextStyles.caption.copyWith(
-                                color: _canEditGroupInfo
-                                    ? AppColors.grey600
-                                    : AppColors.grey400,
-                              ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final keyboardInset = MediaQuery.of(
+                      context,
+                    ).viewInsets.bottom;
+                    final topSpacing = keyboardInset > 0 ? 40.0 : 180.0;
+                    final cardMinHeight = constraints.maxHeight > topSpacing
+                        ? constraints.maxHeight - topSpacing
+                        : 0.0;
+                    return AnimatedPadding(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.only(bottom: keyboardInset),
+                      child: SingleChildScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        clipBehavior: Clip.none,
+                        child: Column(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              height: topSpacing,
                             ),
-                          ),
-                        ),
-
-                        // Group name
-                        Text(
-                          AppLocalizations.of(context)!.chatGroupInfoName,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.grey600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _canEditGroupInfo
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 15,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.grey100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: TextField(
-                                  controller: _nameController,
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        '${AppLocalizations.of(context)!.profileTransferPleaseEnter}${AppLocalizations.of(context)!.chatGroupInfoName}',
-                                    hintStyle: const TextStyle(
-                                      color: Color(0xFFBDBDBD),
-                                    ),
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                  style: AppTextStyles.body.copyWith(
-                                    color: AppColors.grey900,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                _groupName,
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.grey900,
-                                  fontWeight: FontWeight.w500,
+                            Container(
+                              width: double.infinity,
+                              constraints: BoxConstraints(
+                                minHeight: cardMinHeight,
+                              ),
+                              padding: const EdgeInsets.all(20),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(32),
+                                  topRight: Radius.circular(32),
                                 ),
                               ),
-
-                        const SizedBox(height: 24),
-
-                        // Group introduction
-                        Text(
-                          AppLocalizations.of(context)!.chatGroupInfoIntro,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.grey600,
-                            fontSize: 14,
-                          ),
+                              child: _buildGroupInfoContent(),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        _canEditGroupInfo
-                            ? Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.grey200),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    TextField(
-                                      controller: _introductionController,
-                                      maxLines: 5,
-                                      maxLength: 80,
-                                      decoration: InputDecoration(
-                                        hintText: AppLocalizations.of(
-                                          context,
-                                        )!.chatGroupInfoIntroHint,
-                                        hintStyle: AppTextStyles.body.copyWith(
-                                          color: AppColors.grey400,
-                                        ),
-                                        border: InputBorder.none,
-                                        counterText: '',
-                                      ),
-                                      onChanged: (val) =>
-                                          setState(() {}), // 刷新字数统计
-                                      style: AppTextStyles.body.copyWith(
-                                        color: AppColors.grey900,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${_introductionController.text.length}/80',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.grey400,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Text(
-                                _emptyText(_group.info.introduction),
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.grey900,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-
-                        const SizedBox(height: 24),
-
-                        // Group notice
-                        Text(
-                          AppLocalizations.of(context)!.chatGroupInfoNotice,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.grey600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _canEditGroupInfo
-                            ? Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.grey200),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    TextField(
-                                      controller: _noticeController,
-                                      maxLines: 5,
-                                      maxLength: 200,
-                                      decoration: InputDecoration(
-                                        hintText: AppLocalizations.of(
-                                          context,
-                                        )!.chatGroupInfoNoticeHint,
-                                        hintStyle: AppTextStyles.body.copyWith(
-                                          color: AppColors.grey400,
-                                        ),
-                                        border: InputBorder.none,
-                                        counterText: '',
-                                      ),
-                                      onChanged: (val) => setState(() {}),
-                                      style: AppTextStyles.body.copyWith(
-                                        color: AppColors.grey900,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${_noticeController.text.length}/200',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.grey400,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Text(
-                                _emptyText(_group.info.notice),
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.grey900,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-
-                        const SizedBox(height: 32),
-
-                        // Save Button
-                        _isJoined
-                            ? _canEditGroupInfo
-                                  ? AppButton(
-                                      text: AppLocalizations.of(
-                                        context,
-                                      )!.commonSave,
-                                      onPressed: updateGroupInfo,
-                                    )
-                                  : SizedBox()
-                            : AppButton(
-                                text: AppLocalizations.of(
-                                  context,
-                                )!.communityDetailBtnJoin,
-                                onPressed: joinGroup,
-                              ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildGroupInfoContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 群头像预览 (叠加在内容区上方)
+        Transform.translate(
+          offset: const Offset(0, -60),
+          child: Center(child: _buildGroupAvatar()),
+        ),
+
+        Transform.translate(
+          offset: const Offset(0, -40),
+          child: Center(
+            child: Text(
+              AppLocalizations.of(context)!.chatGroupInfoAvatar,
+              style: AppTextStyles.caption.copyWith(
+                color: _canEditGroupInfo
+                    ? AppColors.grey600
+                    : AppColors.grey400,
+              ),
+            ),
+          ),
+        ),
+
+        // Group name
+        Text(
+          AppLocalizations.of(context)!.chatGroupInfoName,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _canEditGroupInfo
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 15,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.grey100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    hintText:
+                        '${AppLocalizations.of(context)!.profileTransferPleaseEnter}${AppLocalizations.of(context)!.chatGroupInfoName}',
+                    hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.grey900,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              )
+            : Text(
+                _groupName,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.grey900,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+        const SizedBox(height: 24),
+
+        // Group introduction
+        Text(
+          AppLocalizations.of(context)!.chatGroupInfoIntro,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _canEditGroupInfo
+            ? Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.grey200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    TextField(
+                      controller: _introductionController,
+                      maxLines: 5,
+                      maxLength: 80,
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(
+                          context,
+                        )!.chatGroupInfoIntroHint,
+                        hintStyle: AppTextStyles.body.copyWith(
+                          color: AppColors.grey400,
+                        ),
+                        border: InputBorder.none,
+                        counterText: '',
+                      ),
+                      onChanged: (val) => setState(() {}),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                    Text(
+                      '${_introductionController.text.length}/80',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.grey400,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Text(
+                _emptyText(_group.info.introduction),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.grey900,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+        const SizedBox(height: 24),
+
+        // Group notice
+        Text(
+          AppLocalizations.of(context)!.chatGroupInfoNotice,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.grey600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _canEditGroupInfo
+            ? Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.grey200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    TextField(
+                      controller: _noticeController,
+                      maxLines: 5,
+                      maxLength: 200,
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(
+                          context,
+                        )!.chatGroupInfoNoticeHint,
+                        hintStyle: AppTextStyles.body.copyWith(
+                          color: AppColors.grey400,
+                        ),
+                        border: InputBorder.none,
+                        counterText: '',
+                      ),
+                      onChanged: (val) => setState(() {}),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                    Text(
+                      '${_noticeController.text.length}/200',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.grey400,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Text(
+                _emptyText(_group.info.notice),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.grey900,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+        const SizedBox(height: 32),
+
+        // Save Button
+        _isJoined
+            ? _canEditGroupInfo
+                  ? AppButton(
+                      text: AppLocalizations.of(context)!.commonSave,
+                      onPressed: updateGroupInfo,
+                    )
+                  : const SizedBox()
+            : AppButton(
+                text: AppLocalizations.of(context)!.communityDetailBtnJoin,
+                onPressed: joinGroup,
+              ),
       ],
     );
   }
@@ -586,5 +616,22 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   String _emptyText(String? value) {
     final text = value?.trim() ?? '';
     return text.isEmpty ? '-' : text;
+  }
+
+  String _fallbackGroupName() {
+    final explicitName = _group.info.groupName?.trim() ?? '';
+    if (explicitName.isNotEmpty && explicitName != '[默认]') {
+      return explicitName;
+    }
+    final names = _qrMembers
+        .map((member) => member.nickname ?? member.name ?? member.userId ?? '')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .take(4)
+        .toList();
+    if (names.isNotEmpty) {
+      return names.join('、');
+    }
+    return _group.info.groupId ?? '';
   }
 }

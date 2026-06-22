@@ -101,13 +101,28 @@ class ScanResultHandler {
       return;
     }
 
-    final joinedGroup = await GroupStateCenter().getGroup(groupId);
+    final joinedGroup = await GroupStateCenter().getGroup(
+      groupId,
+      forceRefresh: true,
+    );
     final groupInfo =
         joinedGroup ??
         (await ImGroupManager().getGroupsInfo([groupId]))?.firstOrNull ??
         RCIMIWGroupInfo.create(groupId: groupId);
 
-    final members = await GroupStateCenter().getGroupMembers(groupId,forceRefresh: true);
+    var members = <RCIMIWGroupMemberInfo>[];
+    try {
+      members = await GroupStateCenter().getGroupMembers(
+        groupId,
+        forceRefresh: true,
+      );
+    } catch (_) {
+      members = const [];
+    }
+    final qrMembers = _toGroupMemberInfos(result.groupMembers);
+    final displayMembers = members.isNotEmpty ? members : qrMembers;
+    final isJoined =
+        groupInfo.role != null && groupInfo.role != RCIMIWGroupMemberRole.undef;
 
     if (!context.mounted) return;
 
@@ -115,8 +130,8 @@ class ScanResultHandler {
       '/group-information',
       extra: {
         'group': GroupModel(info: groupInfo),
-        'isJoined': members.isNotEmpty,
-        'members': _toGroupMemberInfos(result.groupMembers),
+        'isJoined': isJoined,
+        'members': displayMembers,
       },
     );
   }

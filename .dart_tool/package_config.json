@@ -824,6 +824,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "lpinyin",
+      "rootUri": "file:///Users/px/.pub-cache/hosted/pub.flutter-io.cn/lpinyin-2.0.3",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "matcher",
       "rootUri": "file:///Users/mac/.pub-cache/hosted/pub.flutter-io.cn/matcher-0.12.19",
       "packageUri": "lib/",

@@ -42,7 +42,7 @@ class _GroupJoinInviteSettingsPageState
     _joinPermission = _visibleJoinPermission(_group.info.joinPermission);
     _inviteHandlePermission =
         _group.info.inviteHandlePermission ??
-        RCIMIWGroupInviteHandlePermission.inviteeverify;
+        RCIMIWGroupInviteHandlePermission.free;
   }
 
   RCIMIWGroupJoinPermission _visibleJoinPermission(
@@ -54,8 +54,9 @@ class _GroupJoinInviteSettingsPageState
       case RCIMIWGroupJoinPermission.ownerverify:
       case RCIMIWGroupJoinPermission.ownerormanagerverify:
       case RCIMIWGroupJoinPermission.nooneallowed:
-      case null:
         return RCIMIWGroupJoinPermission.ownerverify;
+      case null:
+        return RCIMIWGroupJoinPermission.free;
     }
   }
 

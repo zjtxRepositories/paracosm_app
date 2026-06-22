@@ -66,7 +66,9 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
     _isJoined = widget.isJoined;
     _qrMembers = widget.qrMembers;
 
-    _nameController = TextEditingController(text: widget.group.displayName);
+    _nameController = TextEditingController(
+      text: widget.group.displayName ?? _fallbackGroupName(),
+    );
 
     _introductionController = TextEditingController(
       text: widget.group.info.introduction,
@@ -83,19 +85,28 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
       groupId,
       forceRefresh: true,
     );
-    if (_isJoined) {
-      await GroupStateCenter().getGroupMembers(groupId, forceRefresh: true);
+    List<RCIMIWGroupMemberInfo> members = const [];
+    try {
+      members = await GroupStateCenter().getGroupMembers(
+        groupId,
+        forceRefresh: true,
+      );
+    } catch (_) {
+      members = const [];
+    }
+    if (members.isNotEmpty) {
+      _qrMembers = members;
     }
 
     if (group != null) {
       _group = GroupModel(info: group);
     }
     if (_canEditGroupInfo) {
-      _nameController.text = _group.displayName ?? '';
+      _nameController.text = _group.displayName ?? _fallbackGroupName();
       _introductionController.text = _group.info.introduction ?? '';
       _noticeController.text = _group.info.notice ?? '';
     } else if (!_isJoined) {
-      _groupName = _group.displayName ?? _group.info.groupName ?? '';
+      _groupName = _group.displayName ?? _fallbackGroupName();
       if (_groupName.isEmpty || _groupName == '[默认]') {
         _groupName = '-';
       }
@@ -586,5 +597,22 @@ class _GroupInformationPageState extends State<GroupInformationPage> {
   String _emptyText(String? value) {
     final text = value?.trim() ?? '';
     return text.isEmpty ? '-' : text;
+  }
+
+  String _fallbackGroupName() {
+    final explicitName = _group.info.groupName?.trim() ?? '';
+    if (explicitName.isNotEmpty && explicitName != '[默认]') {
+      return explicitName;
+    }
+    final names = _qrMembers
+        .map((member) => member.nickname ?? member.name ?? member.userId ?? '')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .take(4)
+        .toList();
+    if (names.isNotEmpty) {
+      return names.join('、');
+    }
+    return _group.info.groupId ?? '';
   }
 }

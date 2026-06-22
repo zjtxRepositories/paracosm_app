@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
+import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 void main() {
   group('joinGroupResultFromCode', () {
@@ -59,6 +60,25 @@ void main() {
       expect(result.status, InviteGroupStatus.failed);
       expect(result.isInvited, isFalse);
       expect(result.code, 12345);
+    });
+  });
+
+  group('createDefaultNormalGroupInfo', () {
+    test('uses free join and no invitee confirmation by default', () {
+      final groupInfo = createDefaultNormalGroupInfo(groupId: 'group-1');
+
+      expect(groupInfo.groupId, 'group-1');
+      expect(groupInfo.groupName, '[默认]');
+      expect(
+        groupInfo.invitePermission,
+        RCIMIWGroupOperationPermission.everyone,
+      );
+      expect(groupInfo.joinPermission, RCIMIWGroupJoinPermission.free);
+      expect(
+        groupInfo.inviteHandlePermission,
+        RCIMIWGroupInviteHandlePermission.free,
+      );
+      expect(groupInfo.role, RCIMIWGroupMemberRole.owner);
     });
   });
 }

@@ -87,6 +87,22 @@ InviteGroupResult inviteGroupResultFromCode(int? code) {
   return InviteGroupResult(InviteGroupStatus.failed, code: code);
 }
 
+RCIMIWGroupInfo createDefaultNormalGroupInfo({
+  required String groupId,
+  String? groupName,
+}) {
+  return RCIMIWGroupInfo.create(
+    groupId: groupId,
+    groupName: groupName ?? '[默认]',
+    invitePermission: RCIMIWGroupOperationPermission.everyone,
+    joinPermission: RCIMIWGroupJoinPermission.free,
+    inviteHandlePermission: RCIMIWGroupInviteHandlePermission.free,
+    role: RCIMIWGroupMemberRole.owner,
+    groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
+    removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager,
+  );
+}
+
 /// =======================================================
 /// 群事件
 /// =======================================================
@@ -428,15 +444,9 @@ class ImGroupManager {
     required String groupId,
     String? groupName,
   }) async {
-    final groupInfo = RCIMIWGroupInfo.create(
+    final groupInfo = createDefaultNormalGroupInfo(
       groupId: groupId,
-      groupName: groupName ?? '[默认]',
-      invitePermission: RCIMIWGroupOperationPermission.everyone,
-      joinPermission: RCIMIWGroupJoinPermission.ownerormanagerverify,
-      inviteHandlePermission: RCIMIWGroupInviteHandlePermission.inviteeverify,
-      role: RCIMIWGroupMemberRole.owner,
-      groupInfoEditPermission: RCIMIWGroupOperationPermission.ownerormanager,
-      removeMemberPermission: RCIMIWGroupOperationPermission.ownerormanager,
+      groupName: groupName,
     );
 
     return createByGroupInfo(groupInfo, inviteeUserIds);

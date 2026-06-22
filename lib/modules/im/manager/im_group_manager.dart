@@ -7,6 +7,7 @@ import 'package:paracosm/modules/im/listener/im_data_center.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../group_ban_state.dart';
+import '../group_info_update_builder.dart';
 import '../listener/group_state_center.dart';
 import '../message/base/im_message.dart';
 import '../message/send/im_sender.dart';
@@ -925,14 +926,20 @@ class ImGroupManager {
     if (!success) {
       return false;
     }
-
-    final groupInfo = await GroupStateCenter().getGroup(groupId);
-    if (groupInfo == null) {
+    final currentGroupInfo = await GroupStateCenter().getGroup(groupId);
+    if (currentGroupInfo == null) {
       return false;
     }
-    groupInfo.extProfile = groupExtProfileWithMuteAll(
-      groupInfo.extProfile,
-      banned: banned,
+    final groupInfo = GroupInfoUpdateBuilder.build(
+      groupId: currentGroupInfo.groupId ?? '',
+      groupName: currentGroupInfo.groupName ?? '',
+      portraitUri: currentGroupInfo.portraitUri ?? '',
+      introduction: currentGroupInfo.introduction ?? '',
+      notice: currentGroupInfo.notice ?? '',
+      extProfile: groupExtProfileWithMuteAll(
+        currentGroupInfo.extProfile,
+        banned: banned,
+      ),
     );
     final updated = await updateGroupInfo(groupInfo);
     if (!updated) {

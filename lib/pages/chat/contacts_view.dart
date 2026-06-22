@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:paracosm/core/models/friend_model.dart';
+import 'package:paracosm/modules/contact/contact_indexer.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/chat/contact_item.dart';
@@ -31,93 +32,21 @@ class ContactsView extends StatefulWidget {
 class _ContactsViewState extends State<ContactsView> {
   final Map<String, double> _letterOffsetMap = {};
 
-  List<String>? _cachedIndexLetters;
-
-  /// =========================
-  /// 工具：首字母规则
-  /// =========================
-  String _getInitial(String name) {
-    if (name.isEmpty) return '#';
-
-    final first = name[0].toUpperCase();
-
-    if (RegExp(r'^[A-Z]$').hasMatch(first)) {
-      return first;
-    }
-
-    return '#';
-  }
-
-  bool _isLetter(String s) {
-    return RegExp(r'^[A-Z]$').hasMatch(s);
-  }
-
-  /// =========================
-  /// 构建索引字母（缓存版）
-  /// =========================
-  List<String> _buildIndexLetters() {
-    final Set<String> letters = {};
-
-    for (var f in widget.friends) {
-      final friend = FriendModel(info: f);
-      final name = friend.name;
-
-      if (name.isEmpty) continue;
-
-      final first = name[0].toUpperCase();
-
-      if (_isLetter(first)) {
-        letters.add(first);
-      } else {
-        letters.add('#');
-      }
-    }
-
-    final list = letters.toList();
-
-    list.sort((a, b) {
-      if (a == '#') return 1;
-      if (b == '#') return -1;
-      return a.compareTo(b);
-    });
-
-    return list;
-  }
-
-  List<String> get _indexLetters {
-    return _cachedIndexLetters ??= _buildIndexLetters();
-  }
-
   /// =========================
   /// 分组数据
   /// =========================
   List<Map<String, dynamic>> _buildContactGroups() {
-    final Map<String, List<RCIMIWFriendInfo>> map = {};
-
-    for (var f in widget.friends) {
-      final friend = FriendModel(info: f);
-      final name = friend.name;
-      if (name.isEmpty) continue;
-
-      final initial = _getInitial(name);
-      map.putIfAbsent(initial, () => []);
-      map[initial]!.add(f);
-    }
-
     final List<Map<String, dynamic>> result = [];
 
     result.add({'type': 'header'});
 
-    final keys = map.keys.toList();
+    final groups = buildContactIndexGroups(
+      widget.friends,
+      (friendInfo) => FriendModel(info: friendInfo).name,
+    );
 
-    keys.sort((a, b) {
-      if (a == '#') return 1;
-      if (b == '#') return -1;
-      return a.compareTo(b);
-    });
-
-    for (var key in keys) {
-      result.add({'initial': key, 'contacts': map[key]!});
+    for (final group in groups) {
+      result.add({'initial': group.initial, 'contacts': group.contacts});
     }
 
     return result;
@@ -174,6 +103,10 @@ class _ContactsViewState extends State<ContactsView> {
   @override
   Widget build(BuildContext context) {
     final contactGroups = _buildContactGroups();
+    final indexLetters = contactGroups
+        .where((group) => group['type'] != 'header')
+        .map((group) => group['initial'] as String)
+        .toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _buildOffsetMap(contactGroups);
@@ -237,7 +170,7 @@ class _ContactsViewState extends State<ContactsView> {
           bottom: 0,
           child: Center(
             child: QuickIndexBar(
-              letters: _indexLetters,
+              letters: indexLetters,
               onLetterSelected: _scrollToInitial,
             ),
           ),

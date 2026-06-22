@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/core/models/social_Invitation_model.dart';
 import 'package:paracosm/core/models/social_wallet_address.dart';
+import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/core/network/api/social_circle_note_api.dart';
 import 'package:paracosm/core/network/api/social_circle_user_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
@@ -33,13 +34,11 @@ import 'moment_post_card.dart';
 /// 保留社区详情页的主体结构，只显示看板下面的内容列表，移除 TabController 和其他 Tab 区域。
 class MomentUserProfilePage extends StatefulWidget {
   final String userId;
-  final String imUserId;
   final String mode;
 
   const MomentUserProfilePage({
     super.key,
     required this.userId,
-    required this.imUserId,
     this.mode = 'friend',
   });
 
@@ -77,6 +76,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   String get _profileUserId {
     final userId = widget.userId.trim().toLowerCase();
     if (userId.isNotEmpty) return userId;
+    if (_userId.isNotEmpty) return _userId;
     if (_isSelf) {
       return _currentUserId;
     }
@@ -124,14 +124,16 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
   void didUpdateWidget(covariant MomentUserProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId ||
-        oldWidget.imUserId != widget.imUserId ||
         oldWidget.mode != widget.mode) {
       _loadPosts();
     }
   }
 
+  String _userId = '';
+
   Future<void> _loadPosts() async {
-    final userId = _profileUserId;
+    _userId = widget.userId.trim().toLowerCase();
+    String userId = _profileUserId;
     setState(() {
       _isLoading = true;
       _profileHeader = null;
@@ -151,7 +153,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
     Future<_MomentProfileSocialStats>? socialStatsFuture;
     try {
-      final profileHeader = await _loadProfileHeader(userId, widget.imUserId);
+      final profileHeader = await _loadProfileHeader(userId);
       if (!mounted || _profileUserId != userId) return;
       setState(() {
         _profileHeader = profileHeader ?? _profileHeader;
@@ -245,7 +247,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
 
   Future<_MomentProfileHeaderData?> _loadProfileHeader(
     String userId,
-    String imUserId,
   ) async {
     final account = AccountManager().currentAccount;
     if (_isSelf && account != null) {
@@ -258,7 +259,7 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
     }
 
     try {
-      final normalizedImUserId = imUserId.trim();
+      final normalizedImUserId = userId.trim();
       if (normalizedImUserId.isNotEmpty) {
         final user = await UserDisplayStateCenter().getUser(normalizedImUserId);
 
@@ -269,19 +270,6 @@ class _MomentUserProfilePageState extends State<MomentUserProfilePage> {
           );
         }
       }
-
-      final fallbackImUserId = userId.trim();
-      if (fallbackImUserId.isNotEmpty) {
-        final user = await UserDisplayStateCenter().getUser(fallbackImUserId);
-
-        if (user != null) {
-          return _MomentProfileHeaderData.fromUserDisplay(
-            user,
-            fallbackUserId: userId,
-          );
-        }
-      }
-
       return null;
     } catch (e) {
       debugPrint('load moment user profile failed: $e');
@@ -1481,12 +1469,12 @@ class _PostActionBar extends StatelessWidget {
           text: '$commentCount',
           onTap: onComment,
         ),
-        const SizedBox(width: 24),
-        _ActionIconTextButton(
-          icon: 'assets/images/moments/share-pop.png',
-          text: '$forwardCount',
-          onTap: onForward,
-        ),
+        // const SizedBox(width: 24),
+        // _ActionIconTextButton(
+        //   icon: 'assets/images/moments/share-pop.png',
+        //   text: '$forwardCount',
+        //   onTap: onForward,
+        // ),
         const Spacer(),
         _ActionIconTextButton(
           icon: 'assets/images/moments/share.png',

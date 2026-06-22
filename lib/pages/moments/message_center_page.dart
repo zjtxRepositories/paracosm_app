@@ -161,12 +161,21 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
           onMessage: item.action == MomentMessageAction.follow
               ? () => _openChat(item)
               : null,
-          onTap: item.noteId.isEmpty
-              ? null
-              : () => context.push(
-                  '/moment-post-detail',
-                  extra: {'noteId': item.noteId},
-                ),
+          onTap: (){
+            if (item.action == MomentMessageAction.follow){
+              context.push(
+                '/moment-user-profile',
+                extra: {
+                  'userId': item.fromUserId,
+                },
+              );
+              return;
+            }
+            context.push(
+              '/moment-post-detail',
+              extra: {'noteId': item.noteId},
+            );
+          }
         );
       },
     );

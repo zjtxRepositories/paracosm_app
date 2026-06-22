@@ -53,7 +53,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 防止并发请求乱序
   int _fetchVersion = 0;
-  String? _userId;
 
   @override
   void initState() {
@@ -70,12 +69,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _init() async {
     await fetchData(forceRefresh: true);
-    if (_isSelf) {
-      _userId = AccountManager().currentAccount?.userId;
-      return;
-    }
-    final user = await GetUerInfoApi.search(widget.userId);
-    _userId = user?.userId;
   }
 
   @override
@@ -143,7 +136,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
     context.push(
       '/moment-user-profile?mode=${_isSelf ? 'self' : 'friend'}',
-      extra: {'userId': _userId, 'imUserId': userId},
+      extra: {'userId': userId},
     );
   }
 

@@ -3,15 +3,17 @@ import 'package:paracosm/core/models/social_wallet_address.dart';
 
 class SocialReviewModel {
   SocialReviewModel(
-    this.reviewId,
-    this.userId,
-    this.noteId,
-    this.timestamp,
-    this.content,
-    this.toUserId,
-    this.subReviews, {
-    this.userFullInfo,
-    this.toUserFullInfo,
+      this.reviewId,
+      this.userId,
+      this.noteId,
+      this.timestamp,
+      this.content,
+      this.toUserId,
+      this.isLike,
+      this.likes,
+      this.subReviews, {
+        this.userFullInfo,
+        this.toUserFullInfo,
   });
 
   final String reviewId;
@@ -20,6 +22,8 @@ class SocialReviewModel {
   final String toUserId;
   final int timestamp;
   final String content;
+  bool isLike;
+  int likes;
 
   UserDisplayModel? userFullInfo;
   UserDisplayModel? toUserFullInfo;
@@ -51,6 +55,8 @@ class SocialReviewModel {
       json['timestamp'] ?? 0,
       json['content'] ?? '',
       json['to_user_id'] ?? '',
+      json['is_like'] ?? false,
+      json['likes'] ?? 0,
       (json['sub_reviews'] as List?)
           ?.map((e) => SocialReviewModel.fromJson(e))
           .toList(),
@@ -69,6 +75,8 @@ class SocialReviewModel {
       'note_id': noteId,
       'to_user_id': toUserId,
       'timestamp': timestamp,
+      'is_like': isLike,
+      'likes': likes,
       'content': content,
       'sub_reviews': subReviews?.map((e) => e.toJson()).toList(),
       // SDK对象一般不建议直接序列化

@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 import '../../core/models/social_review_model.dart';
+import '../../core/network/api/social_circle_note_api.dart';
 import '../../theme/app_colors.dart';
 import '../../util/string_util.dart';
 import '../../widgets/base/app_localizations.dart';
+import '../../widgets/common/app_loading.dart';
+import '../../widgets/common/app_toast.dart';
 
 class MomentCommentsSection extends StatefulWidget {
   final String noteId;
@@ -26,6 +29,27 @@ class MomentCommentsSection extends StatefulWidget {
 class _MomentCommentsSectionState extends State<MomentCommentsSection> {
   /// 已展开的评论 id
   final Set<String> _expanded = {};
+
+  /// 评论点赞
+  Future<void> toggleReviewLike(SocialReviewModel item) async {
+    final nextIsLike = !item.isLike;
+    AppLoading.show();
+    final result = await SocialCircleNoteApi.socialCircleNoteReviewLikeToggle(
+      widget.noteId,
+      item.reviewId,
+      nextIsLike,
+    );
+    AppLoading.dismiss();
+    if (!result) {
+      AppToast.show(AppLocalizations.currentText('moments_like_failed'));
+      return;
+    }
+    item.isLike = nextIsLike;
+    item.likes = nextIsLike
+        ? item.likes + 1
+        : (item.likes > 0 ? item.likes - 1 : 0);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,11 +90,14 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
         avatar: c.userFullInfo?.avatar ?? '',
         time: formatIMTime(c.timestamp),
         content: c.content,
+        isLiked: c.isLike,
+        likeCount: c.likes,
         onTap: () => widget.onReply?.call(
           c.reviewId,
           c.walletAddress,
           c.userFullInfo?.name ?? '',
         ),
+        onLike: () => toggleReviewLike(c),
       ),
 
       replies: visibleReplies.map((r) {
@@ -81,6 +108,8 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
           avatar: r.userFullInfo?.avatar ?? '',
           time: formatIMTime(r.timestamp),
           content: r.content,
+          isLiked: r.isLike,
+          likeCount: r.likes,
           leftInset: 38,
           showConnector: true,
           onTap: () => widget.onReply?.call(
@@ -88,6 +117,7 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
             r.walletAddress,
             r.userFullInfo?.name ?? '',
           ),
+          onLike: () => toggleReviewLike(r),
         );
       }).toList(),
 
@@ -225,9 +255,12 @@ class _MomentCommentItem extends StatelessWidget {
   final String avatar;
   final String time;
   final String content;
+  final bool isLiked;
+  final int likeCount;
   final double leftInset;
   final bool showConnector;
   final VoidCallback? onTap;
+  final VoidCallback? onLike;
 
   const _MomentCommentItem({
     required this.userId,
@@ -236,9 +269,12 @@ class _MomentCommentItem extends StatelessWidget {
     required this.avatar,
     required this.time,
     required this.content,
+    required this.isLiked,
+    required this.likeCount,
     this.leftInset = 0,
     this.showConnector = false,
     this.onTap,
+    this.onLike,
   });
 
   @override
@@ -256,22 +292,20 @@ class _MomentCommentItem extends StatelessWidget {
             ],
             imUserId.isNotEmpty
                 ? GestureDetector(
-              onTap: (){
-                context.push(
-                  '/moment-user-profile',
-                  extra: {
-                    'userId': userId,
-                  },
-                );
-              },
-              child: UserAvatarWidget(
-                userId: imUserId,
-                avatarUrl: avatar,
-                size: 24,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            )
-                : SizedBox(),
+                    onTap: () {
+                      context.push(
+                        '/moment-user-profile',
+                        extra: {'userId': userId},
+                      );
+                    },
+                    child: UserAvatarWidget(
+                      userId: imUserId,
+                      avatarUrl: avatar,
+                      size: 24,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  )
+                : const SizedBox(),
 
             const SizedBox(width: 8),
 
@@ -295,14 +329,67 @@ class _MomentCommentItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    time,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.grey400,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        time,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.grey400,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _CommentLikeButton(
+                        icon: isLiked
+                            ? 'assets/images/moments/like-active.png'
+                            : 'assets/images/moments/like.png',
+                        text: '$likeCount',
+                        active: isLiked,
+                        onTap: onLike,
+                      ),
+                    ],
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentLikeButton extends StatelessWidget {
+  final String icon;
+  final String text;
+  final bool active;
+  final VoidCallback? onTap;
+
+  const _CommentLikeButton({
+    required this.icon,
+    required this.text,
+    required this.active,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(icon, width: 12, height: 12),
+            const SizedBox(width: 3),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 10,
+                color: active ? AppColors.primaryDark : AppColors.grey400,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

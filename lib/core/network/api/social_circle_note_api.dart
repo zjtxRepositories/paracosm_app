@@ -135,6 +135,18 @@ class SocialCircleNoteApi {
     });
   }
 
+  static Future<bool> socialCircleNoteReviewLikeToggle(
+      String noteId,
+      String reviewId,
+      bool isLike,
+      ) {
+    return _postOk(isLike ? "/app/note/reviewlike" : "/app/note/unreviewlike", {
+      "user_id": _userId,
+      "note_id": noteId,
+      "review_id": reviewId,
+    });
+  }
+
   static Future<bool> socialCircleNoteReview(
     String noteId,
     String toWalletAddress,

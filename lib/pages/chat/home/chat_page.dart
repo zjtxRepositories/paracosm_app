@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/group_application_filter.dart';
 import 'package:paracosm/modules/scan/scan_result_handler.dart';
+import 'package:paracosm/pages/chat/group_applications_page.dart';
 import 'package:paracosm/pages/chat/chat_search_page.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -253,75 +255,104 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildGroupApplicationCard() {
-    return controller.groupApplicationUnhandledCount == 0
-        ? SizedBox()
-        : GestureDetector(
-            onTap: () => context.push('/group-applications'),
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.grey200, width: 1),
-              ),
-              child: Row(
+    final l10n = AppLocalizations.of(context)!;
+    final cards = <Widget>[];
+    if (controller.groupJoinReviewUnhandledCount > 0) {
+      cards.add(
+        _buildGroupApplicationEntry(
+          title: l10n.chatGroupJoinApplications,
+          count: controller.groupJoinReviewUnhandledCount,
+          mode: GroupApplicationViewMode.joinReview,
+        ),
+      );
+    }
+    if (controller.groupInviteConfirmationUnhandledCount > 0) {
+      cards.add(
+        _buildGroupApplicationEntry(
+          title: l10n.chatGroupInviteConfirmations,
+          count: controller.groupInviteConfirmationUnhandledCount,
+          mode: GroupApplicationViewMode.inviteConfirmation,
+        ),
+      );
+    }
+
+    if (cards.isEmpty) return const SizedBox();
+    return Column(children: cards);
+  }
+
+  Widget _buildGroupApplicationEntry({
+    required String title,
+    required int count,
+    required GroupApplicationViewMode mode,
+  }) {
+    return GestureDetector(
+      onTap: () => context.push(
+        '/group-applications',
+        extra: GroupApplicationsPageArgs(mode: mode),
+      ),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.grey200, width: 1),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.chatGroupApplications,
-                          style: AppTextStyles.h2.copyWith(
-                            color: AppColors.grey900,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                  Text(
+                    title,
+                    style: AppTextStyles.h2.copyWith(
+                      color: AppColors.grey900,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.grey400,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
                           children: [
-                            RichText(
-                              text: TextSpan(
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.grey400,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: AppLocalizations.of(context)!
-                                        .chatGroupApplicationCount(
-                                          controller
-                                              .groupApplicationUnhandledCount,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Image.asset(
-                              'assets/images/chat/go.png',
-                              width: 16,
-                              height: 16,
-                              fit: BoxFit.contain,
+                            TextSpan(
+                              text: AppLocalizations.of(
+                                context,
+                              )!.chatGroupApplicationCount(count),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  Image.asset(
-                    'assets/images/chat/friend-img.png',
-                    width: 56,
-                    height: 64,
-                    fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 4),
+                      Image.asset(
+                        'assets/images/chat/go.png',
+                        width: 16,
+                        height: 16,
+                        fit: BoxFit.contain,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          );
+            Image.asset(
+              'assets/images/chat/friend-img.png',
+              width: 56,
+              height: 64,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 构建联系人列表视图

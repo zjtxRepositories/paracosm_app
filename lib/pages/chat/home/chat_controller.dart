@@ -8,8 +8,6 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 import '../../../core/models/conversation_model.dart';
 import '../../../core/models/custom_message_model.dart';
 import '../../../core/models/group_model.dart';
-import '../../../modules/call/rong_call_manager.dart';
-import '../../../modules/call/rong_call_types.dart';
 import '../../../modules/call/rong_group_call_status_message.dart';
 import '../../../modules/im/listener/im_data_center.dart';
 import '../../../modules/im/manager/im_connection_manager.dart';
@@ -44,6 +42,8 @@ class ChatController extends ChangeNotifier {
 
   int friendApplicationUnhandledCount = 0;
   int groupApplicationUnhandledCount = 0;
+  int groupJoinReviewUnhandledCount = 0;
+  int groupInviteConfirmationUnhandledCount = 0;
 
   /// =========================
   /// conversations
@@ -197,7 +197,8 @@ class ChatController extends ChangeNotifier {
     if (id.isEmpty) return null;
 
     final activeGroupCallStatus =
-        _activeGroupCallStatuses[id] ?? RongGroupCallStatusCenter().statusFor(id);
+        _activeGroupCallStatuses[id] ??
+        RongGroupCallStatusCenter().statusFor(id);
     return activeGroupCallStatus?.isActive == true
         ? activeGroupCallStatus
         : null;
@@ -357,6 +358,10 @@ class ChatController extends ChangeNotifier {
     final sub = _engineManager.groupApplication.stream.listen((list) {
       groupApplicationUnhandledCount =
           _engineManager.groupApplication.unhandledCount;
+      groupJoinReviewUnhandledCount =
+          _engineManager.groupApplication.joinReviewUnhandledCount;
+      groupInviteConfirmationUnhandledCount =
+          _engineManager.groupApplication.inviteConfirmationUnhandledCount;
       _notify();
     });
 
@@ -432,7 +437,7 @@ class ChatController extends ChangeNotifier {
 
     if (result == null || result.isEmpty) return;
 
-    if (result.length == 1){
+    if (result.length == 1) {
       final user = await UserDisplayStateCenter().getUser(result.first);
       if (user == null) return;
       final title = user.name;

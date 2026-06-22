@@ -627,7 +627,6 @@ class _ProfilePageState extends State<ProfilePage> {
             child: AppEmptyView(
               text: AppLocalizations.of(context)!.profileTokenNetworkNoNft,
               imageSize: 96,
-              bottomOffset: 0,
             ),
           );
         }

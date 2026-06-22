@@ -888,6 +888,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get momentsForwardFailed => translate('moments_forward_failed');
   String get momentsUserNotLoggedIn => translate('moments_user_not_logged_in');
   String get momentsUserInfoEmpty => translate('moments_user_info_empty');
+  String get momentsNoContent => translate('moments_no_content');
   String get momentsFollow => translate('moments_follow');
   String get momentsFollowing => translate('moments_following');
   String get momentsFollowers => translate('moments_followers');

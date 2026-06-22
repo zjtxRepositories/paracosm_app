@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 import '../../core/models/social_review_model.dart';
@@ -59,7 +60,8 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
 
     return _CommentThread(
       parent: _MomentCommentItem(
-        userId: c.userFullInfo?.userId ?? '',
+        userId: c.userId,
+        imUserId: c.userFullInfo?.userId ?? '',
         name: c.userFullInfo?.name ?? '',
         avatar: c.userFullInfo?.avatar ?? '',
         time: formatIMTime(c.timestamp),
@@ -73,7 +75,8 @@ class _MomentCommentsSectionState extends State<MomentCommentsSection> {
 
       replies: visibleReplies.map((r) {
         return _MomentCommentItem(
-          userId: r.userFullInfo?.userId ?? '',
+          userId: r.userId,
+          imUserId: r.userFullInfo?.userId ?? '',
           name: _replyTitle(r),
           avatar: r.userFullInfo?.avatar ?? '',
           time: formatIMTime(r.timestamp),
@@ -217,6 +220,7 @@ class _CommentThread extends StatelessWidget {
 
 class _MomentCommentItem extends StatelessWidget {
   final String userId;
+  final String imUserId;
   final String name;
   final String avatar;
   final String time;
@@ -227,6 +231,7 @@ class _MomentCommentItem extends StatelessWidget {
 
   const _MomentCommentItem({
     required this.userId,
+    required this.imUserId,
     required this.name,
     required this.avatar,
     required this.time,
@@ -249,13 +254,24 @@ class _MomentCommentItem extends StatelessWidget {
               Container(width: 2, height: 36, color: AppColors.grey100),
               const SizedBox(width: 10),
             ],
-            userId.isNotEmpty
-                ? UserAvatarWidget(
-                    userId: userId,
-                    avatarUrl: avatar,
-                    size: 24,
-                    borderRadius: BorderRadius.circular(4),
-                  )
+            imUserId.isNotEmpty
+                ? GestureDetector(
+              onTap: (){
+                context.push(
+                  '/moment-user-profile',
+                  extra: {
+                    'userId': userId,
+                    'imUserId': imUserId,
+                  },
+                );
+              },
+              child: UserAvatarWidget(
+                userId: imUserId,
+                avatarUrl: avatar,
+                size: 24,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            )
                 : SizedBox(),
 
             const SizedBox(width: 8),

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/user_display_model.dart';
-import 'package:paracosm/core/network/api/get_uer_info_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
@@ -844,10 +843,21 @@ class _SetNoteNameInputState extends State<_SetNoteNameInput> {
     }
   }
 
+  int _maxLengthForLocale(BuildContext context) {
+    final languageCode = AppLocalizations.of(context)?.locale.languageCode;
+    return languageCode == 'en' ? 32 : 12;
+  }
+
+  void _clearText() {
+    widget.controller.clear();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isFocused = widget.focusNode.hasFocus;
     final bool isEmpty = widget.controller.text.isEmpty;
+    final maxLength = _maxLengthForLocale(context);
 
     return Container(
       height: 52,
@@ -864,15 +874,34 @@ class _SetNoteNameInputState extends State<_SetNoteNameInput> {
         controller: widget.controller,
         focusNode: widget.focusNode,
         onChanged: (value) => setState(() {}),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
-        ),
+        textAlignVertical: TextAlignVertical.center,
+        inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
         style: AppTextStyles.body.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.grey900,
+        ),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 24,
+            minHeight: 24,
+          ),
+          suffixIcon: isEmpty
+              ? null
+              : IconButton(
+                  onPressed: _clearText,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  iconSize: 20,
+                  splashRadius: 18,
+                  icon: const Icon(Icons.close, color: AppColors.grey400),
+                ),
         ),
       ),
     );

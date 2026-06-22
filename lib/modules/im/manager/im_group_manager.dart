@@ -29,6 +29,13 @@ enum GroupEventType {
 
 enum JoinGroupStatus { joined, waitingManagerApproval, failed }
 
+enum InviteGroupStatus {
+  invited,
+  waitingManagerApproval,
+  waitingInviteeConfirm,
+  failed,
+}
+
 class JoinGroupResult {
   const JoinGroupResult(this.status, {this.code});
 
@@ -36,6 +43,15 @@ class JoinGroupResult {
   final int? code;
 
   bool get isJoined => status == JoinGroupStatus.joined;
+}
+
+class InviteGroupResult {
+  const InviteGroupResult(this.status, {this.code});
+
+  final InviteGroupStatus status;
+  final int? code;
+
+  bool get isInvited => status == InviteGroupStatus.invited;
 }
 
 JoinGroupResult joinGroupResultFromCode(int? code) {
@@ -49,6 +65,25 @@ JoinGroupResult joinGroupResultFromCode(int? code) {
     );
   }
   return JoinGroupResult(JoinGroupStatus.failed, code: code);
+}
+
+InviteGroupResult inviteGroupResultFromCode(int? code) {
+  if (code == 0) {
+    return const InviteGroupResult(InviteGroupStatus.invited, code: 0);
+  }
+  if (code == 25424) {
+    return const InviteGroupResult(
+      InviteGroupStatus.waitingManagerApproval,
+      code: 25424,
+    );
+  }
+  if (code == 25427) {
+    return const InviteGroupResult(
+      InviteGroupStatus.waitingInviteeConfirm,
+      code: 25427,
+    );
+  }
+  return InviteGroupResult(InviteGroupStatus.failed, code: code);
 }
 
 /// =======================================================
@@ -527,17 +562,21 @@ class ImGroupManager {
   /// =======================================================
   /// 邀请加入群
   /// =======================================================
-  Future<bool> inviteUsersToGroup(String groupId, List<String> userIds) async {
-    final completer = Completer<bool>();
+  Future<InviteGroupResult> inviteUsersToGroup(
+    String groupId,
+    List<String> userIds,
+  ) async {
+    final completer = Completer<InviteGroupResult>();
 
     final code = await _engine?.inviteUsersToGroup(
       groupId,
       userIds,
       callback: IRCIMIWInviteUsersToGroupCallback(
-        onSuccess: (code) async {
-          if (code != 0) {
+        onSuccess: (processCode) async {
+          final result = inviteGroupResultFromCode(processCode);
+          if (!result.isInvited) {
             if (!completer.isCompleted) {
-              completer.complete(false);
+              completer.complete(result);
             }
             return;
           }
@@ -552,14 +591,16 @@ class ImGroupManager {
           );
 
           if (!completer.isCompleted) {
-            completer.complete(true);
+            completer.complete(result);
           }
         },
         onError: (e) {
           debugPrint('inviteUsersToGroup error: $e');
 
           if (!completer.isCompleted) {
-            completer.complete(false);
+            completer.complete(
+              InviteGroupResult(InviteGroupStatus.failed, code: e),
+            );
           }
         },
       ),
@@ -567,7 +608,7 @@ class ImGroupManager {
 
     /// SDK 调用失败
     if (code != 0) {
-      return false;
+      return InviteGroupResult(InviteGroupStatus.failed, code: code);
     }
 
     return completer.future;

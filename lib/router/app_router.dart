@@ -5,6 +5,7 @@ import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/core/models/moment_post_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/call/rong_call_types.dart';
+import 'package:paracosm/modules/im/group_application_filter.dart';
 import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
@@ -431,7 +432,22 @@ class AppRouter {
       GoRoute(
         path: '/group-applications',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const GroupApplicationsPage(),
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is GroupApplicationsPageArgs) {
+            return GroupApplicationsPage(
+              mode: extra.mode,
+              groupId: extra.groupId,
+            );
+          }
+          if (extra is String) {
+            return GroupApplicationsPage(
+              mode: GroupApplicationViewMode.joinReview,
+              groupId: extra,
+            );
+          }
+          return const GroupApplicationsPage();
+        },
       ),
       GoRoute(
         path: '/group-join-invite-settings',

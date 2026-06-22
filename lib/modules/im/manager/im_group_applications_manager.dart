@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+import '../group_application_filter.dart';
 import '../listener/group_state_center.dart';
 import 'im_engine_manager.dart';
 
@@ -33,33 +34,27 @@ class ImGroupApplicationsManager {
   final List<RCIMIWGroupApplicationInfo> _list = [];
   List<RCIMIWGroupApplicationInfo> get list => List.unmodifiable(_list);
 
+  GroupApplicationBuckets get buckets => splitGroupApplications(_list);
+
   String? _pageToken;
   List<RCIMIWGroupApplicationDirection> _lastDirections = const [];
   List<RCIMIWGroupApplicationStatus> _lastStatuses = const [];
 
   void initListener() {
     IMEngineManager().engine?.onGroupApplicationEvent = (info) {
-      if (info == null) return;
-      _upsert(info);
-      _notify();
+      handleApplicationEvent(info);
     };
   }
 
-  int get unhandledCount {
-    return _list.where(_isUnhandled).length;
+  void handleApplicationEvent(RCIMIWGroupApplicationInfo? info) {
+    if (info == null) return;
+    upsertGroupApplication(_list, info);
+    _notify();
   }
 
-  bool _isUnhandled(RCIMIWGroupApplicationInfo item) {
-    if (item.direction ==
-        RCIMIWGroupApplicationDirection.applicationreceived) {
-      return item.status == RCIMIWGroupApplicationStatus.managerunhandled;
-    }
-    if (item.direction ==
-        RCIMIWGroupApplicationDirection.invitationreceived) {
-      return item.status == RCIMIWGroupApplicationStatus.inviteeunhandled;
-    }
-    return false;
-  }
+  int get unhandledCount => buckets.unhandledCount;
+  int get joinReviewUnhandledCount => buckets.joinUnhandledCount;
+  int get inviteConfirmationUnhandledCount => buckets.inviteUnhandledCount;
 
   Future<void> fetch({
     required List<RCIMIWGroupApplicationDirection> directions,
@@ -137,6 +132,7 @@ class ImGroupApplicationsManager {
               groupId: groupId,
               applicantId: applicantId,
               inviterId: inviterId,
+              direction: RCIMIWGroupApplicationDirection.applicationreceived,
               status: status == GroupApplicationActionStatus.success
                   ? RCIMIWGroupApplicationStatus.joined
                   : RCIMIWGroupApplicationStatus.inviteeunhandled,
@@ -193,6 +189,7 @@ class ImGroupApplicationsManager {
               groupId: groupId,
               applicantId: applicantId,
               inviterId: inviterId,
+              direction: RCIMIWGroupApplicationDirection.applicationreceived,
               status: RCIMIWGroupApplicationStatus.managerrefused,
             );
           }
@@ -222,6 +219,7 @@ class ImGroupApplicationsManager {
             _updateLocalStatus(
               groupId: groupId,
               inviterId: inviterId,
+              direction: RCIMIWGroupApplicationDirection.invitationreceived,
               status: RCIMIWGroupApplicationStatus.joined,
             );
             unawaited(_refreshGroup(groupId));
@@ -254,6 +252,7 @@ class ImGroupApplicationsManager {
             _updateLocalStatus(
               groupId: groupId,
               inviterId: inviterId,
+              direction: RCIMIWGroupApplicationDirection.invitationreceived,
               status: RCIMIWGroupApplicationStatus.inviteerefused,
             );
           }
@@ -275,24 +274,6 @@ class ImGroupApplicationsManager {
     return fetch(directions: _lastDirections, statuses: _lastStatuses);
   }
 
-  void _upsert(RCIMIWGroupApplicationInfo item) {
-    final index = _list.indexWhere((old) {
-      final sameGroup = old.groupId == item.groupId;
-      final sameDirection = old.direction == item.direction;
-      final sameApplicant =
-          old.joinMemberInfo?.userId == item.joinMemberInfo?.userId;
-      final sameInviter =
-          old.inviterInfo?.userId == item.inviterInfo?.userId;
-      return sameGroup && sameDirection && sameApplicant && sameInviter;
-    });
-
-    if (index >= 0) {
-      _list[index] = item;
-    } else {
-      _list.insert(0, item);
-    }
-  }
-
   Future<void> _refreshGroup(String groupId) async {
     await Future.wait([
       GroupStateCenter().getGroup(groupId, forceRefresh: true),
@@ -304,10 +285,12 @@ class ImGroupApplicationsManager {
     required String groupId,
     String? applicantId,
     String? inviterId,
+    required RCIMIWGroupApplicationDirection direction,
     required RCIMIWGroupApplicationStatus status,
   }) {
     final index = _list.indexWhere((item) {
       final sameGroup = item.groupId == groupId;
+      final sameDirection = item.direction == direction;
       final sameApplicant =
           applicantId == null ||
           applicantId.isEmpty ||
@@ -316,7 +299,7 @@ class ImGroupApplicationsManager {
           inviterId == null ||
           inviterId.isEmpty ||
           item.inviterInfo?.userId == inviterId;
-      return sameGroup && sameApplicant && sameInviter;
+      return sameGroup && sameDirection && sameApplicant && sameInviter;
     });
 
     if (index == -1) return;

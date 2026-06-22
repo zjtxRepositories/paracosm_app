@@ -336,20 +336,28 @@ class GroupDetailsController extends ChangeNotifier {
     final groupId = args?.targetId;
     if (groupId == null) return;
     AppLoading.show();
-    final isOk = await ImGroupManager().inviteUsersToGroup(groupId, userIds);
-    if (!isOk) {
-      AppLoading.dismiss();
-      AppToast.show(AppLocalizations.currentText('chat_invite_failed'));
-      return;
-    }
+    final result = await ImGroupManager().inviteUsersToGroup(groupId, userIds);
     final message = CustomMessage(
       targetId: groupId,
       customMessageType: CustomMessageType.groupInvited,
       conversationType: RCIMIWConversationType.group,
       userIds: userIds,
     );
-    await ImSender.instance.send(message: message);
     AppLoading.dismiss();
+    switch (result.status) {
+      case InviteGroupStatus.invited:
+        await ImSender.instance.send(message: message);
+      case InviteGroupStatus.waitingManagerApproval:
+        AppToast.show(
+          AppLocalizations.currentText('chat_group_join_waiting_approval'),
+        );
+      case InviteGroupStatus.waitingInviteeConfirm:
+        AppToast.show(
+          AppLocalizations.currentText('chat_group_application_wait_invitee'),
+        );
+      case InviteGroupStatus.failed:
+        AppToast.show(AppLocalizations.currentText('chat_invite_failed'));
+    }
   }
 
   Future<void> kickGroupMembers(List<String> userIds) async {

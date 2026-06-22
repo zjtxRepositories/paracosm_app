@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/group_application_filter.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_group_applications_manager.dart';
@@ -17,10 +18,27 @@ import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 class GroupApplicationsPage extends StatefulWidget {
-  const GroupApplicationsPage({super.key});
+  const GroupApplicationsPage({
+    super.key,
+    this.mode = GroupApplicationViewMode.all,
+    this.groupId,
+  });
+
+  final GroupApplicationViewMode mode;
+  final String? groupId;
 
   @override
   State<GroupApplicationsPage> createState() => _GroupApplicationsPageState();
+}
+
+class GroupApplicationsPageArgs {
+  const GroupApplicationsPageArgs({
+    this.mode = GroupApplicationViewMode.all,
+    this.groupId,
+  });
+
+  final GroupApplicationViewMode mode;
+  final String? groupId;
 }
 
 class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
@@ -75,37 +93,20 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
   }
 
   void _splitList(List<RCIMIWGroupApplicationInfo> list) {
-    final joinUnhandled = <RCIMIWGroupApplicationInfo>[];
-    final joinProcessed = <RCIMIWGroupApplicationInfo>[];
-    final inviteUnhandled = <RCIMIWGroupApplicationInfo>[];
-    final inviteProcessed = <RCIMIWGroupApplicationInfo>[];
-
-    for (final item in list) {
-      if (item.direction ==
-          RCIMIWGroupApplicationDirection.applicationreceived) {
-        if (item.status == RCIMIWGroupApplicationStatus.managerunhandled) {
-          joinUnhandled.add(item);
-        } else {
-          joinProcessed.add(item);
-        }
-      } else if (item.direction ==
-          RCIMIWGroupApplicationDirection.invitationreceived) {
-        if (item.status == RCIMIWGroupApplicationStatus.inviteeunhandled) {
-          inviteUnhandled.add(item);
-        } else {
-          inviteProcessed.add(item);
-        }
-      }
-    }
+    final buckets = splitGroupApplications(
+      list,
+      mode: widget.mode,
+      groupId: widget.groupId,
+    );
 
     _prefetchUsers(list);
     _prefetchGroups(list);
     if (!mounted) return;
     setState(() {
-      _joinUnhandled = joinUnhandled;
-      _joinProcessed = joinProcessed;
-      _inviteUnhandled = inviteUnhandled;
-      _inviteProcessed = inviteProcessed;
+      _joinUnhandled = buckets.joinUnhandled;
+      _joinProcessed = buckets.joinProcessed;
+      _inviteUnhandled = buckets.inviteUnhandled;
+      _inviteProcessed = buckets.inviteProcessed;
     });
   }
 
@@ -246,7 +247,7 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
         _inviteProcessed.isEmpty;
 
     return AppPage(
-      title: l10n.chatGroupApplications,
+      title: _pageTitle(l10n),
       showNavBorder: true,
       backgroundColor: Colors.white,
       child: RefreshIndicator(
@@ -279,6 +280,15 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
               ),
       ),
     );
+  }
+
+  String _pageTitle(AppLocalizations l10n) {
+    return switch (widget.mode) {
+      GroupApplicationViewMode.all => l10n.chatGroupApplications,
+      GroupApplicationViewMode.joinReview => l10n.chatGroupJoinApplications,
+      GroupApplicationViewMode.inviteConfirmation =>
+        l10n.chatGroupInviteConfirmations,
+    };
   }
 
   Widget _buildGroup(

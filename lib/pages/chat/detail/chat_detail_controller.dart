@@ -1438,14 +1438,11 @@ class ChatDetailController extends ChangeNotifier {
         /// 清空消息
         /// =========================
         case MessageEventType.clear:
-          if (event.targetId != args!.targetId) {
+          if (!_deleteEventCanApplyToCurrentConversation(event)) {
             return;
           }
 
-          if (event.conversationType != args!.conversationType) {
-            return;
-          }
-
+          final clearBeforeTimestamp = event.timestamp ?? 0;
           engine.removeWhere((e) {
             final raw = e.extra;
 
@@ -1453,7 +1450,15 @@ class ChatDetailController extends ChangeNotifier {
               return false;
             }
 
-            return (raw.sentTime ?? 0) <= (event.timestamp ?? 0);
+            if (!_messageCanApplyToCurrentConversation(raw, event)) {
+              return false;
+            }
+
+            if (clearBeforeTimestamp <= 0) {
+              return true;
+            }
+
+            return (raw.sentTime ?? 0) <= clearBeforeTimestamp;
           });
 
           break;

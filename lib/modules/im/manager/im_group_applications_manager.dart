@@ -5,6 +5,7 @@ import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../group_application_filter.dart';
 import '../listener/group_state_center.dart';
+import '../request_ignore_store.dart';
 import 'im_engine_manager.dart';
 
 enum GroupApplicationActionStatus { success, waitingInviteeConfirm, failed }
@@ -28,19 +29,24 @@ class ImGroupApplicationsManager {
 
   final _controller =
       StreamController<List<RCIMIWGroupApplicationInfo>>.broadcast();
+  final _ignoreStore = ImRequestIgnoreStore();
 
   Stream<List<RCIMIWGroupApplicationInfo>> get stream => _controller.stream;
 
   final List<RCIMIWGroupApplicationInfo> _list = [];
   List<RCIMIWGroupApplicationInfo> get list => List.unmodifiable(_list);
 
-  GroupApplicationBuckets get buckets => splitGroupApplications(_list);
+  GroupApplicationBuckets get buckets => splitGroupApplications(
+    _list,
+    isIgnored: _ignoreStore.isGroupIgnored,
+  );
 
   String? _pageToken;
   List<RCIMIWGroupApplicationDirection> _lastDirections = const [];
   List<RCIMIWGroupApplicationStatus> _lastStatuses = const [];
 
   void initListener() {
+    unawaited(_ignoreStore.ensureLoaded());
     IMEngineManager().engine?.onGroupApplicationEvent = (info) {
       handleApplicationEvent(info);
     };
@@ -56,12 +62,17 @@ class ImGroupApplicationsManager {
   int get joinReviewUnhandledCount => buckets.joinUnhandledCount;
   int get inviteConfirmationUnhandledCount => buckets.inviteUnhandledCount;
 
+  bool isIgnored(RCIMIWGroupApplicationInfo item) {
+    return _ignoreStore.isGroupIgnored(item);
+  }
+
   Future<void> fetch({
     required List<RCIMIWGroupApplicationDirection> directions,
     required List<RCIMIWGroupApplicationStatus> statuses,
     bool loadMore = false,
     int count = 100,
   }) async {
+    await _ignoreStore.ensureLoaded();
     if (!loadMore ||
         !_sameDirections(directions, _lastDirections) ||
         !_sameStatuses(statuses, _lastStatuses)) {
@@ -265,6 +276,14 @@ class ImGroupApplicationsManager {
 
     if (code != 0) return false;
     return completer.future;
+  }
+
+  Future<bool> ignoreGroupApplication(RCIMIWGroupApplicationInfo item) async {
+    final added = await _ignoreStore.ignoreGroupApplication(item);
+    if (added) {
+      _notify();
+    }
+    return true;
   }
 
   Future<void> refreshLastQuery() {

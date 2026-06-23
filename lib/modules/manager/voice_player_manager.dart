@@ -8,10 +8,16 @@ enum VoicePlayState { idle, loading, playing, paused, stopped, completed }
 class VoicePlayerManager {
   static const double _defaultVolume = 1.0;
 
-  static final AudioContext _speakerContext = AudioContextConfig(
-    route: AudioContextConfigRoute.speaker,
-    focus: AudioContextConfigFocus.gain,
-  ).build();
+  static final AudioContext _speakerContext = AudioContext(
+    android: const AudioContextAndroid(
+      isSpeakerphoneOn: true,
+      audioMode: AndroidAudioMode.normal,
+      contentType: AndroidContentType.music,
+      usageType: AndroidUsageType.media,
+      audioFocus: AndroidAudioFocus.gain,
+    ),
+    iOS: AudioContextIOS(category: AVAudioSessionCategory.playback),
+  );
 
   /// =========================
   /// 单例
@@ -227,6 +233,7 @@ class VoicePlayerManager {
   }
 
   Future<void> _applyDefaultAudioOutput() async {
+    await AudioPlayer.global.setAudioContext(_speakerContext);
     await _player.setAudioContext(_speakerContext);
     await _player.setVolume(_defaultVolume);
   }

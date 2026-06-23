@@ -1,5 +1,19 @@
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
+class FriendApplicationBuckets {
+  const FriendApplicationBuckets({
+    this.newRequests = const [],
+    this.processedRequests = const [],
+  });
+
+  final List<RCIMIWFriendApplicationInfo> newRequests;
+  final List<RCIMIWFriendApplicationInfo> processedRequests;
+
+  bool get isEmpty => newRequests.isEmpty && processedRequests.isEmpty;
+
+  int get unhandledCount => newRequests.length;
+}
+
 enum GroupApplicationViewMode { all, joinReview, inviteConfirmation }
 
 class GroupApplicationBuckets {
@@ -54,6 +68,7 @@ GroupApplicationBuckets splitGroupApplications(
   Iterable<RCIMIWGroupApplicationInfo> list, {
   GroupApplicationViewMode mode = GroupApplicationViewMode.all,
   String? groupId,
+  bool Function(RCIMIWGroupApplicationInfo item)? isIgnored,
 }) {
   final joinUnhandled = <RCIMIWGroupApplicationInfo>[];
   final joinProcessed = <RCIMIWGroupApplicationInfo>[];
@@ -65,7 +80,9 @@ GroupApplicationBuckets splitGroupApplications(
 
     if (item.direction == RCIMIWGroupApplicationDirection.applicationreceived) {
       if (mode == GroupApplicationViewMode.inviteConfirmation) continue;
-      if (item.status == RCIMIWGroupApplicationStatus.managerunhandled) {
+      final ignored = isIgnored?.call(item) ?? false;
+      if (item.status == RCIMIWGroupApplicationStatus.managerunhandled &&
+          !ignored) {
         joinUnhandled.add(item);
       } else {
         joinProcessed.add(item);
@@ -73,7 +90,9 @@ GroupApplicationBuckets splitGroupApplications(
     } else if (item.direction ==
         RCIMIWGroupApplicationDirection.invitationreceived) {
       if (mode == GroupApplicationViewMode.joinReview) continue;
-      if (item.status == RCIMIWGroupApplicationStatus.inviteeunhandled) {
+      final ignored = isIgnored?.call(item) ?? false;
+      if (item.status == RCIMIWGroupApplicationStatus.inviteeunhandled &&
+          !ignored) {
         inviteUnhandled.add(item);
       } else {
         inviteProcessed.add(item);
@@ -86,6 +105,33 @@ GroupApplicationBuckets splitGroupApplications(
     joinProcessed: joinProcessed,
     inviteUnhandled: inviteUnhandled,
     inviteProcessed: inviteProcessed,
+  );
+}
+
+FriendApplicationBuckets splitFriendApplications(
+  Iterable<RCIMIWFriendApplicationInfo> list, {
+  bool Function(RCIMIWFriendApplicationInfo item)? isIgnored,
+}) {
+  final newRequests = <RCIMIWFriendApplicationInfo>[];
+  final processedRequests = <RCIMIWFriendApplicationInfo>[];
+
+  for (final item in list) {
+    if (item.applicationType != RCIMIWFriendApplicationType.received) {
+      continue;
+    }
+
+    final ignored = isIgnored?.call(item) ?? false;
+    if (item.applicationStatus == RCIMIWFriendApplicationStatus.unhandled &&
+        !ignored) {
+      newRequests.add(item);
+    } else {
+      processedRequests.add(item);
+    }
+  }
+
+  return FriendApplicationBuckets(
+    newRequests: newRequests,
+    processedRequests: processedRequests,
   );
 }
 

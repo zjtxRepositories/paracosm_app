@@ -957,13 +957,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       case ChatDetailMessageKind.image:
         return GestureDetector(
           onTap: () {
-            final list = _buildImageMediaList();
-            if (list.isEmpty) {
+            final entries = _buildImageMediaEntries();
+            if (entries.isEmpty) {
               return;
             }
+            final list = entries.map((entry) => entry.item).toList();
+            final index = entries.indexWhere(
+              (entry) => entry.message.messageId == message.messageId,
+            );
             controller.openMediaViewer(
               list: list,
-              index: _getImageIndex(message),
+              index: index < 0 ? 0 : index,
+              onSave: (_, item) => controller.saveMediaToAlbum(item),
+              onForward: (mediaIndex, _) =>
+                  _forwardMediaPreviewMessage(entries, mediaIndex),
             );
           },
           child: ChatImageMessageContent(
@@ -1086,14 +1093,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return GestureDetector(
       onTap: message.mediaSendStatus == MediaSendStatus.sent
           ? () {
-              var list = _buildVideoMediaList();
-              if (list.isEmpty) {
+              var entries = _buildVideoMediaEntries();
+              if (entries.isEmpty) {
                 AppToast.show(
                   AppLocalizations.of(context)!.commonVideoPreviewUnavailable,
                 );
                 return;
               }
-              var index = _getVideoIndex(message);
+              var index = entries.indexWhere(
+                (entry) => entry.message.messageId == message.messageId,
+              );
               if (index < 0) {
                 final current = _videoMediaItem(message);
                 if (current == null) {
@@ -1102,10 +1111,17 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   );
                   return;
                 }
-                list = [current];
+                entries = [_MessageMediaEntry(message: message, item: current)];
                 index = 0;
               }
-              controller.openMediaViewer(list: list, index: index);
+              final list = entries.map((entry) => entry.item).toList();
+              controller.openMediaViewer(
+                list: list,
+                index: index,
+                onSave: (_, item) => controller.saveMediaToAlbum(item),
+                onForward: (mediaIndex, _) =>
+                    _forwardMediaPreviewMessage(entries, mediaIndex),
+              );
             }
           : null,
       child: ChatVideoMessageContent(
@@ -1115,6 +1131,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         sendProgress: message.mediaSendProgress,
       ),
     );
+  }
+
+  Future<void> _forwardMediaPreviewMessage(
+    List<_MessageMediaEntry> entries,
+    int mediaIndex,
+  ) async {
+    if (mediaIndex < 0 || mediaIndex >= entries.length) {
+      return;
+    }
+    await _forwardMessage(entries[mediaIndex].message);
   }
 
   void _openCombineForwardDetail(RCIMIWCombineV2Message message) {
@@ -1229,8 +1255,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         raw is RCIMIWVoiceMessage ||
         raw is RCIMIWSightMessage ||
         raw is RCIMIWFileMessage) {
-      final local = (raw as RCIMIWMediaMessage).local;
-      return _hasUsableLocalPath(local);
+      final media = raw as RCIMIWMediaMessage;
+      return _hasUsableLocalPath(media.local) ||
+          _hasUsableRemoteMediaUrl(media.remote);
     }
 
     if (raw is RCIMIWTextMessage) {
@@ -1254,6 +1281,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   bool _hasUsableLocalPath(String? path) {
     return _existingLocalMediaFile(path) != null;
+  }
+
+  bool _hasUsableRemoteMediaUrl(String? url) {
+    final value = url?.trim();
+    return value != null &&
+        value.isNotEmpty &&
+        (value.startsWith('http://') || value.startsWith('https://'));
   }
 
   bool _canQuoteMessage(ChatDetailMessage message) {
@@ -1280,14 +1314,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  List<MediaItem> _buildImageMediaList() {
-    final list = <MediaItem>[];
+  List<_MessageMediaEntry> _buildImageMediaEntries() {
+    final list = <_MessageMediaEntry>[];
 
     for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.image) {
         final mediaItem = _imageMediaItem(msg);
         if (mediaItem != null) {
-          list.add(mediaItem);
+          list.add(_MessageMediaEntry(message: msg, item: mediaItem));
         }
       }
     }
@@ -1295,51 +1329,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return list;
   }
 
-  List<MediaItem> _buildVideoMediaList() {
-    final list = <MediaItem>[];
+  List<_MessageMediaEntry> _buildVideoMediaEntries() {
+    final list = <_MessageMediaEntry>[];
 
     for (final msg in controller.messages) {
       if (msg.kind == ChatDetailMessageKind.video) {
         final mediaItem = _videoMediaItem(msg);
         if (mediaItem != null) {
-          list.add(mediaItem);
+          list.add(_MessageMediaEntry(message: msg, item: mediaItem));
         }
       }
     }
 
     return list;
-  }
-
-  int _getImageIndex(ChatDetailMessage message) {
-    int index = 0;
-
-    for (final msg in controller.messages) {
-      if (msg.kind == ChatDetailMessageKind.image &&
-          _imageMediaItem(msg) != null) {
-        if (msg.messageId == message.messageId) {
-          return index;
-        }
-        index++;
-      }
-    }
-
-    return 0;
-  }
-
-  int _getVideoIndex(ChatDetailMessage message) {
-    int index = 0;
-
-    for (final msg in controller.messages) {
-      if (msg.kind == ChatDetailMessageKind.video &&
-          _videoMediaItem(msg) != null) {
-        if (msg.messageId == message.messageId) {
-          return index;
-        }
-        index++;
-      }
-    }
-
-    return -1;
   }
 
   MediaItem? _imageMediaItem(ChatDetailMessage message) {
@@ -1409,4 +1411,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     return value;
   }
+}
+
+class _MessageMediaEntry {
+  const _MessageMediaEntry({required this.message, required this.item});
+
+  final ChatDetailMessage message;
+  final MediaItem item;
 }

@@ -539,7 +539,11 @@ class ChatDetailController extends ChangeNotifier {
           targetId: raw.targetId,
           timestamp: raw.sentTime ?? raw.receivedTime,
           objectName: objectName,
-          content: raw.toJson(),
+          content: _combineMessageContent(
+            raw,
+            objectName,
+            args?.conversationType,
+          ),
         ),
       );
     }
@@ -595,7 +599,7 @@ class ChatDetailController extends ChangeNotifier {
     var allSuccess = true;
 
     for (final target in targets) {
-      final forwardMessage = _singleForwardMessageForTarget(raw, target);
+      final forwardMessage = await _singleForwardMessageForTarget(raw, target);
       if (forwardMessage == null) {
         allSuccess = false;
         continue;
@@ -621,10 +625,10 @@ class ChatDetailController extends ChangeNotifier {
     return allSuccess;
   }
 
-  ImMessage? _singleForwardMessageForTarget(
+  Future<ImMessage?> _singleForwardMessageForTarget(
     RCIMIWMessage raw,
     ChatForwardTarget target,
-  ) {
+  ) async {
     if (raw is RCIMIWTextMessage) {
       final text = raw.text?.trim();
       if (text == null || text.isEmpty) {
@@ -640,7 +644,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWImageMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -654,7 +658,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWVoiceMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -669,7 +673,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWSightMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -685,7 +689,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWFileMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -720,15 +724,23 @@ class ChatDetailController extends ChangeNotifier {
       if (msgList == null || msgList.isEmpty) {
         return null;
       }
+      final originalConversationType = _combineConversationType(raw, target);
+      final normalizedMsgList = _normalizeCombineMsgList(
+        msgList,
+        originalConversationType,
+      );
+      if (normalizedMsgList.isEmpty) {
+        return null;
+      }
 
       return CombineForwardMessage(
         conversationType: target.conversationType,
         targetId: target.targetId,
         channelId: target.channelId,
-        originalConversationType: _combineConversationType(raw, target),
+        originalConversationType: originalConversationType,
         summaryList: raw.summaryList ?? const <String>[],
         nameList: raw.nameList ?? const <String>[''],
-        msgList: msgList,
+        msgList: normalizedMsgList,
       );
     }
 
@@ -752,17 +764,50 @@ class ChatDetailController extends ChangeNotifier {
     return null;
   }
 
-  String? _forwardLocalPath(RCIMIWMediaMessage message) {
-    final path = message.local?.trim();
-    if (path == null || path.isEmpty) {
+  Future<String?> _forwardLocalPath(RCIMIWMediaMessage message) async {
+    final localPath = _existingLocalFilePath(message.local);
+    if (localPath != null) {
+      return localPath;
+    }
+
+    final remote = message.remote?.trim();
+    if (remote == null ||
+        remote.isEmpty ||
+        (!remote.startsWith('http://') && !remote.startsWith('https://'))) {
       return null;
     }
 
-    if (!File(path).existsSync()) {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final filename =
+          'paracosm_forward_${DateTime.now().millisecondsSinceEpoch}${_forwardMediaFileExtension(remote, message)}';
+      final path = '${tempDir.path}/$filename';
+      await _downloadDio.download(remote, path);
+      return _existingLocalFilePath(path);
+    } catch (e) {
+      debugPrint('download media for forward failed: $e');
       return null;
     }
+  }
 
-    return path;
+  String _forwardMediaFileExtension(String url, RCIMIWMediaMessage message) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final filename = message is RCIMIWFileMessage
+        ? (message.name?.trim().isNotEmpty ?? false
+              ? message.name!.trim()
+              : _fileNameFromPath(path))
+        : _fileNameFromPath(path);
+    final dot = filename.lastIndexOf('.');
+    if (dot >= 0 && dot < filename.length - 1) {
+      return filename.substring(dot);
+    }
+    if (message is RCIMIWSightMessage) {
+      return '.mp4';
+    }
+    if (message is RCIMIWVoiceMessage) {
+      return '.aac';
+    }
+    return '.jpg';
   }
 
   String _fileNameFromPath(String path) {
@@ -835,6 +880,216 @@ class ChatDetailController extends ChangeNotifier {
         return 'RC:CombineV2Msg';
       default:
         return null;
+    }
+  }
+
+  Map<String, dynamic> _combineMessageContent(
+    RCIMIWMessage message,
+    String objectName,
+    RCIMIWConversationType? fallbackConversationType,
+  ) {
+    final json = _stringKeyedMap(message.toJson());
+    _normalizeCombineContent(
+      json,
+      objectName: objectName,
+      conversationType: message.conversationType ?? fallbackConversationType,
+      senderUserId: message.senderUserId,
+      targetId: message.targetId,
+      timestamp: message.sentTime ?? message.receivedTime,
+      fallbackType: message.messageType,
+    );
+    return json;
+  }
+
+  List<RCIMIWCombineMsgInfo> _normalizeCombineMsgList(
+    List<RCIMIWCombineMsgInfo> msgList,
+    RCIMIWConversationType originalConversationType,
+  ) {
+    final result = <RCIMIWCombineMsgInfo>[];
+    for (final info in msgList) {
+      final objectName = info.objectName;
+      if (objectName == null || objectName.isEmpty) {
+        continue;
+      }
+
+      final content = _stringKeyedMap(info.content ?? const {});
+      _normalizeCombineContent(
+        content,
+        objectName: objectName,
+        conversationType: originalConversationType,
+        senderUserId: info.fromUserId,
+        targetId: info.targetId,
+        timestamp: info.timestamp,
+      );
+
+      if (content['messageType'] == null) {
+        continue;
+      }
+
+      result.add(
+        RCIMIWCombineMsgInfo.create(
+          fromUserId: info.fromUserId,
+          targetId: info.targetId,
+          timestamp: info.timestamp,
+          objectName: objectName,
+          content: content,
+        ),
+      );
+    }
+    return result;
+  }
+
+  void _normalizeCombineContent(
+    Map<String, dynamic> content, {
+    required String objectName,
+    required RCIMIWConversationType? conversationType,
+    required String? senderUserId,
+    required String? targetId,
+    required int? timestamp,
+    RCIMIWMessageType? fallbackType,
+  }) {
+    final messageType =
+        _readMessageType(content['messageType']) ??
+        fallbackType ??
+        _combineMessageTypeForObjectName(objectName);
+    if (messageType != null) {
+      content['messageType'] = messageType.index;
+    }
+    if (conversationType != null) {
+      content['conversationType'] ??= conversationType.index;
+    }
+    content['senderUserId'] ??= senderUserId;
+    content['targetId'] ??= targetId;
+    content['sentTime'] ??= timestamp;
+    content['receivedTime'] ??= timestamp;
+    content['objectName'] ??= objectName;
+
+    switch (messageType) {
+      case RCIMIWMessageType.text:
+        content['text'] ??= _stringValue(content['content']);
+      case RCIMIWMessageType.custom:
+        content['identifier'] ??= objectName;
+        content['fields'] ??= content['msgFields'];
+        content['content'] ??=
+            _customContentValue(content['fields']) ??
+            _customContentValue(content['msgFields']);
+      case RCIMIWMessageType.nativeCustom:
+      case RCIMIWMessageType.unknown:
+      case RCIMIWMessageType.userCustom:
+        content['messageIdentifier'] ??= objectName;
+        content['fields'] ??= content['msgFields'];
+        content['content'] ??=
+            _customContentValue(content['fields']) ??
+            _customContentValue(content['msgFields']);
+        content['rawData'] ??= _safeJsonEncode(content);
+      case RCIMIWMessageType.voice:
+        content['remote'] ??= _firstString(content, const [
+          'remoteUrl',
+          'voiceUrl',
+          'uri',
+          'url',
+        ]);
+      case RCIMIWMessageType.image:
+        content['thumbnailBase64String'] ??= _stringValue(content['content']);
+        content['remote'] ??= _firstString(content, const ['imageUri', 'url']);
+      case RCIMIWMessageType.sight:
+        content['thumbnailBase64String'] ??= _stringValue(content['content']);
+        content['remote'] ??= _firstString(content, const ['sightUrl', 'url']);
+      case RCIMIWMessageType.file:
+        content['remote'] ??= _firstString(content, const ['fileUrl', 'url']);
+      default:
+        break;
+    }
+  }
+
+  RCIMIWMessageType? _combineMessageTypeForObjectName(String objectName) {
+    switch (objectName) {
+      case 'RC:TxtMsg':
+        return RCIMIWMessageType.text;
+      case 'RC:IWNormalMsg':
+        return RCIMIWMessageType.custom;
+      case 'RC:ImgMsg':
+        return RCIMIWMessageType.image;
+      case 'RC:VcMsg':
+      case 'RC:HQVCMsg':
+        return RCIMIWMessageType.voice;
+      case 'RC:FileMsg':
+        return RCIMIWMessageType.file;
+      case 'RC:SightMsg':
+        return RCIMIWMessageType.sight;
+      case 'RC:ReferenceMsg':
+        return RCIMIWMessageType.reference;
+      case 'RC:CombineV2Msg':
+        return RCIMIWMessageType.combineV2;
+      default:
+        return null;
+    }
+  }
+
+  RCIMIWMessageType? _readMessageType(Object? value) {
+    int? index;
+    if (value is int) {
+      index = value;
+    } else if (value is num) {
+      index = value.toInt();
+    } else if (value is String) {
+      index = int.tryParse(value);
+    }
+
+    if (index == null ||
+        index < 0 ||
+        index >= RCIMIWMessageType.values.length) {
+      return null;
+    }
+
+    return RCIMIWMessageType.values[index];
+  }
+
+  Map<String, dynamic> _stringKeyedMap(Map map) {
+    return map.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  String? _stringValue(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is String) {
+      final text = value.trim();
+      return text.isEmpty ? null : value;
+    }
+    if (value is num || value is bool) {
+      return value.toString();
+    }
+    return null;
+  }
+
+  String? _firstString(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = _stringValue(json[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  Object? _customContentValue(Object? value) {
+    if (value is! Map) {
+      return null;
+    }
+
+    final fields = _stringKeyedMap(value);
+    return fields['content'] ?? _safeJsonEncode(fields);
+  }
+
+  String? _safeJsonEncode(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return jsonEncode(value);
+    } catch (_) {
+      return value.toString();
     }
   }
 
@@ -1216,14 +1471,11 @@ class ChatDetailController extends ChangeNotifier {
         /// 清空消息
         /// =========================
         case MessageEventType.clear:
-          if (event.targetId != args!.targetId) {
+          if (!_deleteEventCanApplyToCurrentConversation(event)) {
             return;
           }
 
-          if (event.conversationType != args!.conversationType) {
-            return;
-          }
-
+          final clearBeforeTimestamp = event.timestamp ?? 0;
           engine.removeWhere((e) {
             final raw = e.extra;
 
@@ -1231,7 +1483,15 @@ class ChatDetailController extends ChangeNotifier {
               return false;
             }
 
-            return (raw.sentTime ?? 0) <= (event.timestamp ?? 0);
+            if (!_messageCanApplyToCurrentConversation(raw, event)) {
+              return false;
+            }
+
+            if (clearBeforeTimestamp <= 0) {
+              return true;
+            }
+
+            return (raw.sentTime ?? 0) <= clearBeforeTimestamp;
           });
 
           break;
@@ -2636,15 +2896,89 @@ class ChatDetailController extends ChangeNotifier {
     );
   }
 
-  void openMediaViewer({required List<MediaItem> list, required int index}) {
+  void openMediaViewer({
+    required List<MediaItem> list,
+    required int index,
+    MediaGalleryAction? onSave,
+    MediaGalleryAction? onForward,
+  }) {
     Navigator.push(
       context!,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            AppMediaGallery(list: list, initialIndex: index),
+            AppMediaGallery(
+              list: list,
+              initialIndex: index,
+              onSave: onSave,
+              onForward: onForward,
+            ),
         transitionDuration: const Duration(milliseconds: 200),
       ),
     );
+  }
+
+  Future<void> saveMediaToAlbum(MediaItem item) async {
+    try {
+      final permission = await PhotoManager.requestPermissionExtend();
+      if (!permission.isAuth) {
+        AppToast.show(_tr('common_download_failed'));
+        return;
+      }
+
+      final file = await _mediaFileForSaving(item);
+      if (file == null || !file.existsSync()) {
+        AppToast.show(_tr('common_download_failed'));
+        return;
+      }
+
+      if (item.type == MediaType.video) {
+        await PhotoManager.editor.saveVideo(
+          file,
+          title: _fileNameFromPath(file.path),
+        );
+      } else {
+        await PhotoManager.editor.saveImageWithPath(
+          file.path,
+          title: _fileNameFromPath(file.path),
+        );
+      }
+
+      AppToast.show(_tr('common_saved_to_album'));
+    } catch (e) {
+      debugPrint('save media to album failed: $e');
+      AppToast.show(_tr('common_download_failed'));
+    }
+  }
+
+  Future<File?> _mediaFileForSaving(MediaItem item) async {
+    final localPath = _existingLocalFilePath(item.file?.path);
+    if (localPath != null) {
+      return File(localPath);
+    }
+
+    final url = item.url?.trim();
+    if (url == null ||
+        url.isEmpty ||
+        (!url.startsWith('http://') && !url.startsWith('https://'))) {
+      return null;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final filename =
+        'paracosm_media_${DateTime.now().millisecondsSinceEpoch}${_mediaFileExtension(url, item.type)}';
+    final path = '${tempDir.path}/$filename';
+    await _downloadDio.download(url, path);
+    return File(path);
+  }
+
+  String _mediaFileExtension(String url, MediaType type) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final filename = _fileNameFromPath(path);
+    final dot = filename.lastIndexOf('.');
+    if (dot >= 0 && dot < filename.length - 1) {
+      return filename.substring(dot);
+    }
+    return type == MediaType.video ? '.mp4' : '.jpg';
   }
 
   Future<void> handleFileTap(ChatDetailMessage message) async {

@@ -1185,7 +1185,7 @@ class ImMessageManager {
       }
 
       final messageTime = message.sentTime ?? message.receivedTime ?? 0;
-      if (messageTime <= timestamp) {
+      if (timestamp <= 0 || messageTime <= timestamp) {
         keys.add(entry.key);
       }
     }

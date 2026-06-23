@@ -208,15 +208,20 @@ class CombineForwardMessage extends ImMessage {
 
   @override
   Future<RCIMIWMessage?> toRCMessage() async {
-    final combineMsg = await IMEngineManager().engine?.createCombineV2Message(
-      conversationType,
-      targetId,
-      channelId,
-      originalConversationType,
-      summaryList,
-      nameList,
-      msgList,
-    );
+    RCIMIWCombineV2Message? combineMsg;
+    try {
+      combineMsg = await IMEngineManager().engine?.createCombineV2Message(
+        conversationType,
+        targetId,
+        channelId,
+        originalConversationType,
+        summaryList,
+        nameList,
+        msgList,
+      );
+    } catch (_) {
+      return null;
+    }
     combineMsg?.senderUserId = IMEngineManager().currentUserId;
     combineMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
     return combineMsg;

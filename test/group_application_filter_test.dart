@@ -66,6 +66,22 @@ void main() {
       expect(buckets.inviteUnhandled.single.groupId, 'group-1');
     });
 
+    test('treats ignored unhandled items as processed', () {
+      final item = _application(
+        direction: RCIMIWGroupApplicationDirection.applicationreceived,
+        status: RCIMIWGroupApplicationStatus.managerunhandled,
+      );
+
+      final buckets = splitGroupApplications(
+        [item],
+        isIgnored: (value) => identical(value, item),
+      );
+
+      expect(buckets.joinUnhandled, isEmpty);
+      expect(buckets.joinProcessed, hasLength(1));
+      expect(buckets.unhandledCount, 0);
+    });
+
     test('upsert replaces matching callback item', () {
       final list = [
         _application(

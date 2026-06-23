@@ -97,6 +97,7 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
       list,
       mode: widget.mode,
       groupId: widget.groupId,
+      isIgnored: _manager.isIgnored,
     );
 
     _prefetchUsers(list);
@@ -188,6 +189,10 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
     if (!isOk) {
       AppToast.show(AppLocalizations.of(context)!.chatRequestFailed);
     }
+  }
+
+  Future<void> _ignoreRequest(RCIMIWGroupApplicationInfo item) async {
+    await _manager.ignoreGroupApplication(item);
   }
 
   void _showRejectModal(RCIMIWGroupApplicationInfo item) {
@@ -391,6 +396,29 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
                       fit: BoxFit.contain,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _ignoreRequest(item),
+                    child: Container(
+                      width: 40,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.grey800,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.of(context)!.chatRequestIgnore,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -429,7 +457,7 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
                   Expanded(child: _buildInfo(item)),
                   const SizedBox(width: 8),
                   Text(
-                    _statusText(item.status),
+                    _statusText(item),
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.grey400,
                       fontSize: 12,
@@ -517,8 +545,17 @@ class _GroupApplicationsPageState extends State<GroupApplicationsPage> {
     return groupId;
   }
 
-  String _statusText(RCIMIWGroupApplicationStatus? status) {
+  String _statusText(RCIMIWGroupApplicationInfo item) {
     final l10n = AppLocalizations.of(context)!;
+    final status = item.status;
+    if (status == RCIMIWGroupApplicationStatus.managerunhandled &&
+        _manager.isIgnored(item)) {
+      return l10n.chatRequestStatusIgnored;
+    }
+    if (status == RCIMIWGroupApplicationStatus.inviteeunhandled &&
+        _manager.isIgnored(item)) {
+      return l10n.chatRequestStatusIgnored;
+    }
     return switch (status) {
       RCIMIWGroupApplicationStatus.managerunhandled => l10n.chatRequestNew,
       RCIMIWGroupApplicationStatus.inviteeunhandled =>

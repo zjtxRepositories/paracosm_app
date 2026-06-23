@@ -167,6 +167,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatRequestProcessed => translate('chat_request_processed');
   String get chatRequestAgree => translate('chat_request_agree');
   String get chatRequestReject => translate('chat_request_reject');
+  String get chatRequestIgnore => translate('chat_request_ignore');
   String get chatRequestSure => translate('chat_request_sure');
   String get chatRequestCancel => translate('chat_request_cancel');
   String get chatRequestHint => translate('chat_request_hint');
@@ -177,6 +178,8 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('chat_request_status_expired');
   String get chatRequestStatusRejected =>
       translate('chat_request_status_rejected');
+  String get chatRequestStatusIgnored =>
+      translate('chat_request_status_ignored');
   String get chatProfileMessage => translate('chat_profile_message');
   String get chatProfileCall => translate('chat_profile_call');
   String get chatProfileVideo => translate('chat_profile_video');

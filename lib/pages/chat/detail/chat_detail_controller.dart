@@ -539,7 +539,11 @@ class ChatDetailController extends ChangeNotifier {
           targetId: raw.targetId,
           timestamp: raw.sentTime ?? raw.receivedTime,
           objectName: objectName,
-          content: raw.toJson(),
+          content: _combineMessageContent(
+            raw,
+            objectName,
+            args?.conversationType,
+          ),
         ),
       );
     }
@@ -720,15 +724,23 @@ class ChatDetailController extends ChangeNotifier {
       if (msgList == null || msgList.isEmpty) {
         return null;
       }
+      final originalConversationType = _combineConversationType(raw, target);
+      final normalizedMsgList = _normalizeCombineMsgList(
+        msgList,
+        originalConversationType,
+      );
+      if (normalizedMsgList.isEmpty) {
+        return null;
+      }
 
       return CombineForwardMessage(
         conversationType: target.conversationType,
         targetId: target.targetId,
         channelId: target.channelId,
-        originalConversationType: _combineConversationType(raw, target),
+        originalConversationType: originalConversationType,
         summaryList: raw.summaryList ?? const <String>[],
         nameList: raw.nameList ?? const <String>[''],
-        msgList: msgList,
+        msgList: normalizedMsgList,
       );
     }
 
@@ -835,6 +847,216 @@ class ChatDetailController extends ChangeNotifier {
         return 'RC:CombineV2Msg';
       default:
         return null;
+    }
+  }
+
+  Map<String, dynamic> _combineMessageContent(
+    RCIMIWMessage message,
+    String objectName,
+    RCIMIWConversationType? fallbackConversationType,
+  ) {
+    final json = _stringKeyedMap(message.toJson());
+    _normalizeCombineContent(
+      json,
+      objectName: objectName,
+      conversationType: message.conversationType ?? fallbackConversationType,
+      senderUserId: message.senderUserId,
+      targetId: message.targetId,
+      timestamp: message.sentTime ?? message.receivedTime,
+      fallbackType: message.messageType,
+    );
+    return json;
+  }
+
+  List<RCIMIWCombineMsgInfo> _normalizeCombineMsgList(
+    List<RCIMIWCombineMsgInfo> msgList,
+    RCIMIWConversationType originalConversationType,
+  ) {
+    final result = <RCIMIWCombineMsgInfo>[];
+    for (final info in msgList) {
+      final objectName = info.objectName;
+      if (objectName == null || objectName.isEmpty) {
+        continue;
+      }
+
+      final content = _stringKeyedMap(info.content ?? const {});
+      _normalizeCombineContent(
+        content,
+        objectName: objectName,
+        conversationType: originalConversationType,
+        senderUserId: info.fromUserId,
+        targetId: info.targetId,
+        timestamp: info.timestamp,
+      );
+
+      if (content['messageType'] == null) {
+        continue;
+      }
+
+      result.add(
+        RCIMIWCombineMsgInfo.create(
+          fromUserId: info.fromUserId,
+          targetId: info.targetId,
+          timestamp: info.timestamp,
+          objectName: objectName,
+          content: content,
+        ),
+      );
+    }
+    return result;
+  }
+
+  void _normalizeCombineContent(
+    Map<String, dynamic> content, {
+    required String objectName,
+    required RCIMIWConversationType? conversationType,
+    required String? senderUserId,
+    required String? targetId,
+    required int? timestamp,
+    RCIMIWMessageType? fallbackType,
+  }) {
+    final messageType =
+        _readMessageType(content['messageType']) ??
+        fallbackType ??
+        _combineMessageTypeForObjectName(objectName);
+    if (messageType != null) {
+      content['messageType'] = messageType.index;
+    }
+    if (conversationType != null) {
+      content['conversationType'] ??= conversationType.index;
+    }
+    content['senderUserId'] ??= senderUserId;
+    content['targetId'] ??= targetId;
+    content['sentTime'] ??= timestamp;
+    content['receivedTime'] ??= timestamp;
+    content['objectName'] ??= objectName;
+
+    switch (messageType) {
+      case RCIMIWMessageType.text:
+        content['text'] ??= _stringValue(content['content']);
+      case RCIMIWMessageType.custom:
+        content['identifier'] ??= objectName;
+        content['fields'] ??= content['msgFields'];
+        content['content'] ??=
+            _customContentValue(content['fields']) ??
+            _customContentValue(content['msgFields']);
+      case RCIMIWMessageType.nativeCustom:
+      case RCIMIWMessageType.unknown:
+      case RCIMIWMessageType.userCustom:
+        content['messageIdentifier'] ??= objectName;
+        content['fields'] ??= content['msgFields'];
+        content['content'] ??=
+            _customContentValue(content['fields']) ??
+            _customContentValue(content['msgFields']);
+        content['rawData'] ??= _safeJsonEncode(content);
+      case RCIMIWMessageType.voice:
+        content['remote'] ??= _firstString(content, const [
+          'remoteUrl',
+          'voiceUrl',
+          'uri',
+          'url',
+        ]);
+      case RCIMIWMessageType.image:
+        content['thumbnailBase64String'] ??= _stringValue(content['content']);
+        content['remote'] ??= _firstString(content, const ['imageUri', 'url']);
+      case RCIMIWMessageType.sight:
+        content['thumbnailBase64String'] ??= _stringValue(content['content']);
+        content['remote'] ??= _firstString(content, const ['sightUrl', 'url']);
+      case RCIMIWMessageType.file:
+        content['remote'] ??= _firstString(content, const ['fileUrl', 'url']);
+      default:
+        break;
+    }
+  }
+
+  RCIMIWMessageType? _combineMessageTypeForObjectName(String objectName) {
+    switch (objectName) {
+      case 'RC:TxtMsg':
+        return RCIMIWMessageType.text;
+      case 'RC:IWNormalMsg':
+        return RCIMIWMessageType.custom;
+      case 'RC:ImgMsg':
+        return RCIMIWMessageType.image;
+      case 'RC:VcMsg':
+      case 'RC:HQVCMsg':
+        return RCIMIWMessageType.voice;
+      case 'RC:FileMsg':
+        return RCIMIWMessageType.file;
+      case 'RC:SightMsg':
+        return RCIMIWMessageType.sight;
+      case 'RC:ReferenceMsg':
+        return RCIMIWMessageType.reference;
+      case 'RC:CombineV2Msg':
+        return RCIMIWMessageType.combineV2;
+      default:
+        return null;
+    }
+  }
+
+  RCIMIWMessageType? _readMessageType(Object? value) {
+    int? index;
+    if (value is int) {
+      index = value;
+    } else if (value is num) {
+      index = value.toInt();
+    } else if (value is String) {
+      index = int.tryParse(value);
+    }
+
+    if (index == null ||
+        index < 0 ||
+        index >= RCIMIWMessageType.values.length) {
+      return null;
+    }
+
+    return RCIMIWMessageType.values[index];
+  }
+
+  Map<String, dynamic> _stringKeyedMap(Map map) {
+    return map.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  String? _stringValue(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is String) {
+      final text = value.trim();
+      return text.isEmpty ? null : value;
+    }
+    if (value is num || value is bool) {
+      return value.toString();
+    }
+    return null;
+  }
+
+  String? _firstString(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = _stringValue(json[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  Object? _customContentValue(Object? value) {
+    if (value is! Map) {
+      return null;
+    }
+
+    final fields = _stringKeyedMap(value);
+    return fields['content'] ?? _safeJsonEncode(fields);
+  }
+
+  String? _safeJsonEncode(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return jsonEncode(value);
+    } catch (_) {
+      return value.toString();
     }
   }
 

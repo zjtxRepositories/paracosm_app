@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/friend_application_model.dart';
+import 'package:paracosm/modules/im/group_application_filter.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
-import 'package:paracosm/widgets/base/app_localizations_keys.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_loading.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
@@ -51,26 +51,15 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     _sub?.cancel();
 
     _sub = manager.stream.listen((list) {
-      final newList = <RCIMIWFriendApplicationInfo>[];
-      final processedList = <RCIMIWFriendApplicationInfo>[];
-
-      for (var e in list) {
-        final isUnhandled =
-            e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled;
-        final isReceived =
-            e.applicationType == RCIMIWFriendApplicationType.received;
-
-        if (isUnhandled && isReceived) {
-          newList.add(e);
-        } else if (!isUnhandled && isReceived) {
-          processedList.add(e);
-        }
-      }
+      final buckets = splitFriendApplications(
+        list,
+        isIgnored: manager.isIgnored,
+      );
 
       if (mounted) {
         setState(() {
-          _newRequests = newList;
-          _processedRequests = processedList;
+          _newRequests = buckets.newRequests;
+          _processedRequests = buckets.processedRequests;
         });
       }
     });
@@ -83,14 +72,20 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     super.dispose();
   }
 
+  Future<void> _ignoreRequest(RCIMIWFriendApplicationInfo req) async {
+    await manager.ignoreFriendApplication(req);
+  }
+
   /// 显示同意确认弹窗
   Future<void> _showAgreeConfirmModal(FriendApplicationModel model) async {
+    final l10n = AppLocalizations.of(context)!;
+    final router = GoRouter.of(context);
     AppLoading.show();
     final targetId = model.info.userId ?? '';
     final isOk = await manager.acceptFriendApplication(targetId);
     AppLoading.dismiss();
     if (!isOk) {
-      AppToast.show(AppLocalizations.of(context)!.chatRequestFailed);
+      AppToast.show(l10n.chatRequestFailed);
       return;
     }
     final message = CustomMessage(
@@ -99,8 +94,9 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
     );
     final isSend = await ImSender.instance.send(message: message);
     if (!isSend) return;
+    if (!mounted) return;
     final encodedName = Uri.encodeComponent(model.name);
-    context.push(
+    router.push(
       '/chat-detail/$encodedName',
       extra: ChatSessionArgs(
         targetId: targetId,
@@ -112,6 +108,8 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
 
   /// 显示拒绝确认弹窗
   void _showRejectConfirmModal(FriendApplicationModel model) {
+    final l10n = AppLocalizations.of(context)!;
+    final router = GoRouter.of(context);
     AppModal.show(
       context,
       title: AppLocalizations.of(context)!.chatRequestHint,
@@ -128,14 +126,14 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
         fit: BoxFit.contain,
       ),
       onConfirm: () async {
-        context.pop();
+        router.pop();
         AppLoading.show();
         final isOk = await manager.refuseFriendApplication(
           model.info.userId ?? '',
         );
         AppLoading.dismiss();
         if (!isOk) {
-          AppToast.show(AppLocalizations.of(context)!.chatRequestFailed);
+          AppToast.show(l10n.chatRequestFailed);
           return;
         }
       },
@@ -253,6 +251,29 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
                       fit: BoxFit.contain,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _ignoreRequest(req),
+                    child: Container(
+                      width: 40,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.grey800,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.of(context)!.chatRequestIgnore,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -265,6 +286,8 @@ class _FriendRequestPageState extends State<FriendRequestPage> {
   /// 构建已处理申请项
   Widget _buildProcessedItem(RCIMIWFriendApplicationInfo req) {
     final statusText = switch (req.applicationStatus) {
+      RCIMIWFriendApplicationStatus.unhandled when manager.isIgnored(req) =>
+        AppLocalizations.of(context)!.chatRequestStatusIgnored,
       RCIMIWFriendApplicationStatus.accepted => AppLocalizations.of(
         context,
       )!.chatRequestStatusAdded,

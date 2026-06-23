@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
+import 'package:paracosm/modules/im/group_application_filter.dart';
+import 'package:paracosm/modules/im/request_ignore_store.dart';
 import 'im_engine_manager.dart';
 
 class ImFriendApplicationsManager {
@@ -12,6 +14,7 @@ class ImFriendApplicationsManager {
 
   final _controller =
       StreamController<List<RCIMIWFriendApplicationInfo>>.broadcast();
+  final _ignoreStore = ImRequestIgnoreStore();
 
   Stream<List<RCIMIWFriendApplicationInfo>> get stream => _controller.stream;
 
@@ -25,6 +28,7 @@ class ImFriendApplicationsManager {
   /// =========================
   void initListener() {
     final engine = IMEngineManager().engine;
+    unawaited(_ignoreStore.ensureLoaded());
 
     engine?.onFriendApplicationStatusChanged =
         (
@@ -60,6 +64,7 @@ class ImFriendApplicationsManager {
   /// 拉取好友申请（分页）
   /// =========================
   Future<void> fetch({bool loadMore = false}) async {
+    await _ignoreStore.ensureLoaded();
     final option = RCIMIWPagingQueryOption.create(
       pageToken: loadMore ? (_pageToken ?? '') : '',
       count: 100,
@@ -162,6 +167,14 @@ class ImFriendApplicationsManager {
     return completer.future;
   }
 
+  Future<bool> ignoreFriendApplication(RCIMIWFriendApplicationInfo item) async {
+    final added = await _ignoreStore.ignoreFriendApplication(item);
+    if (added) {
+      _notify();
+    }
+    return true;
+  }
+
   /// =========================
   /// 获取列表
   /// =========================
@@ -183,13 +196,18 @@ class ImFriendApplicationsManager {
   /// 未处理数量
   /// =========================
   int get unhandledCount {
-    return _list
-        .where(
-          (e) =>
-              e.applicationStatus == RCIMIWFriendApplicationStatus.unhandled &&
-              e.applicationType == RCIMIWFriendApplicationType.received,
-        )
-        .length;
+    return buckets.unhandledCount;
+  }
+
+  FriendApplicationBuckets get buckets {
+    return splitFriendApplications(
+      _list,
+      isIgnored: _ignoreStore.isFriendIgnored,
+    );
+  }
+
+  bool isIgnored(RCIMIWFriendApplicationInfo item) {
+    return _ignoreStore.isFriendIgnored(item);
   }
 
   /// =========================

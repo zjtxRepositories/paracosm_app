@@ -599,7 +599,7 @@ class ChatDetailController extends ChangeNotifier {
     var allSuccess = true;
 
     for (final target in targets) {
-      final forwardMessage = _singleForwardMessageForTarget(raw, target);
+      final forwardMessage = await _singleForwardMessageForTarget(raw, target);
       if (forwardMessage == null) {
         allSuccess = false;
         continue;
@@ -625,10 +625,10 @@ class ChatDetailController extends ChangeNotifier {
     return allSuccess;
   }
 
-  ImMessage? _singleForwardMessageForTarget(
+  Future<ImMessage?> _singleForwardMessageForTarget(
     RCIMIWMessage raw,
     ChatForwardTarget target,
-  ) {
+  ) async {
     if (raw is RCIMIWTextMessage) {
       final text = raw.text?.trim();
       if (text == null || text.isEmpty) {
@@ -644,7 +644,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWImageMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -658,7 +658,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWVoiceMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -673,7 +673,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWSightMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -689,7 +689,7 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     if (raw is RCIMIWFileMessage) {
-      final path = _forwardLocalPath(raw);
+      final path = await _forwardLocalPath(raw);
       if (path == null) {
         return null;
       }
@@ -764,17 +764,50 @@ class ChatDetailController extends ChangeNotifier {
     return null;
   }
 
-  String? _forwardLocalPath(RCIMIWMediaMessage message) {
-    final path = message.local?.trim();
-    if (path == null || path.isEmpty) {
+  Future<String?> _forwardLocalPath(RCIMIWMediaMessage message) async {
+    final localPath = _existingLocalFilePath(message.local);
+    if (localPath != null) {
+      return localPath;
+    }
+
+    final remote = message.remote?.trim();
+    if (remote == null ||
+        remote.isEmpty ||
+        (!remote.startsWith('http://') && !remote.startsWith('https://'))) {
       return null;
     }
 
-    if (!File(path).existsSync()) {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final filename =
+          'paracosm_forward_${DateTime.now().millisecondsSinceEpoch}${_forwardMediaFileExtension(remote, message)}';
+      final path = '${tempDir.path}/$filename';
+      await _downloadDio.download(remote, path);
+      return _existingLocalFilePath(path);
+    } catch (e) {
+      debugPrint('download media for forward failed: $e');
       return null;
     }
+  }
 
-    return path;
+  String _forwardMediaFileExtension(String url, RCIMIWMediaMessage message) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final filename = message is RCIMIWFileMessage
+        ? (message.name?.trim().isNotEmpty ?? false
+              ? message.name!.trim()
+              : _fileNameFromPath(path))
+        : _fileNameFromPath(path);
+    final dot = filename.lastIndexOf('.');
+    if (dot >= 0 && dot < filename.length - 1) {
+      return filename.substring(dot);
+    }
+    if (message is RCIMIWSightMessage) {
+      return '.mp4';
+    }
+    if (message is RCIMIWVoiceMessage) {
+      return '.aac';
+    }
+    return '.jpg';
   }
 
   String _fileNameFromPath(String path) {
@@ -2863,15 +2896,89 @@ class ChatDetailController extends ChangeNotifier {
     );
   }
 
-  void openMediaViewer({required List<MediaItem> list, required int index}) {
+  void openMediaViewer({
+    required List<MediaItem> list,
+    required int index,
+    MediaGalleryAction? onSave,
+    MediaGalleryAction? onForward,
+  }) {
     Navigator.push(
       context!,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            AppMediaGallery(list: list, initialIndex: index),
+            AppMediaGallery(
+              list: list,
+              initialIndex: index,
+              onSave: onSave,
+              onForward: onForward,
+            ),
         transitionDuration: const Duration(milliseconds: 200),
       ),
     );
+  }
+
+  Future<void> saveMediaToAlbum(MediaItem item) async {
+    try {
+      final permission = await PhotoManager.requestPermissionExtend();
+      if (!permission.isAuth) {
+        AppToast.show(_tr('common_download_failed'));
+        return;
+      }
+
+      final file = await _mediaFileForSaving(item);
+      if (file == null || !file.existsSync()) {
+        AppToast.show(_tr('common_download_failed'));
+        return;
+      }
+
+      if (item.type == MediaType.video) {
+        await PhotoManager.editor.saveVideo(
+          file,
+          title: _fileNameFromPath(file.path),
+        );
+      } else {
+        await PhotoManager.editor.saveImageWithPath(
+          file.path,
+          title: _fileNameFromPath(file.path),
+        );
+      }
+
+      AppToast.show(_tr('common_saved_to_album'));
+    } catch (e) {
+      debugPrint('save media to album failed: $e');
+      AppToast.show(_tr('common_download_failed'));
+    }
+  }
+
+  Future<File?> _mediaFileForSaving(MediaItem item) async {
+    final localPath = _existingLocalFilePath(item.file?.path);
+    if (localPath != null) {
+      return File(localPath);
+    }
+
+    final url = item.url?.trim();
+    if (url == null ||
+        url.isEmpty ||
+        (!url.startsWith('http://') && !url.startsWith('https://'))) {
+      return null;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final filename =
+        'paracosm_media_${DateTime.now().millisecondsSinceEpoch}${_mediaFileExtension(url, item.type)}';
+    final path = '${tempDir.path}/$filename';
+    await _downloadDio.download(url, path);
+    return File(path);
+  }
+
+  String _mediaFileExtension(String url, MediaType type) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final filename = _fileNameFromPath(path);
+    final dot = filename.lastIndexOf('.');
+    if (dot >= 0 && dot < filename.length - 1) {
+      return filename.substring(dot);
+    }
+    return type == MediaType.video ? '.mp4' : '.jpg';
   }
 
   Future<void> handleFileTap(ChatDetailMessage message) async {

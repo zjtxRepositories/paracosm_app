@@ -666,6 +666,7 @@
   "network_response_timeout": "Response timed out",
   "network_server_error_code": "Server error ({code})",
   "network_request_cancelled": "Request cancelled",
+  "network_config_unavailable": "Failed to load network configuration. Check your connection and try again.",
   "network_error": "Network error",
   "time_just_now": "Just now",
   "time_minutes_ago": "{count} min ago",

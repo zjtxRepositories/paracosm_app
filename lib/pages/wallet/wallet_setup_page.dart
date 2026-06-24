@@ -29,7 +29,7 @@ class _WalletSetupPageState extends ConsumerState<WalletSetupPage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    ConfigService().init();
+    ConfigService().ensureReady();
   }
 
   @override

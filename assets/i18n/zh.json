@@ -659,6 +659,7 @@
   "network_response_timeout": "响应超时",
   "network_server_error_code": "服务器异常({code})",
   "network_request_cancelled": "请求取消",
+  "network_config_unavailable": "网络配置获取失败，请检查网络后重试",
   "network_error": "网络异常",
   "time_just_now": "刚刚",
   "time_minutes_ago": "{count}分钟前",

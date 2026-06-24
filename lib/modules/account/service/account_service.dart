@@ -1,4 +1,5 @@
 import 'package:paracosm/core/db/dao/account_dao.dart';
+import 'package:paracosm/core/network/config/config_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import '../../../core/db/dao/app_config_dao.dart';
@@ -27,6 +28,7 @@ class AccountService {
   }
 
   static Future<AccountModel> login(WalletModel wallet) async {
+    await ConfigService().ensureReady();
     final loginResp = await UserService.login(wallet.id.toLowerCase());
     final account = await AccountManager().createAccount(
       wallet: wallet,

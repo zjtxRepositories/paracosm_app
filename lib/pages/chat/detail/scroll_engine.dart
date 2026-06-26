@@ -152,6 +152,45 @@ class ScrollEngine<T> {
   }
 
   /// =========================
+  /// insertAt（指定位置插入）
+  /// =========================
+  void insertAt(int index, T item) {
+    final id = getId(item);
+
+    final shouldScroll = isAtBottom;
+
+    if (_map.containsKey(id)) {
+      _map[id] = item;
+
+      onUpdate?.call();
+
+      return;
+    }
+
+    final safeIndex = index < 0
+        ? 0
+        : (index > _order.length ? _order.length : index);
+
+    _map[id] = item;
+
+    _order.insert(safeIndex, id);
+
+    onUpdate?.call();
+
+    if (shouldScroll && safeIndex == _order.length - 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!scrollController.hasClients) {
+          return;
+        }
+
+        scrollController.jumpTo(
+          scrollController.position.maxScrollExtent,
+        );
+      });
+    }
+  }
+
+  /// =========================
   /// prepend（加载更多）
   /// =========================
   void prepend(List<T> incoming) {

@@ -215,6 +215,9 @@ class ConversationResolver {
         return summary.isNotEmpty
             ? summary
             : AppLocalizations.currentText('moments_moment_title');
+      case CustomMessageType.redPacket:
+        final summary = (message.content ?? '').trim();
+        return '[${AppLocalizations.currentText('chat_detail_red_packet')}] $summary';
       default:
         return _formatContent(message.content ?? '');
     }

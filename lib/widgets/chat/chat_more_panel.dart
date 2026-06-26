@@ -45,11 +45,11 @@ class ChatMorePanel extends StatelessWidget {
           type: ChatMoreAction.audioCall,
         ),
       ],
-      // ChatMoreItem(
-      //   icon: 'assets/images/common/redbag.png',
-      //   label: l10n.chatDetailRedPacket,
-      //   type: ChatMoreAction.redbag,
-      // ),
+      ChatMoreItem(
+        icon: 'assets/images/common/redbag.png',
+        label: l10n.chatDetailRedPacket,
+        type: ChatMoreAction.redbag,
+      ),
       ChatMoreItem(
         icon: 'assets/images/common/file.png',
         label: l10n.chatDetailFile,

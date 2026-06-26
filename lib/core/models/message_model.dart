@@ -89,6 +89,11 @@ class MessageModel {
         return summary.isNotEmpty
             ? summary
             : AppLocalizations.currentText('moments_moment_title');
+      case CustomMessageType.redPacket:
+        final summary = (message.content ?? '').trim();
+        return summary.isNotEmpty
+            ? summary
+            : AppLocalizations.currentText('chat_detail_red_packet');
       default:
         return _formatContent(message.content ?? '');
     }

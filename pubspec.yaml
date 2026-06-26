@@ -145,6 +145,7 @@ flutter:
     - assets/images/chat/custom_face/4350/
     - assets/images/chat/custom_face/4351/
     - assets/images/chat/custom_face/4352/
+    - assets/images/chat/red_packet/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

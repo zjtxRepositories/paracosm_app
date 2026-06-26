@@ -9,6 +9,8 @@ import 'package:paracosm/modules/im/group_application_filter.dart';
 import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/modules/wallet/model/wallet_model.dart';
+import 'package:paracosm/pages/chat/red_packet_detail_page.dart';
+import 'package:paracosm/pages/chat/red_packet_record_page.dart';
 import 'package:paracosm/pages/dapp/dapp_page.dart';
 import 'package:paracosm/pages/profile/add_token_manager_page.dart';
 import 'package:paracosm/pages/profile/token_manager_page.dart';
@@ -24,6 +26,7 @@ import 'package:paracosm/pages/chat/chat_private_video_page.dart';
 import 'package:paracosm/pages/chat/chat_private_voice_page.dart';
 import 'package:paracosm/pages/chat/chat_scan_page.dart';
 import 'package:paracosm/pages/chat/friend_request_page.dart';
+import 'package:paracosm/pages/chat/red_packet_page.dart';
 import 'package:paracosm/pages/chat/detail/chat_detail_page.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/pages/chat/session_details_page.dart';
@@ -497,6 +500,41 @@ class AppRouter {
           final extra = state.extra;
           final message = extra is RCIMIWCombineV2Message ? extra : null;
           return ChatCombineForwardDetailPage(message: message);
+        },
+      ),
+      GoRoute(
+        path: '/chat-red-packet',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is ChatSessionArgs) {
+            return ChatRedPacketPage(sessionArgs: extra);
+          }
+          if (extra is Map<String, dynamic>) {
+            return ChatRedPacketPage(
+              sessionArgs: extra['args'] as ChatSessionArgs?,
+              initialMemberCount: extra['memberCount'] as int?,
+            );
+          }
+          return const ChatRedPacketPage(sessionArgs: null);
+        },
+      ),
+      GoRoute(
+        path: '/red-packet_record',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final userId = state.extra as String?;
+          return RedPacketRecordPage(userId: userId ?? '');
+        },
+      ),
+      GoRoute(
+        path: '/red-packet_detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final userId = data?['userId'];
+          final redPacket = data?['data'];
+          return RedPacketDetailPage(userId:userId ?? '', data: redPacket);
         },
       ),
       GoRoute(

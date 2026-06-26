@@ -1,13 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
+import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/pages/chat/detail/file_download_state.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
+import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 
 class ChatTextMessageContent extends StatelessWidget {
   const ChatTextMessageContent({
@@ -1138,19 +1143,582 @@ class ChatContactCardMessageContent extends StatelessWidget {
 }
 
 class ChatRedBagMessageContent extends StatelessWidget {
-  const ChatRedBagMessageContent({super.key, required this.isClaimed});
+  const ChatRedBagMessageContent({
+    super.key,
+    required this.isClaimed,
+    this.greeting,
+    this.tokenSymbol,
+    this.packetType,
+    this.onTap,
+  });
 
   final bool isClaimed;
+  final String? greeting;
+  final String? tokenSymbol;
+  final String? packetType;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      isClaimed
-          ? 'assets/images/chat/redbag-default.png'
-          : 'assets/images/chat/redbag-active.png',
-      width: 120,
-      height: 180,
-      fit: BoxFit.contain,
+    const width = 252.0;
+    const borderRadius = BorderRadius.all(Radius.circular(12));
+    final l10n = AppLocalizations.of(context)!;
+    final message = greeting?.trim().isNotEmpty == true
+        ? greeting!.trim()
+        : l10n.chatRedPacketDefaultBlessing;
+    final symbol = tokenSymbol?.trim() ?? '';
+    final packetTypeLabel = _packetTypeLabel(l10n);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: SizedBox(
+          width: width,
+          child: AspectRatio(
+            aspectRatio: 1324 / 486,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/chat/red_packet/msg_cover.png',
+                  fit: BoxFit.cover,
+                ),
+                Positioned(
+                  left: 12,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 46,
+                      height: 52,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/chat/red_packet/packet_icon.png',
+                            width: 46,
+                            height: 52,
+                            fit: BoxFit.contain,
+                          ),
+                          if (symbol.isNotEmpty)
+                            Positioned(
+                              left: 5,
+                              right: 5,
+                              top: 34,
+                              child: Center(
+                                child: Text(
+                                  symbol,
+                                  maxLines: 1,
+                                  style: AppTextStyles.overline.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1,
+                                    shadows: const [
+                                      Shadow(
+                                        color: Color(0x99000000),
+                                        offset: Offset(0, 1),
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(66, 0, 96, 0),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            message,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.h2.copyWith(
+                              color: const Color(0xFFFFF3D0),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x66000000),
+                                  offset: Offset(0, 1),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            packetTypeLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFFFFD9A0),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x66000000),
+                                  offset: Offset(0, 1),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (isClaimed)
+                  Container(
+                    color: Colors.white.withValues(alpha: 0.34),
+                    alignment: Alignment.center,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _packetTypeLabel(AppLocalizations l10n) {
+    switch (packetType?.trim()) {
+      case 'lucky':
+        return l10n.chatRedPacketLucky;
+      case 'normal':
+        return l10n.chatRedPacketNormal;
+      case 'exclusive':
+        return l10n.chatRedPacketExclusive;
+      default:
+        return l10n.chatDetailRedPacket;
+    }
+  }
+}
+
+class ChatRedPacketDetailDialog extends StatefulWidget {
+  const ChatRedPacketDetailDialog({
+    super.key,
+    required this.data,
+    required this.isClaimed,
+    required this.isExpired,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.sender,
+    this.onClaimed,
+  });
+
+  final RedPacketData data;
+  final bool isClaimed;
+  final bool isExpired;
+  final String? senderName;
+  final String? senderAvatarUrl;
+  final String? sender;
+  final VoidCallback? onClaimed;
+
+  @override
+  State<ChatRedPacketDetailDialog> createState() =>
+      _ChatRedPacketDetailDialogState();
+}
+
+class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
+    with TickerProviderStateMixin {
+  late final AnimationController _shakeCtrl;
+  late final AnimationController _flipCtrl;
+  late final AnimationController _scaleCtrl;
+  late final AnimationController _burstCtrl;
+
+  bool _opening = false;
+  late bool _isClaimed;
+
+  @override
+  void initState() {
+    super.initState();
+    _isClaimed = widget.isClaimed;
+
+    /// 🎯 shake
+    _shakeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+
+    /// 🎯 flip（红包“打开”关键）
+    _flipCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    /// 🎯 scale
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    /// 🎯 burst
+    _burstCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+  }
+
+  @override
+  void dispose() {
+    _shakeCtrl.dispose();
+    _flipCtrl.dispose();
+    _scaleCtrl.dispose();
+    _burstCtrl.dispose();
+    super.dispose();
+  }
+
+  // =========================
+  // 🚀 点击开红包
+  // =========================
+  Future<void> _openRedPacket() async {
+    if (_opening || _isClaimed || widget.isExpired) return;
+    _opening = true;
+
+    await _shakeCtrl.forward(from: 0);
+    await _flipCtrl.forward(from: 0);
+    await _scaleCtrl.forward(from: 0);
+    await _burstCtrl.forward(from: 0);
+
+    // TODO: 调接口领取红包
+    if (!mounted) return;
+    setState(() {
+      _isClaimed = true;
+      _opening = false;
+    });
+    widget.onClaimed?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = (size.width * 0.76).clamp(280.0, 360.0);
+    final height = width * 1.58;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: width,
+            height: height,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.asset(
+                      'assets/images/chat/red_packet/dialog_bg.png',
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  top: height * 0.25,
+                  left: 24,
+                  right: 24,
+                  child: _buildContent(context),
+                ),
+
+                Positioned(
+                  bottom: height * 0.05,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomActions(context),
+                ),
+
+                Positioned.fill(child: _buildBurst()),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFFD68A), width: 3),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Color(0xFFFFD68A),
+                size: 28,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpenButton() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        _shakeCtrl,
+        _flipCtrl,
+        _scaleCtrl,
+        _burstCtrl,
+      ]),
+      builder: (context, child) {
+        final shake = sin(_shakeCtrl.value * pi * 6) * 6;
+        final scale = 1.0 + (_scaleCtrl.value * 0.15);
+        final flip = _flipCtrl.value * pi;
+
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..translateByDouble(shake, 0, 0, 1)
+            ..scaleByDouble(scale, scale, 1, 1)
+            ..rotateY(flip),
+          child: GestureDetector(
+            onTap: _openRedPacket,
+            child: Opacity(
+              // flip 到一半逐渐隐藏（模拟“打开”）
+              opacity: _flipCtrl.value > 0.5 ? 0.0 : 1.0,
+              child: Container(
+                width: 98,
+                height: 98,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFFFE7B8),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  "開",
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFE92720),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomActions(BuildContext context) {
+    if (_isClaimed || widget.isExpired) {
+      return _buildViewDetailLink(context);
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildOpenButton(),
+        const SizedBox(height: 14),
+        _buildViewDetailLink(context),
+      ],
+    );
+  }
+
+  Widget _buildBurst() {
+    return AnimatedBuilder(
+      animation: _burstCtrl,
+      builder: (context, child) {
+        if (_burstCtrl.value == 0) return const SizedBox.shrink();
+
+        final progress = _burstCtrl.value;
+
+        return Stack(
+          children: List.generate(14, (i) {
+            final angle = (i / 14) * 2 * pi;
+            final radius = 90 * progress;
+
+            final dx = cos(angle) * radius;
+            final dy = sin(angle) * radius;
+
+            return Positioned(
+              left: 140 + dx,
+              top: 200 + dy,
+              child: Opacity(
+                opacity: 1 - progress,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFFFE0A6),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (widget.isExpired && !_isClaimed) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildSenderRow(),
+          const SizedBox(height: 28),
+          Text(
+            l10n.chatRedPacketExpiredDetail,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.h1.copyWith(
+              color: const Color(0xFFFFF3D0),
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_isClaimed) {
+      final amount = widget.data.amount?.trim().isNotEmpty == true
+          ? widget.data.amount!.trim()
+          : '0';
+      final symbol = widget.data.tokenSymbol?.trim().isNotEmpty == true
+          ? widget.data.tokenSymbol!.trim()
+          : '';
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildSenderRow(),
+          const SizedBox(height: 30),
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              text: amount,
+              style: AppTextStyles.h1.copyWith(
+                color: const Color(0xFFFFF3D0),
+                fontSize: 48,
+                fontWeight: FontWeight.w600,
+                height: 1.1,
+              ),
+              children: [
+                TextSpan(
+                  text: symbol.isEmpty ? '' : ' $symbol',
+                  style: AppTextStyles.h2.copyWith(
+                    color: const Color(0xFFFFF3D0),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final greeting = widget.data.greeting.trim().isNotEmpty
+        ? widget.data.greeting.trim()
+        : l10n.chatRedPacketDefaultBlessing;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildSenderRow(),
+        const SizedBox(height: 14),
+        Text(
+          greeting,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.h1.copyWith(
+            color: const Color(0xFFFFF3D0),
+            fontSize: 26,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSenderRow() {
+    final name = widget.senderName?.trim().isNotEmpty == true
+        ? widget.senderName!.trim()
+        : '';
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        UserAvatarWidget(
+          userId: widget.sender,
+          avatarUrl: widget.senderAvatarUrl,
+          size: 58,
+        ),
+        const SizedBox(height: 8),
+        Flexible(
+          child: Text(
+            name.isEmpty ? '红包' : '$name发的红包',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.h2.copyWith(
+              color: const Color(0xFFFFF3D0),
+              fontSize: 18,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewDetailLink(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        context.push(
+          '/red-packet_detail',
+          extra: {
+            'userId': IMEngineManager().currentUserId,
+            'data': widget.data,
+          },
+        );
+        context.pop();
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            AppLocalizations.of(context)!.chatRedPacketViewDetail,
+            style: AppTextStyles.h2.copyWith(
+              color: const Color(0xFFFFD9A0),
+              fontSize: 18,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(0xFFFFD9A0), size: 26),
+        ],
+      ),
     );
   }
 }

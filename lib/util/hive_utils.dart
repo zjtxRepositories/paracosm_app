@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../modules/dapp/dapp_account_auth_hive.dart';
+import '../modules/im/store/red_packet_claim_store.dart';
 
 class HiveUtils {
   static const hiveSecureKey = 'hiveSecureKey';
@@ -39,10 +40,7 @@ class HiveUtils {
       final key = Hive.generateSecureKey();
       secureKey = hex.encode(key);
 
-      await storage.write(
-        key: hiveSecureKey,
-        value: secureKey,
-      );
+      await storage.write(key: hiveSecureKey, value: secureKey);
 
       return HiveAesCipher(key);
     }
@@ -62,6 +60,7 @@ class HiveUtils {
   // =========================================================
   static Future<void> _openHiveBoxes() async {
     await openEncryptionBox(DAppAccountAuthHive.boxName);
+    await openEncryptionBox(RedPacketClaimStore.boxName);
   }
 
   // =========================================================
@@ -72,10 +71,7 @@ class HiveUtils {
       return Hive.box(name);
     }
 
-    return Hive.openBox(
-      name,
-      encryptionCipher: _cipher,
-    );
+    return Hive.openBox(name, encryptionCipher: _cipher);
   }
 
   // =========================================================

@@ -255,6 +255,68 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatDetailAudioCall => translate('chat_detail_audio_call');
   String get chatDetailRedPacket => translate('chat_detail_red_packet');
   String get chatDetailFile => translate('chat_detail_file');
+  String get chatRedPacketTitle => translate('chat_red_packet_title');
+  String get chatRedPacketLucky => translate('chat_red_packet_lucky');
+  String get chatRedPacketNormal => translate('chat_red_packet_normal');
+  String get chatRedPacketExclusive => translate('chat_red_packet_exclusive');
+  String get chatRedPacketAsset => translate('chat_red_packet_asset');
+  String get chatRedPacketSelectToken =>
+      translate('chat_red_packet_select_token');
+  String get chatRedPacketTotalAmount =>
+      translate('chat_red_packet_total_amount');
+  String get chatRedPacketAmount => translate('chat_red_packet_amount');
+  String get chatRedPacketSingleAmount =>
+      translate('chat_red_packet_single_amount');
+  String chatRedPacketAvailable(String amount) =>
+      translate('chat_red_packet_available').replaceAll('{amount}', amount);
+  String get chatRedPacketCount => translate('chat_red_packet_count');
+  String get chatRedPacketPeople => translate('chat_red_packet_people');
+  String get chatRedPacketSendTo => translate('chat_red_packet_send_to');
+  String get chatRedPacketSelectRecipient =>
+      translate('chat_red_packet_select_recipient');
+  String chatRedPacketGroupCount(int count) => translate(
+    'chat_red_packet_group_count',
+  ).replaceAll('{count}', count.toString());
+  String chatRedPacketSingleCount(int count) => translate(
+    'chat_red_packet_single_count',
+  ).replaceAll('{count}', count.toString());
+  String get chatRedPacketBlessing => translate('chat_red_packet_blessing');
+  String get chatRedPacketDefaultBlessing =>
+      translate('chat_red_packet_default_blessing');
+  String get chatRedPacketEnterAmount =>
+      translate('chat_red_packet_enter_amount');
+  String get chatRedPacketEnterCount =>
+      translate('chat_red_packet_enter_count');
+  String get chatRedPacketSubmit => translate('chat_red_packet_submit');
+  String get chatRedPacketGenerateTitle =>
+      translate('chat_red_packet_generate_title');
+  String get chatRedPacketSend => translate('chat_red_packet_send');
+  String get chatRedPacketMinerFee => translate('chat_red_packet_miner_fee');
+  String get chatRedPacketNetError => translate('chat_red_packet_net_error');
+  String get chatRedPacketPacketType =>
+      translate('chat_red_packet_packet_type');
+  String get chatRedPacketRefundTip => translate('chat_red_packet_refund_tip');
+  String get chatRedPacketInvalidAmount =>
+      translate('chat_red_packet_invalid_amount');
+  String get chatRedPacketInvalidCount =>
+      translate('chat_red_packet_invalid_count');
+  String get chatRedPacketCountOverGroup =>
+      translate('chat_red_packet_count_over_group');
+  String get chatRedPacketSendFailed =>
+      translate('chat_red_packet_send_failed');
+  String get chatRedPacketMissingSession =>
+      translate('chat_red_packet_missing_session');
+  String get chatRedPacketMissingWallet =>
+      translate('chat_red_packet_missing_wallet');
+  String get chatRedPacketTokenComingSoon =>
+      translate('chat_red_packet_token_coming_soon');
+  String get chatRedPacketRecipientComingSoon =>
+      translate('chat_red_packet_recipient_coming_soon');
+  String get chatRedPacketViewDetail =>
+      translate('chat_red_packet_view_detail');
+  String get chatRedPacketExpiredDetail =>
+      translate('chat_red_packet_expired_detail');
+  String get chatRedPacketOpen => translate('chat_red_packet_open');
   String get chatDetailActive => translate('chat_detail_active');
   String get chatDetailCanceled => translate('chat_detail_canceled');
   String chatDetailCallDuration(String duration) =>

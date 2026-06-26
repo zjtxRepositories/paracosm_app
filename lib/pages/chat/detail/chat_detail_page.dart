@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/media_item.dart';
 import '../../../modules/im/listener/im_data_center.dart';
+import '../../../modules/im/listener/user_display_state_center.dart';
+import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/moment_post_share_message.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -151,8 +153,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                             case ChatMoreAction.audioCall:
                               await controller.openCallPage(isVideo: false);
                             case ChatMoreAction.redbag:
-                              // TODO: Handle this case.
-                              throw UnimplementedError();
+                              await controller.toggleRedBag();
                             case ChatMoreAction.file:
                               controller.toggleFile();
                           }
@@ -844,6 +845,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     switch (message.kind) {
       case ChatDetailMessageKind.timestamp:
         return _buildCenterTextMessage(message);
+      case ChatDetailMessageKind.redBagNotice:
+        return _buildRedPacketClaimNotice(message);
       case ChatDetailMessageKind.withdrawnNotice:
         return _buildCenterTextMessage(
           ChatDetailMessage(
@@ -934,6 +937,42 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
+  Widget _buildRedPacketClaimNotice(ChatDetailMessage message) {
+    final name = message.noticeName ?? message.text ?? '';
+    final text = AppLocalizations.of(
+      context,
+    )!.chatDetailReceivedRedPacket(name);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: Image.asset(
+                'assets/images/chat/redbag-active.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.grey500,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageContent(ChatDetailMessage message) {
     switch (message.kind) {
       case ChatDetailMessageKind.text:
@@ -1011,6 +1050,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   extra: {'noteId': noteId},
                 ),
         );
+      case ChatDetailMessageKind.redBag:
+        return ChatRedBagMessageContent(
+          isClaimed: message.isClaimed ?? false,
+          greeting: message.text,
+          tokenSymbol: message.redPacketTokenSymbol,
+          packetType: message.redPacketType,
+          onTap: () => unawaited(_showRedPacketDetail(message)),
+        );
       case ChatDetailMessageKind.call:
         return ChatCallMessageContent(
           text: message.text ?? '',
@@ -1030,6 +1077,62 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final noteId = MomentPostShareData.fromMessage(raw)?.noteId.trim();
     if (noteId == null || noteId.isEmpty) return null;
     return noteId;
+  }
+
+  Future<void> _showRedPacketDetail(ChatDetailMessage message) async {
+    if (_isSelectingMessages) {
+      return;
+    }
+
+    final raw = message.extra;
+    if (raw is! RCIMIWMessage) {
+      return;
+    }
+
+    final redPacket = RedPacketData.fromMessage(raw);
+    if (redPacket == null) {
+      return;
+    }
+
+    String? senderName;
+    final senderUserId = message.senderUserId ?? raw.senderUserId ?? '';
+    if (senderUserId.isNotEmpty) {
+      try {
+        final user = await UserDisplayStateCenter().getUser(senderUserId);
+        final name = user?.name.trim();
+        if (name != null && name.isNotEmpty) {
+          senderName = name;
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => ChatRedPacketDetailDialog(
+        data: redPacket,
+        isClaimed: message.isClaimed ?? redPacket.isClaimed,
+        isExpired: _isRedPacketExpired(message, raw),
+        senderName: senderName,
+        senderAvatarUrl: message.senderAvatarUrl,
+        sender: message.senderUserId,
+        onClaimed: () => controller.markRedPacketClaimed(message.messageId),
+      ),
+    );
+  }
+
+  bool _isRedPacketExpired(ChatDetailMessage message, RCIMIWMessage raw) {
+    final sentTime = message.sentTime ?? raw.sentTime ?? raw.receivedTime;
+    if (sentTime == null || sentTime <= 0) {
+      return false;
+    }
+
+    final elapsed = DateTime.now().millisecondsSinceEpoch - sentTime;
+    return elapsed >= const Duration(hours: 24).inMilliseconds;
   }
 
   Widget _buildVideoMessageContent(ChatDetailMessage message) {

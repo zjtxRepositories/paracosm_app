@@ -15,6 +15,7 @@ enum CustomMessageType {
   groupBanDisabled,
   customFace,
   momentPost,
+  redPacket,
   unknown,
 }
 
@@ -52,6 +53,8 @@ CustomMessageType _typeFromString(String? type) {
       return CustomMessageType.customFace;
     case 'moment_post':
       return CustomMessageType.momentPost;
+    case 'red_packet':
+      return CustomMessageType.redPacket;
     default:
       return CustomMessageType.unknown;
   }
@@ -72,6 +75,12 @@ class CustomMessageModel {
   final String? authorName;
   final String? authorAvatar;
   final int? mediaType;
+  final String? redPacketId;
+  final String? redPacketAmount;
+  final String? redPacketTokenSymbol;
+  final String? redPacketChainId;
+  final String? redPacketType;
+  final bool? redPacketClaimed;
 
   CustomMessageModel({
     required this.type,
@@ -88,6 +97,12 @@ class CustomMessageModel {
     this.authorName,
     this.authorAvatar,
     this.mediaType,
+    this.redPacketId,
+    this.redPacketAmount,
+    this.redPacketTokenSymbol,
+    this.redPacketChainId,
+    this.redPacketType,
+    this.redPacketClaimed,
   });
 
   bool get isNotification {
@@ -109,6 +124,7 @@ class CustomMessageModel {
         return true;
       case CustomMessageType.customFace:
       case CustomMessageType.momentPost:
+      case CustomMessageType.redPacket:
       case CustomMessageType.unknown:
         return false;
     }
@@ -133,6 +149,12 @@ class CustomMessageModel {
       authorName: json['authorName']?.toString(),
       authorAvatar: json['authorAvatar']?.toString(),
       mediaType: _parseInt(json['mediaType']),
+      redPacketId: json['redPacketId']?.toString(),
+      redPacketAmount: json['redPacketAmount']?.toString(),
+      redPacketTokenSymbol: json['redPacketTokenSymbol']?.toString(),
+      redPacketChainId: json['redPacketChainId']?.toString(),
+      redPacketType: json['redPacketType']?.toString(),
+      redPacketClaimed: _parseBool(json['redPacketClaimed']),
     );
   }
 
@@ -174,6 +196,24 @@ class CustomMessageModel {
     if (mediaType != null) {
       json['mediaType'] = mediaType;
     }
+    if (redPacketId != null) {
+      json['redPacketId'] = redPacketId;
+    }
+    if (redPacketAmount != null) {
+      json['redPacketAmount'] = redPacketAmount;
+    }
+    if (redPacketTokenSymbol != null) {
+      json['redPacketTokenSymbol'] = redPacketTokenSymbol;
+    }
+    if (redPacketChainId != null) {
+      json['redPacketChainId'] = redPacketChainId;
+    }
+    if (redPacketType != null) {
+      json['redPacketType'] = redPacketType;
+    }
+    if (redPacketClaimed != null) {
+      json['redPacketClaimed'] = redPacketClaimed;
+    }
     return json;
   }
 
@@ -182,6 +222,23 @@ class CustomMessageModel {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static bool? _parseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      switch (value.toLowerCase()) {
+        case 'true':
+        case '1':
+          return true;
+        case 'false':
+        case '0':
+          return false;
+      }
+    }
     return null;
   }
 
@@ -219,6 +276,8 @@ class CustomMessageModel {
         return 'custom_face';
       case CustomMessageType.momentPost:
         return 'moment_post';
+      case CustomMessageType.redPacket:
+        return 'red_packet';
       case CustomMessageType.unknown:
         return 'unknown';
     }

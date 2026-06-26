@@ -1,9 +1,12 @@
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/core/models/custom_message_model.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
+import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/modules/im/message/custom_face_message.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/modules/im/message/recall_message_formatter.dart';
+import 'package:paracosm/modules/im/store/red_packet_claim_store.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/util/string_util.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
@@ -18,6 +21,7 @@ class ChatDetailMessageMapper {
     List<RCIMIWMessage> messages,
   ) async {
     final result = <ChatDetailMessage>[];
+    final pendingNotices = <ChatDetailMessage>[];
     int? previousTimestamp;
     for (int i = 0; i < messages.length; i++) {
       final message = messages[i];
@@ -33,8 +37,19 @@ class ChatDetailMessageMapper {
         );
       }
 
-      result.add(await mapMessage(message));
+      final mapped = await mapMessage(message);
+      result.add(mapped);
+      if (_shouldAppendRedPacketClaimNotice(mapped)) {
+        final notice = _buildRedPacketClaimNotice(mapped);
+        if (notice != null) {
+          pendingNotices.add(notice);
+        }
+      }
       previousTimestamp = timestamp;
+    }
+
+    for (final notice in pendingNotices) {
+      _insertBySentTime(result, notice);
     }
 
     return result;
@@ -278,6 +293,32 @@ class ChatDetailMessageMapper {
           senderAvatarUrl: senderUserInfo?.avatar,
         );
       }
+      final redPacket = RedPacketData.fromMessage(message);
+      if (redPacket != null) {
+        final senderName = senderUserInfo?.name;
+        return ChatDetailMessage(
+          messageId: messageKey,
+          kind: ChatDetailMessageKind.redBag,
+          isMe: isMe,
+          isSending: isSending,
+          showBubble: false,
+          sentTime: sentTime,
+          text: redPacket.greeting.isNotEmpty
+              ? redPacket.greeting
+              : AppLocalizations.currentText('chat_detail_red_packet'),
+          isClaimed: redPacket.isClaimed,
+          redPacketAmount: redPacket.amount,
+          redPacketTokenSymbol: redPacket.tokenSymbol,
+          redPacketType: redPacket.packetType,
+          extra: message,
+          showReadReceipt: _shouldShowReadReceipt(message, isMe),
+          isRead: _isReadReceiptRead(message),
+          groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar,
+          noticeName: senderName,
+        );
+      }
       MessageModel model = MessageModel(item: message);
       final content = await model.formatCustomContent();
       return ChatDetailMessage(
@@ -301,7 +342,6 @@ class ChatDetailMessageMapper {
         extra: message,
       );
     }
-      print('message----${message.messageType}');
     return ChatDetailMessage(
       messageId: messageKey,
       kind: ChatDetailMessageKind.text,
@@ -345,7 +385,8 @@ class ChatDetailMessageMapper {
         message is RCIMIWCombineV2Message ||
         message.messageType == RCIMIWMessageType.combineV2 ||
         ChatCustomFace.fromMessage(message) != null ||
-        MomentPostShareData.fromMessage(message) != null;
+        MomentPostShareData.fromMessage(message) != null ||
+        RedPacketData.fromMessage(message) != null;
   }
 
   static bool supportsReadReceiptKind(ChatDetailMessageKind kind) {
@@ -356,7 +397,8 @@ class ChatDetailMessageMapper {
         kind == ChatDetailMessageKind.file ||
         kind == ChatDetailMessageKind.combineForward ||
         kind == ChatDetailMessageKind.customFace ||
-        kind == ChatDetailMessageKind.momentPost;
+        kind == ChatDetailMessageKind.momentPost ||
+        kind == ChatDetailMessageKind.redBag;
   }
 
   static bool _shouldShowReadReceipt(RCIMIWMessage message, bool isMe) {
@@ -438,6 +480,12 @@ class ChatDetailMessageMapper {
             ? momentPost.postContent
             : AppLocalizations.currentText('moments_moment_title');
       }
+      final redPacket = RedPacketData.fromMessage(message);
+      if (redPacket != null) {
+        return redPacket.greeting.isNotEmpty
+            ? redPacket.greeting
+            : AppLocalizations.currentText('chat_detail_red_packet');
+      }
       final model = MessageModel(item: message);
       final content = await model.formatCustomContent();
       return content.isNotEmpty
@@ -490,5 +538,67 @@ class ChatDetailMessageMapper {
       message.messageType?.index ?? -1,
       mediaPath,
     ].join(':');
+  }
+
+  static bool _shouldAppendRedPacketClaimNotice(ChatDetailMessage message) {
+    return message.kind == ChatDetailMessageKind.redBag &&
+        message.isClaimed == true;
+  }
+
+  static ChatDetailMessage? _buildRedPacketClaimNotice(
+    ChatDetailMessage message,
+  ) {
+    final raw = message.extra;
+    if (raw is! RCIMIWCustomMessage) {
+      return null;
+    }
+
+    final redPacket = RedPacketData.fromMessage(raw);
+    if (redPacket == null || redPacket.redPacketId.isEmpty) {
+      return null;
+    }
+
+    final fields = raw.fields;
+    final model = fields == null
+        ? null
+        : CustomMessageModel.fromJson(
+            fields.map((key, value) => MapEntry(key.toString(), value)),
+          );
+    final claimedUserId =
+        IMEngineManager().currentUserId ?? model?.toUserId.trim();
+    final claimedAt =
+        RedPacketClaimStore.claimedAt(
+          redPacket.redPacketId,
+          userId: claimedUserId,
+        ) ??
+        message.sentTime;
+    if (claimedAt == null || claimedAt <= 0) {
+      return null;
+    }
+
+    return ChatDetailMessage(
+      messageId: 'red_packet_claim_notice_${message.messageId}',
+      kind: ChatDetailMessageKind.redBagNotice,
+      showBubble: false,
+      text: message.noticeName ?? message.senderUserId ?? '',
+      noticeName: message.noticeName ?? message.senderUserId ?? '',
+      sentTime: claimedAt,
+    );
+  }
+
+  static void _insertBySentTime(
+    List<ChatDetailMessage> messages,
+    ChatDetailMessage item,
+  ) {
+    final time = item.sentTime ?? 0;
+    var index = messages.length;
+    for (var i = 0; i < messages.length; i++) {
+      final current = messages[i].sentTime ?? 0;
+      if (current > time) {
+        index = i;
+        break;
+      }
+    }
+    messages.insert(index, item);
   }
 }

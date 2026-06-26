@@ -23,6 +23,7 @@ class AppModal extends StatelessWidget {
   final VoidCallback onConfirm;
   final VoidCallback? onCancel;
   final bool? contentPadding;
+  final bool closeButtonOnLeft;
 
   const AppModal({
     super.key,
@@ -43,6 +44,7 @@ class AppModal extends StatelessWidget {
     required this.onConfirm,
     this.onCancel,
     this.contentPadding,
+    this.closeButtonOnLeft = false,
   });
 
   /// 显示弹窗的静态方法
@@ -63,6 +65,8 @@ class AppModal extends StatelessWidget {
     Widget? icon,
     Widget? child,
     bool? contentPadding,
+    bool closeButtonOnLeft = false,
+    Color? barrierColor,
     required VoidCallback onConfirm,
     VoidCallback? onCancel,
   }) {
@@ -71,6 +75,7 @@ class AppModal extends StatelessWidget {
       isScrollControlled: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
+      barrierColor: barrierColor,
       builder: (context) => AppModal(
         title: title,
         titleWidget: titleWidget,
@@ -88,6 +93,7 @@ class AppModal extends StatelessWidget {
         onConfirm: onConfirm,
         onCancel: onCancel,
         contentPadding: contentPadding,
+        closeButtonOnLeft: closeButtonOnLeft,
         child: child,
       ),
     );
@@ -142,33 +148,27 @@ class AppModal extends StatelessWidget {
                 padding: contentPadding == null
                     ? EdgeInsets.all(0)
                     : EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child:
-                          titleWidget ??
-                          Text(
-                            title,
-                            style: AppTextStyles.h2.copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.grey900,
-                            ),
+                child: closeButtonOnLeft
+                    ? Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildCloseButton(context),
                           ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Image.asset(
-                        'assets/images/wallet/x.png',
-                        width: 24,
-                        height: 24,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.close, color: AppColors.grey900),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 36),
+                            child: Center(child: _buildTitle()),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: _buildTitle()),
+                          _buildCloseButton(context),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
 
               Container(
@@ -241,6 +241,32 @@ class AppModal extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTitle() {
+    return titleWidget ??
+        Text(
+          title,
+          textAlign: closeButtonOnLeft ? TextAlign.center : TextAlign.start,
+          style: AppTextStyles.h2.copyWith(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.grey900,
+          ),
+        );
+  }
+
+  Widget _buildCloseButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.pop(context),
+      child: Image.asset(
+        'assets/images/wallet/x.png',
+        width: 24,
+        height: 24,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.close, color: AppColors.grey900),
       ),
     );
   }

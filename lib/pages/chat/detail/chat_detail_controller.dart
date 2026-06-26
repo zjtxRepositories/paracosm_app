@@ -40,6 +40,7 @@ import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/custom_message_identity.dart';
 import '../../../modules/im/message/custom_face_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
+import '../../../modules/im/store/red_packet_claim_store.dart';
 import '../../../modules/manager/voice_player_manager.dart';
 import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
@@ -276,6 +277,77 @@ class ChatDetailController extends ChangeNotifier {
 
   ValueListenable<FileDownloadState> fileDownloadListenable(String messageId) {
     return _fileDownloadNotifier(messageId);
+  }
+
+  Future<void> markRedPacketClaimed(String messageId) async {
+    ChatDetailMessage? claimedMessage;
+
+    engine.updateWhere(
+      (message) =>
+          message.messageId == messageId &&
+          message.kind == ChatDetailMessageKind.redBag &&
+          message.isClaimed != true,
+      (message) {
+        final raw = message.extra;
+        if (raw is RCIMIWCustomMessage) {
+          raw.fields?['redPacketClaimed'] = true;
+        }
+        claimedMessage = message.copyWith(isClaimed: true, extra: raw);
+        return claimedMessage!;
+      },
+    );
+
+    if (claimedMessage == null) {
+      return;
+    }
+
+    final raw = claimedMessage!.extra;
+    final redPacket = raw is RCIMIWMessage
+        ? RedPacketData.fromMessage(raw)
+        : null;
+    final senderName = await _senderName(claimedMessage!.senderUserId);
+    final claimedAt = DateTime.now().millisecondsSinceEpoch;
+    if (redPacket != null && redPacket.redPacketId.isNotEmpty) {
+      await RedPacketClaimStore.markClaimed(
+        redPacket.redPacketId,
+        claimedAt: claimedAt,
+      );
+    }
+
+    _insertRedPacketClaimNotice(
+      redPacketMessage: claimedMessage!,
+      senderName: senderName,
+      claimedAt: claimedAt,
+    );
+  }
+
+  void _insertRedPacketClaimNotice({
+    required ChatDetailMessage redPacketMessage,
+    required String senderName,
+    required int claimedAt,
+  }) {
+    final noticeId = 'red_packet_claim_notice_${redPacketMessage.messageId}';
+    if (engine.containsId(noticeId)) {
+      return;
+    }
+
+    final notice = ChatDetailMessage(
+      kind: ChatDetailMessageKind.redBagNotice,
+      messageId: noticeId,
+      showBubble: false,
+      text: senderName,
+      noticeName: senderName,
+      sentTime: claimedAt,
+    );
+
+    final index = engine.list.indexWhere(
+      (message) => (message.sentTime ?? 0) > claimedAt,
+    );
+    if (index >= 0) {
+      engine.insertAt(index, notice);
+    } else {
+      engine.append(notice);
+    }
   }
 
   bool get hasAnchor => args?.anchorSentTime != null;
@@ -1007,6 +1079,7 @@ class ChatDetailController extends ChangeNotifier {
       case 'RC:TxtMsg':
         return RCIMIWMessageType.text;
       case 'RC:IWNormalMsg':
+      case RedPacketMessage.messageIdentifier:
         return RCIMIWMessageType.custom;
       case 'RC:ImgMsg':
         return RCIMIWMessageType.image;
@@ -2386,6 +2459,25 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     await handleAssetEntity(entity);
+  }
+
+  Future<void> toggleRedBag() async {
+    final currentContext = context;
+    final session = args;
+    if (currentContext == null || session == null) {
+      return;
+    }
+
+    FocusScope.of(currentContext).unfocus();
+    isMenuExpanded = false;
+    isEmojiPanelExpanded = false;
+    isVoiceMode = false;
+    notifyListeners();
+
+    await currentContext.push(
+      '/chat-red-packet',
+      extra: {'args': session, 'memberCount': memberCount},
+    );
   }
 
   Future<void> toggleFile() async {

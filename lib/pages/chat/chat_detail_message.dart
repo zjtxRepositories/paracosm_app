@@ -38,6 +38,9 @@ class ChatDetailMessage {
     this.contactName,
     this.avatarPath,
     this.isClaimed,
+    this.redPacketAmount,
+    this.redPacketTokenSymbol,
+    this.redPacketType,
     this.noticeName,
     this.thumbnailBase64String,
     this.path,
@@ -75,6 +78,9 @@ class ChatDetailMessage {
   final String? contactName;
   final String? avatarPath;
   final bool? isClaimed;
+  final String? redPacketAmount;
+  final String? redPacketTokenSymbol;
+  final String? redPacketType;
   final String? noticeName;
   final String? thumbnailBase64String;
   final String? path;
@@ -101,6 +107,8 @@ class ChatDetailMessage {
     bool? isMe,
     bool? isUnread,
     bool? showBubble,
+    String? senderUserId,
+    String? senderAvatarUrl,
     int? sentTime,
     String? text,
     String? imagePath,
@@ -111,6 +119,9 @@ class ChatDetailMessage {
     String? contactName,
     String? avatarPath,
     bool? isClaimed,
+    String? redPacketAmount,
+    String? redPacketTokenSymbol,
+    String? redPacketType,
     String? noticeName,
     String? thumbnailBase64String,
     String? path,
@@ -147,6 +158,9 @@ class ChatDetailMessage {
       contactName: contactName ?? this.contactName,
       avatarPath: avatarPath ?? this.avatarPath,
       isClaimed: isClaimed ?? this.isClaimed,
+      redPacketAmount: redPacketAmount ?? this.redPacketAmount,
+      redPacketTokenSymbol: redPacketTokenSymbol ?? this.redPacketTokenSymbol,
+      redPacketType: redPacketType ?? this.redPacketType,
       noticeName: noticeName ?? this.noticeName,
       thumbnailBase64String:
           thumbnailBase64String ?? this.thumbnailBase64String,
@@ -167,7 +181,8 @@ class ChatDetailMessage {
       showReadReceipt: showReadReceipt ?? this.showReadReceipt,
       isRead: isRead ?? this.isRead,
       groupReadCount: groupReadCount ?? this.groupReadCount,
-      senderUserId: senderUserId,
+      senderUserId: senderUserId ?? this.senderUserId,
+      senderAvatarUrl: senderAvatarUrl ?? this.senderAvatarUrl,
     );
   }
 }

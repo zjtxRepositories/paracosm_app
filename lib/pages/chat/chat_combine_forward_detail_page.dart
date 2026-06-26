@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/modules/im/message/moment_post_share_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
@@ -482,6 +483,9 @@ class _ChatCombineForwardDetailPageState
         return RCIMIWMessageType.reference;
       case 'RC:CombineV2Msg':
         return RCIMIWMessageType.combineV2;
+      case 'RC:IWNormalMsg':
+      case RedPacketMessage.messageIdentifier:
+        return RCIMIWMessageType.custom;
       case RongCallSummaryParser.objectName:
         return RCIMIWMessageType.unknown;
       default:
@@ -680,6 +684,13 @@ class _ChatCombineForwardDetailPageState
                   '/moment-post-detail',
                   extra: {'noteId': noteId},
                 ),
+        );
+      case ChatDetailMessageKind.redBag:
+        return ChatRedBagMessageContent(
+          isClaimed: message.isClaimed ?? false,
+          greeting: message.text,
+          tokenSymbol: message.redPacketTokenSymbol,
+          packetType: message.redPacketType,
         );
       case ChatDetailMessageKind.call:
         return ChatCallMessageContent(

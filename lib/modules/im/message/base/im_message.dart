@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/models/custom_message_model.dart';
 import '../../manager/im_engine_manager.dart';
+import '../../store/red_packet_claim_store.dart';
 
 abstract class ImMessage {
   ImMessage({this.destructDuration});
@@ -374,5 +375,126 @@ class VoiceMessage extends ImMessage {
     videoMsg?.sentTime = DateTime.now().millisecondsSinceEpoch;
     applyMessageOptions(videoMsg);
     return videoMsg;
+  }
+}
+
+class RedPacketMessage extends ImMessage {
+  RedPacketMessage({
+    required this.conversationType,
+    required this.targetId,
+    required this.data,
+    this.channelId,
+    super.destructDuration,
+  });
+
+  static const messageIdentifier = 'PARA:RedPacket';
+
+  final RCIMIWConversationType conversationType;
+  final String targetId;
+  final String? channelId;
+  final RedPacketData data;
+
+  @override
+  RCIMIWMessageType get type => RCIMIWMessageType.custom;
+
+  @override
+  Future<RCIMIWMessage?> toRCMessage() async {
+    final currentUserId = IMEngineManager().currentUserId ?? '';
+    final msg = await IMEngineManager().engine?.createCustomMessage(
+      conversationType,
+      targetId,
+      channelId,
+      RCIMIWCustomMessagePolicy.normal,
+      messageIdentifier,
+      data.toFields(fromUserId: currentUserId, toUserId: targetId),
+    );
+
+    msg?.senderUserId = currentUserId;
+    msg?.sentTime = DateTime.now().millisecondsSinceEpoch;
+    applyMessageOptions(msg);
+    return msg;
+  }
+}
+
+class RedPacketData {
+  const RedPacketData({
+    required this.redPacketId,
+    this.greeting = '',
+    this.amount,
+    this.tokenSymbol,
+    this.chainId,
+    this.packetType,
+    this.recipientUserId,
+    this.isClaimed = false,
+  });
+
+  final String redPacketId;
+  final String greeting;
+  final String? amount;
+  final String? tokenSymbol;
+  final String? chainId;
+  final String? packetType;
+  final String? recipientUserId;
+  final bool isClaimed;
+
+  Map<String, dynamic> toFields({
+    required String fromUserId,
+    required String toUserId,
+  }) {
+    return CustomMessageModel(
+      type: CustomMessageType.redPacket,
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      content: greeting,
+      redPacketId: redPacketId,
+      redPacketAmount: amount,
+      redPacketTokenSymbol: tokenSymbol,
+      redPacketChainId: chainId,
+      redPacketType: packetType,
+      redPacketClaimed: isClaimed,
+      userIds: recipientUserId == null || recipientUserId!.isEmpty
+          ? null
+          : [recipientUserId!],
+    ).toJson();
+  }
+
+  static RedPacketData? fromFields(Map? fields, {String? claimedUserId}) {
+    if (fields == null) return null;
+
+    final model = CustomMessageModel.fromJson(
+      fields.map((key, value) => MapEntry(key.toString(), value)),
+    );
+    if (model.type != CustomMessageType.redPacket) {
+      return null;
+    }
+
+    final redPacketId = model.redPacketId?.trim() ?? '';
+    final resolvedClaimedUserId = claimedUserId ?? model.toUserId.trim();
+    final isClaimed =
+        model.redPacketClaimed == true ||
+        (redPacketId.isNotEmpty &&
+            RedPacketClaimStore.isClaimed(
+              redPacketId,
+              userId: resolvedClaimedUserId,
+            ));
+
+    return RedPacketData(
+      redPacketId: redPacketId,
+      greeting: model.content?.trim() ?? '',
+      amount: model.redPacketAmount?.trim(),
+      tokenSymbol: model.redPacketTokenSymbol?.trim(),
+      chainId: model.redPacketChainId?.trim(),
+      packetType: model.redPacketType?.trim(),
+      recipientUserId: model.userIds?.firstOrNull?.trim(),
+      isClaimed: isClaimed,
+    );
+  }
+
+  static RedPacketData? fromMessage(
+    RCIMIWMessage message, {
+    String? claimedUserId,
+  }) {
+    if (message is! RCIMIWCustomMessage) return null;
+    return fromFields(message.fields, claimedUserId: claimedUserId);
   }
 }

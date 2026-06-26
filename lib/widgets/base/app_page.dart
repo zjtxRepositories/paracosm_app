@@ -29,6 +29,7 @@ class AppPage extends StatelessWidget {
     this.extendBodyBehindAppBar = false,
     this.showNavBorder = false, // 是否显示导航栏底部边框
     this.navBorderColor = AppColors.grey100, // 导航栏边框颜色
+    this.resizeToAvoidBottomInset,
   });
 
   /// 页面主内容
@@ -91,6 +92,9 @@ class AppPage extends StatelessWidget {
   /// 导航栏边框颜色
   final Color navBorderColor;
 
+  /// 键盘弹起时是否自动缩小页面主体
+  final bool? resizeToAvoidBottomInset;
+
   @override
   Widget build(BuildContext context) {
     // 1. 处理返回拦截逻辑 (Flutter 3.12+ 推荐用法)
@@ -98,23 +102,25 @@ class AppPage extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            backTheme == Brightness.light ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: backTheme == Brightness.light
+            ? Brightness.dark
+            : Brightness.light,
         statusBarBrightness: backTheme,
       ),
       child: PopScope(
         canPop: onBeforeBack == null,
         onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            if (onBeforeBack != null) {
-              final shouldPop = await onBeforeBack!();
-              if (shouldPop && context.mounted && context.canPop()) {
-                context.pop();
-              }
+          if (didPop) return;
+          if (onBeforeBack != null) {
+            final shouldPop = await onBeforeBack!();
+            if (shouldPop && context.mounted && context.canPop()) {
+              context.pop();
             }
-          },
+          }
+        },
         child: Scaffold(
           backgroundColor: backgroundColor,
+          resizeToAvoidBottomInset: resizeToAvoidBottomInset,
           extendBodyBehindAppBar: !showNav ? true : extendBodyBehindAppBar,
           // 2. 动态渲染顶部导航栏 (AppBar)
           appBar: _buildAppBar(context),
@@ -164,10 +170,7 @@ class AppPage extends StatelessWidget {
       elevation: 0,
       centerTitle: true,
       title: title != null
-          ? Text(
-              title!,
-              style: AppTextStyles.h2.copyWith(color: titleColor),
-            )
+          ? Text(title!, style: AppTextStyles.h2.copyWith(color: titleColor))
           : null,
       leading: showBack
           ? IconButton(
@@ -192,23 +195,21 @@ class AppPage extends StatelessWidget {
       bottom: appBarBottom,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            backTheme == Brightness.light ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: backTheme == Brightness.light
+            ? Brightness.dark
+            : Brightness.light,
         statusBarBrightness: backTheme,
       ),
     );
 
     if (showNavBorder) {
       return PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight + (appBarBottom?.preferredSize.height ?? 0)),
+        preferredSize: Size.fromHeight(
+          kToolbarHeight + (appBarBottom?.preferredSize.height ?? 0),
+        ),
         child: Container(
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: navBorderColor,
-                width: 1,
-              ),
-            ),
+            border: Border(bottom: BorderSide(color: navBorderColor, width: 1)),
           ),
           child: appBar,
         ),

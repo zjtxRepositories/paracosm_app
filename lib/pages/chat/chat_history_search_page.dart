@@ -457,6 +457,11 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage> {
         return text?.isNotEmpty == true
             ? text!
             : AppLocalizations.of(context)!.momentsMomentTitle;
+      case ChatDetailMessageKind.redBag:
+        final text = message.text?.trim();
+        return text?.isNotEmpty == true
+            ? text!
+            : AppLocalizations.of(context)!.chatDetailRedPacket;
       case ChatDetailMessageKind.voice:
         return AppLocalizations.of(context)!.chatVoice;
       case ChatDetailMessageKind.video:

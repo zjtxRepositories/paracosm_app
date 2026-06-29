@@ -8,6 +8,7 @@ import 'package:paracosm/core/network/api/api_paths.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/invite/service/invite_access_token_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
+import 'package:paracosm/util/string_util.dart';
 
 typedef RedPacketSignatureProvider =
     Future<String> Function(String userId, String message);
@@ -84,12 +85,18 @@ class RedPacketBalance {
   final String display;
 
   factory RedPacketBalance.fromJson(Map json) {
+    final decimals = _int(json['decimals'], fallback: 18);
+    final available = _string(json['available']);
     return RedPacketBalance(
       assetId: _string(json['asset_id'] ?? json['assetId']),
       symbol: _string(json['symbol']),
-      decimals: _int(json['decimals'], fallback: 18),
-      available: _string(json['available']),
-      display: _string(json['display']),
+      decimals: decimals,
+      available: available,
+      display: _formatTokenUnitsString(
+        available,
+        decimals,
+        fallback: _string(json['display']),
+      ),
     );
   }
 }
@@ -146,7 +153,7 @@ class RedPacketGrabResult {
       assetId: _string(json['asset_id'] ?? json['assetId']),
       symbol: _string(json['symbol']),
       amount: _string(json['amount']),
-      display: _string(json['display']),
+      display: _formatDisplayString(_string(json['display'])),
       finished: _bool(json['finished']),
     );
   }
@@ -169,7 +176,7 @@ class RedPacketReceive {
     return RedPacketReceive(
       receiver: _string(json['receiver']),
       amount: _string(json['amount']),
-      display: _string(json['display']),
+      display: _formatDisplayString(_string(json['display'])),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
     );
   }
@@ -236,7 +243,9 @@ class RedPacketInfo {
       remainingAmount: _string(
         json['remaining_amount'] ?? json['remainingAmount'],
       ),
-      totalDisplay: _string(json['total_display'] ?? json['totalDisplay']),
+      totalDisplay: _formatDisplayString(
+        _string(json['total_display'] ?? json['totalDisplay']),
+      ),
       greeting: _string(json['greeting']),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
       expireTime: _nullableInt(json['expire_time'] ?? json['expireTime']),
@@ -289,7 +298,7 @@ class RedPacketMineItem {
       count: _int(json['count']),
       remainingCount: _int(json['remaining_count'] ?? json['remainingCount']),
       totalAmount: _string(json['total_amount'] ?? json['totalAmount']),
-      totalDisplay: _nullableString(
+      totalDisplay: _formatNullableDisplayString(
         json['total_display'] ?? json['totalDisplay'],
       ),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
@@ -703,4 +712,32 @@ bool _bool(dynamic value) {
 List _list(dynamic value) {
   if (value is List) return value;
   return const [];
+}
+
+String _formatTokenUnitsString(
+  String value,
+  int decimals, {
+  String fallback = '',
+}) {
+  try {
+    final text = value.trim();
+    if (text.isEmpty) return _formatDisplayString(fallback);
+    return formatTokenUnits(BigInt.parse(text), decimals);
+  } catch (_) {
+    return _formatDisplayString(fallback.isNotEmpty ? fallback : value);
+  }
+}
+
+String? _formatNullableDisplayString(dynamic value) {
+  final text = _nullableString(value);
+  if (text == null) return null;
+  return _formatDisplayString(text);
+}
+
+String _formatDisplayString(String value) {
+  try {
+    return formatTokenDecimalString(value);
+  } catch (_) {
+    return value.trim();
+  }
 }

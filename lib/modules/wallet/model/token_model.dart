@@ -94,19 +94,7 @@ class TokenModel {
     return balance / divisor;
   }
 
-  String get displayBalance {
-    final divisor = BigInt.from(10).pow(decimals);
-
-    final integer = balance ~/ divisor;
-    final decimal = balance % divisor;
-
-    String decimalStr = decimal.toString().padLeft(decimals, '0');
-    decimalStr = decimalStr.replaceFirst(RegExp(r'0+$'), '');
-
-    if (decimalStr.isEmpty) return integer.toString();
-
-    return "$integer.$decimalStr";
-  }
+  String get displayBalance => formatTokenUnits(balance, decimals);
 
   double get usdValue {
     final divisor = BigInt.from(10).pow(decimals);

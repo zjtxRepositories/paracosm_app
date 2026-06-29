@@ -27,6 +27,75 @@ String _truncate(double value, int digits) {
   return decimal.isEmpty ? parts[0] : '${parts[0]}.$decimal';
 }
 
+String formatTokenUnits(
+  BigInt amount,
+  int decimals, {
+  int fractionDigits = 4,
+  bool showLessThan = true,
+}) {
+  if (amount == BigInt.zero) return '0';
+
+  final sign = amount.isNegative ? '-' : '';
+  final absAmount = amount.abs();
+  final safeDecimals = decimals < 0 ? 0 : decimals;
+  final safeDigits = fractionDigits < 0 ? 0 : fractionDigits;
+  final divisor = BigInt.from(10).pow(safeDecimals);
+
+  if (showLessThan &&
+      safeDigits > 0 &&
+      absAmount * BigInt.from(10).pow(safeDigits) < divisor) {
+    return '$sign< ${_minTokenDisplay(safeDigits)}';
+  }
+
+  final integer = absAmount ~/ divisor;
+  final decimal = absAmount % divisor;
+  if (safeDigits == 0 || decimal == BigInt.zero) {
+    return '$sign$integer';
+  }
+
+  var decimalStr = decimal.toString().padLeft(safeDecimals, '0');
+  decimalStr = decimalStr.substring(0, safeDigits.clamp(0, decimalStr.length));
+  decimalStr = decimalStr.replaceFirst(RegExp(r'0+$'), '');
+
+  return decimalStr.isEmpty ? '$sign$integer' : '$sign$integer.$decimalStr';
+}
+
+String formatTokenDecimalString(
+  String value, {
+  int fractionDigits = 4,
+  bool showLessThan = true,
+}) {
+  final text = value.trim();
+  if (text.isEmpty) return '0';
+  if (text.startsWith('<')) {
+    return '< ${text.substring(1).trim()}';
+  }
+
+  final sign = text.startsWith('-') ? '-' : '';
+  final unsigned = text.startsWith('-') || text.startsWith('+')
+      ? text.substring(1)
+      : text;
+  final parts = unsigned.split('.');
+  final integerText = parts.isNotEmpty && parts.first.isNotEmpty
+      ? parts.first
+      : '0';
+  final decimalText = parts.length > 1 ? parts.sublist(1).join() : '';
+  final rawDigits = '$integerText$decimalText'.replaceFirst(RegExp(r'^0+'), '');
+  final amount = rawDigits.isEmpty ? BigInt.zero : BigInt.parse(rawDigits);
+
+  return formatTokenUnits(
+    sign == '-' ? -amount : amount,
+    decimalText.length,
+    fractionDigits: fractionDigits,
+    showLessThan: showLessThan,
+  );
+}
+
+String _minTokenDisplay(int fractionDigits) {
+  if (fractionDigits <= 0) return '1';
+  return '0.${'0' * (fractionDigits - 1)}1';
+}
+
 String ellipsisMiddle(String text, {int head = 7, int tail = 7}) {
   if (text.length <= head + tail) return text;
   return '${text.substring(0, head)}...${text.substring(text.length - tail)}';

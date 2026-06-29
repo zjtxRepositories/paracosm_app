@@ -128,6 +128,15 @@
         "coinId": "binancecoin",
         "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
         "native": 1
+      },
+      {
+        "symbol": "USDT",
+        "address": "0x3F4b84B037EAdB4d3D3D7f44F4BFccea53Cf1Dd1",
+        "decimals": 18,
+        "name": "USDT",
+        "coinId": "tether",
+        "version": 1,
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png"
       }
     ]
   },

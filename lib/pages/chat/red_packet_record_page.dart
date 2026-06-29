@@ -44,13 +44,14 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   Future<void> _loadSentRecords() async {
     setState(() => _loadingSent = true);
     try {
-      final records = await RedPacketApi.mine(limit: 50);
+      final records = await RedPacketApi.mine();
       if (!mounted) return;
       setState(() {
         _sentRecords = records;
         _loadingSent = false;
       });
-    } catch (_) {
+    } catch (e) {
+      print('_loadSentRecords-----$e');
       if (!mounted) return;
       setState(() => _loadingSent = false);
     }

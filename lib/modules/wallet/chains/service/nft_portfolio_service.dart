@@ -131,6 +131,7 @@ class NftPortfolioService {
     required int generation,
     required bool forceRefresh,
   }) async {
+    return;
     final unsupported = !AlchemyNftApi.supportsChain(chain.chainId);
     if (unsupported) {
       await _syncStateDao.upsertState(

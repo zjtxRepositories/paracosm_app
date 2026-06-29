@@ -332,6 +332,32 @@ class ChatDetailMessageMapper {
       );
     }
     if (message.messageType == RCIMIWMessageType.nativeCustom) {
+      final redPacket = RedPacketData.fromMessage(message);
+      if (redPacket != null) {
+        final senderName = senderUserInfo?.name;
+        return ChatDetailMessage(
+          messageId: messageKey,
+          kind: ChatDetailMessageKind.redBag,
+          isMe: isMe,
+          isSending: isSending,
+          showBubble: false,
+          sentTime: sentTime,
+          text: redPacket.greeting.isNotEmpty
+              ? redPacket.greeting
+              : AppLocalizations.currentText('chat_detail_red_packet'),
+          isClaimed: redPacket.isClaimed,
+          redPacketAmount: redPacket.amount,
+          redPacketTokenSymbol: redPacket.tokenSymbol,
+          redPacketType: redPacket.packetType,
+          extra: message,
+          showReadReceipt: _shouldShowReadReceipt(message, isMe),
+          isRead: _isReadReceiptRead(message),
+          groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar,
+          noticeName: senderName,
+        );
+      }
       return ChatDetailMessage(
         messageId: messageKey,
         kind: ChatDetailMessageKind.unknown,
@@ -447,6 +473,13 @@ class ChatDetailMessageMapper {
       return AppLocalizations.currentText('chat_detail_history');
     }
 
+    final redPacket = RedPacketData.fromMessage(message);
+    if (redPacket != null) {
+      return redPacket.greeting.isNotEmpty
+          ? redPacket.greeting
+          : AppLocalizations.currentText('chat_detail_red_packet');
+    }
+
     if (message is RCIMIWTextMessage) {
       final text = message.text;
       return (text?.isNotEmpty ?? false)
@@ -479,12 +512,6 @@ class ChatDetailMessageMapper {
         return momentPost.postContent.isNotEmpty
             ? momentPost.postContent
             : AppLocalizations.currentText('moments_moment_title');
-      }
-      final redPacket = RedPacketData.fromMessage(message);
-      if (redPacket != null) {
-        return redPacket.greeting.isNotEmpty
-            ? redPacket.greeting
-            : AppLocalizations.currentText('chat_detail_red_packet');
       }
       final model = MessageModel(item: message);
       final content = await model.formatCustomContent();

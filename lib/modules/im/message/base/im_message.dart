@@ -506,8 +506,14 @@ class RedPacketData {
     RCIMIWMessage message, {
     String? claimedUserId,
   }) {
-    if (message is! RCIMIWCustomMessage) return null;
-    return fromFields(message.fields, claimedUserId: claimedUserId);
+    if (message is RCIMIWCustomMessage) {
+      return fromFields(message.fields, claimedUserId: claimedUserId);
+    }
+    if (message is RCIMIWNativeCustomMessage &&
+        message.messageIdentifier == RedPacketMessage.serverMessageIdentifier) {
+      return fromFields(message.fields, claimedUserId: claimedUserId);
+    }
+    return null;
   }
 
   static Map<String, dynamic> _normalizeFields(Map fields) {

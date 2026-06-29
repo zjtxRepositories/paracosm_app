@@ -5,6 +5,7 @@ import 'package:paracosm/modules/call/rong_call_invite_update_message.dart';
 import 'package:paracosm/modules/call/rong_call_join_request_message.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
+import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../manager/im_engine_manager.dart';
@@ -60,6 +61,10 @@ class ImInit {
       RongCallJoinRequestMessage.objectName,
       RCIMIWNativeCustomMessagePersistentFlag.status,
     );
+    final redPacketCode = await engine.registerNativeCustomMessage(
+      RedPacketMessage.serverMessageIdentifier,
+      RCIMIWNativeCustomMessagePersistentFlag.persisted,
+    );
 
     if (kDebugMode && code != 0) {
       debugPrint('register call summary message failed: $code');
@@ -76,6 +81,9 @@ class ImInit {
     }
     if (kDebugMode && joinRequestCode != 0) {
       debugPrint('register call join request message failed: $joinRequestCode');
+    }
+    if (kDebugMode && redPacketCode != 0) {
+      debugPrint('register red packet message failed: $redPacketCode');
     }
   }
 }

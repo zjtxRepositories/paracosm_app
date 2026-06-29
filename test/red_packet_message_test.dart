@@ -165,6 +165,41 @@ void main() {
       expect(detail.isClaimed, false);
     });
 
+    test(
+      'maps server pushed red packet native message to red bag card',
+      () async {
+        UserDisplayStateCenter().updateUserProfile(
+          RCIMIWUserProfile.create(userId: 'sender-server'),
+        );
+        final message = RCIMIWNativeCustomMessage.fromJson({
+          'messageId': 3003,
+          'messageType': RCIMIWMessageType.nativeCustom.index,
+          'messageIdentifier': RedPacketMessage.serverMessageIdentifier,
+          'conversationType': RCIMIWConversationType.group.index,
+          'senderUserId': 'sender-server',
+          'fields': {
+            'packetNo': 'rp_server',
+            'sender': 'sender-server',
+            'assetId': 'bsc-usdt',
+            'symbol': 'USDT',
+            'display': '2',
+            'mode': 'lucky',
+            'count': 2,
+            'greeting': '财源滚滚，万事如意',
+          },
+        });
+
+        final detail = await ChatDetailMessageMapper.mapMessage(message);
+
+        expect(detail.kind, ChatDetailMessageKind.redBag);
+        expect(detail.showBubble, false);
+        expect(detail.text, '财源滚滚，万事如意');
+        expect(detail.redPacketAmount, '2');
+        expect(detail.redPacketTokenSymbol, 'USDT');
+        expect(detail.redPacketType, 'lucky');
+      },
+    );
+
     test('adds a claim notice after claimed red packet messages', () async {
       UserDisplayStateCenter().updateUserProfile(
         RCIMIWUserProfile.create(userId: 'sender-2', name: 'Alice'),

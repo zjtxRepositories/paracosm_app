@@ -5,9 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_member_model.dart';
 import 'package:paracosm/core/network/api/red_packet_api.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
-import 'package:paracosm/modules/im/message/base/im_message.dart';
-import 'package:paracosm/modules/im/message/send/im_sender.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -16,6 +15,7 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:paracosm/widgets/modals/dapp_modals.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../modules/im/manager/im_engine_manager.dart';
@@ -847,6 +847,11 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       }
     }
 
+    if (!_hasEnoughBalance()) {
+      AppToast.show(l10n.profileTransferInsufficientBalance);
+      return false;
+    }
+
     return true;
   }
 
@@ -863,7 +868,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       barrierColor: _headerColor.withValues(alpha: 0.18),
       onConfirm: () {
         Navigator.pop(context);
-        unawaited(_sendRedPacket(l10n));
+        unawaited(_confirmSignatureAndSend(l10n));
       },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(32, 18, 32, 0),
@@ -879,8 +884,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             const SizedBox(height: 24),
             _buildGenerateInfoRow(
               label: l10n.chatRedPacketMinerFee,
-              value: l10n.chatRedPacketNetError,
-              valueColor: const Color(0xFFFF5B5B),
+              value: _redPacketMinerFeeText(asset),
               showInfoIcon: true,
             ),
             const SizedBox(height: 24),
@@ -897,6 +901,39 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmSignatureAndSend(AppLocalizations l10n) async {
+    final args = widget.sessionArgs;
+    final asset = _selectedAsset;
+    if (args == null || asset == null || _isSending) return;
+
+    RedPacketSignatureRequest signatureRequest;
+    try {
+      signatureRequest = RedPacketApi.prepareSendSignature(
+        assetId: asset.assetId,
+        amount: _requestAmount(asset),
+        count: _packetCountForSummary(),
+        mode: _redPacketModeValue,
+        groupId: _isGroupSession ? args.targetId : null,
+      );
+    } catch (e) {
+      debugPrint('Prepare red packet signature failed: $e');
+      AppToast.show(l10n.chatRedPacketSendFailed);
+      return;
+    }
+
+    final confirmed = await DappModals.showSignInfoModal(
+      context,
+      message: signatureRequest.message,
+      address: signatureRequest.userId,
+      host: 'RongCloud redSend',
+      faviconUrl: '',
+      walletLabel: AccountManager().currentWallet?.name,
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _sendRedPacket(l10n, signatureRequest: signatureRequest);
   }
 
   Widget _buildGenerateTokenHeader(RedPacketAsset asset) {
@@ -935,6 +972,58 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         ),
       ],
     );
+  }
+
+  String _redPacketMinerFeeText(RedPacketAsset asset) {
+    // 发红包走中心化余额扣减，不触发用户侧链上交易；链上 Gas 由平台侧处理。
+    return '0 ${_redPacketFeeSymbol(asset)}';
+  }
+
+  String _redPacketFeeSymbol(RedPacketAsset asset) {
+    final assetPrefix = asset.assetId.split('-').first.toLowerCase();
+    switch (assetPrefix) {
+      case 'bsc':
+        return 'BNB';
+      case 'eth':
+      case 'ethereum':
+        return 'ETH';
+      case 'polygon':
+      case 'matic':
+        return 'MATIC';
+      case 'arb':
+      case 'arbitrum':
+      case 'op':
+      case 'optimism':
+      case 'base':
+      case 'linea':
+      case 'scroll':
+      case 'blast':
+        return 'ETH';
+      case 'tron':
+      case 'trx':
+        return 'TRX';
+      case 'sol':
+      case 'solana':
+        return 'SOL';
+      case 'btc':
+      case 'bitcoin':
+        return 'BTC';
+    }
+
+    final wallet = AccountManager().currentWallet;
+    for (final chain in wallet?.chains ?? const []) {
+      final symbol = chain.symbol.trim();
+      if (symbol.isNotEmpty &&
+          asset.assetId.toLowerCase().contains(symbol.toLowerCase())) {
+        return symbol;
+      }
+    }
+
+    final currentSymbol = wallet?.currentChain?.symbol.trim();
+    if (currentSymbol != null && currentSymbol.isNotEmpty) {
+      return currentSymbol;
+    }
+    return 'BNB';
   }
 
   Widget _buildGenerateInfoRow({
@@ -976,7 +1065,10 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     );
   }
 
-  Future<void> _sendRedPacket(AppLocalizations l10n) async {
+  Future<void> _sendRedPacket(
+    AppLocalizations l10n, {
+    RedPacketSignatureRequest? signatureRequest,
+  }) async {
     final args = widget.sessionArgs;
     final asset = _selectedAsset;
     if (args == null || asset == null) return;
@@ -987,14 +1079,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     bool success = false;
     try {
       final count = _packetCountForSummary();
-      final amount = redPacketDecimalToUnits(
-        _amountController.text.trim(),
-        asset.decimals,
-        multiplier: _isGroupSession && _type == RedPacketSendType.normal
-            ? count
-            : 1,
-      );
-      final result = await RedPacketApi.send(
+      final amount = _requestAmount(asset);
+      await RedPacketApi.send(
         assetId: asset.assetId,
         amount: amount,
         count: count,
@@ -1004,28 +1090,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             ? _exclusiveRecipientUserId ?? args.targetId
             : null,
         greeting: greeting,
+        signatureRequest: signatureRequest,
       );
-
-      success = await ImSender.instance.send(
-        message: RedPacketMessage(
-          conversationType: args.conversationType,
-          targetId: args.targetId,
-          channelId: args.channelId,
-          data: RedPacketData(
-            redPacketId: result.packetNo,
-            greeting: greeting,
-            amount: _totalAmountText(),
-            tokenSymbol: asset.symbol,
-            packetType: _redPacketModeValue,
-            assetId: asset.assetId,
-            count: count,
-            expireTime: result.expireTime,
-            recipientUserId: _type == RedPacketSendType.exclusive
-                ? _exclusiveRecipientUserId
-                : null,
-          ),
-        ),
-      );
+      success = true;
     } catch (e) {
       debugPrint('Send red packet failed: $e');
       success = false;
@@ -1043,6 +1110,16 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   int _packetCountForSummary() {
     if (!_isGroupSession || _type == RedPacketSendType.exclusive) return 1;
     return int.tryParse(_countController.text.trim()) ?? 0;
+  }
+
+  String _requestAmount(RedPacketAsset asset) {
+    return redPacketDecimalToUnits(
+      _amountController.text.trim(),
+      asset.decimals,
+      multiplier: _isGroupSession && _type == RedPacketSendType.normal
+          ? _packetCountForSummary()
+          : 1,
+    );
   }
 
   String _greetingText(AppLocalizations l10n) {
@@ -1071,6 +1148,19 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     return fixed
         .replaceFirst(RegExp(r'0+$'), '')
         .replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  bool _hasEnoughBalance() {
+    final asset = _selectedAsset;
+    if (asset == null) return false;
+    final available = BigInt.tryParse(_selectedBalance?.available ?? '0');
+    if (available == null || available <= BigInt.zero) return false;
+    try {
+      final required = BigInt.parse(_requestAmount(asset));
+      return available >= required;
+    } catch (_) {
+      return false;
+    }
   }
 
   String get _redPacketModeValue {

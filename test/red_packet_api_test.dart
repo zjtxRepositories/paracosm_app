@@ -75,6 +75,66 @@ void main() {
     expect(capturedBody?['groupId'], 'group-1');
   });
 
+  test(
+    'send can reuse prepared signature request from confirmation sheet',
+    () async {
+      Map<String, dynamic>? capturedBody;
+      String? capturedMessage;
+
+      RedPacketApi.setUserIdProviderForTesting(() => '0xabc');
+      RedPacketApi.setTimestampProviderForTesting(() => 1700000000);
+      RedPacketApi.setNonceProviderForTesting(() => 'nonce-before-confirm');
+
+      final signatureRequest = RedPacketApi.prepareSendSignature(
+        groupId: 'group-1',
+        assetId: 'bsc-usdt',
+        amount: '1000000000000000000',
+        count: 1,
+        mode: 'lucky',
+      );
+
+      RedPacketApi.setTimestampProviderForTesting(() => 1800000000);
+      RedPacketApi.setNonceProviderForTesting(() => 'nonce-after-confirm');
+      RedPacketApi.setSignatureProviderForTesting((userId, message) async {
+        capturedMessage = message;
+        return '0xsigned';
+      });
+      RedPacketApi.setHttpClientAdapterForTesting(
+        _Adapter((request) async {
+          capturedBody = _decodeBody(request.data);
+          return ResponseBody.fromString(
+            jsonEncode({
+              'code': 200,
+              'packet_no': 'rp_abc123',
+              'mode': 'lucky',
+              'scene': 'group',
+              'asset_id': 'bsc-usdt',
+              'count': 1,
+            }),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }),
+      );
+
+      await RedPacketApi.send(
+        groupId: 'group-1',
+        assetId: 'bsc-usdt',
+        amount: '1000000000000000000',
+        count: 1,
+        mode: 'lucky',
+        signatureRequest: signatureRequest,
+      );
+
+      expect(capturedMessage, contains('timestamp: 1700000000'));
+      expect(capturedMessage, contains('nonce: nonce-before-confirm'));
+      expect(capturedBody?['timestamp'], 1700000000);
+      expect(capturedBody?['nonce'], 'nonce-before-confirm');
+    },
+  );
+
   test('grab uses invite access token in body like InviteApi', () async {
     Map<String, dynamic>? capturedBody;
     String? authorization;
@@ -117,6 +177,94 @@ void main() {
     expect(result.display, '0.1');
     expect(capturedBody?['accessToken'], 'invite-token');
     expect(authorization, isNull);
+  });
+
+  test(
+    'info sends packetNo in body and query for server compatibility',
+    () async {
+      Map<String, dynamic>? capturedBody;
+      Map<String, dynamic>? capturedQuery;
+
+      RedPacketApi.setHttpClientAdapterForTesting(
+        _Adapter((request) async {
+          capturedBody = _decodeBody(request.data);
+          capturedQuery = request.queryParameters.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          return ResponseBody.fromString(
+            jsonEncode({
+              'code': 200,
+              'packet_no': 'rp_abc123',
+              'sender': '0xabc',
+              'scene': 'group',
+              'asset_id': 'bsc-usdt',
+              'symbol': 'USDT',
+              'mode': 'lucky',
+              'status': 'active',
+              'count': 2,
+              'remaining_count': 1,
+              'total_amount': '2000000000000000000',
+              'remaining_amount': '1000000000000000000',
+              'total_display': '2',
+              'greeting': '恭喜发财',
+              'receives': [],
+            }),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }),
+      );
+
+      final result = await RedPacketApi.info(' rp_abc123 ');
+
+      expect(result.packetNo, 'rp_abc123');
+      expect(capturedBody?['packetNo'], 'rp_abc123');
+      expect(capturedQuery?['packetNo'], 'rp_abc123');
+    },
+  );
+
+  test('mine only sends access token because server rejects limit', () async {
+    Map<String, dynamic>? capturedBody;
+    Map<String, dynamic>? capturedQuery;
+
+    RedPacketApi.setAccessTokenProviderForTesting(() => 'invite-token');
+    RedPacketApi.setHttpClientAdapterForTesting(
+      _Adapter((request) async {
+        capturedBody = _decodeBody(request.data);
+        capturedQuery = request.queryParameters.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        return ResponseBody.fromString(
+          jsonEncode({
+            'code': 200,
+            'packets': [
+              {
+                'packet_no': 'rp_abc123',
+                'asset_id': 'bsc-usdt',
+                'mode': 'lucky',
+                'scene': 'group',
+                'status': 'active',
+                'count': 2,
+                'remaining_count': 1,
+                'total_amount': '2000000000000000000',
+              },
+            ],
+          }),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+
+    final result = await RedPacketApi.mine();
+
+    expect(result.single.packetNo, 'rp_abc123');
+    expect(capturedBody, {'accessToken': 'invite-token'});
+    expect(capturedQuery, isEmpty);
   });
 }
 

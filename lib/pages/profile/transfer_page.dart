@@ -48,7 +48,7 @@ class TransferPage extends StatefulWidget {
 
 class _TransferPageState extends State<TransferPage> {
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController(text: '0xb76E006da2E170511D30F35146964a0fC4173d58');
   ChainAccount? _selectedNetwork;
   TokenModel? _token;
   TokenModel? _showToken;
@@ -69,7 +69,7 @@ class _TransferPageState extends State<TransferPage> {
   void initState() {
     super.initState();
 
-    _addressController.text = widget.prefillAddress?.trim() ?? '';
+    // _addressController.text = widget.prefillAddress?.trim() ?? '';
     _amountController.text = widget.prefillAmount?.trim() ?? '';
     initChain();
     _showToken = widget.token;

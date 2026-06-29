@@ -12,6 +12,20 @@ import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 typedef RedPacketSignatureProvider =
     Future<String> Function(String userId, String message);
 
+class RedPacketSignatureRequest {
+  const RedPacketSignatureRequest({
+    required this.userId,
+    required this.message,
+    required this.timestamp,
+    required this.nonce,
+  });
+
+  final String userId;
+  final String message;
+  final int timestamp;
+  final String nonce;
+}
+
 class RedPacketApiException implements Exception {
   const RedPacketApiException(this.code, this.message);
 
@@ -320,6 +334,7 @@ class RedPacketApi {
       '/balance/query.json',
       body: {'accessToken': accessToken},
     );
+    debugPrint('queryBalances: $data');
     return _list(data['balances'])
         .whereType<Map>()
         .map(RedPacketBalance.fromJson)
@@ -335,28 +350,21 @@ class RedPacketApi {
     String? groupId,
     String? to,
     String? greeting,
+    RedPacketSignatureRequest? signatureRequest,
   }) async {
-    final safeUserId = _currentUserId();
-    if (safeUserId.isEmpty) {
-      throw const RedPacketApiException('missing_user', '缺少钱包地址');
-    }
-
-    final nonce = _nonce();
-    final timestamp = _timestamp();
-    final extras = <String>[
-      if ((groupId ?? '').trim().isNotEmpty) 'groupId: ${groupId!.trim()}',
-      'assetId: $assetId',
-      'amount: $amount',
-      'count: $count',
-      'mode: $mode',
-    ];
-    final message = _signatureMessage(
-      title: 'RongCloud redSend',
-      userId: safeUserId,
-      extras: extras,
-      timestamp: timestamp,
-      nonce: nonce,
-    );
+    final request =
+        signatureRequest ??
+        prepareSendSignature(
+          assetId: assetId,
+          amount: amount,
+          count: count,
+          mode: mode,
+          groupId: groupId,
+        );
+    final safeUserId = request.userId;
+    final timestamp = request.timestamp;
+    final nonce = request.nonce;
+    final message = request.message;
     debugPrint('RedPacketApi redSend signatureMessage=$message');
     final signature = await _signature(safeUserId, message);
 
@@ -379,6 +387,42 @@ class RedPacketApi {
     return RedPacketSendResult.fromJson(data);
   }
 
+  static RedPacketSignatureRequest prepareSendSignature({
+    required String assetId,
+    required String amount,
+    required int count,
+    required String mode,
+    String? groupId,
+  }) {
+    final safeUserId = _currentUserId();
+    if (safeUserId.isEmpty) {
+      throw const RedPacketApiException('missing_user', '缺少钱包地址');
+    }
+
+    final nonce = _nonce();
+    final timestamp = _timestamp();
+    final extras = <String>[
+      if ((groupId ?? '').trim().isNotEmpty) 'groupId: ${groupId!.trim()}',
+      'assetId: $assetId',
+      'amount: $amount',
+      'count: $count',
+      'mode: $mode',
+    ];
+    final message = _signatureMessage(
+      title: 'RongCloud redSend',
+      userId: safeUserId,
+      extras: extras,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+    return RedPacketSignatureRequest(
+      userId: safeUserId,
+      message: message,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+  }
+
   static Future<RedPacketGrabResult> grab(String packetNo) async {
     final accessToken = await _accessToken();
     final data = await _post(
@@ -389,15 +433,26 @@ class RedPacketApi {
   }
 
   static Future<RedPacketInfo> info(String packetNo) async {
-    final data = await _post('/red/info.json', body: {'packetNo': packetNo});
+    final safePacketNo = packetNo.trim();
+    if (safePacketNo.isEmpty) {
+      throw const RedPacketApiException(
+        'missing_packet_no',
+        'packetNo is required',
+      );
+    }
+    final data = await _post(
+      '/red/info.json',
+      body: {'packetNo': safePacketNo},
+      queryParameters: {'packetNo': safePacketNo},
+    );
     return RedPacketInfo.fromJson(data);
   }
 
-  static Future<List<RedPacketMineItem>> mine({int limit = 20}) async {
+  static Future<List<RedPacketMineItem>> mine() async {
     final accessToken = await _accessToken();
     final data = await _post(
       '/red/mine.json',
-      body: {'accessToken': accessToken, 'limit': limit},
+      body: {'accessToken': accessToken},
     );
     return _list(data['packets'])
         .whereType<Map>()
@@ -409,10 +464,12 @@ class RedPacketApi {
   static Future<Map<String, dynamic>> _post(
     String path, {
     Map<String, dynamic>? body,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _dio.post(
         path,
+        queryParameters: queryParameters,
         data: body ?? const <String, dynamic>{},
         options: Options(contentType: Headers.jsonContentType),
       );

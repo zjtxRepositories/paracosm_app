@@ -26,7 +26,9 @@ class RedPacketDetailPage extends StatefulWidget {
 }
 
 class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
-  final double headerHeight = 180;
+  static const double _headerHeight = 220;
+  static const double _contentTop = 188;
+  static const double _avatarSize = 72;
   UserDisplayModel? _sender;
   RedPacketInfo? _info;
   bool _loading = true;
@@ -48,7 +50,7 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
         _sender = sender;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       final sender = await UserDisplayStateCenter().getUser(widget.userId);
       if (!mounted) return;
       setState(() {
@@ -68,21 +70,18 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
                 : widget.data.greeting)
             .trim();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
-      body: Stack(
+    return Container(
+      color: Colors.white,
+      child: Stack(
         children: [
           Positioned(
-            top: headerHeight - 40,
+            top: _contentTop,
             left: 0,
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.only(top: 100),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+              padding: const EdgeInsets.only(top: _avatarSize),
+              color: Colors.white,
               child: Column(
                 children: [
                   Text(
@@ -98,6 +97,9 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
                     greeting.isEmpty
                         ? l10n.chatRedPacketDefaultBlessing
                         : greeting,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 30),
@@ -125,7 +127,7 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
             ),
           ),
           SizedBox(
-            height: headerHeight,
+            height: _headerHeight,
             width: double.infinity,
             child: Image.asset(
               'assets/images/chat/red_packet/top_icon.png',
@@ -134,14 +136,23 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
           ),
           SafeArea(child: _buildTopBar()),
           Positioned(
-            top: headerHeight - 30,
+            top: _contentTop - 15,
             left: 0,
             right: 0,
             child: Center(
-              child: UserAvatarWidget(
-                userId: _sender?.userId ?? info?.sender ?? widget.userId,
-                avatarUrl: _sender?.avatar,
-                size: 72,
+              child: Container(
+                width: _avatarSize + 8,
+                height: _avatarSize + 8,
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: UserAvatarWidget(
+                  userId: _sender?.userId ?? info?.sender ?? widget.userId,
+                  avatarUrl: _sender?.avatar,
+                  size: _avatarSize,
+                ),
               ),
             ),
           ),

@@ -148,12 +148,19 @@ class RedPacketGrabResult {
   final bool finished;
 
   factory RedPacketGrabResult.fromJson(Map json) {
+    final amount = _string(json['amount']);
+    final display = _string(
+      json['display'] ?? json['amount_display'] ?? json['amountDisplay'],
+    );
+    final decimals = _int(json['decimals'], fallback: 18);
     return RedPacketGrabResult(
       packetNo: _string(json['packet_no'] ?? json['packetNo']),
       assetId: _string(json['asset_id'] ?? json['assetId']),
       symbol: _string(json['symbol']),
-      amount: _string(json['amount']),
-      display: _formatDisplayString(_string(json['display'])),
+      amount: amount,
+      display: display.isNotEmpty
+          ? _formatDisplayString(display)
+          : _formatTokenUnitsString(amount, decimals),
       finished: _bool(json['finished']),
     );
   }
@@ -172,11 +179,23 @@ class RedPacketReceive {
   final String display;
   final int? createTime;
 
-  factory RedPacketReceive.fromJson(Map json) {
+  factory RedPacketReceive.fromJson(Map json, {int decimals = 18}) {
+    final amount = _string(
+      json['amount'] ?? json['receive_amount'] ?? json['receiveAmount'],
+    );
+    final display = _string(
+      json['display'] ??
+          json['amount_display'] ??
+          json['amountDisplay'] ??
+          json['receive_display'] ??
+          json['receiveDisplay'],
+    );
     return RedPacketReceive(
-      receiver: _string(json['receiver']),
-      amount: _string(json['amount']),
-      display: _formatDisplayString(_string(json['display'])),
+      receiver: _string(json['receiver'] ?? json['user_id'] ?? json['userId']),
+      amount: amount,
+      display: display.isNotEmpty
+          ? _formatDisplayString(display)
+          : _formatTokenUnitsString(amount, decimals),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
     );
   }
@@ -228,6 +247,7 @@ class RedPacketInfo {
   bool get isFinished => status == 'finished' || remainingCount <= 0;
 
   factory RedPacketInfo.fromJson(Map json) {
+    final decimals = _int(json['decimals'], fallback: 18);
     return RedPacketInfo(
       packetNo: _string(json['packet_no'] ?? json['packetNo']),
       sender: _string(json['sender']),
@@ -249,9 +269,10 @@ class RedPacketInfo {
       greeting: _string(json['greeting']),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
       expireTime: _nullableInt(json['expire_time'] ?? json['expireTime']),
-      receives: _list(
-        json['receives'],
-      ).whereType<Map>().map(RedPacketReceive.fromJson).toList(growable: false),
+      receives: _list(json['receives'])
+          .whereType<Map>()
+          .map((item) => RedPacketReceive.fromJson(item, decimals: decimals))
+          .toList(growable: false),
     );
   }
 }
@@ -270,6 +291,9 @@ class RedPacketMineItem {
     this.symbol,
     this.createTime,
     this.expireTime,
+    this.receiveAmount,
+    this.receiveDisplay,
+    this.receiveTime,
   });
 
   final String packetNo;
@@ -284,6 +308,9 @@ class RedPacketMineItem {
   final String? symbol;
   final int? createTime;
   final int? expireTime;
+  final String? receiveAmount;
+  final String? receiveDisplay;
+  final int? receiveTime;
 
   int get receivedCount => max(0, count - remainingCount);
 
@@ -303,6 +330,44 @@ class RedPacketMineItem {
       ),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
       expireTime: _nullableInt(json['expire_time'] ?? json['expireTime']),
+      receiveAmount: _nullableString(
+        json['receive_amount'] ?? json['receiveAmount'],
+      ),
+      receiveDisplay: _formatNullableDisplayString(
+        json['receive_display'] ?? json['receiveDisplay'],
+      ),
+      receiveTime: _nullableInt(json['receive_time'] ?? json['receiveTime']),
+    );
+  }
+}
+
+class RedPacketGroupListResult {
+  const RedPacketGroupListResult({
+    required this.userId,
+    required this.groupId,
+    required this.sent,
+    required this.received,
+    this.type,
+    this.items = const [],
+  });
+
+  final String userId;
+  final String groupId;
+  final String? type;
+  final List<RedPacketMineItem> sent;
+  final List<RedPacketMineItem> received;
+  final List<RedPacketMineItem> items;
+
+  factory RedPacketGroupListResult.fromJson(Map json) {
+    final type = _nullableString(json['type']);
+    final items = _parseMineItems(json['items']);
+    return RedPacketGroupListResult(
+      userId: _string(json['userId']),
+      groupId: _string(json['groupId'] ?? json['group_id']),
+      type: type,
+      sent: type == 'sent' ? items : _parseMineItems(json['sent']),
+      received: type == 'received' ? items : _parseMineItems(json['received']),
+      items: items,
     );
   }
 }
@@ -468,6 +533,39 @@ class RedPacketApi {
         .map(RedPacketMineItem.fromJson)
         .where((item) => item.packetNo.isNotEmpty)
         .toList(growable: false);
+  }
+
+  static Future<RedPacketGroupListResult> groupList({
+    required String groupId,
+    String? type,
+    int limit = 20,
+  }) async {
+    final safeGroupId = groupId.trim();
+    if (safeGroupId.isEmpty) {
+      throw const RedPacketApiException('missing_group_id', '未传 groupId');
+    }
+    final safeType = type?.trim();
+    if (safeType != null &&
+        safeType.isNotEmpty &&
+        safeType != 'sent' &&
+        safeType != 'received') {
+      throw const RedPacketApiException(
+        'invalid_type',
+        'type 不是 sent/received',
+      );
+    }
+
+    final accessToken = await _accessToken();
+    final data = await _post(
+      '/red/group/list.json',
+      body: {
+        'accessToken': accessToken,
+        'groupId': safeGroupId,
+        if (safeType != null && safeType.isNotEmpty) 'type': safeType,
+        'limit': limit.clamp(1, 100),
+      },
+    );
+    return RedPacketGroupListResult.fromJson(data);
   }
 
   static Future<Map<String, dynamic>> _post(
@@ -712,6 +810,14 @@ bool _bool(dynamic value) {
 List _list(dynamic value) {
   if (value is List) return value;
   return const [];
+}
+
+List<RedPacketMineItem> _parseMineItems(dynamic value) {
+  return _list(value)
+      .whereType<Map>()
+      .map(RedPacketMineItem.fromJson)
+      .where((item) => item.packetNo.isNotEmpty)
+      .toList(growable: false);
 }
 
 String _formatTokenUnitsString(

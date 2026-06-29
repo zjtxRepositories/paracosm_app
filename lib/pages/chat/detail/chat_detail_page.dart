@@ -1089,7 +1089,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return;
     }
 
-    final redPacket = RedPacketData.fromMessage(raw);
+    final redPacket = RedPacketData.fromMessage(
+      raw,
+      claimedUserId: controller.currentClaimUserId,
+    );
     if (redPacket == null) {
       return;
     }
@@ -1120,7 +1123,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         senderName: senderName,
         senderAvatarUrl: message.senderAvatarUrl,
         sender: message.senderUserId,
-        onClaimed: () => controller.markRedPacketClaimed(message.messageId),
+        onClaimed: (claim) =>
+            controller.markRedPacketClaimed(message.messageId, claim: claim),
       ),
     );
   }

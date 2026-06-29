@@ -6,6 +6,7 @@ import 'package:paracosm/modules/call/rong_call_join_request_message.dart';
 import 'package:paracosm/modules/call/rong_call_manager.dart';
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
+import 'package:paracosm/modules/im/message/red_packet_status_message.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../manager/im_engine_manager.dart';
@@ -65,6 +66,10 @@ class ImInit {
       RedPacketMessage.serverMessageIdentifier,
       RCIMIWNativeCustomMessagePersistentFlag.persisted,
     );
+    final redPacketStatusCode = await engine.registerNativeCustomMessage(
+      RedPacketStatusMessage.objectName,
+      RCIMIWNativeCustomMessagePersistentFlag.status,
+    );
 
     if (kDebugMode && code != 0) {
       debugPrint('register call summary message failed: $code');
@@ -84,6 +89,11 @@ class ImInit {
     }
     if (kDebugMode && redPacketCode != 0) {
       debugPrint('register red packet message failed: $redPacketCode');
+    }
+    if (kDebugMode && redPacketStatusCode != 0) {
+      debugPrint(
+        'register red packet status message failed: $redPacketStatusCode',
+      );
     }
   }
 }

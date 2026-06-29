@@ -12,9 +12,10 @@ import '../../widgets/base/app_localizations.dart';
 import '../../widgets/base/app_page.dart';
 
 class RedPacketRecordPage extends StatefulWidget {
-  const RedPacketRecordPage({super.key, required this.userId});
+  const RedPacketRecordPage({super.key, required this.userId, this.groupId});
 
   final String userId;
+  final String? groupId;
 
   @override
   State<RedPacketRecordPage> createState() => _RedPacketRecordPageState();
@@ -23,14 +24,15 @@ class RedPacketRecordPage extends StatefulWidget {
 class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   int _selectedIndex = 0;
   List<RedPacketMineItem> _sentRecords = const [];
+  List<RedPacketMineItem> _receivedRecords = const [];
   UserDisplayModel? _user;
-  bool _loadingSent = false;
+  bool _loadingRecords = false;
 
   @override
   void initState() {
     super.initState();
     fetchData();
-    _loadSentRecords();
+    _loadGroupRecords();
   }
 
   Future<void> fetchData() async {
@@ -41,19 +43,23 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     });
   }
 
-  Future<void> _loadSentRecords() async {
-    setState(() => _loadingSent = true);
+  Future<void> _loadGroupRecords() async {
+    final groupId = widget.groupId?.trim() ?? '';
+    if (groupId.isEmpty) return;
+
+    setState(() => _loadingRecords = true);
     try {
-      final records = await RedPacketApi.mine();
+      final records = await RedPacketApi.groupList(groupId: groupId);
       if (!mounted) return;
       setState(() {
-        _sentRecords = records;
-        _loadingSent = false;
+        _sentRecords = records.sent;
+        _receivedRecords = records.received;
+        _loadingRecords = false;
       });
     } catch (e) {
-      print('_loadSentRecords-----$e');
+      debugPrint('_loadGroupRecords failed: $e');
       if (!mounted) return;
-      setState(() => _loadingSent = false);
+      setState(() => _loadingRecords = false);
     }
   }
 
@@ -167,8 +173,11 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
 
   Widget _buildHeader() {
     final isReceived = _selectedIndex == 0;
-    final summaryText = isReceived ? '共收到 0 个' : '共发出 ${_sentRecords.length} 个';
-    final total = isReceived ? '0' : _sentRecords.length.toString();
+    final records = isReceived ? _receivedRecords : _sentRecords;
+    final summaryText = isReceived
+        ? '共收到 ${records.length} 个'
+        : '共发出 ${records.length} 个';
+    final total = records.length.toString();
 
     return Column(
       children: [
@@ -201,17 +210,23 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   }
 
   Widget _buildReceived() {
-    return _buildEmpty();
+    if (_loadingRecords) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_receivedRecords.isEmpty) {
+      return _buildEmpty();
+    }
+    return _buildRecordList(_receivedRecords, received: true);
   }
 
   Widget _buildSent() {
-    if (_loadingSent) {
+    if (_loadingRecords) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_sentRecords.isEmpty) {
       return _buildEmpty();
     }
-    return _buildSentList(_sentRecords);
+    return _buildRecordList(_sentRecords, received: false);
   }
 
   Widget _buildEmpty() {
@@ -221,7 +236,10 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     );
   }
 
-  Widget _buildSentList(List<RedPacketMineItem> records) {
+  Widget _buildRecordList(
+    List<RedPacketMineItem> records, {
+    required bool received,
+  }) {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -251,14 +269,16 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
                     Text(_modeText(item.mode)),
                     const SizedBox(height: 4),
                     Text(
-                      '${_formatTime(item.createTime)}  ${item.receivedCount}/${item.count}  ${_statusText(item.status)}',
+                      received
+                          ? '${_formatTime(item.receiveTime ?? item.createTime)}  ${_statusText(item.status)}'
+                          : '${_formatTime(item.createTime)}  ${item.receivedCount}/${item.count}  ${_statusText(item.status)}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
               Text(
-                '${item.totalDisplay ?? item.totalAmount} ${item.symbol ?? item.assetId}',
+                '${received ? item.receiveDisplay ?? item.receiveAmount ?? '0' : item.totalDisplay ?? item.totalAmount} ${item.symbol ?? item.assetId}',
                 style: const TextStyle(
                   color: Color(0xFFFF3B30),
                   fontWeight: FontWeight.w600,

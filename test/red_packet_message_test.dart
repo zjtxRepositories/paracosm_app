@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paracosm/core/models/custom_message_model.dart';
 import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
+import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
+import 'package:paracosm/modules/im/message/red_packet_status_message.dart';
 import 'package:paracosm/modules/im/store/red_packet_claim_store.dart';
 import 'package:paracosm/pages/chat/chat_detail_message.dart';
 import 'package:paracosm/pages/chat/chat_detail_message_mapper.dart';
@@ -18,6 +20,10 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('red_packet_claim_test');
     Hive.init(tempDir.path);
     await Hive.openBox(RedPacketClaimStore.boxName);
+  });
+
+  tearDown(() {
+    IMEngineManager().setCurrentUserIdForTesting(null);
   });
 
   tearDownAll(() async {
@@ -200,7 +206,70 @@ void main() {
       },
     );
 
+    test(
+      'restores server red packet claimed state for current IM user',
+      () async {
+        IMEngineManager().setCurrentUserIdForTesting('target-1');
+        await RedPacketClaimStore.markClaimed(
+          'rp_server_claimed',
+          userId: 'target-1',
+          claimedAt: 1_700_000_000_000,
+        );
+        final message = RCIMIWNativeCustomMessage.fromJson({
+          'messageId': 3004,
+          'messageType': RCIMIWMessageType.nativeCustom.index,
+          'messageIdentifier': RedPacketMessage.serverMessageIdentifier,
+          'conversationType': RCIMIWConversationType.group.index,
+          'senderUserId': 'sender-server',
+          'fields': {
+            'packetNo': 'rp_server_claimed',
+            'sender': 'sender-server',
+            'toUserId': 'group-1',
+            'assetId': 'bsc-usdt',
+            'symbol': 'USDT',
+            'display': '2',
+            'mode': 'lucky',
+            'count': 2,
+          },
+        });
+
+        final detail = await ChatDetailMessageMapper.mapMessage(message);
+
+        expect(detail.kind, ChatDetailMessageKind.redBag);
+        expect(detail.isClaimed, true);
+      },
+    );
+
+    test('parses red packet status notification message', () {
+      final message = RCIMIWNativeCustomMessage.fromJson({
+        'messageId': 3006,
+        'messageType': RCIMIWMessageType.nativeCustom.index,
+        'messageIdentifier': RedPacketStatusMessage.objectName,
+        'conversationType': RCIMIWConversationType.group.index,
+        'targetId': 'group-1',
+        'senderUserId': 'target-1',
+        'fields': {
+          'targetId': 'group-1',
+          'packetNo': 'rp_status',
+          'receiver': 'target-1',
+          'display': '0.1234',
+          'amount': '123400000000000000',
+          'symbol': 'USDT',
+          'sentAt': 1_700_000_000_000,
+        },
+      });
+
+      final status = RedPacketStatusMessage.tryParse(message);
+
+      expect(status, isNotNull);
+      expect(status!.packetNo, 'rp_status');
+      expect(status.receiver, 'target-1');
+      expect(status.display, '0.1234');
+      expect(status.symbol, 'USDT');
+    });
+
     test('adds a claim notice after claimed red packet messages', () async {
+      IMEngineManager().setCurrentUserIdForTesting('target-1');
       UserDisplayStateCenter().updateUserProfile(
         RCIMIWUserProfile.create(userId: 'sender-2', name: 'Alice'),
       );

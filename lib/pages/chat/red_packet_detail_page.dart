@@ -183,7 +183,10 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
           const Spacer(),
           IconButton(
             onPressed: () {
-              context.push('/red-packet_record', extra: widget.userId);
+              context.push(
+                '/red-packet_record',
+                extra: {'userId': widget.userId, 'groupId': _info?.groupId},
+              );
             },
             icon: const Icon(
               Icons.history_rounded,

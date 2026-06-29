@@ -8,6 +8,7 @@ import '../../call/rong_call_join_request_message.dart';
 import '../../call/rong_group_call_status_message.dart';
 import '../../call/rong_call_summary_parser.dart';
 import '../message/custom_message_identity.dart';
+import '../message/red_packet_status_message.dart';
 import '../result/im_result.dart';
 import 'im_burn_after_reading_manager.dart';
 import 'im_engine_manager.dart';
@@ -207,6 +208,9 @@ class ImMessageManager {
       return;
     }
     if (RongGroupCallStatusCenter().notifyIfGroupCallStatus(message)) {
+      return;
+    }
+    if (RedPacketStatusCenter().notifyIfRedPacketStatus(message)) {
       return;
     }
     RongCallSummaryCenter().notifyIfCallSummary(message);

@@ -179,6 +179,33 @@ void main() {
     expect(authorization, isNull);
   });
 
+  test('grab formats amount when display is missing', () async {
+    RedPacketApi.setAccessTokenProviderForTesting(() => 'invite-token');
+    RedPacketApi.setHttpClientAdapterForTesting(
+      _Adapter((request) async {
+        return ResponseBody.fromString(
+          jsonEncode({
+            'code': 200,
+            'packet_no': 'rp_abc123',
+            'asset_id': 'bsc-usdt',
+            'symbol': 'USDT',
+            'amount': '100000000000000000',
+            'decimals': 18,
+            'finished': false,
+          }),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+
+    final result = await RedPacketApi.grab('rp_abc123');
+
+    expect(result.display, '0.1');
+  });
+
   test(
     'info sends packetNo in body and query for server compatibility',
     () async {
@@ -265,6 +292,68 @@ void main() {
     expect(result.single.packetNo, 'rp_abc123');
     expect(capturedBody, {'accessToken': 'invite-token'});
     expect(capturedQuery, isEmpty);
+  });
+
+  test('groupList uses access token and parses sent and received', () async {
+    Map<String, dynamic>? capturedBody;
+
+    RedPacketApi.setAccessTokenProviderForTesting(() => 'invite-token');
+    RedPacketApi.setHttpClientAdapterForTesting(
+      _Adapter((request) async {
+        capturedBody = _decodeBody(request.data);
+        return ResponseBody.fromString(
+          jsonEncode({
+            'code': 200,
+            'userId': '0xabc',
+            'groupId': 'group-1',
+            'sent': [
+              {
+                'packet_no': 'rp_sent',
+                'asset_id': 'bsc-usdt',
+                'symbol': 'USDT',
+                'mode': 'lucky',
+                'scene': 'group',
+                'status': 'active',
+                'count': 2,
+                'remaining_count': 1,
+                'total_amount': '2000000000000000000',
+                'total_display': '2',
+              },
+            ],
+            'received': [
+              {
+                'packet_no': 'rp_received',
+                'asset_id': 'bsc-usdt',
+                'symbol': 'USDT',
+                'mode': 'lucky',
+                'scene': 'group',
+                'status': 'finished',
+                'count': 2,
+                'remaining_count': 0,
+                'total_amount': '2000000000000000000',
+                'receive_amount': '100000000000000000',
+                'receive_display': '0.1',
+                'receive_time': 1719225700,
+              },
+            ],
+          }),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+
+    final result = await RedPacketApi.groupList(groupId: 'group-1');
+
+    expect(result.sent.single.packetNo, 'rp_sent');
+    expect(result.received.single.receiveDisplay, '0.1');
+    expect(capturedBody, {
+      'accessToken': 'invite-token',
+      'groupId': 'group-1',
+      'limit': 20,
+    });
   });
 }
 

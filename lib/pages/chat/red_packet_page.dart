@@ -75,12 +75,18 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       widget.sessionArgs?.conversationType == RCIMIWConversationType.group ||
       widget.sessionArgs?.isGroup == true;
 
+  RedPacketSendType get _effectiveType =>
+      _isGroupSession ? _type : RedPacketSendType.normal;
+
   @override
   void initState() {
     super.initState();
     _blessingController = TextEditingController(
       text: AppLocalizations.currentText('chat_red_packet_default_blessing'),
     );
+    if (!_isGroupSession) {
+      _type = RedPacketSendType.normal;
+    }
     _memberCount = widget.initialMemberCount ?? 0;
     _loadMemberCount();
     unawaited(_loadAssetsAndBalances());
@@ -294,7 +300,10 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
           onPressed: () {
             context.push(
               '/red-packet_record',
-              extra: IMEngineManager().currentUserId,
+              extra: {
+                'userId': IMEngineManager().currentUserId,
+                'groupId': _isGroupSession ? widget.sessionArgs?.targetId : '',
+              },
             );
           },
           icon: const Icon(
@@ -327,7 +336,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
           ),
           Column(
             children: [
-              _buildTypeTabs(l10n),
+              if (_isGroupSession) _buildTypeTabs(l10n),
               Expanded(child: _buildForm(l10n)),
             ],
           ),
@@ -428,10 +437,13 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   List<Widget> _buildTypeFields(AppLocalizations l10n) {
+    final type = _effectiveType;
     final amountInput = _buildInputRow(
-      label: _type == RedPacketSendType.normal
+      label: !_isGroupSession
+          ? l10n.chatRedPacketAmount
+          : type == RedPacketSendType.normal
           ? l10n.chatRedPacketSingleAmount
-          : _type == RedPacketSendType.exclusive
+          : type == RedPacketSendType.exclusive
           ? l10n.chatRedPacketAmount
           : l10n.chatRedPacketTotalAmount,
       controller: _amountController,
@@ -440,7 +452,11 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
     );
 
-    switch (_type) {
+    if (!_isGroupSession) {
+      return [amountInput];
+    }
+
+    switch (type) {
       case RedPacketSendType.lucky:
         return [
           amountInput,
@@ -765,15 +781,17 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   String _buttonText(AppLocalizations l10n) {
+    final type = _effectiveType;
     if (_selectedAsset == null) {
       return l10n.chatRedPacketSelectToken;
     }
-    if (_type == RedPacketSendType.exclusive &&
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       return l10n.chatRedPacketSelectRecipient;
     }
-    if (_type != RedPacketSendType.exclusive &&
+    if (_isGroupSession &&
+        type != RedPacketSendType.exclusive &&
         _countController.text.trim().isEmpty) {
       return l10n.chatRedPacketEnterCount;
     }
@@ -786,14 +804,15 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   bool get _canSubmit {
     if (_isSending || widget.sessionArgs == null) return false;
     if (_selectedAsset == null) return false;
-    if (_type == RedPacketSendType.exclusive &&
+    final type = _effectiveType;
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       return false;
     }
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) return false;
-    if (_type != RedPacketSendType.exclusive) {
+    if (_isGroupSession && type != RedPacketSendType.exclusive) {
       final count = int.tryParse(_countController.text.trim());
       if (count == null || count <= 0) return false;
       if (_isGroupSession && _memberCount > 0 && count > _memberCount) {
@@ -821,7 +840,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       return false;
     }
 
-    if (_type == RedPacketSendType.exclusive &&
+    final type = _effectiveType;
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       AppToast.show(l10n.chatRedPacketSelectRecipient);
@@ -834,7 +854,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       return false;
     }
 
-    if (_type != RedPacketSendType.exclusive) {
+    if (_isGroupSession && type != RedPacketSendType.exclusive) {
       final count = int.tryParse(_countController.text.trim());
       if (count == null || count <= 0) {
         AppToast.show(l10n.chatRedPacketInvalidCount);
@@ -1086,7 +1106,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         count: count,
         mode: _redPacketModeValue,
         groupId: _isGroupSession ? args.targetId : null,
-        to: _type == RedPacketSendType.exclusive || !_isGroupSession
+        to: _effectiveType == RedPacketSendType.exclusive || !_isGroupSession
             ? _exclusiveRecipientUserId ?? args.targetId
             : null,
         greeting: greeting,
@@ -1108,7 +1128,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   int _packetCountForSummary() {
-    if (!_isGroupSession || _type == RedPacketSendType.exclusive) return 1;
+    if (!_isGroupSession || _effectiveType == RedPacketSendType.exclusive) {
+      return 1;
+    }
     return int.tryParse(_countController.text.trim()) ?? 0;
   }
 
@@ -1116,7 +1138,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     return redPacketDecimalToUnits(
       _amountController.text.trim(),
       asset.decimals,
-      multiplier: _isGroupSession && _type == RedPacketSendType.normal
+      multiplier: _isGroupSession && _effectiveType == RedPacketSendType.normal
           ? _packetCountForSummary()
           : 1,
     );
@@ -1128,7 +1150,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   String _typeLabel(AppLocalizations l10n) {
-    switch (_type) {
+    switch (_effectiveType) {
       case RedPacketSendType.lucky:
         return l10n.chatRedPacketLucky;
       case RedPacketSendType.normal:
@@ -1140,7 +1162,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   String _totalAmountText() {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    final total = _type == RedPacketSendType.normal
+    final total = _isGroupSession && _effectiveType == RedPacketSendType.normal
         ? amount * _packetCountForSummary()
         : amount;
     if (total <= 0) return '0';
@@ -1165,7 +1187,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   String get _redPacketModeValue {
     if (!_isGroupSession) return 'p2p';
-    switch (_type) {
+    switch (_effectiveType) {
       case RedPacketSendType.lucky:
         return 'lucky';
       case RedPacketSendType.normal:

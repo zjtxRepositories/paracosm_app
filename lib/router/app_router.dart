@@ -523,7 +523,14 @@ class AppRouter {
         path: '/red-packet_record',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final userId = state.extra as String?;
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return RedPacketRecordPage(
+              userId: extra['userId']?.toString() ?? '',
+              groupId: extra['groupId']?.toString(),
+            );
+          }
+          final userId = extra as String?;
           return RedPacketRecordPage(userId: userId ?? '');
         },
       ),
@@ -534,7 +541,7 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final userId = data?['userId'];
           final redPacket = data?['data'];
-          return RedPacketDetailPage(userId:userId ?? '', data: redPacket);
+          return RedPacketDetailPage(userId: userId ?? '', data: redPacket);
         },
       ),
       GoRoute(

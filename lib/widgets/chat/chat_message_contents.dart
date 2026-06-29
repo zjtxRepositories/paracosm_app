@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -1330,7 +1331,7 @@ class ChatRedPacketDetailDialog extends StatefulWidget {
   final String? senderName;
   final String? senderAvatarUrl;
   final String? sender;
-  final VoidCallback? onClaimed;
+  final RedPacketClaimCallback? onClaimed;
 
   @override
   State<ChatRedPacketDetailDialog> createState() =>
@@ -1345,13 +1346,19 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
   late final AnimationController _burstCtrl;
 
   bool _opening = false;
+  bool _loadingClaimInfo = false;
   late bool _isClaimed;
   RedPacketGrabResult? _grabResult;
+  String? _claimedAmount;
+  String? _claimedSymbol;
 
   @override
   void initState() {
     super.initState();
     _isClaimed = widget.isClaimed;
+    if (_isClaimed) {
+      unawaited(_loadClaimedAmount());
+    }
 
     /// 🎯 shake
     _shakeCtrl = AnimationController(
@@ -1396,11 +1403,15 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
 
     await _shakeCtrl.forward(from: 0);
     await _flipCtrl.forward(from: 0);
-    RedPacketGrabResult? result;
+    final RedPacketGrabResult result;
     try {
       result = await RedPacketApi.grab(widget.data.redPacketId);
     } catch (e) {
       if (!mounted) return;
+      _flipCtrl.reset();
+      _shakeCtrl.reset();
+      _scaleCtrl.reset();
+      _burstCtrl.reset();
       setState(() => _opening = false);
       ScaffoldMessenger.of(
         context,
@@ -1409,14 +1420,57 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
     }
     await _scaleCtrl.forward(from: 0);
     await _burstCtrl.forward(from: 0);
-
     if (!mounted) return;
     setState(() {
       _grabResult = result;
+      _claimedAmount = _normalizeClaimAmount(result.display);
+      _claimedSymbol = result.symbol.trim().isNotEmpty
+          ? result.symbol.trim()
+          : null;
       _isClaimed = true;
       _opening = false;
     });
-    widget.onClaimed?.call();
+    final onClaimed = widget.onClaimed;
+    if (onClaimed != null) {
+      unawaited(
+        Future<void>.sync(
+          () => onClaimed(RedPacketClaimUpdate.fromGrabResult(result)),
+        ).catchError((error, stackTrace) {
+          debugPrint('red packet claimed callback failed: $error');
+        }),
+      );
+    }
+  }
+
+  Future<void> _loadClaimedAmount() async {
+    if (_grabResult != null || _loadingClaimInfo) return;
+    setState(() => _loadingClaimInfo = true);
+    try {
+      final info = await RedPacketApi.info(widget.data.redPacketId);
+      final currentUserId = IMEngineManager().currentUserId
+          ?.trim()
+          .toLowerCase();
+      RedPacketReceive? currentReceive;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        for (final item in info.receives) {
+          if (item.receiver.trim().toLowerCase() == currentUserId) {
+            currentReceive = item;
+            break;
+          }
+        }
+      }
+
+      final amount = _normalizeClaimAmount(currentReceive?.display);
+      if (!mounted) return;
+      setState(() {
+        _claimedAmount = amount;
+        _claimedSymbol = (info.symbol ?? widget.data.tokenSymbol)?.trim();
+        _loadingClaimInfo = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingClaimInfo = false);
+    }
   }
 
   @override
@@ -1613,12 +1667,14 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
     }
 
     if (_isClaimed) {
-      final amount = _grabResult?.display.trim().isNotEmpty == true
-          ? _grabResult!.display.trim()
-          : widget.data.amount?.trim().isNotEmpty == true
-          ? widget.data.amount!.trim()
-          : '0';
-      final symbol = _grabResult?.symbol.trim().isNotEmpty == true
+      final amount =
+          _claimedAmount ??
+          _normalizeClaimAmount(_grabResult?.display) ??
+          _normalizeClaimAmount(widget.data.amount) ??
+          (_loadingClaimInfo ? '...' : '0');
+      final symbol = _claimedSymbol?.trim().isNotEmpty == true
+          ? _claimedSymbol!.trim()
+          : _grabResult?.symbol.trim().isNotEmpty == true
           ? _grabResult!.symbol.trim()
           : widget.data.tokenSymbol?.trim().isNotEmpty == true
           ? widget.data.tokenSymbol!.trim()
@@ -1746,5 +1802,37 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
       return error.message;
     }
     return AppLocalizations.currentText('chat_red_packet_send_failed');
+  }
+
+  String? _normalizeClaimAmount(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty || text == '0') return null;
+    return text;
+  }
+}
+
+typedef RedPacketClaimCallback =
+    FutureOr<void> Function(RedPacketClaimUpdate claim);
+
+class RedPacketClaimUpdate {
+  const RedPacketClaimUpdate({
+    required this.packetNo,
+    required this.amount,
+    required this.display,
+    required this.symbol,
+  });
+
+  final String packetNo;
+  final String amount;
+  final String display;
+  final String symbol;
+
+  factory RedPacketClaimUpdate.fromGrabResult(RedPacketGrabResult result) {
+    return RedPacketClaimUpdate(
+      packetNo: result.packetNo,
+      amount: result.amount,
+      display: result.display,
+      symbol: result.symbol,
+    );
   }
 }

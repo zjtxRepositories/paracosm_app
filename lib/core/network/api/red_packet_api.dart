@@ -6,6 +6,7 @@ import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:paracosm/core/network/api/api_paths.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/invite/service/invite_access_token_manager.dart';
 import 'package:paracosm/modules/wallet/chains/evm/evm_facade.dart';
 
 typedef RedPacketSignatureProvider =
@@ -318,7 +319,6 @@ class RedPacketApi {
     final data = await _post(
       '/balance/query.json',
       body: {'accessToken': accessToken},
-      accessToken: accessToken,
     );
     return _list(data['balances'])
         .whereType<Map>()
@@ -384,7 +384,6 @@ class RedPacketApi {
     final data = await _post(
       '/red/grab.json',
       body: {'accessToken': accessToken, 'packetNo': packetNo},
-      accessToken: accessToken,
     );
     return RedPacketGrabResult.fromJson(data);
   }
@@ -399,7 +398,6 @@ class RedPacketApi {
     final data = await _post(
       '/red/mine.json',
       body: {'accessToken': accessToken, 'limit': limit},
-      accessToken: accessToken,
     );
     return _list(data['packets'])
         .whereType<Map>()
@@ -411,23 +409,15 @@ class RedPacketApi {
   static Future<Map<String, dynamic>> _post(
     String path, {
     Map<String, dynamic>? body,
-    String? accessToken,
   }) async {
     try {
       final response = await _dio.post(
         path,
         data: body ?? const <String, dynamic>{},
-        options: Options(
-          contentType: Headers.jsonContentType,
-          headers: {
-            if (accessToken != null && accessToken.isNotEmpty)
-              'Authorization': 'Bearer $accessToken',
-          },
-        ),
+        options: Options(contentType: Headers.jsonContentType),
       );
       final data = _normalizeResponseData(response.data);
       if (data is! Map) {
-        print('data-----$data');
         throw RedPacketApiException(
           response.statusCode?.toString() ?? 'invalid_response',
           '红包接口响应异常',
@@ -501,11 +491,15 @@ class RedPacketApi {
       return provided;
     }
 
-    final account = AccountManager().currentAccount;
-    if (account == null || account.token.trim().isEmpty) {
-      throw const RedPacketApiException('missing_user', '缺少钱包地址');
+    try {
+      final token = await InviteAccessTokenManager.ensureAccessToken();
+      if (token.trim().isEmpty) {
+        throw const RedPacketApiException('missing_token', '缺少红包访问令牌');
+      }
+      return token.trim();
+    } catch (_) {
+      throw const RedPacketApiException('missing_token', '缺少红包访问令牌');
     }
-    return account.token.trim();
   }
 
   static String _currentUserId() {

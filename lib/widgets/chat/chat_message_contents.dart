@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/pages/chat/detail/file_download_state.dart';
@@ -1300,8 +1301,10 @@ class ChatRedBagMessageContent extends StatelessWidget {
       case 'lucky':
         return l10n.chatRedPacketLucky;
       case 'normal':
+      case 'even':
         return l10n.chatRedPacketNormal;
       case 'exclusive':
+      case 'p2p':
         return l10n.chatRedPacketExclusive;
       default:
         return l10n.chatDetailRedPacket;
@@ -1343,6 +1346,7 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
 
   bool _opening = false;
   late bool _isClaimed;
+  RedPacketGrabResult? _grabResult;
 
   @override
   void initState() {
@@ -1388,16 +1392,27 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
   // =========================
   Future<void> _openRedPacket() async {
     if (_opening || _isClaimed || widget.isExpired) return;
-    _opening = true;
+    setState(() => _opening = true);
 
     await _shakeCtrl.forward(from: 0);
     await _flipCtrl.forward(from: 0);
+    RedPacketGrabResult? result;
+    try {
+      result = await RedPacketApi.grab(widget.data.redPacketId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _opening = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_redPacketErrorText(e))));
+      return;
+    }
     await _scaleCtrl.forward(from: 0);
     await _burstCtrl.forward(from: 0);
 
-    // TODO: 调接口领取红包
     if (!mounted) return;
     setState(() {
+      _grabResult = result;
       _isClaimed = true;
       _opening = false;
     });
@@ -1598,10 +1613,14 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
     }
 
     if (_isClaimed) {
-      final amount = widget.data.amount?.trim().isNotEmpty == true
+      final amount = _grabResult?.display.trim().isNotEmpty == true
+          ? _grabResult!.display.trim()
+          : widget.data.amount?.trim().isNotEmpty == true
           ? widget.data.amount!.trim()
           : '0';
-      final symbol = widget.data.tokenSymbol?.trim().isNotEmpty == true
+      final symbol = _grabResult?.symbol.trim().isNotEmpty == true
+          ? _grabResult!.symbol.trim()
+          : widget.data.tokenSymbol?.trim().isNotEmpty == true
           ? widget.data.tokenSymbol!.trim()
           : '';
 
@@ -1720,5 +1739,12 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
         ],
       ),
     );
+  }
+
+  String _redPacketErrorText(Object error) {
+    if (error is RedPacketApiException) {
+      return error.message;
+    }
+    return AppLocalizations.currentText('chat_red_packet_send_failed');
   }
 }

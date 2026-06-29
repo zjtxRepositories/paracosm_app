@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_member_model.dart';
-import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/modules/im/message/send/im_sender.dart';
-import 'package:paracosm/modules/wallet/model/chain_account.dart';
-import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -17,14 +15,11 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/common/app_network_image.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../modules/im/manager/im_engine_manager.dart';
 import '../../widgets/chat/remove_member_modal.dart';
-import '../../widgets/modals/wallet_modals.dart';
 
 enum RedPacketSendType { lucky, normal, exclusive }
 
@@ -65,8 +60,10 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   late final TextEditingController _blessingController;
 
   RedPacketSendType _type = RedPacketSendType.lucky;
-  TokenModel? _selectedToken;
-  ChainAccount? _selectedChain;
+  RedPacketAsset? _selectedAsset;
+  RedPacketBalance? _selectedBalance;
+  List<RedPacketAsset> _assets = const [];
+  Map<String, RedPacketBalance> _balances = const {};
   String? _exclusiveRecipientUserId;
   String? _exclusiveRecipientName;
   String? _exclusiveRecipientAvatar;
@@ -86,6 +83,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     );
     _memberCount = widget.initialMemberCount ?? 0;
     _loadMemberCount();
+    unawaited(_loadAssetsAndBalances());
   }
 
   @override
@@ -118,25 +116,90 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     }
   }
 
+  Future<void> _loadAssetsAndBalances() async {
+    try {
+      final results = await Future.wait([
+        RedPacketApi.assetList(),
+        RedPacketApi.queryBalances(),
+      ]);
+      if (!mounted) return;
+      final assets = results[0] as List<RedPacketAsset>;
+      final balances = {
+        for (final item in results[1] as List<RedPacketBalance>)
+          item.assetId: item,
+      };
+      setState(() {
+        _assets = assets;
+        _balances = balances;
+        if (_selectedAsset == null && assets.isNotEmpty) {
+          _selectedAsset = assets.first;
+          _selectedBalance = balances[assets.first.assetId];
+        } else if (_selectedAsset != null) {
+          _selectedBalance = balances[_selectedAsset!.assetId];
+        }
+      });
+    } catch (e) {
+      debugPrint('Load red packet assets failed: $e');
+    }
+  }
+
   void _showTokenSelector() {
-    final wallet = AccountManager().currentWallet;
-    if (wallet == null) {
+    if (_assets.isEmpty) {
       AppToast.show(
-        AppLocalizations.currentText('chat_red_packet_missing_wallet'),
+        AppLocalizations.currentText('chat_red_packet_select_token'),
       );
+      unawaited(_loadAssetsAndBalances());
       return;
     }
 
-    WalletModals.showTokenSelector(
-      context: context,
-      wallet: wallet,
-      currentToken: _selectedToken,
-      onSelected: (token) {
-        setState(() {
-          _selectedToken = token;
-          _selectedChain = token.getChain();
-        });
-      },
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.chatRedPacketSelectToken,
+      confirmText: null,
+      onConfirm: () {},
+      child: SizedBox(
+        height: 360,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: _assets.length,
+          separatorBuilder: (_, _) => Divider(color: AppColors.grey100),
+          itemBuilder: (context, index) {
+            final asset = _assets[index];
+            final balance = _balances[asset.assetId];
+            final selected = asset.assetId == _selectedAsset?.assetId;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                asset.symbol,
+                style: AppTextStyles.h2.copyWith(
+                  color: _primaryTextColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                AppLocalizations.of(context)!.chatRedPacketAvailable(
+                  '${balance?.display ?? '0'} ${asset.symbol}',
+                ),
+                style: AppTextStyles.body.copyWith(
+                  color: _secondaryTextColor,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: selected
+                  ? const Icon(Icons.check, color: _headerColor)
+                  : null,
+              onTap: () {
+                setState(() {
+                  _selectedAsset = asset;
+                  _selectedBalance = balance;
+                });
+                context.pop();
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -412,9 +475,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   Widget _buildAssetCard(AppLocalizations l10n) {
-    final token = _selectedToken;
-    final chain = _selectedChain ?? token?.getChain();
-    final hasToken = token != null;
+    final asset = _selectedAsset;
+    final balance = _selectedBalance;
+    final hasToken = asset != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _showTokenSelector,
@@ -444,24 +507,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             ),
             const Spacer(),
             if (hasToken) ...[
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: AppNetworkImage(
-                  url: token.logo,
-                  width: 28,
-                  height: 28,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 10),
               Text(
-                token.symbol,
+                asset.symbol,
                 style: AppTextStyles.h2.copyWith(
                   color: _primaryTextColor,
                   fontSize: _formFontSize,
@@ -470,7 +517,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
               ),
               const SizedBox(width: 12),
               Text(
-                chain?.name ?? '',
+                l10n.chatRedPacketAvailable(
+                  '${balance?.display ?? '0'} ${asset.symbol}',
+                ),
                 style: AppTextStyles.body.copyWith(
                   color: _secondaryTextColor,
                   fontSize: _assistFontSize,
@@ -716,7 +765,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   String _buttonText(AppLocalizations l10n) {
-    if (_selectedToken == null) {
+    if (_selectedAsset == null) {
       return l10n.chatRedPacketSelectToken;
     }
     if (_type == RedPacketSendType.exclusive &&
@@ -736,7 +785,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   bool get _canSubmit {
     if (_isSending || widget.sessionArgs == null) return false;
-    if (_selectedToken == null) return false;
+    if (_selectedAsset == null) return false;
     if (_type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
@@ -767,7 +816,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       AppToast.show(l10n.chatRedPacketMissingSession);
       return false;
     }
-    if (_selectedToken == null) {
+    if (_selectedAsset == null) {
       AppToast.show(l10n.chatRedPacketSelectToken);
       return false;
     }
@@ -802,8 +851,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   Future<void> _showGenerateRedPacketSheet(AppLocalizations l10n) {
-    final token = _selectedToken;
-    if (token == null) return Future.value();
+    final asset = _selectedAsset;
+    if (asset == null) return Future.value();
     return AppModal.show(
       context,
       title: l10n.chatRedPacketGenerateTitle,
@@ -821,7 +870,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildGenerateTokenHeader(token),
+            _buildGenerateTokenHeader(asset),
             const SizedBox(height: 34),
             _buildGenerateInfoRow(
               label: l10n.chatRedPacketCount,
@@ -850,8 +899,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     );
   }
 
-  Widget _buildGenerateTokenHeader(TokenModel token) {
-    final symbol = token.symbol;
+  Widget _buildGenerateTokenHeader(RedPacketAsset asset) {
+    final symbol = asset.symbol;
     return Column(
       children: [
         Container(
@@ -862,11 +911,15 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             shape: BoxShape.circle,
           ),
           clipBehavior: Clip.antiAlias,
-          child: AppNetworkImage(
-            url: token.logo,
-            width: 64,
-            height: 64,
-            fit: BoxFit.cover,
+          child: Center(
+            child: Text(
+              symbol.characters.take(1).toString(),
+              style: AppTextStyles.h1.copyWith(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -925,29 +978,58 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   Future<void> _sendRedPacket(AppLocalizations l10n) async {
     final args = widget.sessionArgs;
-    if (args == null || _selectedToken == null) return;
+    final asset = _selectedAsset;
+    if (args == null || asset == null) return;
     if (_isSending) return;
 
     setState(() => _isSending = true);
     final greeting = _greetingText(l10n);
-    final success = await ImSender.instance.send(
-      message: RedPacketMessage(
-        conversationType: args.conversationType,
-        targetId: args.targetId,
-        channelId: args.channelId,
-        data: RedPacketData(
-          redPacketId: const Uuid().v4(),
-          greeting: greeting,
-          amount: _amountController.text.trim(),
-          tokenSymbol: _selectedToken?.symbol,
-          chainId: _selectedChain?.name,
-          packetType: _redPacketTypeValue,
-          recipientUserId: _type == RedPacketSendType.exclusive
-              ? _exclusiveRecipientUserId
-              : null,
+    bool success = false;
+    try {
+      final count = _packetCountForSummary();
+      final amount = redPacketDecimalToUnits(
+        _amountController.text.trim(),
+        asset.decimals,
+        multiplier: _isGroupSession && _type == RedPacketSendType.normal
+            ? count
+            : 1,
+      );
+      final result = await RedPacketApi.send(
+        assetId: asset.assetId,
+        amount: amount,
+        count: count,
+        mode: _redPacketModeValue,
+        groupId: _isGroupSession ? args.targetId : null,
+        to: _type == RedPacketSendType.exclusive || !_isGroupSession
+            ? _exclusiveRecipientUserId ?? args.targetId
+            : null,
+        greeting: greeting,
+      );
+
+      success = await ImSender.instance.send(
+        message: RedPacketMessage(
+          conversationType: args.conversationType,
+          targetId: args.targetId,
+          channelId: args.channelId,
+          data: RedPacketData(
+            redPacketId: result.packetNo,
+            greeting: greeting,
+            amount: _totalAmountText(),
+            tokenSymbol: asset.symbol,
+            packetType: _redPacketModeValue,
+            assetId: asset.assetId,
+            count: count,
+            expireTime: result.expireTime,
+            recipientUserId: _type == RedPacketSendType.exclusive
+                ? _exclusiveRecipientUserId
+                : null,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Send red packet failed: $e');
+      success = false;
+    }
 
     if (!mounted) return;
     setState(() => _isSending = false);
@@ -959,7 +1041,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   int _packetCountForSummary() {
-    if (_type == RedPacketSendType.exclusive) return 1;
+    if (!_isGroupSession || _type == RedPacketSendType.exclusive) return 1;
     return int.tryParse(_countController.text.trim()) ?? 0;
   }
 
@@ -991,14 +1073,15 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         .replaceFirst(RegExp(r'\.$'), '');
   }
 
-  String get _redPacketTypeValue {
+  String get _redPacketModeValue {
+    if (!_isGroupSession) return 'p2p';
     switch (_type) {
       case RedPacketSendType.lucky:
         return 'lucky';
       case RedPacketSendType.normal:
-        return 'normal';
+        return 'even';
       case RedPacketSendType.exclusive:
-        return 'exclusive';
+        return 'p2p';
     }
   }
 }

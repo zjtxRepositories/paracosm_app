@@ -388,6 +388,7 @@ class RedPacketMessage extends ImMessage {
   });
 
   static const messageIdentifier = 'PARA:RedPacket';
+  static const serverMessageIdentifier = 'ZJ:RedPkt';
 
   final RCIMIWConversationType conversationType;
   final String targetId;
@@ -424,6 +425,9 @@ class RedPacketData {
     this.tokenSymbol,
     this.chainId,
     this.packetType,
+    this.assetId,
+    this.count,
+    this.expireTime,
     this.recipientUserId,
     this.isClaimed = false,
   });
@@ -434,6 +438,9 @@ class RedPacketData {
   final String? tokenSymbol;
   final String? chainId;
   final String? packetType;
+  final String? assetId;
+  final int? count;
+  final int? expireTime;
   final String? recipientUserId;
   final bool isClaimed;
 
@@ -451,6 +458,9 @@ class RedPacketData {
       redPacketTokenSymbol: tokenSymbol,
       redPacketChainId: chainId,
       redPacketType: packetType,
+      redPacketAssetId: assetId,
+      redPacketCount: count,
+      redPacketExpireTime: expireTime,
       redPacketClaimed: isClaimed,
       userIds: recipientUserId == null || recipientUserId!.isEmpty
           ? null
@@ -461,9 +471,8 @@ class RedPacketData {
   static RedPacketData? fromFields(Map? fields, {String? claimedUserId}) {
     if (fields == null) return null;
 
-    final model = CustomMessageModel.fromJson(
-      fields.map((key, value) => MapEntry(key.toString(), value)),
-    );
+    final normalizedFields = _normalizeFields(fields);
+    final model = CustomMessageModel.fromJson(normalizedFields);
     if (model.type != CustomMessageType.redPacket) {
       return null;
     }
@@ -485,6 +494,9 @@ class RedPacketData {
       tokenSymbol: model.redPacketTokenSymbol?.trim(),
       chainId: model.redPacketChainId?.trim(),
       packetType: model.redPacketType?.trim(),
+      assetId: model.redPacketAssetId?.trim(),
+      count: model.redPacketCount,
+      expireTime: model.redPacketExpireTime,
       recipientUserId: model.userIds?.firstOrNull?.trim(),
       isClaimed: isClaimed,
     );
@@ -496,5 +508,40 @@ class RedPacketData {
   }) {
     if (message is! RCIMIWCustomMessage) return null;
     return fromFields(message.fields, claimedUserId: claimedUserId);
+  }
+
+  static Map<String, dynamic> _normalizeFields(Map fields) {
+    final source = fields.map((key, value) => MapEntry(key.toString(), value));
+    if (source['type'] == 'red_packet') {
+      return source;
+    }
+
+    final packetNo = source['packetNo'] ?? source['packet_no'];
+    if (packetNo == null) {
+      return source;
+    }
+
+    final sender = source['sender']?.toString() ?? source['fromUserId'] ?? '';
+    final recipient = source['to']?.toString() ?? source['toUserId'] ?? '';
+    return {
+      ...source,
+      'type': 'red_packet',
+      'fromUserId': sender,
+      'toUserId': recipient,
+      'content': source['greeting'] ?? source['content'] ?? '',
+      'redPacketId': packetNo,
+      'redPacketAmount':
+          source['display'] ?? source['amount'] ?? source['redPacketAmount'],
+      'redPacketTokenSymbol':
+          source['symbol'] ??
+          source['redPacketTokenSymbol'] ??
+          source['tokenSymbol'],
+      'redPacketType':
+          source['mode'] ?? source['redPacketType'] ?? source['packetType'],
+      'redPacketAssetId': source['assetId'] ?? source['asset_id'],
+      'redPacketCount': source['count'],
+      'redPacketExpireTime': source['expireTime'] ?? source['expire_time'],
+      if (source['to'] != null) 'userIds': [source['to'].toString()],
+    };
   }
 }

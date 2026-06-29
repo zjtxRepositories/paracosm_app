@@ -1080,6 +1080,7 @@ class ChatDetailController extends ChangeNotifier {
         return RCIMIWMessageType.text;
       case 'RC:IWNormalMsg':
       case RedPacketMessage.messageIdentifier:
+      case RedPacketMessage.serverMessageIdentifier:
         return RCIMIWMessageType.custom;
       case 'RC:ImgMsg':
         return RCIMIWMessageType.image;

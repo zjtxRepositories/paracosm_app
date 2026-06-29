@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:hive/hive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paracosm/core/models/custom_message_model.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/modules/im/store/red_packet_claim_store.dart';
@@ -79,6 +80,26 @@ void main() {
       expect(redPacket.packetType, 'normal');
       expect(redPacket.recipientUserId, 'recipient-2');
       expect(redPacket.isClaimed, true);
+    });
+
+    test('creates red packet data from server pushed fields', () {
+      final redPacket = RedPacketData.fromFields({
+        'packetNo': 'rp_abc',
+        'sender': 'sender',
+        'assetId': 'bsc-usdt',
+        'symbol': 'USDT',
+        'mode': 'lucky',
+        'count': 10,
+        'greeting': '恭喜发财',
+      });
+
+      expect(redPacket, isNotNull);
+      expect(redPacket!.redPacketId, 'rp_abc');
+      expect(redPacket.greeting, '恭喜发财');
+      expect(redPacket.tokenSymbol, 'USDT');
+      expect(redPacket.packetType, 'lucky');
+      expect(redPacket.assetId, 'bsc-usdt');
+      expect(redPacket.count, 10);
     });
 
     test('serializes exclusive recipient user id', () {
@@ -204,5 +225,13 @@ void main() {
         );
       },
     );
+  });
+
+  group('red packet amount formatting', () {
+    test('converts decimal amount to smallest unit', () {
+      expect(redPacketDecimalToUnits('1', 18), '1000000000000000000');
+      expect(redPacketDecimalToUnits('0.01', 18), '10000000000000000');
+      expect(redPacketDecimalToUnits('1.23', 6, multiplier: 2), '2460000');
+    });
   });
 }

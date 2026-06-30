@@ -8,6 +8,7 @@ import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
+import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
@@ -60,18 +61,48 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return AppPage(
-      title: '红包余额',
+      title: l10n.profileRedPacketBalance,
       backgroundColor: AppColors.white,
+      headerActions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: TextButton(
+            onPressed: () => context.push('/red-packet-withdraw'),
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.primaryDark,
+              foregroundColor: AppColors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              minimumSize: const Size(54, 32),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              l10n.profileRedPacketWithdraw,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
       child: RefreshIndicator(
         onRefresh: _loadData,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _assets.isEmpty
             ? ListView(
-                children: const [
-                  SizedBox(height: 160),
-                  AppEmptyView(text: '暂无红包资产', bottomOffset: 0),
+                children: [
+                  const SizedBox(height: 160),
+                  AppEmptyView(
+                    text: l10n.profileRedPacketNoAssets,
+                    bottomOffset: 0,
+                  ),
                 ],
               )
             : ListView.separated(
@@ -90,6 +121,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
   }
 
   Widget _buildAssetTile(RedPacketAsset asset, RedPacketBalance? balance) {
+    final l10n = AppLocalizations.of(context)!;
     final display = balance?.display ?? '0';
     final chain = asset.assetId.split('-').first.toUpperCase();
 
@@ -133,7 +165,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$chain 红包余额',
+                  l10n.profileRedPacketChainBalance(chain),
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.grey500,
                     fontSize: 12,
@@ -166,7 +198,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                       borderRadius: BorderRadius.circular(15),
                     ),
                   ),
-                  child: const Text('充值'),
+                  child: Text(l10n.profileRedPacketDeposit),
                 ),
               ),
             ],
@@ -177,9 +209,10 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
   }
 
   void _showDepositSheet(RedPacketAsset asset) {
+    final l10n = AppLocalizations.of(context)!;
     final target = _resolveTransferTarget(asset);
     if (target == null) {
-      AppToast.show('当前钱包暂不支持该红包资产');
+      AppToast.show(l10n.profileRedPacketAssetUnsupported);
       return;
     }
 
@@ -199,7 +232,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${asset.symbol} 充值',
+                  l10n.profileRedPacketDepositTitle(asset.symbol),
                   style: AppTextStyles.h2.copyWith(
                     color: AppColors.grey900,
                     fontSize: 18,
@@ -208,7 +241,10 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '将通过 ${target.chain.name} 网络把 ${asset.symbol} 转入红包资金池，到账后计入红包余额。',
+                  l10n.profileRedPacketDepositDesc(
+                    chain: target.chain.name,
+                    symbol: asset.symbol,
+                  ),
                   style: AppTextStyles.body.copyWith(
                     color: AppColors.grey600,
                     fontSize: 13,
@@ -233,7 +269,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                 ),
                 const SizedBox(height: 16),
                 AppButton(
-                  text: '确认充值',
+                  text: l10n.profileRedPacketDepositConfirm,
                   onPressed: () {
                     if (!sheetContext.mounted) return;
                     Navigator.pop(sheetContext);
@@ -246,7 +282,9 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                         'lockedTransferTarget': true,
                         'redPacketChainId': asset.chainId,
                         'redPacketContract': asset.contract,
-                        'title': '红包充值',
+                        'title': l10n.profileRedPacketDepositTitle(
+                          asset.symbol,
+                        ),
                       },
                     );
                   },

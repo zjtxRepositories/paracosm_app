@@ -63,6 +63,8 @@ import 'package:paracosm/pages/profile/invite_children_page.dart';
 import 'package:paracosm/pages/profile/invite_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
 import 'package:paracosm/pages/profile/red_packet_balance_page.dart';
+import 'package:paracosm/pages/profile/red_packet_withdraw_page.dart';
+import 'package:paracosm/pages/profile/red_packet_withdraw_record_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
 import 'package:paracosm/pages/profile/wallet_manager_page.dart';
@@ -748,16 +750,26 @@ class AppRouter {
         builder: (context, state) {
           return InvitePage(inviteCode: state.uri.queryParameters['code']);
         },
-      ),GoRoute(
+      ),
+      GoRoute(
         path: '/red-packet-balance',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const RedPacketBalancePage(),
       ),
       GoRoute(
+        path: '/red-packet-withdraw',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const RedPacketWithdrawPage(),
+      ),
+      GoRoute(
+        path: '/red-packet-withdraw-record',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const RedPacketWithdrawRecordPage(),
+      ),
+      GoRoute(
         path: '/invite-children',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const InviteChildrenPage(),
-       
       ),
       // 二维码页
       GoRoute(

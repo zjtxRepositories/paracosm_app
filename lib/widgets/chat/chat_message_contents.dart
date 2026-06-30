@@ -1575,12 +1575,18 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
                   color: Color(0xFFFFE7B8),
                 ),
                 alignment: Alignment.center,
-                child: const Text(
-                  "開",
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFE92720),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppLocalizations.of(context)!.chatRedPacketOpen,
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFE92720),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1753,7 +1759,9 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
         const SizedBox(height: 8),
         Flexible(
           child: Text(
-            name.isEmpty ? '红包' : '$name发的红包',
+            name.isEmpty
+                ? AppLocalizations.of(context)!.chatDetailRedPacket
+                : AppLocalizations.of(context)!.chatRedPacketFrom(name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.h2.copyWith(

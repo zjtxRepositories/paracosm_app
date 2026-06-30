@@ -139,7 +139,8 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   }
 
   Widget _buildTopTab() {
-    const tabs = ['收到', '发出'];
+    final l10n = AppLocalizations.of(context)!;
+    final tabs = [l10n.chatRedPacketReceivedTab, l10n.chatRedPacketSentTab];
 
     return SizedBox(
       width: 180,
@@ -190,9 +191,10 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   Widget _buildHeader() {
     final isReceived = _selectedIndex == 0;
     final records = isReceived ? _receivedRecords : _sentRecords;
+    final l10n = AppLocalizations.of(context)!;
     final summaryText = isReceived
-        ? '共收到 ${records.length} 个'
-        : '共发出 ${records.length} 个';
+        ? l10n.chatRedPacketReceivedSummary(records.length)
+        : l10n.chatRedPacketSentSummary(records.length);
     final total = records.length.toString();
 
     return Column(
@@ -308,32 +310,34 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   }
 
   String _modeText(String mode) {
+    final l10n = AppLocalizations.of(context)!;
     switch (mode) {
       case 'lucky':
-        return '拼手气红包';
+        return l10n.chatRedPacketLucky;
       case 'even':
       case 'normal':
-        return '普通红包';
+        return l10n.chatRedPacketNormal;
       case 'p2p':
       case 'exclusive':
-        return '专属红包';
+        return l10n.chatRedPacketExclusive;
       default:
-        return '红包';
+        return l10n.chatDetailRedPacket;
     }
   }
 
   String _statusText(String status) {
+    final l10n = AppLocalizations.of(context)!;
     switch (status) {
       case 'active':
-        return '进行中';
+        return l10n.chatRedPacketStatusActive;
       case 'finished':
-        return '已领完';
+        return l10n.chatRedPacketStatusFinished;
       case 'expired':
-        return '已过期';
+        return l10n.chatRedPacketStatusExpired;
       case 'pending':
-        return '待生效';
+        return l10n.chatRedPacketStatusPending;
       case 'void':
-        return '已失效';
+        return l10n.chatRedPacketStatusVoid;
       default:
         return status;
     }

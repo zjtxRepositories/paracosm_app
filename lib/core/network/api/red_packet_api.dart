@@ -405,6 +405,7 @@ class RedPacketApi {
 
   static Future<List<RedPacketAsset>> assetList() async {
     final data = await _post('/asset/list.json');
+    print('assetList--------$data');
     return _list(data['assets'])
         .whereType<Map>()
         .map(RedPacketAsset.fromJson)

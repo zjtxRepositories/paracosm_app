@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/wallet/chains/service/nft_portfolio_service.dart';
+import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/chain_account.dart';
 import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
@@ -34,6 +37,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
   WalletModel? _wallet;
   ChainAccount? _selectedNetwork;
   List<TokenModel> _tokens = [];
+  StreamSubscription<List<TokenModel>>? _portfolioSubscription;
 
   @override
   void initState() {
@@ -41,12 +45,16 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
     _tabController = TabController(length: 2, vsync: this);
     _accountManager = AccountManager();
     _accountManager.addListener(_loadCurrentChainTokens);
+    _portfolioSubscription = PortfolioService().stream.listen(
+      _mergePortfolioTokens,
+    );
     _loadCurrentChainTokens();
   }
 
   @override
   void dispose() {
     _accountManager.removeListener(_loadCurrentChainTokens);
+    _portfolioSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -54,7 +62,8 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
   void _loadCurrentChainTokens() {
     final wallet = _accountManager.currentWallet;
     final chain = wallet?.currentChain;
-    final tokens = chain?.tokens.toList() ?? <TokenModel>[];
+    final tokens =
+        chain?.tokens.where(_shouldShowToken).toList() ?? <TokenModel>[];
     tokens.sort((a, b) => b.balance.compareTo(a.balance));
 
     if (!mounted) return;
@@ -64,6 +73,7 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
       _tokens = tokens;
     });
     if (wallet != null) {
+      _startPortfolio(tokens, wallet);
       NftPortfolioService().start(wallet);
     }
   }
@@ -76,14 +86,47 @@ class _TokenNetworkPageState extends State<TokenNetworkPage>
       context: context,
       wallet: wallet,
       onSelected: (network) {
-        final tokens = network.tokens.toList();
+        final tokens = network.tokens.where(_shouldShowToken).toList();
         tokens.sort((a, b) => b.balance.compareTo(a.balance));
         setState(() {
           _selectedNetwork = network;
           _tokens = tokens;
         });
+        _startPortfolio(tokens, wallet);
       },
     );
+  }
+
+  void _startPortfolio(List<TokenModel> tokens, WalletModel wallet) {
+    if (tokens.isEmpty) return;
+    PortfolioService().start(tokens, ownerId: wallet.id);
+  }
+
+  void _mergePortfolioTokens(List<TokenModel> updatedTokens) {
+    if (!mounted || _tokens.isEmpty || updatedTokens.isEmpty) return;
+
+    final tokenMap = {
+      for (final token in updatedTokens) _tokenKey(token): token,
+    };
+    var hasUpdates = false;
+    final merged = _tokens.map((token) {
+      final updated = tokenMap[_tokenKey(token)];
+      if (updated == null) return token;
+      hasUpdates = true;
+      return updated;
+    }).toList();
+    if (!hasUpdates) return;
+
+    merged.sort((a, b) => b.balance.compareTo(a.balance));
+    setState(() => _tokens = merged);
+  }
+
+  String _tokenKey(TokenModel token) {
+    return '${token.chainId}:${token.address.trim().toLowerCase()}:${token.symbol.trim().toUpperCase()}';
+  }
+
+  bool _shouldShowToken(TokenModel token) {
+    return token.isAdded == true || token.isNative || token.address.isEmpty;
   }
 
   @override

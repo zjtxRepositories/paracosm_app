@@ -60,6 +60,7 @@ import 'package:paracosm/pages/discover/discover_search_page.dart';
 import 'package:paracosm/pages/profile/profile_page.dart';
 import 'package:paracosm/pages/profile/profile_details_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
+import 'package:paracosm/pages/profile/red_packet_balance_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
 import 'package:paracosm/pages/profile/wallet_manager_page.dart';
@@ -739,6 +740,11 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ProfileDetailsPage(),
       ),
+      GoRoute(
+        path: '/red-packet-balance',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const RedPacketBalancePage(),
+      ),
       // 二维码页
       GoRoute(
         path: '/qr-code',
@@ -761,6 +767,8 @@ class AppRouter {
             chain: chain,
             prefillAddress: data?['prefillAddress'] as String?,
             prefillAmount: data?['prefillAmount'] as String?,
+            lockedTransferTarget: data?['lockedTransferTarget'] == true,
+            title: data?['title'] as String?,
           );
         },
       ),

@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/network/api/red_packet_api.dart';
+import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/wallet/model/chain_account.dart';
+import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
@@ -74,7 +77,8 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 itemCount: _assets.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final asset = _assets[index];
                   final balance = _balances[asset.assetId];
@@ -173,13 +177,19 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
   }
 
   void _showDepositSheet(RedPacketAsset asset) {
+    final target = _resolveTransferTarget(asset);
+    if (target == null) {
+      AppToast.show('当前钱包暂不支持该红包资产');
+      return;
+    }
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           top: false,
           child: Padding(
@@ -189,7 +199,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${asset.symbol} 充值地址',
+                  '${asset.symbol} 充值',
                   style: AppTextStyles.h2.copyWith(
                     color: AppColors.grey900,
                     fontSize: 18,
@@ -198,7 +208,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '请通过 ${asset.assetId.split('-').first.toUpperCase()} 网络转入资金池，到账后计入红包余额。',
+                  '将通过 ${target.chain.name} 网络把 ${asset.symbol} 转入红包资金池，到账后计入红包余额。',
                   style: AppTextStyles.body.copyWith(
                     color: AppColors.grey600,
                     fontSize: 13,
@@ -223,16 +233,20 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                 ),
                 const SizedBox(height: 16),
                 AppButton(
-                  text: '复制充值地址',
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      const ClipboardData(
-                        text: RedPacketBalancePage.depositAddress,
-                      ),
+                  text: '确认充值',
+                  onPressed: () {
+                    if (!sheetContext.mounted) return;
+                    Navigator.pop(sheetContext);
+                    context.push(
+                      '/transfer',
+                      extra: {
+                        'token': target.token,
+                        'chain': target.chain,
+                        'prefillAddress': RedPacketBalancePage.depositAddress,
+                        'lockedTransferTarget': true,
+                        'title': '红包充值',
+                      },
                     );
-                    if (!mounted) return;
-                    Navigator.pop(context);
-                    AppToast.show('已复制');
                   },
                 ),
               ],
@@ -242,4 +256,81 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
       },
     );
   }
+
+  _RedPacketTransferTarget? _resolveTransferTarget(RedPacketAsset asset) {
+    final wallet = AccountManager().currentWallet;
+    if (wallet == null) return null;
+
+    final chainId = _chainIdForAsset(asset);
+    ChainAccount? chain;
+    for (final item in wallet.chains) {
+      if (item.chainId == chainId) {
+        chain = item;
+        break;
+      }
+    }
+    if (chain == null) return null;
+
+    final contract = (asset.contract ?? '').trim().toLowerCase();
+    final symbol = asset.symbol.trim().toUpperCase();
+    TokenModel? token;
+    for (final item in chain.tokens) {
+      final itemAddress = item.address.trim().toLowerCase();
+      final itemSymbol = item.symbol.trim().toUpperCase();
+      if (contract.isNotEmpty && itemAddress == contract) {
+        token = item;
+        break;
+      }
+      if (contract.isEmpty && itemSymbol == symbol && item.address.isEmpty) {
+        token = item;
+        break;
+      }
+      if (itemSymbol == symbol && token == null) {
+        token = item;
+      }
+    }
+    if (token == null) return null;
+
+    return _RedPacketTransferTarget(chain: chain, token: token);
+  }
+
+  int _chainIdForAsset(RedPacketAsset asset) {
+    final prefix = asset.assetId.split('-').first.toLowerCase();
+    switch (prefix) {
+      case 'bsc':
+        return 56;
+      case 'eth':
+      case 'ethereum':
+        return 1;
+      case 'polygon':
+      case 'matic':
+        return 137;
+      case 'arb':
+      case 'arbitrum':
+        return 42161;
+      case 'op':
+      case 'optimism':
+        return 10;
+      case 'base':
+        return 8453;
+      case 'tron':
+      case 'trx':
+        return 728126428;
+      case 'sol':
+      case 'solana':
+        return 101;
+      case 'btc':
+      case 'bitcoin':
+        return 0;
+      default:
+        return 56;
+    }
+  }
+}
+
+class _RedPacketTransferTarget {
+  const _RedPacketTransferTarget({required this.chain, required this.token});
+
+  final ChainAccount chain;
+  final TokenModel token;
 }

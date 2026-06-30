@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:paracosm/modules/wallet/chains/service/nft_portfolio_service.dart';
+import 'package:paracosm/modules/wallet/chains/service/portfolio_service.dart';
 import 'package:paracosm/modules/wallet/model/nft_asset_model.dart';
 import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
@@ -30,7 +33,10 @@ class WalletSelectTokenModal extends StatefulWidget {
 }
 
 class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
-  List<ChainAccount> _chains = [];
+  late final List<ChainAccount> _chains;
+  final Map<String, TokenModel> _portfolioTokens = {};
+  Timer? _portfolioStartTimer;
+  StreamSubscription<List<TokenModel>>? _portfolioSubscription;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -41,39 +47,59 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
   @override
   void initState() {
     super.initState();
-    fetchData();
-  }
-
-  Future<void> fetchData() async {
     _chains = widget.wallet.chains;
-
-    /// ✅ 默认链
-    if (widget.selectedToken != null) {
-      _selectChainId = widget.selectedToken!.chainId;
-    } else {
-      _selectChainId = widget.wallet.currentChainId;
-    }
-
-    setState(() {});
-    _scrollToSelectedChain();
+    _selectChainId =
+        widget.selectedToken?.chainId ?? widget.wallet.currentChainId;
+    _chainScrollController = ScrollController(
+      initialScrollOffset: _selectedChainOffset(),
+    );
+    _portfolioStartTimer = Timer(
+      const Duration(milliseconds: 360),
+      _subscribePortfolio,
+    );
   }
 
-  void _scrollToSelectedChain() {
+  double _selectedChainOffset() {
     /// ⭐ 提前算 index
     final index = _chains.indexWhere((c) => c.chainId == _selectChainId);
 
     const itemWidth = 100.0;
-    final offset = index == -1 ? 0.0 : index * itemWidth;
+    return index == -1 ? 0.0 : index * itemWidth;
+  }
 
-    /// ⭐ 核心：初始就带 offset
-    _chainScrollController = ScrollController(initialScrollOffset: offset);
+  void _subscribePortfolio() {
+    final tokens = <TokenModel>[];
+    for (final chain in widget.wallet.chains) {
+      tokens.addAll(chain.tokens.where(_shouldShowToken));
+    }
+    if (tokens.isEmpty) return;
+
+    _portfolioSubscription = PortfolioService().stream.listen((items) {
+      if (!mounted) return;
+      setState(() {
+        for (final token in items) {
+          _portfolioTokens[_tokenKey(token)] = token;
+        }
+      });
+    });
+    PortfolioService().start(tokens, ownerId: widget.wallet.id);
   }
 
   @override
   void dispose() {
+    _portfolioStartTimer?.cancel();
+    _portfolioSubscription?.cancel();
     _chainScrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _tokenKey(TokenModel token) {
+    return '${token.chainId}:${token.address.trim().toLowerCase()}:${token.symbol.trim().toUpperCase()}';
+  }
+
+  TokenModel _tokenWithPortfolioBalance(TokenModel token) {
+    return _portfolioTokens[_tokenKey(token)] ?? token;
   }
 
   @override
@@ -83,7 +109,9 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
     if (hasSearch) {
       /// 👉 跨链搜索
       for (var c in _chains) {
-        tokens.addAll(c.tokens);
+        tokens.addAll(
+          c.tokens.where(_shouldShowToken).map(_tokenWithPortfolioBalance),
+        );
       }
     } else {
       /// 👉 当前链
@@ -91,7 +119,12 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
           ? _chains.firstWhere((c) => c.chainId == _selectChainId)
           : null;
 
-      tokens = chain?.tokens ?? [];
+      tokens =
+          chain?.tokens
+              .where(_shouldShowToken)
+              .map(_tokenWithPortfolioBalance)
+              .toList() ??
+          [];
     }
 
     /// 🔍 搜索过滤
@@ -107,77 +140,87 @@ class _WalletSelectTokenModalState extends State<WalletSelectTokenModal> {
     tokens.sort((a, b) => b.balance.compareTo(a.balance));
 
     final l10n = AppLocalizations.of(context)!;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 搜索框
-        AppSearchInput(
-          controller: _searchController,
-          hintText: l10n.communityModalSearchTokenHint,
-          onChanged: (value) {
-            if (_keyword == value) return;
-
-            setState(() {
-              _keyword = value.toLowerCase();
-            });
-          },
-        ),
-        const SizedBox(height: 12),
-        // 网络筛选 Chip 列表
-        SingleChildScrollView(
-          controller: _chainScrollController,
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(_chains.length, (index) {
-              final chain = _chains[index];
-
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index == _chains.length - 1 ? 0 : 8,
-                ),
-                child: _buildNetworkChip(
-                  icon: chain.logo,
-                  label: chain.name,
-                  isSelected: chain.chainId == _selectChainId,
-                  showArrow: false,
-                  onTap: () {
-                    if (_selectChainId == chain.chainId) return;
-
-                    setState(() {
-                      _selectChainId = chain.chainId;
-                    });
-                  },
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 400,
-          child: tokens.isEmpty
-              ? SizedBox()
-              : ListView.separated(
-                  itemCount: tokens.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final token = tokens[index];
-
-                    return _buildTokenModalItem(
-                      icon: token.logo,
-                      symbol: token.symbol,
-                      amount: token.showBalance,
-                      value: '\$${token.showUsdValue}',
-                      onTap: () {
-                        widget.onSelected(token);
-                      },
-                    );
-                  },
-                ),
-        ),
-      ],
+    final modalHeight = (MediaQuery.sizeOf(context).height * 0.58).clamp(
+      420.0,
+      540.0,
     );
+    return SizedBox(
+      height: modalHeight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 搜索框
+          AppSearchInput(
+            controller: _searchController,
+            hintText: l10n.communityModalSearchTokenHint,
+            onChanged: (value) {
+              if (_keyword == value) return;
+
+              setState(() {
+                _keyword = value.toLowerCase();
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          // 网络筛选 Chip 列表
+          SingleChildScrollView(
+            controller: _chainScrollController,
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(_chains.length, (index) {
+                final chain = _chains[index];
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index == _chains.length - 1 ? 0 : 8,
+                  ),
+                  child: _buildNetworkChip(
+                    icon: chain.logo,
+                    label: chain.name,
+                    isSelected: chain.chainId == _selectChainId,
+                    showArrow: false,
+                    onTap: () {
+                      if (_selectChainId == chain.chainId) return;
+
+                      setState(() {
+                        _selectChainId = chain.chainId;
+                      });
+                    },
+                  ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: tokens.isEmpty
+                ? SizedBox()
+                : ListView.separated(
+                    itemCount: tokens.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final token = tokens[index];
+
+                      return _buildTokenModalItem(
+                        icon: token.logo,
+                        symbol: token.symbol,
+                        amount: token.showBalance,
+                        value: '\$${token.showUsdValue}',
+                        onTap: () {
+                          widget.onSelected(token);
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _shouldShowToken(TokenModel token) {
+    return token.isAdded == true || token.isNative || token.address.isEmpty;
   }
 
   /// 构建弹窗中的网络筛选 Chip

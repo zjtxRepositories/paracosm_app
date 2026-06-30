@@ -33,6 +33,8 @@ class TransferPage extends StatefulWidget {
   final ChainAccount? chain;
   final String? prefillAddress;
   final String? prefillAmount;
+  final bool lockedTransferTarget;
+  final String? title;
 
   const TransferPage({
     super.key,
@@ -40,6 +42,8 @@ class TransferPage extends StatefulWidget {
     required this.chain,
     this.prefillAddress,
     this.prefillAmount,
+    this.lockedTransferTarget = false,
+    this.title,
   });
 
   @override
@@ -48,7 +52,7 @@ class TransferPage extends StatefulWidget {
 
 class _TransferPageState extends State<TransferPage> {
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController(text: '0xb76E006da2E170511D30F35146964a0fC4173d58');
+  final TextEditingController _addressController = TextEditingController();
   ChainAccount? _selectedNetwork;
   TokenModel? _token;
   TokenModel? _showToken;
@@ -69,7 +73,7 @@ class _TransferPageState extends State<TransferPage> {
   void initState() {
     super.initState();
 
-    // _addressController.text = widget.prefillAddress?.trim() ?? '';
+    _addressController.text = widget.prefillAddress?.trim() ?? '';
     _amountController.text = widget.prefillAmount?.trim() ?? '';
     initChain();
     _showToken = widget.token;
@@ -108,8 +112,16 @@ class _TransferPageState extends State<TransferPage> {
     }
     setState(() {});
     if (_token != null) {
-      PortfolioService().start([_token!]);
+      PortfolioService().start([_token!], ownerId: _wallet?.id);
     }
+  }
+
+  bool _sameToken(TokenModel item, TokenModel target) {
+    return item.chainId == target.chainId &&
+        item.symbol.trim().toUpperCase() ==
+            target.symbol.trim().toUpperCase() &&
+        item.address.trim().toLowerCase() ==
+            target.address.trim().toLowerCase();
   }
 
   Future<void> getCalculateFee({FeeLevel? level}) async {
@@ -327,6 +339,7 @@ class _TransferPageState extends State<TransferPage> {
 
   /// 显示网络选择弹窗
   void _showNetworkSelector() {
+    if (widget.lockedTransferTarget) return;
     if (_wallet == null) return;
     WalletModals.showTokenSelector(
       context: context,
@@ -553,7 +566,8 @@ class _TransferPageState extends State<TransferPage> {
   Widget build(BuildContext context) {
     return AppPage(
       showNav: true,
-      title: AppLocalizations.of(context)!.profileTransferTransfer,
+      title:
+          widget.title ?? AppLocalizations.of(context)!.profileTransferTransfer,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -573,8 +587,10 @@ class _TransferPageState extends State<TransferPage> {
                     const SizedBox(height: 24),
 
                     // 收款地址输入
-                    _buildAddressInput(),
-                    const SizedBox(height: 38),
+                    if (!widget.lockedTransferTarget) ...[
+                      _buildAddressInput(),
+                      const SizedBox(height: 38),
+                    ],
                     // 矿工费滑动条
                     _buildMinerFeeSection(),
                     const Spacer(),
@@ -585,7 +601,8 @@ class _TransferPageState extends State<TransferPage> {
                       )!.profileTransferConfirm,
                       onPressed:
                           _amountController.text.trim().isNotEmpty &&
-                              _addressController.text.trim().isNotEmpty
+                              (widget.lockedTransferTarget ||
+                                  _addressController.text.trim().isNotEmpty)
                           ? () {
                               if (_validateTransferForm()) {
                                 _showPaymentDetails();
@@ -594,7 +611,8 @@ class _TransferPageState extends State<TransferPage> {
                           : null,
                       backgroundColor:
                           _amountController.text.trim().isEmpty ||
-                              _addressController.text.trim().isEmpty
+                              (!widget.lockedTransferTarget &&
+                                  _addressController.text.trim().isEmpty)
                           ? AppColors.grey300
                           : AppColors.grey900,
                       textColor: Colors.white,
@@ -712,7 +730,7 @@ class _TransferPageState extends State<TransferPage> {
                             final tokens = snapshot.data ?? [];
 
                             final token = tokens
-                                .where((item) => item.name == _token!.name)
+                                .where((item) => _sameToken(item, _token!))
                                 .firstOrNull;
 
                             final balance = token?.displayBalance ?? _balance;
@@ -814,9 +832,11 @@ class _TransferPageState extends State<TransferPage> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {
-                    _showNetworkSelector();
-                  },
+                  onTap: widget.lockedTransferTarget
+                      ? null
+                      : () {
+                          _showNetworkSelector();
+                        },
                   child: Row(
                     children: [
                       Text(
@@ -827,12 +847,14 @@ class _TransferPageState extends State<TransferPage> {
                           color: AppColors.grey400,
                         ),
                       ),
-                      SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 12,
-                        color: AppColors.grey400,
-                      ),
+                      if (!widget.lockedTransferTarget) ...[
+                        SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 12,
+                          color: AppColors.grey400,
+                        ),
+                      ],
                     ],
                   ),
                 ),

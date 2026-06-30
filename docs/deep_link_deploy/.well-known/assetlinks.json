@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.paracosm",
+      "sha256_cert_fingerprints": [
+        "44:E0:B4:E8:F7:53:AE:41:34:22:C8:37:4A:4B:C7:57:B0:1F:96:B0:A0:35:14:48:E9:C3:E8:EB:0D:BE:EB:33"
+      ]
+    }
+  }
+]

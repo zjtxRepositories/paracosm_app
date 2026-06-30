@@ -49,6 +49,7 @@ TransferScanPrefill? extractTransferPrefillFromScan(String raw) {
       );
     case ScanResultType.unknown:
       return TransferScanPrefill(address: text);
+    case ScanResultType.invite:
     case ScanResultType.webUrl:
     case ScanResultType.friend:
     case ScanResultType.group:

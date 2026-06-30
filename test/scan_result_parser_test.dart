@@ -58,6 +58,42 @@ void main() {
     expect(result.userId, 'user_456');
   });
 
+  test('parses invite JSON payloads', () {
+    final result = ScanResultParser.parse(
+      '{"type":"invite","inviteCode":"ABCD1234"}',
+    );
+
+    expect(result.type, ScanResultType.invite);
+    expect(result.inviteCode, 'ABCD1234');
+  });
+
+  test('parses paracosm invite links', () {
+    final result = ScanResultParser.parse('paracosm://invite?code=ABCD1234');
+
+    expect(result.type, ScanResultType.invite);
+    expect(result.inviteCode, 'ABCD1234');
+  });
+
+  test('parses paracosm path invite links', () {
+    final result = ScanResultParser.parse('paracosm:///invite?code=ABCD1234');
+
+    expect(result.type, ScanResultType.invite);
+    expect(result.inviteCode, 'ABCD1234');
+  });
+
+  test('parses web invite links before generic web URLs', () {
+    final result = ScanResultParser.parse(
+      'https://invite.zjtxy.top/invite/REPLACE_WITH_DOWNLOAD_PAGE_URL?code=ABCD1234',
+    );
+
+    expect(result.type, ScanResultType.invite);
+    expect(result.inviteCode, 'ABCD1234');
+    expect(
+      result.url,
+      'https://invite.zjtxy.top/invite/REPLACE_WITH_DOWNLOAD_PAGE_URL?code=ABCD1234',
+    );
+  });
+
   test('parses cryptocurrency payment links', () {
     final result = ScanResultParser.parse('bitcoin:bc1abc?amount=0.01');
 

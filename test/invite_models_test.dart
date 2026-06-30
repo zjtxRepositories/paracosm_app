@@ -16,6 +16,10 @@ void main() {
       });
 
       expect(profile.inviteCode, 'ABCD1234');
+      expect(
+        profile.inviteLink,
+        'https://invite.zjtxy.top/invite/REPLACE_WITH_DOWNLOAD_PAGE_URL?code=ABCD1234',
+      );
       expect(profile.childrenCount, 12);
       expect(profile.parent?.userId, '0xparent');
       expect(profile.parent?.displayName, 'Alice');

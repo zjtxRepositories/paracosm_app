@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum ScanResultType { webUrl, friend, group, walletPayment, unknown }
+enum ScanResultType { webUrl, friend, group, walletPayment, invite, unknown }
 
 class ScanResult {
   final ScanResultType type;
@@ -14,6 +14,7 @@ class ScanResult {
   final String? amount;
   final String? tokenSymbol;
   final String? chain;
+  final String? inviteCode;
 
   const ScanResult({
     required this.type,
@@ -27,6 +28,7 @@ class ScanResult {
     this.amount,
     this.tokenSymbol,
     this.chain,
+    this.inviteCode,
   });
 }
 
@@ -93,6 +95,10 @@ class ScanResultParser {
 
     final normalizedUrl = normalizeUrl(raw);
     if (normalizedUrl != null) {
+      final inviteResult = _parseInviteUrl(normalizedUrl, raw);
+      if (inviteResult != null) {
+        return inviteResult;
+      }
       return ScanResult(
         type: ScanResultType.webUrl,
         raw: raw,
@@ -145,6 +151,14 @@ class ScanResultParser {
         );
       }
 
+      if (type == 'invite' || type == 'invitation' || type == 'referral') {
+        return ScanResult(
+          type: ScanResultType.invite,
+          raw: raw,
+          inviteCode: _firstString(decoded, ['inviteCode', 'code']),
+        );
+      }
+
       if (type == 'group' ||
           type == 'group_qr' ||
           type == 'join_group' ||
@@ -191,6 +205,16 @@ class ScanResultParser {
     final scheme = uri.scheme.toLowerCase();
     if (scheme == 'paracosm') {
       final action = uri.host.toLowerCase();
+      if (action == 'invite' ||
+          action == 'invitation' ||
+          uri.path == '/invite') {
+        return ScanResult(
+          type: ScanResultType.invite,
+          raw: raw,
+          inviteCode:
+              uri.queryParameters['code'] ?? uri.queryParameters['inviteCode'],
+        );
+      }
       if (action == 'friend' || action == 'user' || uri.path == '/friend') {
         return ScanResult(
           type: ScanResultType.friend,
@@ -241,6 +265,29 @@ class ScanResultParser {
     }
 
     return null;
+  }
+
+  static ScanResult? _parseInviteUrl(String normalizedUrl, String raw) {
+    final uri = Uri.tryParse(normalizedUrl);
+    if (uri == null) return null;
+
+    final code =
+        uri.queryParameters['code'] ?? uri.queryParameters['inviteCode'];
+    if (code == null || code.trim().isEmpty) return null;
+
+    final isInvitePath =
+        uri.pathSegments.any((segment) => segment.toLowerCase() == 'invite') ||
+        uri.host.toLowerCase() == 'invite.zjtxy.top' ||
+        uri.host.toLowerCase() == 'hb.zjtxy.top' ||
+        uri.host.toLowerCase().contains('paracosm');
+    if (!isInvitePath) return null;
+
+    return ScanResult(
+      type: ScanResultType.invite,
+      raw: raw,
+      url: normalizedUrl,
+      inviteCode: code,
+    );
   }
 
   static String? _firstString(Map<String, dynamic> data, List<String> keys) {

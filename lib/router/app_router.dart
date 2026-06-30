@@ -59,6 +59,8 @@ import 'package:paracosm/pages/discover/discover_list_page.dart';
 import 'package:paracosm/pages/discover/discover_search_page.dart';
 import 'package:paracosm/pages/profile/profile_page.dart';
 import 'package:paracosm/pages/profile/profile_details_page.dart';
+import 'package:paracosm/pages/profile/invite_children_page.dart';
+import 'package:paracosm/pages/profile/invite_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
 import 'package:paracosm/pages/profile/red_packet_balance_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
@@ -741,9 +743,21 @@ class AppRouter {
         builder: (context, state) => const ProfileDetailsPage(),
       ),
       GoRoute(
+        path: '/invite',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          return InvitePage(inviteCode: state.uri.queryParameters['code']);
+        },
+      ),GoRoute(
         path: '/red-packet-balance',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const RedPacketBalancePage(),
+      ),
+      GoRoute(
+        path: '/invite-children',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const InviteChildrenPage(),
+       
       ),
       // 二维码页
       GoRoute(

@@ -44,6 +44,7 @@ class RedPacketAsset {
     required this.decimals,
     this.kind,
     this.contract,
+    this.chainId,
     this.minShare,
     this.maxSend,
   });
@@ -53,6 +54,7 @@ class RedPacketAsset {
   final int decimals;
   final String? kind;
   final String? contract;
+  final int? chainId;
   final String? minShare;
   final String? maxSend;
 
@@ -62,6 +64,7 @@ class RedPacketAsset {
       symbol: _string(json['symbol']),
       kind: _nullableString(json['kind']),
       contract: _nullableString(json['contract']),
+      chainId: _nullableInt(json['chain_id'] ?? json['chainId']),
       decimals: _int(json['decimals'], fallback: 18),
       minShare: _nullableString(json['min_share'] ?? json['minShare']),
       maxSend: _nullableString(json['max_send'] ?? json['maxSend']),
@@ -405,7 +408,7 @@ class RedPacketApi {
 
   static Future<List<RedPacketAsset>> assetList() async {
     final data = await _post('/asset/list.json');
-    print('assetList--------$data');
+    debugPrint('assetList：data');
     return _list(data['assets'])
         .whereType<Map>()
         .map(RedPacketAsset.fromJson)

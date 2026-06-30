@@ -244,6 +244,8 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
                         'chain': target.chain,
                         'prefillAddress': RedPacketBalancePage.depositAddress,
                         'lockedTransferTarget': true,
+                        'redPacketChainId': asset.chainId,
+                        'redPacketContract': asset.contract,
                         'title': '红包充值',
                       },
                     );
@@ -261,7 +263,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
     final wallet = AccountManager().currentWallet;
     if (wallet == null) return null;
 
-    final chainId = _chainIdForAsset(asset);
+    final chainId = asset.chainId ?? _chainIdForAsset(asset);
     ChainAccount? chain;
     for (final item in wallet.chains) {
       if (item.chainId == chainId) {
@@ -281,7 +283,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
         token = item;
         break;
       }
-      if (contract.isEmpty && itemSymbol == symbol && item.address.isEmpty) {
+      if (contract.isEmpty && (item.isNative || item.address.isEmpty)) {
         token = item;
         break;
       }

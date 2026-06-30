@@ -35,6 +35,8 @@ class TransferPage extends StatefulWidget {
   final String? prefillAmount;
   final bool lockedTransferTarget;
   final String? title;
+  final int? redPacketChainId;
+  final String? redPacketContract;
 
   const TransferPage({
     super.key,
@@ -44,6 +46,8 @@ class TransferPage extends StatefulWidget {
     this.prefillAmount,
     this.lockedTransferTarget = false,
     this.title,
+    this.redPacketChainId,
+    this.redPacketContract,
   });
 
   @override

@@ -769,6 +769,8 @@ class AppRouter {
             prefillAmount: data?['prefillAmount'] as String?,
             lockedTransferTarget: data?['lockedTransferTarget'] == true,
             title: data?['title'] as String?,
+            redPacketChainId: data?['redPacketChainId'] as int?,
+            redPacketContract: data?['redPacketContract'] as String?,
           );
         },
       ),

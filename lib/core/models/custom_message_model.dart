@@ -80,6 +80,9 @@ class CustomMessageModel {
   final String? redPacketTokenSymbol;
   final String? redPacketChainId;
   final String? redPacketType;
+  final String? redPacketAssetId;
+  final int? redPacketCount;
+  final int? redPacketExpireTime;
   final bool? redPacketClaimed;
 
   CustomMessageModel({
@@ -102,6 +105,9 @@ class CustomMessageModel {
     this.redPacketTokenSymbol,
     this.redPacketChainId,
     this.redPacketType,
+    this.redPacketAssetId,
+    this.redPacketCount,
+    this.redPacketExpireTime,
     this.redPacketClaimed,
   });
 
@@ -154,6 +160,9 @@ class CustomMessageModel {
       redPacketTokenSymbol: json['redPacketTokenSymbol']?.toString(),
       redPacketChainId: json['redPacketChainId']?.toString(),
       redPacketType: json['redPacketType']?.toString(),
+      redPacketAssetId: json['redPacketAssetId']?.toString(),
+      redPacketCount: _parseInt(json['redPacketCount']),
+      redPacketExpireTime: _parseInt(json['redPacketExpireTime']),
       redPacketClaimed: _parseBool(json['redPacketClaimed']),
     );
   }
@@ -210,6 +219,15 @@ class CustomMessageModel {
     }
     if (redPacketType != null) {
       json['redPacketType'] = redPacketType;
+    }
+    if (redPacketAssetId != null) {
+      json['redPacketAssetId'] = redPacketAssetId;
+    }
+    if (redPacketCount != null) {
+      json['redPacketCount'] = redPacketCount;
+    }
+    if (redPacketExpireTime != null) {
+      json['redPacketExpireTime'] = redPacketExpireTime;
     }
     if (redPacketClaimed != null) {
       json['redPacketClaimed'] = redPacketClaimed;

@@ -4,12 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/group_member_model.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
-import 'package:paracosm/modules/im/message/base/im_message.dart';
-import 'package:paracosm/modules/im/message/send/im_sender.dart';
-import 'package:paracosm/modules/wallet/model/chain_account.dart';
-import 'package:paracosm/modules/wallet/model/token_model.dart';
 import 'package:paracosm/pages/chat/chat_session_args.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
@@ -17,14 +14,12 @@ import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/common/app_network_image.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
+import 'package:paracosm/widgets/modals/dapp_modals.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../modules/im/manager/im_engine_manager.dart';
 import '../../widgets/chat/remove_member_modal.dart';
-import '../../widgets/modals/wallet_modals.dart';
 
 enum RedPacketSendType { lucky, normal, exclusive }
 
@@ -65,8 +60,10 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   late final TextEditingController _blessingController;
 
   RedPacketSendType _type = RedPacketSendType.lucky;
-  TokenModel? _selectedToken;
-  ChainAccount? _selectedChain;
+  RedPacketAsset? _selectedAsset;
+  RedPacketBalance? _selectedBalance;
+  List<RedPacketAsset> _assets = const [];
+  Map<String, RedPacketBalance> _balances = const {};
   String? _exclusiveRecipientUserId;
   String? _exclusiveRecipientName;
   String? _exclusiveRecipientAvatar;
@@ -78,14 +75,21 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       widget.sessionArgs?.conversationType == RCIMIWConversationType.group ||
       widget.sessionArgs?.isGroup == true;
 
+  RedPacketSendType get _effectiveType =>
+      _isGroupSession ? _type : RedPacketSendType.normal;
+
   @override
   void initState() {
     super.initState();
     _blessingController = TextEditingController(
       text: AppLocalizations.currentText('chat_red_packet_default_blessing'),
     );
+    if (!_isGroupSession) {
+      _type = RedPacketSendType.normal;
+    }
     _memberCount = widget.initialMemberCount ?? 0;
     _loadMemberCount();
+    unawaited(_loadAssetsAndBalances());
   }
 
   @override
@@ -118,25 +122,90 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     }
   }
 
+  Future<void> _loadAssetsAndBalances() async {
+    try {
+      final results = await Future.wait([
+        RedPacketApi.assetList(),
+        RedPacketApi.queryBalances(),
+      ]);
+      if (!mounted) return;
+      final assets = results[0] as List<RedPacketAsset>;
+      final balances = {
+        for (final item in results[1] as List<RedPacketBalance>)
+          item.assetId: item,
+      };
+      setState(() {
+        _assets = assets;
+        _balances = balances;
+        if (_selectedAsset == null && assets.isNotEmpty) {
+          _selectedAsset = assets.first;
+          _selectedBalance = balances[assets.first.assetId];
+        } else if (_selectedAsset != null) {
+          _selectedBalance = balances[_selectedAsset!.assetId];
+        }
+      });
+    } catch (e) {
+      debugPrint('Load red packet assets failed: $e');
+    }
+  }
+
   void _showTokenSelector() {
-    final wallet = AccountManager().currentWallet;
-    if (wallet == null) {
+    if (_assets.isEmpty) {
       AppToast.show(
-        AppLocalizations.currentText('chat_red_packet_missing_wallet'),
+        AppLocalizations.currentText('chat_red_packet_select_token'),
       );
+      unawaited(_loadAssetsAndBalances());
       return;
     }
 
-    WalletModals.showTokenSelector(
-      context: context,
-      wallet: wallet,
-      currentToken: _selectedToken,
-      onSelected: (token) {
-        setState(() {
-          _selectedToken = token;
-          _selectedChain = token.getChain();
-        });
-      },
+    AppModal.show(
+      context,
+      title: AppLocalizations.of(context)!.chatRedPacketSelectToken,
+      confirmText: null,
+      onConfirm: () {},
+      child: SizedBox(
+        height: 360,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: _assets.length,
+          separatorBuilder: (_, _) => Divider(color: AppColors.grey100),
+          itemBuilder: (context, index) {
+            final asset = _assets[index];
+            final balance = _balances[asset.assetId];
+            final selected = asset.assetId == _selectedAsset?.assetId;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                asset.symbol,
+                style: AppTextStyles.h2.copyWith(
+                  color: _primaryTextColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                AppLocalizations.of(context)!.chatRedPacketAvailable(
+                  '${balance?.display ?? '0'} ${asset.symbol}',
+                ),
+                style: AppTextStyles.body.copyWith(
+                  color: _secondaryTextColor,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: selected
+                  ? const Icon(Icons.check, color: _headerColor)
+                  : null,
+              onTap: () {
+                setState(() {
+                  _selectedAsset = asset;
+                  _selectedBalance = balance;
+                });
+                context.pop();
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -231,7 +300,10 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
           onPressed: () {
             context.push(
               '/red-packet_record',
-              extra: IMEngineManager().currentUserId,
+              extra: {
+                'userId': IMEngineManager().currentUserId,
+                'groupId': _isGroupSession ? widget.sessionArgs?.targetId : '',
+              },
             );
           },
           icon: const Icon(
@@ -264,7 +336,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
           ),
           Column(
             children: [
-              _buildTypeTabs(l10n),
+              if (_isGroupSession) _buildTypeTabs(l10n),
               Expanded(child: _buildForm(l10n)),
             ],
           ),
@@ -365,10 +437,13 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   List<Widget> _buildTypeFields(AppLocalizations l10n) {
+    final type = _effectiveType;
     final amountInput = _buildInputRow(
-      label: _type == RedPacketSendType.normal
+      label: !_isGroupSession
+          ? l10n.chatRedPacketAmount
+          : type == RedPacketSendType.normal
           ? l10n.chatRedPacketSingleAmount
-          : _type == RedPacketSendType.exclusive
+          : type == RedPacketSendType.exclusive
           ? l10n.chatRedPacketAmount
           : l10n.chatRedPacketTotalAmount,
       controller: _amountController,
@@ -377,7 +452,11 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
     );
 
-    switch (_type) {
+    if (!_isGroupSession) {
+      return [amountInput];
+    }
+
+    switch (type) {
       case RedPacketSendType.lucky:
         return [
           amountInput,
@@ -412,9 +491,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   Widget _buildAssetCard(AppLocalizations l10n) {
-    final token = _selectedToken;
-    final chain = _selectedChain ?? token?.getChain();
-    final hasToken = token != null;
+    final asset = _selectedAsset;
+    final balance = _selectedBalance;
+    final hasToken = asset != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _showTokenSelector,
@@ -444,24 +523,8 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             ),
             const Spacer(),
             if (hasToken) ...[
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: AppNetworkImage(
-                  url: token.logo,
-                  width: 28,
-                  height: 28,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 10),
               Text(
-                token.symbol,
+                asset.symbol,
                 style: AppTextStyles.h2.copyWith(
                   color: _primaryTextColor,
                   fontSize: _formFontSize,
@@ -470,7 +533,9 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
               ),
               const SizedBox(width: 12),
               Text(
-                chain?.name ?? '',
+                l10n.chatRedPacketAvailable(
+                  '${balance?.display ?? '0'} ${asset.symbol}',
+                ),
                 style: AppTextStyles.body.copyWith(
                   color: _secondaryTextColor,
                   fontSize: _assistFontSize,
@@ -716,15 +781,17 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   String _buttonText(AppLocalizations l10n) {
-    if (_selectedToken == null) {
+    final type = _effectiveType;
+    if (_selectedAsset == null) {
       return l10n.chatRedPacketSelectToken;
     }
-    if (_type == RedPacketSendType.exclusive &&
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       return l10n.chatRedPacketSelectRecipient;
     }
-    if (_type != RedPacketSendType.exclusive &&
+    if (_isGroupSession &&
+        type != RedPacketSendType.exclusive &&
         _countController.text.trim().isEmpty) {
       return l10n.chatRedPacketEnterCount;
     }
@@ -736,15 +803,16 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   bool get _canSubmit {
     if (_isSending || widget.sessionArgs == null) return false;
-    if (_selectedToken == null) return false;
-    if (_type == RedPacketSendType.exclusive &&
+    if (_selectedAsset == null) return false;
+    final type = _effectiveType;
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       return false;
     }
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) return false;
-    if (_type != RedPacketSendType.exclusive) {
+    if (_isGroupSession && type != RedPacketSendType.exclusive) {
       final count = int.tryParse(_countController.text.trim());
       if (count == null || count <= 0) return false;
       if (_isGroupSession && _memberCount > 0 && count > _memberCount) {
@@ -767,12 +835,13 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       AppToast.show(l10n.chatRedPacketMissingSession);
       return false;
     }
-    if (_selectedToken == null) {
+    if (_selectedAsset == null) {
       AppToast.show(l10n.chatRedPacketSelectToken);
       return false;
     }
 
-    if (_type == RedPacketSendType.exclusive &&
+    final type = _effectiveType;
+    if (type == RedPacketSendType.exclusive &&
         (_exclusiveRecipientUserId == null ||
             _exclusiveRecipientUserId!.isEmpty)) {
       AppToast.show(l10n.chatRedPacketSelectRecipient);
@@ -785,7 +854,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       return false;
     }
 
-    if (_type != RedPacketSendType.exclusive) {
+    if (_isGroupSession && type != RedPacketSendType.exclusive) {
       final count = int.tryParse(_countController.text.trim());
       if (count == null || count <= 0) {
         AppToast.show(l10n.chatRedPacketInvalidCount);
@@ -798,12 +867,17 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       }
     }
 
+    if (!_hasEnoughBalance()) {
+      AppToast.show(l10n.profileTransferInsufficientBalance);
+      return false;
+    }
+
     return true;
   }
 
   Future<void> _showGenerateRedPacketSheet(AppLocalizations l10n) {
-    final token = _selectedToken;
-    if (token == null) return Future.value();
+    final asset = _selectedAsset;
+    if (asset == null) return Future.value();
     return AppModal.show(
       context,
       title: l10n.chatRedPacketGenerateTitle,
@@ -814,14 +888,14 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
       barrierColor: _headerColor.withValues(alpha: 0.18),
       onConfirm: () {
         Navigator.pop(context);
-        unawaited(_sendRedPacket(l10n));
+        unawaited(_confirmSignatureAndSend(l10n));
       },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(32, 18, 32, 0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildGenerateTokenHeader(token),
+            _buildGenerateTokenHeader(asset),
             const SizedBox(height: 34),
             _buildGenerateInfoRow(
               label: l10n.chatRedPacketCount,
@@ -830,8 +904,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             const SizedBox(height: 24),
             _buildGenerateInfoRow(
               label: l10n.chatRedPacketMinerFee,
-              value: l10n.chatRedPacketNetError,
-              valueColor: const Color(0xFFFF5B5B),
+              value: _redPacketMinerFeeText(asset),
               showInfoIcon: true,
             ),
             const SizedBox(height: 24),
@@ -850,8 +923,41 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     );
   }
 
-  Widget _buildGenerateTokenHeader(TokenModel token) {
-    final symbol = token.symbol;
+  Future<void> _confirmSignatureAndSend(AppLocalizations l10n) async {
+    final args = widget.sessionArgs;
+    final asset = _selectedAsset;
+    if (args == null || asset == null || _isSending) return;
+
+    RedPacketSignatureRequest signatureRequest;
+    try {
+      signatureRequest = RedPacketApi.prepareSendSignature(
+        assetId: asset.assetId,
+        amount: _requestAmount(asset),
+        count: _packetCountForSummary(),
+        mode: _redPacketModeValue,
+        groupId: _isGroupSession ? args.targetId : null,
+      );
+    } catch (e) {
+      debugPrint('Prepare red packet signature failed: $e');
+      AppToast.show(l10n.chatRedPacketSendFailed);
+      return;
+    }
+
+    final confirmed = await DappModals.showSignInfoModal(
+      context,
+      message: signatureRequest.message,
+      address: signatureRequest.userId,
+      host: 'RongCloud redSend',
+      faviconUrl: '',
+      walletLabel: AccountManager().currentWallet?.name,
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _sendRedPacket(l10n, signatureRequest: signatureRequest);
+  }
+
+  Widget _buildGenerateTokenHeader(RedPacketAsset asset) {
+    final symbol = asset.symbol;
     return Column(
       children: [
         Container(
@@ -862,11 +968,15 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
             shape: BoxShape.circle,
           ),
           clipBehavior: Clip.antiAlias,
-          child: AppNetworkImage(
-            url: token.logo,
-            width: 64,
-            height: 64,
-            fit: BoxFit.cover,
+          child: Center(
+            child: Text(
+              symbol.characters.take(1).toString(),
+              style: AppTextStyles.h1.copyWith(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -882,6 +992,58 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         ),
       ],
     );
+  }
+
+  String _redPacketMinerFeeText(RedPacketAsset asset) {
+    // 发红包走中心化余额扣减，不触发用户侧链上交易；链上 Gas 由平台侧处理。
+    return '0 ${_redPacketFeeSymbol(asset)}';
+  }
+
+  String _redPacketFeeSymbol(RedPacketAsset asset) {
+    final assetPrefix = asset.assetId.split('-').first.toLowerCase();
+    switch (assetPrefix) {
+      case 'bsc':
+        return 'BNB';
+      case 'eth':
+      case 'ethereum':
+        return 'ETH';
+      case 'polygon':
+      case 'matic':
+        return 'MATIC';
+      case 'arb':
+      case 'arbitrum':
+      case 'op':
+      case 'optimism':
+      case 'base':
+      case 'linea':
+      case 'scroll':
+      case 'blast':
+        return 'ETH';
+      case 'tron':
+      case 'trx':
+        return 'TRX';
+      case 'sol':
+      case 'solana':
+        return 'SOL';
+      case 'btc':
+      case 'bitcoin':
+        return 'BTC';
+    }
+
+    final wallet = AccountManager().currentWallet;
+    for (final chain in wallet?.chains ?? const []) {
+      final symbol = chain.symbol.trim();
+      if (symbol.isNotEmpty &&
+          asset.assetId.toLowerCase().contains(symbol.toLowerCase())) {
+        return symbol;
+      }
+    }
+
+    final currentSymbol = wallet?.currentChain?.symbol.trim();
+    if (currentSymbol != null && currentSymbol.isNotEmpty) {
+      return currentSymbol;
+    }
+    return 'BNB';
   }
 
   Widget _buildGenerateInfoRow({
@@ -923,31 +1085,38 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
     );
   }
 
-  Future<void> _sendRedPacket(AppLocalizations l10n) async {
+  Future<void> _sendRedPacket(
+    AppLocalizations l10n, {
+    RedPacketSignatureRequest? signatureRequest,
+  }) async {
     final args = widget.sessionArgs;
-    if (args == null || _selectedToken == null) return;
+    final asset = _selectedAsset;
+    if (args == null || asset == null) return;
     if (_isSending) return;
 
     setState(() => _isSending = true);
     final greeting = _greetingText(l10n);
-    final success = await ImSender.instance.send(
-      message: RedPacketMessage(
-        conversationType: args.conversationType,
-        targetId: args.targetId,
-        channelId: args.channelId,
-        data: RedPacketData(
-          redPacketId: const Uuid().v4(),
-          greeting: greeting,
-          amount: _amountController.text.trim(),
-          tokenSymbol: _selectedToken?.symbol,
-          chainId: _selectedChain?.name,
-          packetType: _redPacketTypeValue,
-          recipientUserId: _type == RedPacketSendType.exclusive
-              ? _exclusiveRecipientUserId
-              : null,
-        ),
-      ),
-    );
+    bool success = false;
+    try {
+      final count = _packetCountForSummary();
+      final amount = _requestAmount(asset);
+      await RedPacketApi.send(
+        assetId: asset.assetId,
+        amount: amount,
+        count: count,
+        mode: _redPacketModeValue,
+        groupId: _isGroupSession ? args.targetId : null,
+        to: _effectiveType == RedPacketSendType.exclusive || !_isGroupSession
+            ? _exclusiveRecipientUserId ?? args.targetId
+            : null,
+        greeting: greeting,
+        signatureRequest: signatureRequest,
+      );
+      success = true;
+    } catch (e) {
+      debugPrint('Send red packet failed: $e');
+      success = false;
+    }
 
     if (!mounted) return;
     setState(() => _isSending = false);
@@ -959,8 +1128,20 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   int _packetCountForSummary() {
-    if (_type == RedPacketSendType.exclusive) return 1;
+    if (!_isGroupSession || _effectiveType == RedPacketSendType.exclusive) {
+      return 1;
+    }
     return int.tryParse(_countController.text.trim()) ?? 0;
+  }
+
+  String _requestAmount(RedPacketAsset asset) {
+    return redPacketDecimalToUnits(
+      _amountController.text.trim(),
+      asset.decimals,
+      multiplier: _isGroupSession && _effectiveType == RedPacketSendType.normal
+          ? _packetCountForSummary()
+          : 1,
+    );
   }
 
   String _greetingText(AppLocalizations l10n) {
@@ -969,7 +1150,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
   }
 
   String _typeLabel(AppLocalizations l10n) {
-    switch (_type) {
+    switch (_effectiveType) {
       case RedPacketSendType.lucky:
         return l10n.chatRedPacketLucky;
       case RedPacketSendType.normal:
@@ -981,7 +1162,7 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
 
   String _totalAmountText() {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    final total = _type == RedPacketSendType.normal
+    final total = _isGroupSession && _effectiveType == RedPacketSendType.normal
         ? amount * _packetCountForSummary()
         : amount;
     if (total <= 0) return '0';
@@ -991,14 +1172,28 @@ class _ChatRedPacketPageState extends State<ChatRedPacketPage> {
         .replaceFirst(RegExp(r'\.$'), '');
   }
 
-  String get _redPacketTypeValue {
-    switch (_type) {
+  bool _hasEnoughBalance() {
+    final asset = _selectedAsset;
+    if (asset == null) return false;
+    final available = BigInt.tryParse(_selectedBalance?.available ?? '0');
+    if (available == null || available <= BigInt.zero) return false;
+    try {
+      final required = BigInt.parse(_requestAmount(asset));
+      return available >= required;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String get _redPacketModeValue {
+    if (!_isGroupSession) return 'p2p';
+    switch (_effectiveType) {
       case RedPacketSendType.lucky:
         return 'lucky';
       case RedPacketSendType.normal:
-        return 'normal';
+        return 'even';
       case RedPacketSendType.exclusive:
-        return 'exclusive';
+        return 'p2p';
     }
   }
 }

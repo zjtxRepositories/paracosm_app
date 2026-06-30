@@ -39,6 +39,7 @@ import '../../../modules/call/rong_call_types.dart';
 import '../../../modules/im/message/base/im_message.dart';
 import '../../../modules/im/message/custom_message_identity.dart';
 import '../../../modules/im/message/custom_face_message.dart';
+import '../../../modules/im/message/red_packet_status_message.dart';
 import '../../../modules/im/message/send/im_sender.dart';
 import '../../../modules/im/store/red_packet_claim_store.dart';
 import '../../../modules/manager/voice_player_manager.dart';
@@ -46,6 +47,7 @@ import '../../../modules/manager/voice_record_manager.dart';
 import '../../../util/media_handle_util.dart';
 import '../../../util/string_util.dart';
 import '../../../widgets/chat/chat_forward_target_modal.dart';
+import '../../../widgets/chat/chat_message_contents.dart';
 import '../../../widgets/base/app_localizations.dart';
 import '../../../widgets/chat/select_members_modal.dart';
 import '../../../widgets/chat/voice_record_overlay.dart';
@@ -154,6 +156,7 @@ class ChatDetailController extends ChangeNotifier {
 
   StreamSubscription? _groupMemberChangeSub;
   StreamSubscription<RongGroupCallStatus?>? _groupCallStatusSub;
+  StreamSubscription<RedPacketStatus>? _redPacketStatusSub;
   StreamSubscription<RongCallState>? _callStateSub;
 
   RongGroupCallStatus? activeGroupCallStatus;
@@ -192,6 +195,7 @@ class ChatDetailController extends ChangeNotifier {
     _listenGroup();
 
     _listenGroupCallStatus();
+    _listenRedPacketStatus();
 
     unawaited(_loadGroupNoticeBanner());
 
@@ -238,6 +242,8 @@ class ChatDetailController extends ChangeNotifier {
 
     _groupCallStatusSub?.cancel();
 
+    _redPacketStatusSub?.cancel();
+
     _callStateSub?.cancel();
 
     super.dispose();
@@ -279,7 +285,12 @@ class ChatDetailController extends ChangeNotifier {
     return _fileDownloadNotifier(messageId);
   }
 
-  Future<void> markRedPacketClaimed(String messageId) async {
+  String? get currentClaimUserId => IMEngineManager().currentUserId;
+
+  Future<void> markRedPacketClaimed(
+    String messageId, {
+    RedPacketClaimUpdate? claim,
+  }) async {
     ChatDetailMessage? claimedMessage;
 
     engine.updateWhere(
@@ -289,10 +300,13 @@ class ChatDetailController extends ChangeNotifier {
           message.isClaimed != true,
       (message) {
         final raw = message.extra;
-        if (raw is RCIMIWCustomMessage) {
-          raw.fields?['redPacketClaimed'] = true;
-        }
-        claimedMessage = message.copyWith(isClaimed: true, extra: raw);
+        claimedMessage = message.copyWith(
+          isClaimed: true,
+          redPacketAmount: _claimDisplay(claim) ?? message.redPacketAmount,
+          redPacketTokenSymbol:
+              _claimSymbol(claim) ?? message.redPacketTokenSymbol,
+          extra: raw,
+        );
         return claimedMessage!;
       },
     );
@@ -302,14 +316,16 @@ class ChatDetailController extends ChangeNotifier {
     }
 
     final raw = claimedMessage!.extra;
+    final claimUserId = currentClaimUserId;
     final redPacket = raw is RCIMIWMessage
-        ? RedPacketData.fromMessage(raw)
+        ? RedPacketData.fromMessage(raw, claimedUserId: claimUserId)
         : null;
     final senderName = await _senderName(claimedMessage!.senderUserId);
     final claimedAt = DateTime.now().millisecondsSinceEpoch;
     if (redPacket != null && redPacket.redPacketId.isNotEmpty) {
       await RedPacketClaimStore.markClaimed(
         redPacket.redPacketId,
+        userId: claimUserId,
         claimedAt: claimedAt,
       );
     }
@@ -318,6 +334,83 @@ class ChatDetailController extends ChangeNotifier {
       redPacketMessage: claimedMessage!,
       senderName: senderName,
       claimedAt: claimedAt,
+    );
+    _broadcastRedPacketStatus(redPacket, claim);
+  }
+
+  String? _claimDisplay(RedPacketClaimUpdate? claim) {
+    final display = claim?.display.trim();
+    if (display == null || display.isEmpty || display == '0') return null;
+    return display;
+  }
+
+  String? _claimSymbol(RedPacketClaimUpdate? claim) {
+    final symbol = claim?.symbol.trim();
+    if (symbol == null || symbol.isEmpty) return null;
+    return symbol;
+  }
+
+  void _listenRedPacketStatus() {
+    _redPacketStatusSub = RedPacketStatusCenter().stream.listen((status) {
+      if (args == null || status.targetId != args!.targetId) return;
+      _applyRemoteRedPacketStatus(status);
+    });
+  }
+
+  void _applyRemoteRedPacketStatus(RedPacketStatus status) {
+    final currentUserId = currentClaimUserId?.trim().toLowerCase();
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        status.receiver == currentUserId) {
+      return;
+    }
+
+    final claim = RedPacketClaimUpdate(
+      packetNo: status.packetNo,
+      amount: status.amount,
+      display: status.display,
+      symbol: status.symbol,
+    );
+
+    engine.updateWhere(
+      (message) {
+        if (message.kind != ChatDetailMessageKind.redBag) return false;
+        final raw = message.extra;
+        if (raw is! RCIMIWMessage) return false;
+        final redPacket = RedPacketData.fromMessage(
+          raw,
+          claimedUserId: currentClaimUserId,
+        );
+        return redPacket?.redPacketId == status.packetNo;
+      },
+      (message) {
+        return message.copyWith(
+          redPacketAmount: _claimDisplay(claim) ?? message.redPacketAmount,
+          redPacketTokenSymbol:
+              _claimSymbol(claim) ?? message.redPacketTokenSymbol,
+        );
+      },
+    );
+  }
+
+  void _broadcastRedPacketStatus(
+    RedPacketData? redPacket,
+    RedPacketClaimUpdate? claim,
+  ) {
+    if (args == null || redPacket == null || claim == null) return;
+    final packetNo = redPacket.redPacketId.trim();
+    if (packetNo.isEmpty) return;
+
+    unawaited(
+      RedPacketStatusMessage.send(
+        conversationType: args!.conversationType,
+        targetId: args!.targetId,
+        channelId: args!.channelId,
+        packetNo: packetNo,
+        display: claim.display,
+        amount: claim.amount,
+        symbol: claim.symbol,
+      ),
     );
   }
 
@@ -1080,6 +1173,7 @@ class ChatDetailController extends ChangeNotifier {
         return RCIMIWMessageType.text;
       case 'RC:IWNormalMsg':
       case RedPacketMessage.messageIdentifier:
+      case RedPacketMessage.serverMessageIdentifier:
         return RCIMIWMessageType.custom;
       case 'RC:ImgMsg':
         return RCIMIWMessageType.image;

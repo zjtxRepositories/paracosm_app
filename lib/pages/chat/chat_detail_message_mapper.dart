@@ -1,5 +1,4 @@
 import 'package:paracosm/modules/call/rong_call_summary_parser.dart';
-import 'package:paracosm/core/models/custom_message_model.dart';
 import 'package:paracosm/modules/im/listener/user_display_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
@@ -293,7 +292,7 @@ class ChatDetailMessageMapper {
           senderAvatarUrl: senderUserInfo?.avatar,
         );
       }
-      final redPacket = RedPacketData.fromMessage(message);
+      final redPacket = _redPacketFromMessage(message);
       if (redPacket != null) {
         final senderName = senderUserInfo?.name;
         return ChatDetailMessage(
@@ -332,6 +331,32 @@ class ChatDetailMessageMapper {
       );
     }
     if (message.messageType == RCIMIWMessageType.nativeCustom) {
+      final redPacket = _redPacketFromMessage(message);
+      if (redPacket != null) {
+        final senderName = senderUserInfo?.name;
+        return ChatDetailMessage(
+          messageId: messageKey,
+          kind: ChatDetailMessageKind.redBag,
+          isMe: isMe,
+          isSending: isSending,
+          showBubble: false,
+          sentTime: sentTime,
+          text: redPacket.greeting.isNotEmpty
+              ? redPacket.greeting
+              : AppLocalizations.currentText('chat_detail_red_packet'),
+          isClaimed: redPacket.isClaimed,
+          redPacketAmount: redPacket.amount,
+          redPacketTokenSymbol: redPacket.tokenSymbol,
+          redPacketType: redPacket.packetType,
+          extra: message,
+          showReadReceipt: _shouldShowReadReceipt(message, isMe),
+          isRead: _isReadReceiptRead(message),
+          groupReadCount: _groupReadCount(message),
+          senderUserId: message.senderUserId,
+          senderAvatarUrl: senderUserInfo?.avatar,
+          noticeName: senderName,
+        );
+      }
       return ChatDetailMessage(
         messageId: messageKey,
         kind: ChatDetailMessageKind.unknown,
@@ -386,7 +411,7 @@ class ChatDetailMessageMapper {
         message.messageType == RCIMIWMessageType.combineV2 ||
         ChatCustomFace.fromMessage(message) != null ||
         MomentPostShareData.fromMessage(message) != null ||
-        RedPacketData.fromMessage(message) != null;
+        _redPacketFromMessage(message) != null;
   }
 
   static bool supportsReadReceiptKind(ChatDetailMessageKind kind) {
@@ -447,6 +472,13 @@ class ChatDetailMessageMapper {
       return AppLocalizations.currentText('chat_detail_history');
     }
 
+    final redPacket = _redPacketFromMessage(message);
+    if (redPacket != null) {
+      return redPacket.greeting.isNotEmpty
+          ? redPacket.greeting
+          : AppLocalizations.currentText('chat_detail_red_packet');
+    }
+
     if (message is RCIMIWTextMessage) {
       final text = message.text;
       return (text?.isNotEmpty ?? false)
@@ -479,12 +511,6 @@ class ChatDetailMessageMapper {
         return momentPost.postContent.isNotEmpty
             ? momentPost.postContent
             : AppLocalizations.currentText('moments_moment_title');
-      }
-      final redPacket = RedPacketData.fromMessage(message);
-      if (redPacket != null) {
-        return redPacket.greeting.isNotEmpty
-            ? redPacket.greeting
-            : AppLocalizations.currentText('chat_detail_red_packet');
       }
       final model = MessageModel(item: message);
       final content = await model.formatCustomContent();
@@ -549,23 +575,16 @@ class ChatDetailMessageMapper {
     ChatDetailMessage message,
   ) {
     final raw = message.extra;
-    if (raw is! RCIMIWCustomMessage) {
+    if (raw is! RCIMIWMessage) {
       return null;
     }
 
-    final redPacket = RedPacketData.fromMessage(raw);
+    final redPacket = _redPacketFromMessage(raw);
     if (redPacket == null || redPacket.redPacketId.isEmpty) {
       return null;
     }
 
-    final fields = raw.fields;
-    final model = fields == null
-        ? null
-        : CustomMessageModel.fromJson(
-            fields.map((key, value) => MapEntry(key.toString(), value)),
-          );
-    final claimedUserId =
-        IMEngineManager().currentUserId ?? model?.toUserId.trim();
+    final claimedUserId = IMEngineManager().currentUserId;
     final claimedAt =
         RedPacketClaimStore.claimedAt(
           redPacket.redPacketId,
@@ -600,5 +619,12 @@ class ChatDetailMessageMapper {
       }
     }
     messages.insert(index, item);
+  }
+
+  static RedPacketData? _redPacketFromMessage(RCIMIWMessage message) {
+    return RedPacketData.fromMessage(
+      message,
+      claimedUserId: IMEngineManager().currentUserId,
+    );
   }
 }

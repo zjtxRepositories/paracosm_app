@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -5,6 +6,7 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/modules/im/manager/im_engine_manager.dart';
 import 'package:paracosm/modules/im/message/base/im_message.dart';
 import 'package:paracosm/pages/chat/detail/file_download_state.dart';
@@ -1300,8 +1302,10 @@ class ChatRedBagMessageContent extends StatelessWidget {
       case 'lucky':
         return l10n.chatRedPacketLucky;
       case 'normal':
+      case 'even':
         return l10n.chatRedPacketNormal;
       case 'exclusive':
+      case 'p2p':
         return l10n.chatRedPacketExclusive;
       default:
         return l10n.chatDetailRedPacket;
@@ -1327,7 +1331,7 @@ class ChatRedPacketDetailDialog extends StatefulWidget {
   final String? senderName;
   final String? senderAvatarUrl;
   final String? sender;
-  final VoidCallback? onClaimed;
+  final RedPacketClaimCallback? onClaimed;
 
   @override
   State<ChatRedPacketDetailDialog> createState() =>
@@ -1342,12 +1346,19 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
   late final AnimationController _burstCtrl;
 
   bool _opening = false;
+  bool _loadingClaimInfo = false;
   late bool _isClaimed;
+  RedPacketGrabResult? _grabResult;
+  String? _claimedAmount;
+  String? _claimedSymbol;
 
   @override
   void initState() {
     super.initState();
     _isClaimed = widget.isClaimed;
+    if (_isClaimed) {
+      unawaited(_loadClaimedAmount());
+    }
 
     /// 🎯 shake
     _shakeCtrl = AnimationController(
@@ -1388,20 +1399,78 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
   // =========================
   Future<void> _openRedPacket() async {
     if (_opening || _isClaimed || widget.isExpired) return;
-    _opening = true;
+    setState(() => _opening = true);
 
     await _shakeCtrl.forward(from: 0);
     await _flipCtrl.forward(from: 0);
+    final RedPacketGrabResult result;
+    try {
+      result = await RedPacketApi.grab(widget.data.redPacketId);
+    } catch (e) {
+      if (!mounted) return;
+      _flipCtrl.reset();
+      _shakeCtrl.reset();
+      _scaleCtrl.reset();
+      _burstCtrl.reset();
+      setState(() => _opening = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_redPacketErrorText(e))));
+      return;
+    }
     await _scaleCtrl.forward(from: 0);
     await _burstCtrl.forward(from: 0);
-
-    // TODO: 调接口领取红包
     if (!mounted) return;
     setState(() {
+      _grabResult = result;
+      _claimedAmount = _normalizeClaimAmount(result.display);
+      _claimedSymbol = result.symbol.trim().isNotEmpty
+          ? result.symbol.trim()
+          : null;
       _isClaimed = true;
       _opening = false;
     });
-    widget.onClaimed?.call();
+    final onClaimed = widget.onClaimed;
+    if (onClaimed != null) {
+      unawaited(
+        Future<void>.sync(
+          () => onClaimed(RedPacketClaimUpdate.fromGrabResult(result)),
+        ).catchError((error, stackTrace) {
+          debugPrint('red packet claimed callback failed: $error');
+        }),
+      );
+    }
+  }
+
+  Future<void> _loadClaimedAmount() async {
+    if (_grabResult != null || _loadingClaimInfo) return;
+    setState(() => _loadingClaimInfo = true);
+    try {
+      final info = await RedPacketApi.info(widget.data.redPacketId);
+      final currentUserId = IMEngineManager().currentUserId
+          ?.trim()
+          .toLowerCase();
+      RedPacketReceive? currentReceive;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        for (final item in info.receives) {
+          if (item.receiver.trim().toLowerCase() == currentUserId) {
+            currentReceive = item;
+            break;
+          }
+        }
+      }
+
+      final amount = _normalizeClaimAmount(currentReceive?.display);
+      if (!mounted) return;
+      setState(() {
+        _claimedAmount = amount;
+        _claimedSymbol = (info.symbol ?? widget.data.tokenSymbol)?.trim();
+        _loadingClaimInfo = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingClaimInfo = false);
+    }
   }
 
   @override
@@ -1598,10 +1667,16 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
     }
 
     if (_isClaimed) {
-      final amount = widget.data.amount?.trim().isNotEmpty == true
-          ? widget.data.amount!.trim()
-          : '0';
-      final symbol = widget.data.tokenSymbol?.trim().isNotEmpty == true
+      final amount =
+          _claimedAmount ??
+          _normalizeClaimAmount(_grabResult?.display) ??
+          _normalizeClaimAmount(widget.data.amount) ??
+          (_loadingClaimInfo ? '...' : '0');
+      final symbol = _claimedSymbol?.trim().isNotEmpty == true
+          ? _claimedSymbol!.trim()
+          : _grabResult?.symbol.trim().isNotEmpty == true
+          ? _grabResult!.symbol.trim()
+          : widget.data.tokenSymbol?.trim().isNotEmpty == true
           ? widget.data.tokenSymbol!.trim()
           : '';
 
@@ -1719,6 +1794,45 @@ class _ChatRedPacketDetailDialogState extends State<ChatRedPacketDetailDialog>
           const Icon(Icons.chevron_right, color: Color(0xFFFFD9A0), size: 26),
         ],
       ),
+    );
+  }
+
+  String _redPacketErrorText(Object error) {
+    if (error is RedPacketApiException) {
+      return error.message;
+    }
+    return AppLocalizations.currentText('chat_red_packet_send_failed');
+  }
+
+  String? _normalizeClaimAmount(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty || text == '0') return null;
+    return text;
+  }
+}
+
+typedef RedPacketClaimCallback =
+    FutureOr<void> Function(RedPacketClaimUpdate claim);
+
+class RedPacketClaimUpdate {
+  const RedPacketClaimUpdate({
+    required this.packetNo,
+    required this.amount,
+    required this.display,
+    required this.symbol,
+  });
+
+  final String packetNo;
+  final String amount;
+  final String display;
+  final String symbol;
+
+  factory RedPacketClaimUpdate.fromGrabResult(RedPacketGrabResult result) {
+    return RedPacketClaimUpdate(
+      packetNo: result.packetNo,
+      amount: result.amount,
+      display: result.display,
+      symbol: result.symbol,
     );
   }
 }

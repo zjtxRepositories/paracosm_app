@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
+import 'package:paracosm/widgets/common/app_empty_view.dart';
 
 import '../../core/models/user_display_model.dart';
 import '../../modules/im/listener/user_display_state_center.dart';
-import '../../modules/im/manager/im_engine_manager.dart';
 import '../../modules/im/message/base/im_message.dart';
 import '../../widgets/base/app_localizations.dart';
 
 class RedPacketDetailPage extends StatefulWidget {
-  const RedPacketDetailPage({super.key, required this.userId, required this.data});
+  const RedPacketDetailPage({
+    super.key,
+    required this.userId,
+    required this.data,
+  });
+
   final String userId;
   final RedPacketData data;
 
@@ -19,140 +26,148 @@ class RedPacketDetailPage extends StatefulWidget {
 }
 
 class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
-  final double headerHeight = 180;
-  UserDisplayModel? _user;
+  static const double _headerHeight = 220;
+  static const double _contentTop = 188;
+  static const double _avatarSize = 72;
+  UserDisplayModel? _sender;
+  RedPacketInfo? _info;
+  bool _loading = true;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     fetchData();
   }
 
   Future<void> fetchData() async {
-    var user = await UserDisplayStateCenter().getUser(
-      widget.userId,
-    );
-    setState(() {
-      _user = user;
-    });
+    try {
+      final info = await RedPacketApi.info(widget.data.redPacketId);
+      final senderId = info.sender.isNotEmpty ? info.sender : widget.userId;
+      final sender = await UserDisplayStateCenter().getUser(senderId);
+      if (!mounted) return;
+      setState(() {
+        _info = info;
+        _sender = sender;
+        _loading = false;
+      });
+    } catch (e) {
+      final sender = await UserDisplayStateCenter().getUser(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _sender = sender;
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final records = [
-      {"name": "京", "time": "2026-06-25 17:09:08", "amount": "0.147 BOX"},
-      {"name": "广州阿华", "time": "2026-06-25 17:09:08", "amount": "0.298 BOX"},
-      {"name": "你猜", "time": "2026-06-25 17:09:08", "amount": "0.265 BOX"},
-      {"name": "岁月安然", "time": "2026-06-25 17:09:07", "amount": "0.075 BOX"},
-    ];
     final l10n = AppLocalizations.of(context)!;
+    final info = _info;
+    final greeting =
+        (info?.greeting.trim().isNotEmpty == true
+                ? info!.greeting
+                : widget.data.greeting)
+            .trim();
 
-    final greeting = widget.data.greeting.trim().isNotEmpty
-        ? widget.data.greeting.trim()
-        : l10n.chatRedPacketDefaultBlessing;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
-      body: Stack(
+    return Container(
+      color: Colors.white,
+      child: Stack(
         children: [
           Positioned(
-            top: headerHeight-40,
+            top: _contentTop,
             left: 0,
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.only(top: 100),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
+              padding: const EdgeInsets.only(top: _avatarSize),
+              color: Colors.white,
               child: Column(
                 children: [
-                   Text(
-                    _user?.name ?? '',
-                    style: TextStyle(
+                  Text(
+                    _sender?.name ??
+                        _shortAddress(info?.sender ?? widget.userId),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(greeting, style: TextStyle(color: Colors.grey)),
+                  Text(
+                    greeting.isEmpty
+                        ? l10n.chatRedPacketDefaultBlessing
+                        : greeting,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 30),
-                  const Text(
-                    "手慢了，已被领完",
-                    style: TextStyle(
+                  Text(
+                    _statusText(info),
+                    style: const TextStyle(
                       color: Color(0xFFFFB300),
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-                  Container(height: 10,color: AppColors.grey100),
-
+                  Container(height: 10, color: AppColors.grey100),
                   const SizedBox(height: 20),
-
-                  _buildTitle(records.length),
-
+                  _buildTitle(info),
                   const SizedBox(height: 20),
-
-                  Container(height: 1,color: AppColors.grey100),
-
-                  Expanded(child: _buildList(records)),
+                  Container(height: 1, color: AppColors.grey100),
+                  Expanded(
+                    child: _loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _buildList(info?.receives ?? const []),
+                  ),
                 ],
               ),
             ),
           ),
-          
           SizedBox(
-            height: headerHeight,
+            height: _headerHeight,
             width: double.infinity,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Image.asset(
-                    "assets/images/chat/red_packet/top_icon.png",
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ],
+            child: Image.asset(
+              'assets/images/chat/red_packet/top_icon.png',
+              fit: BoxFit.cover,
             ),
           ),
-          
-          SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-              ],
-            ),
-          ),
+          SafeArea(child: _buildTopBar()),
           Positioned(
-            top: headerHeight - 30,
+            top: _contentTop - 15,
             left: 0,
             right: 0,
             child: Center(
-              child: UserAvatarWidget(userId: _user?.userId,avatarUrl: _user?.avatar,size: 72),
-            )
+              child: Container(
+                width: _avatarSize + 8,
+                height: _avatarSize + 8,
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: UserAvatarWidget(
+                  userId: _sender?.userId ?? info?.sender ?? widget.userId,
+                  avatarUrl: _sender?.avatar,
+                  size: _avatarSize,
+                ),
+              ),
+            ),
           ),
-
         ],
       ),
     );
   }
 
-  // =========================
-  // 顶部栏
-  // =========================
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        children:  [
+        children: [
           InkWell(
-            onTap: (){
+            onTap: () {
               if (context.canPop()) {
                 context.pop();
                 return;
@@ -165,15 +180,15 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
               height: 30,
             ),
           ),
-          Spacer(),
+          const Spacer(),
           IconButton(
             onPressed: () {
               context.push(
                 '/red-packet_record',
-                extra: widget.userId,
+                extra: {'userId': widget.userId, 'groupId': _info?.groupId},
               );
             },
-            icon: Icon(
+            icon: const Icon(
               Icons.history_rounded,
               color: Colors.white,
               size: 32,
@@ -184,26 +199,34 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
     );
   }
 
-  // =========================
-  // title
-  // =========================
-  Widget _buildTitle(int count) {
+  Widget _buildTitle(RedPacketInfo? info) {
+    final symbol =
+        info?.symbol ?? widget.data.tokenSymbol ?? info?.assetId ?? '';
+    final total = info?.totalDisplay ?? widget.data.amount ?? '0';
+    final received = info?.receivedCount ?? 0;
+    final count = info?.count ?? widget.data.count ?? 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
-          "已领取 $count/18，共 5/5 BOX",
+          '已领取 $received/$count，共 $total $symbol',
           style: const TextStyle(color: Colors.black54),
         ),
       ),
     );
   }
 
-  // =========================
-  // list
-  // =========================
-  Widget _buildList(List records) {
+  Widget _buildList(List<RedPacketReceive> records) {
+    if (records.isEmpty) {
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.chatSearchNoData,
+        bottomOffset: 0,
+      );
+    }
+
+    final symbol = _info?.symbol ?? widget.data.tokenSymbol ?? '';
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -211,29 +234,37 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
         final item = records[i];
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration:  BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.grey100),
-            ),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.grey100)),
           ),
           child: Row(
             children: [
-              const CircleAvatar(radius: 18),
+              UserAvatarWidget(userId: item.receiver, size: 36),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item["name"]),
-                    const SizedBox(height: 4),
-                    Text(item["time"],
-                        style:
-                        const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
+                child: FutureBuilder<UserDisplayModel?>(
+                  future: UserDisplayStateCenter().getUser(item.receiver),
+                  builder: (context, snapshot) {
+                    final user = snapshot.data;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user?.name ?? _shortAddress(item.receiver)),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatTime(item.createTime),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
               Text(
-                item["amount"],
+                '${item.display} $symbol',
                 style: const TextStyle(
                   color: Color(0xFFFF3B30),
                   fontWeight: FontWeight.w600,
@@ -245,33 +276,24 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
       },
     );
   }
-}
 
-// =========================
-// 圆弧（关键修正）
-// =========================
-class _ArcPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFFFC107)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    final path = Path();
-
-    path.moveTo(0, size.height - 30);
-
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height + 20,
-      size.width,
-      size.height - 30,
-    );
-
-    canvas.drawPath(path, paint);
+  String _statusText(RedPacketInfo? info) {
+    if (info == null) return '';
+    if (info.isFinished) return '手慢了，已被领完';
+    if (info.isExpired) return '红包已过期';
+    return '剩余 ${info.remainingCount} 个';
   }
 
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  String _formatTime(int? seconds) {
+    if (seconds == null || seconds <= 0) return '';
+    return DateFormat(
+      'yyyy-MM-dd HH:mm:ss',
+    ).format(DateTime.fromMillisecondsSinceEpoch(seconds * 1000));
+  }
+
+  String _shortAddress(String value) {
+    final text = value.trim();
+    if (text.length <= 10) return text;
+    return '${text.substring(0, 6)}...${text.substring(text.length - 4)}';
+  }
 }

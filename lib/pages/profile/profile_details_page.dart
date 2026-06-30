@@ -403,6 +403,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         'icon': 'add-wallet.png',
         'onTap': _showWalletSwitcher,
       },
+      {'title': '红包余额', 'icon': 'red_packet.png', 'route': '/red-packet-balance'},
       {
         'title': AppLocalizations.of(
           context,

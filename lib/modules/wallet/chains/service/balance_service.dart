@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:paracosm/modules/wallet/chains/btc/bitcoin_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/sol/solana_chain_service.dart';
 import 'package:paracosm/modules/wallet/chains/tron/tron_chain_service.dart';
@@ -10,6 +11,9 @@ class BalanceService {
   static final BalanceService _instance = BalanceService._internal();
   factory BalanceService() => _instance;
   BalanceService._internal();
+
+  static const String _debugUsdtContract =
+      '0x3f4b84b037eadb4d3d3d7f44f4bfccea53cf1dd1';
 
   /// =========================
   /// 获取单个 token 的余额
@@ -30,6 +34,7 @@ class BalanceService {
           contractAddress: token.address,
         );
         token.balance = balance;
+        _debugPrintTargetTokenBalance(token, chain);
         break;
       case ChainType.solana:
         if (chain.address.isEmpty) {
@@ -62,6 +67,18 @@ class BalanceService {
     }
 
     return token;
+  }
+
+  void _debugPrintTargetTokenBalance(TokenModel token, ChainAccount chain) {
+    if (token.address.trim().toLowerCase() != _debugUsdtContract) return;
+    debugPrint(
+      'USDT balance debug: '
+      'chainId=${chain.chainId}, '
+      'wallet=${chain.address}, '
+      'contract=${token.address}, '
+      'raw=${token.balance}, '
+      'display=${token.displayBalance} ${token.symbol}',
+    );
   }
 
   /// =========================

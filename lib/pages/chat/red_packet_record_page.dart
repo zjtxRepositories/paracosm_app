@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:paracosm/core/network/api/red_packet_api.dart';
 import 'package:paracosm/widgets/chat/user_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 
@@ -10,9 +12,10 @@ import '../../widgets/base/app_localizations.dart';
 import '../../widgets/base/app_page.dart';
 
 class RedPacketRecordPage extends StatefulWidget {
-  const RedPacketRecordPage({super.key, required this.userId});
+  const RedPacketRecordPage({super.key, required this.userId, this.groupId});
 
   final String userId;
+  final String? groupId;
 
   @override
   State<RedPacketRecordPage> createState() => _RedPacketRecordPageState();
@@ -20,24 +23,62 @@ class RedPacketRecordPage extends StatefulWidget {
 
 class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   int _selectedIndex = 0;
-  final List records = []; // 空数据 -> 展示你图的状态
+  List<RedPacketMineItem> _sentRecords = const [];
+  List<RedPacketMineItem> _receivedRecords = const [];
   UserDisplayModel? _user;
+  bool _loadingRecords = false;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     fetchData();
+    _loadRecords();
   }
 
   Future<void> fetchData() async {
-    var user = await UserDisplayStateCenter().getUser(
-      widget.userId,
-    );
+    final user = await UserDisplayStateCenter().getUser(widget.userId);
+    if (!mounted) return;
     setState(() {
       _user = user;
     });
   }
+
+  Future<void> _loadRecords() async {
+    final groupId = widget.groupId?.trim() ?? '';
+    setState(() => _loadingRecords = true);
+    try {
+      if (groupId.isNotEmpty) {
+        await _loadGroupRecords(groupId);
+        return;
+      }
+
+      final results = await Future.wait([
+        RedPacketApi.mine(),
+        RedPacketApi.received(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _sentRecords = results[0];
+        _receivedRecords = results[1];
+        _loadingRecords = false;
+      });
+    } catch (e) {
+      debugPrint('_loadRecords failed: $e');
+      if (!mounted) return;
+      setState(() => _loadingRecords = false);
+    }
+  }
+
+  Future<void> _loadGroupRecords(String groupId) async {
+    final records = await RedPacketApi.groupList(groupId: groupId);
+    if (!mounted) return;
+    setState(() {
+      _sentRecords = records.sent;
+      _receivedRecords = records.received;
+      _loadingRecords = false;
+    });
+  }
+
   void _handleBack() {
     if (context.canPop()) {
       context.pop();
@@ -83,14 +124,13 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
             const SizedBox(height: 40),
             _buildHeader(),
             const SizedBox(height: 14),
-            Container(height: 10,color: AppColors.grey100),
-
+            Container(height: 10, color: AppColors.grey100),
             const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _selectedIndex == 0
-                  ? _buildReceived()
-                  : _buildSent(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _selectedIndex == 0 ? _buildReceived() : _buildSent(),
+              ),
             ),
           ],
         ),
@@ -98,9 +138,6 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     );
   }
 
-  // =========================
-  // Tab
-  // =========================
   Widget _buildTopTab() {
     const tabs = ['收到', '发出'];
 
@@ -150,38 +187,35 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     );
   }
 
-  // =========================
-  // Header（和你图一致）
-  // =========================
   Widget _buildHeader() {
     final isReceived = _selectedIndex == 0;
-    final summaryText = isReceived ? '共收到 0 个' : '共发出 0 个';
+    final records = isReceived ? _receivedRecords : _sentRecords;
+    final summaryText = isReceived
+        ? '共收到 ${records.length} 个'
+        : '共发出 ${records.length} 个';
+    final total = records.length.toString();
 
     return Column(
       children: [
-        UserAvatarWidget(userId: _user?.userId,avatarUrl: _user?.avatar,size: 80),
-        const SizedBox(height: 10),
-
-        Text(
-          _user?.name ?? '',
-          style: TextStyle(
-            color: AppColors.black,
-            fontSize: 16,
-          ),
+        UserAvatarWidget(
+          userId: _user?.userId ?? widget.userId,
+          avatarUrl: _user?.avatar,
+          size: 80,
         ),
-
+        const SizedBox(height: 10),
+        Text(
+          _user?.name ?? _shortAddress(widget.userId),
+          style: const TextStyle(color: AppColors.black, fontSize: 16),
+        ),
         const SizedBox(height: 6),
-
         Text(
           summaryText,
           style: const TextStyle(color: AppColors.black, fontSize: 16),
         ),
-
         const SizedBox(height: 14),
-
-        const Text(
-          "\$0",
-          style: TextStyle(
+        Text(
+          total,
+          style: const TextStyle(
             color: Color(0xFFFFD54F),
             fontSize: 44,
             fontWeight: FontWeight.bold,
@@ -191,44 +225,37 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     );
   }
 
-  // =========================
-  // 收到
-  // =========================
   Widget _buildReceived() {
-    if (records.isEmpty) {
+    if (_loadingRecords) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_receivedRecords.isEmpty) {
       return _buildEmpty();
     }
-    return _buildList(records);
+    return _buildRecordList(_receivedRecords, received: true);
   }
 
-  // =========================
-  // 发出
-  // =========================
   Widget _buildSent() {
-    if (records.isEmpty) {
+    if (_loadingRecords) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_sentRecords.isEmpty) {
       return _buildEmpty();
     }
-    return _buildList(records);
+    return _buildRecordList(_sentRecords, received: false);
   }
 
-  // =========================
-  // 空状态（完全复刻你图）
-  // =========================
   Widget _buildEmpty() {
-    return SizedBox(height: 400,
-        child: AppEmptyView(
-          text: AppLocalizations.of(context)!.chatSearchNoData,
-          bottomOffset: 0,
-    ));
+    return AppEmptyView(
+      text: AppLocalizations.of(context)!.chatSearchNoData,
+      bottomOffset: 0,
+    );
   }
 
-  // =========================
-  // list（有数据时）
-  // =========================
-  // =========================
-  // list
-  // =========================
-  Widget _buildList(List records) {
+  Widget _buildRecordList(
+    List<RedPacketMineItem> records, {
+    required bool received,
+  }) {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -241,23 +268,33 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
           ),
           child: Row(
             children: [
-              const CircleAvatar(radius: 18),
+              const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFF1473E),
+                child: Icon(
+                  Icons.wallet_giftcard,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item["name"]),
+                    Text(_modeText(item.mode)),
                     const SizedBox(height: 4),
                     Text(
-                      item["time"],
+                      received
+                          ? '${_formatTime(item.receiveTime ?? item.createTime)}  ${_statusText(item.status)}'
+                          : '${_formatTime(item.createTime)}  ${item.receivedCount}/${item.count}  ${_statusText(item.status)}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
               Text(
-                item["amount"],
+                '${received ? item.receiveDisplay ?? item.receiveAmount ?? '0' : item.totalDisplay ?? item.totalAmount} ${item.symbol ?? item.assetId}',
                 style: const TextStyle(
                   color: Color(0xFFFF3B30),
                   fontWeight: FontWeight.w600,
@@ -269,7 +306,49 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
       },
     );
   }
-}
 
-const Color _white70 = Color(0xB3FFFFFF);
-const Color _white38 = Color(0x61FFFFFF);
+  String _modeText(String mode) {
+    switch (mode) {
+      case 'lucky':
+        return '拼手气红包';
+      case 'even':
+      case 'normal':
+        return '普通红包';
+      case 'p2p':
+      case 'exclusive':
+        return '专属红包';
+      default:
+        return '红包';
+    }
+  }
+
+  String _statusText(String status) {
+    switch (status) {
+      case 'active':
+        return '进行中';
+      case 'finished':
+        return '已领完';
+      case 'expired':
+        return '已过期';
+      case 'pending':
+        return '待生效';
+      case 'void':
+        return '已失效';
+      default:
+        return status;
+    }
+  }
+
+  String _formatTime(int? seconds) {
+    if (seconds == null || seconds <= 0) return '';
+    return DateFormat(
+      'MM-dd HH:mm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(seconds * 1000));
+  }
+
+  String _shortAddress(String value) {
+    final text = value.trim();
+    if (text.length <= 10) return text;
+    return '${text.substring(0, 6)}...${text.substring(text.length - 4)}';
+  }
+}

@@ -118,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _tokens = tokenList;
     });
     PortfolioService().start(_tokens, ownerId: wallet.id);
-    NftPortfolioService().start(wallet);
+    // NftPortfolioService().start(wallet);
   }
 
   bool _shouldShowToken(TokenModel token) {
@@ -600,14 +600,16 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildTokenListContent(List<TokenModel> tokens) {
     return Column(
       children: tokens.map((token) {
+        final isUsdt = token.symbol.toUpperCase() == 'USDT';
         return _buildTokenItem(
           token,
-          token.name,
+          isUsdt ? _tokenNetworkLabel(token) : token.name,
           token.symbol,
           token.market?.close ?? 0.0,
           token.market?.chg ?? 0.0,
           (token.market?.chg ?? 0.0) > 0,
           token.logo,
+          showNetworkBadge: isUsdt,
         );
       }).toList(),
     );
@@ -685,6 +687,14 @@ class _ProfilePageState extends State<ProfilePage> {
     return '${token.chainId}:${token.address.toLowerCase()}:${token.symbol}';
   }
 
+  String _tokenNetworkLabel(TokenModel token) {
+    final chainName = token.getChain()?.name.trim();
+    if (chainName != null && chainName.isNotEmpty) {
+      return chainName;
+    }
+    return 'Chain ${token.chainId}';
+  }
+
   /// 构建代币列表项
   Widget _buildTokenItem(
     TokenModel token,
@@ -693,8 +703,10 @@ class _ProfilePageState extends State<ProfilePage> {
     double price,
     double change,
     bool isUp,
-    String iconName,
-  ) {
+    String iconName, {
+    bool showNetworkBadge = false,
+  }) {
+    final chainLogo = token.getChain()?.logo;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -707,24 +719,58 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Row(
             children: [
               // 1. 代币图标容器 (点击跳转代币详情 - 第二个截图页)
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.grey100,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(40),
-                  child: AppNetworkImage(
-                    url: iconName,
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.contain,
-                  ),
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.grey100,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(40),
+                          child: AppNetworkImage(
+                            url: iconName,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (showNetworkBadge &&
+                        chainLogo != null &&
+                        chainLogo.isNotEmpty)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(1.5),
+                          decoration: const BoxDecoration(
+                            color: AppColors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: ClipOval(
+                            child: AppNetworkImage(
+                              url: chainLogo,
+                              width: 16,
+                              height: 16,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               // 2. 代币名称 (同样点击跳转代币详情)
               Expanded(
                 flex: 2,
@@ -740,31 +786,41 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          '\$$price',
-                          style: AppTextStyles.caption.copyWith(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: AppColors.grey400,
+                    showNetworkBadge
+                        ? Text(
+                            name,
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                              color: AppColors.grey400,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : Row(
+                            children: [
+                              Text(
+                                '\$$price',
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                  color: AppColors.grey400,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                change > 0
+                                    ? '+${truncateDouble(change, digits: 2)}%'
+                                    : '${truncateDouble(change, digits: 2)}%',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: isUp
+                                      ? AppColors.primaryDark
+                                      : AppColors.error,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          change > 0
-                              ? '+${truncateDouble(change, digits: 2)}%'
-                              : '${truncateDouble(change, digits: 2)}%',
-                          style: AppTextStyles.caption.copyWith(
-                            color: isUp
-                                ? AppColors.primaryDark
-                                : AppColors.error,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),

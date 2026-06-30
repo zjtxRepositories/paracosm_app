@@ -62,6 +62,7 @@ import 'package:paracosm/pages/profile/profile_details_page.dart';
 import 'package:paracosm/pages/profile/invite_children_page.dart';
 import 'package:paracosm/pages/profile/invite_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
+import 'package:paracosm/pages/profile/red_packet_balance_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
 import 'package:paracosm/pages/profile/wallet_manager_page.dart';
@@ -525,7 +526,14 @@ class AppRouter {
         path: '/red-packet_record',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final userId = state.extra as String?;
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return RedPacketRecordPage(
+              userId: extra['userId']?.toString() ?? '',
+              groupId: extra['groupId']?.toString(),
+            );
+          }
+          final userId = extra as String?;
           return RedPacketRecordPage(userId: userId ?? '');
         },
       ),
@@ -740,11 +748,16 @@ class AppRouter {
         builder: (context, state) {
           return InvitePage(inviteCode: state.uri.queryParameters['code']);
         },
+      ),GoRoute(
+        path: '/red-packet-balance',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const RedPacketBalancePage(),
       ),
       GoRoute(
         path: '/invite-children',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const InviteChildrenPage(),
+       
       ),
       // 二维码页
       GoRoute(
@@ -768,6 +781,8 @@ class AppRouter {
             chain: chain,
             prefillAddress: data?['prefillAddress'] as String?,
             prefillAmount: data?['prefillAmount'] as String?,
+            lockedTransferTarget: data?['lockedTransferTarget'] == true,
+            title: data?['title'] as String?,
           );
         },
       ),

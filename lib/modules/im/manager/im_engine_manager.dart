@@ -76,4 +76,8 @@ class IMEngineManager {
 
   String? get currentUserId => _accountId;
   RCIMIWEngine? get engine => _engine;
+
+  void setCurrentUserIdForTesting(String? userId) {
+    _accountId = userId;
+  }
 }

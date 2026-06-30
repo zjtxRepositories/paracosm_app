@@ -321,15 +321,18 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _buildSingleCard(
-              title: AppLocalizations.of(
-                context,
-              )!.profileProfileDetailsInviteFriends,
-              desc: AppLocalizations.of(
-                context,
-              )!.profileProfileDetailsInviteDesc,
-              iconPath: 'assets/images/profile/user/invite.png',
-              bgColor: Colors.white,
+            child: GestureDetector(
+              onTap: () => context.push('/invite'),
+              child: _buildSingleCard(
+                title: AppLocalizations.of(
+                  context,
+                )!.profileProfileDetailsInviteFriends,
+                desc: AppLocalizations.of(
+                  context,
+                )!.profileProfileDetailsInviteDesc,
+                iconPath: 'assets/images/profile/user/invite.png',
+                bgColor: Colors.white,
+              ),
             ),
           ),
         ],

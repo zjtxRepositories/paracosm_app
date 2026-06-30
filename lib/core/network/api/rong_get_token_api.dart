@@ -121,10 +121,6 @@ class RongGetTokenApi {
         'RongGetTokenApi request: url=$_baseUrl$_path, '
         'params=${{...requestBody, 'signature': _mask(requestBody['signature']?.toString()), 'hasBusinessToken': businessToken?.isNotEmpty == true}}',
       );
-      debugPrint(
-        'RongGetTokenApi request: url=$_baseUrl$_path, '
-            'params=${{...requestBody, 'signature': _mask(requestBody['signature']?.toString()), 'hasBusinessToken': businessToken?.isNotEmpty == true}}',
-      );
       final response = await _dio.post(
         _path,
         data: requestBody,

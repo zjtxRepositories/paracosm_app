@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Paracosm Invite</title>
+  <script>
+    window.location.replace('/invite/' + window.location.search + window.location.hash);
+  </script>
+</head>
+<body>
+  <a id="fallback" href="/invite/">继续打开邀请页</a>
+  <script>
+    document.getElementById('fallback').href = '/invite/' + window.location.search + window.location.hash;
+  </script>
+</body>
+</html>

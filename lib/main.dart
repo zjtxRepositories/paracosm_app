@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paracosm/modules/invite/service/invite_clipboard_service.dart';
 import 'package:paracosm/modules/update/app_update_service.dart';
 import 'package:paracosm/router/app_router.dart';
 import 'package:paracosm/theme/app_colors.dart';
@@ -41,6 +42,14 @@ Future<void> main() async {
   );
 
   unawaited(AppUpdateService().checkOnStartup());
+  unawaited(_checkInviteClipboardOnStartup());
+}
+
+Future<void> _checkInviteClipboardOnStartup() async {
+  await Future<void>.delayed(const Duration(milliseconds: 900));
+  final context = AppRouter.rootNavigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  await InviteClipboardService.instance.checkOnStartup(context);
 }
 
 /// 根应用组件

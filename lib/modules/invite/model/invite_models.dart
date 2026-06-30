@@ -35,6 +35,9 @@ class InviteUser {
 }
 
 class InviteProfile {
+  static const inviteLinkHost = 'invite.zjtxy.top';
+  static const inviteLinkPath = '/invite/REPLACE_WITH_DOWNLOAD_PAGE_URL';
+
   final String inviteCode;
   final int childrenCount;
   final InviteUser? parent;
@@ -47,7 +50,7 @@ class InviteProfile {
 
   String get inviteLink => inviteCode.trim().isEmpty
       ? ''
-      : 'https://paracosm.app/invite?code=${Uri.encodeQueryComponent(inviteCode.trim())}';
+      : 'https://$inviteLinkHost$inviteLinkPath?code=${Uri.encodeQueryComponent(inviteCode.trim())}';
 
   factory InviteProfile.fromJson(Map<String, dynamic>? json) {
     final data = json ?? const <String, dynamic>{};

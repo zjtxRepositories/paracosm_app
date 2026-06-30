@@ -59,6 +59,8 @@ import 'package:paracosm/pages/discover/discover_list_page.dart';
 import 'package:paracosm/pages/discover/discover_search_page.dart';
 import 'package:paracosm/pages/profile/profile_page.dart';
 import 'package:paracosm/pages/profile/profile_details_page.dart';
+import 'package:paracosm/pages/profile/invite_children_page.dart';
+import 'package:paracosm/pages/profile/invite_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
@@ -534,7 +536,7 @@ class AppRouter {
           final data = state.extra as Map<String, dynamic>?;
           final userId = data?['userId'];
           final redPacket = data?['data'];
-          return RedPacketDetailPage(userId:userId ?? '', data: redPacket);
+          return RedPacketDetailPage(userId: userId ?? '', data: redPacket);
         },
       ),
       GoRoute(
@@ -731,6 +733,18 @@ class AppRouter {
         path: '/profile-details',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ProfileDetailsPage(),
+      ),
+      GoRoute(
+        path: '/invite',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          return InvitePage(inviteCode: state.uri.queryParameters['code']);
+        },
+      ),
+      GoRoute(
+        path: '/invite-children',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const InviteChildrenPage(),
       ),
       // 二维码页
       GoRoute(

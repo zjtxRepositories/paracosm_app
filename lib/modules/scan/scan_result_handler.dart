@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paracosm/core/models/dApp_hive.dart';
 import 'package:paracosm/core/models/group_model.dart';
 import 'package:paracosm/modules/account/manager/account_manager.dart';
+import 'package:paracosm/modules/invite/service/invite_service.dart';
 import 'package:paracosm/modules/im/listener/group_state_center.dart';
 import 'package:paracosm/modules/im/manager/im_group_manager.dart';
 import 'package:paracosm/pages/profile/transfer_scan_address.dart';
@@ -48,6 +49,9 @@ class ScanResultHandler {
       case ScanResultType.walletPayment:
         _handleWalletPayment(context, result);
         break;
+      case ScanResultType.invite:
+        await _handleInvite(context, result);
+        break;
       case ScanResultType.unknown:
         AppToast.show(
           AppLocalizations.of(context)?.discoverScanUnsupported ??
@@ -55,6 +59,78 @@ class ScanResultHandler {
         );
         break;
     }
+  }
+
+  static Future<void> _handleInvite(
+    BuildContext context,
+    ScanResult result,
+  ) async {
+    final code = result.inviteCode?.trim() ?? '';
+    if (code.isEmpty) {
+      AppToast.show(AppLocalizations.currentText('invite_code_invalid'));
+      return;
+    }
+
+    final inviteService = InviteService();
+    final isLogin = AccountManager().isLogin;
+    if (isLogin &&
+        await _stopIfInviteShouldBeSkipped(context, inviteService, code)) {
+      return;
+    }
+
+    final resolved = await inviteService.captureInviteCode(code);
+    if (resolved != null && !resolved.isValid) {
+      AppToast.show(AppLocalizations.currentText('invite_code_invalid'));
+      return;
+    }
+
+    if (isLogin) {
+      final didBind = await inviteService.tryBindPendingInviteIfNeeded();
+      AppToast.show(
+        AppLocalizations.currentText(
+          didBind ? 'invite_bind_success' : 'invite_code_saved',
+        ),
+      );
+    } else {
+      AppToast.show(AppLocalizations.currentText('invite_code_saved'));
+    }
+    if (!context.mounted) return;
+
+    if (isLogin) {
+      context.push('/invite');
+    } else {
+      context.push('/wallet-start');
+    }
+  }
+
+  static Future<bool> _stopIfInviteShouldBeSkipped(
+    BuildContext context,
+    InviteService inviteService,
+    String code,
+  ) async {
+    try {
+      final reason = await inviteService.getInviteSkipReason(code);
+      if (reason != InviteSkipReason.none) {
+        await inviteService.clearPendingInvite();
+        AppToast.show(_inviteSkipMessage(reason));
+        if (context.mounted) {
+          context.push('/invite');
+        }
+        return true;
+      }
+      return false;
+    } catch (_) {
+      AppToast.show(AppLocalizations.currentText('invite_load_failed'));
+      return true;
+    }
+  }
+
+  static String _inviteSkipMessage(InviteSkipReason reason) {
+    return AppLocalizations.currentText(switch (reason) {
+      InviteSkipReason.alreadyHasParent => 'invite_already_has_parent',
+      InviteSkipReason.selfInviteCode => 'invite_self_code_not_allowed',
+      InviteSkipReason.none => 'invite_code_invalid',
+    });
   }
 
   /// 网页 / DApp 链接。

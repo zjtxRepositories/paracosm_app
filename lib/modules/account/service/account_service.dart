@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:paracosm/core/db/dao/account_dao.dart';
 import 'package:paracosm/core/network/config/config_service.dart';
 import 'package:paracosm/modules/wallet/manager/wallet_manager.dart';
@@ -5,6 +7,7 @@ import 'package:paracosm/modules/wallet/model/wallet_model.dart';
 import '../../../core/db/dao/app_config_dao.dart';
 import '../../../core/db/dao/wallet_dao.dart';
 import '../../im/service/im_service.dart';
+import '../../invite/service/invite_service.dart';
 import '../../user/service/user_service.dart';
 import '../manager/account_manager.dart';
 import '../model/account_model.dart';
@@ -34,6 +37,7 @@ class AccountService {
       wallet: wallet,
       user: loginResp,
     );
+    unawaited(InviteService().bindPendingInviteIfNeeded());
     return account;
   }
 

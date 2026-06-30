@@ -290,8 +290,52 @@ void main() {
     final result = await RedPacketApi.mine();
 
     expect(result.single.packetNo, 'rp_abc123');
+    expect(result.single.totalDisplay, '2');
     expect(capturedBody, {'accessToken': 'invite-token'});
     expect(capturedQuery, isEmpty);
+  });
+
+  test('received uses access token and parses receive fields', () async {
+    Map<String, dynamic>? capturedBody;
+
+    RedPacketApi.setAccessTokenProviderForTesting(() => 'invite-token');
+    RedPacketApi.setHttpClientAdapterForTesting(
+      _Adapter((request) async {
+        capturedBody = _decodeBody(request.data);
+        return ResponseBody.fromString(
+          jsonEncode({
+            'code': 200,
+            'items': [
+              {
+                'packet_no': 'rp_received',
+                'asset_id': 'bsc-usdt',
+                'symbol': 'USDT',
+                'mode': 'lucky',
+                'scene': 'group',
+                'status': 'finished',
+                'count': 2,
+                'remaining_count': 0,
+                'total_amount': '2000000000000000000',
+                'receive_amount': '100000000000000000',
+                'receive_display': '0.1',
+                'receive_time': 1719225700,
+              },
+            ],
+          }),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+
+    final result = await RedPacketApi.received();
+
+    expect(result.single.packetNo, 'rp_received');
+    expect(result.single.receiveDisplay, '0.1');
+    expect(result.single.receiveTime, 1719225700);
+    expect(capturedBody, {'accessToken': 'invite-token'});
   });
 
   test('groupList uses access token and parses sent and received', () async {

@@ -315,6 +315,17 @@ class RedPacketMineItem {
   int get receivedCount => max(0, count - remainingCount);
 
   factory RedPacketMineItem.fromJson(Map json) {
+    final decimals = _int(json['decimals'], fallback: 18);
+    final totalAmount = _string(json['total_amount'] ?? json['totalAmount']);
+    final totalDisplay = _formatNullableDisplayString(
+      json['total_display'] ?? json['totalDisplay'],
+    );
+    final receiveAmount = _nullableString(
+      json['receive_amount'] ?? json['receiveAmount'],
+    );
+    final receiveDisplay = _formatNullableDisplayString(
+      json['receive_display'] ?? json['receiveDisplay'],
+    );
     return RedPacketMineItem(
       packetNo: _string(json['packet_no'] ?? json['packetNo']),
       assetId: _string(json['asset_id'] ?? json['assetId']),
@@ -324,18 +335,17 @@ class RedPacketMineItem {
       status: _string(json['status']),
       count: _int(json['count']),
       remainingCount: _int(json['remaining_count'] ?? json['remainingCount']),
-      totalAmount: _string(json['total_amount'] ?? json['totalAmount']),
-      totalDisplay: _formatNullableDisplayString(
-        json['total_display'] ?? json['totalDisplay'],
-      ),
+      totalAmount: totalAmount,
+      totalDisplay:
+          totalDisplay ?? _formatTokenUnitsString(totalAmount, decimals),
       createTime: _nullableInt(json['create_time'] ?? json['createTime']),
       expireTime: _nullableInt(json['expire_time'] ?? json['expireTime']),
-      receiveAmount: _nullableString(
-        json['receive_amount'] ?? json['receiveAmount'],
-      ),
-      receiveDisplay: _formatNullableDisplayString(
-        json['receive_display'] ?? json['receiveDisplay'],
-      ),
+      receiveAmount: receiveAmount,
+      receiveDisplay:
+          receiveDisplay ??
+          (receiveAmount == null
+              ? null
+              : _formatTokenUnitsString(receiveAmount, decimals)),
       receiveTime: _nullableInt(json['receive_time'] ?? json['receiveTime']),
     );
   }
@@ -528,11 +538,18 @@ class RedPacketApi {
       '/red/mine.json',
       body: {'accessToken': accessToken},
     );
-    return _list(data['packets'])
-        .whereType<Map>()
-        .map(RedPacketMineItem.fromJson)
-        .where((item) => item.packetNo.isNotEmpty)
-        .toList(growable: false);
+    return _parseMineItems(data['packets'] ?? data['items'] ?? data['sent']);
+  }
+
+  static Future<List<RedPacketMineItem>> received() async {
+    final accessToken = await _accessToken();
+    final data = await _post(
+      '/red/received.json',
+      body: {'accessToken': accessToken},
+    );
+    return _parseMineItems(
+      data['packets'] ?? data['items'] ?? data['received'],
+    );
   }
 
   static Future<RedPacketGroupListResult> groupList({

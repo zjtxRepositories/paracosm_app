@@ -32,7 +32,7 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
   void initState() {
     super.initState();
     fetchData();
-    _loadGroupRecords();
+    _loadRecords();
   }
 
   Future<void> fetchData() async {
@@ -43,24 +43,40 @@ class _RedPacketRecordPageState extends State<RedPacketRecordPage> {
     });
   }
 
-  Future<void> _loadGroupRecords() async {
+  Future<void> _loadRecords() async {
     final groupId = widget.groupId?.trim() ?? '';
-    if (groupId.isEmpty) return;
-
     setState(() => _loadingRecords = true);
     try {
-      final records = await RedPacketApi.groupList(groupId: groupId);
+      if (groupId.isNotEmpty) {
+        await _loadGroupRecords(groupId);
+        return;
+      }
+
+      final results = await Future.wait([
+        RedPacketApi.mine(),
+        RedPacketApi.received(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _sentRecords = records.sent;
-        _receivedRecords = records.received;
+        _sentRecords = results[0];
+        _receivedRecords = results[1];
         _loadingRecords = false;
       });
     } catch (e) {
-      debugPrint('_loadGroupRecords failed: $e');
+      debugPrint('_loadRecords failed: $e');
       if (!mounted) return;
       setState(() => _loadingRecords = false);
     }
+  }
+
+  Future<void> _loadGroupRecords(String groupId) async {
+    final records = await RedPacketApi.groupList(groupId: groupId);
+    if (!mounted) return;
+    setState(() {
+      _sentRecords = records.sent;
+      _receivedRecords = records.received;
+      _loadingRecords = false;
+    });
   }
 
   void _handleBack() {

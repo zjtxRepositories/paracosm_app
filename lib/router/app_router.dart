@@ -67,6 +67,7 @@ import 'package:paracosm/pages/profile/red_packet_withdraw_page.dart';
 import 'package:paracosm/pages/profile/red_packet_withdraw_record_page.dart';
 import 'package:paracosm/pages/profile/transfer_page.dart';
 import 'package:paracosm/pages/profile/transfer_details_page.dart';
+import 'package:paracosm/pages/profile/wallet_backup_page.dart';
 import 'package:paracosm/pages/profile/wallet_manager_page.dart';
 import 'package:paracosm/pages/profile/wallet_edit_page.dart';
 import 'package:paracosm/pages/profile/nft_detail_page.dart';
@@ -743,6 +744,12 @@ class AppRouter {
         path: '/profile-details',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ProfileDetailsPage(),
+      ),
+      // 备份钱包页
+      GoRoute(
+        path: '/wallet-backup',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const WalletBackupPage(),
       ),
       GoRoute(
         path: '/invite',

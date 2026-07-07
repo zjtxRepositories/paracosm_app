@@ -308,15 +308,19 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _buildSingleCard(
-              title: AppLocalizations.of(
-                context,
-              )!.profileProfileDetailsBackupWallet,
-              desc: AppLocalizations.of(
-                context,
-              )!.profileProfileDetailsBackupDesc,
-              iconPath: 'assets/images/profile/user/wallet.png',
-              bgColor: Colors.white,
+            child: GestureDetector(
+              onTap: () => context.push('/wallet-backup'),
+              behavior: HitTestBehavior.opaque,
+              child: _buildSingleCard(
+                title: AppLocalizations.of(
+                  context,
+                )!.profileProfileDetailsBackupWallet,
+                desc: AppLocalizations.of(
+                  context,
+                )!.profileProfileDetailsBackupDesc,
+                iconPath: 'assets/images/profile/user/wallet.png',
+                bgColor: Colors.white,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -403,7 +407,11 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         'icon': 'add-wallet.png',
         'onTap': _showWalletSwitcher,
       },
-      {'title': '红包余额', 'icon': 'red_packet.png', 'route': '/red-packet-balance'},
+      {
+        'title': AppLocalizations.of(context)!.profileRedPacketBalance,
+        'icon': 'red_packet.png',
+        'route': '/red-packet-balance',
+      },
       {
         'title': AppLocalizations.of(
           context,

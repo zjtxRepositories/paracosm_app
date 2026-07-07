@@ -385,6 +385,87 @@ class RedPacketGroupListResult {
   }
 }
 
+class RedPacketWithdrawResult {
+  const RedPacketWithdrawResult({
+    required this.withdrawNo,
+    required this.assetId,
+    required this.amount,
+    required this.feeAssetId,
+    required this.feeAmount,
+    required this.to,
+    required this.status,
+  });
+
+  final String withdrawNo;
+  final String assetId;
+  final String amount;
+  final String feeAssetId;
+  final String feeAmount;
+  final String to;
+  final String status;
+
+  factory RedPacketWithdrawResult.fromJson(Map json) {
+    return RedPacketWithdrawResult(
+      withdrawNo: _string(json['withdraw_no'] ?? json['withdrawNo']),
+      assetId: _string(json['asset_id'] ?? json['assetId']),
+      amount: _string(json['amount']),
+      feeAssetId: _string(json['fee_asset_id'] ?? json['feeAssetId']),
+      feeAmount: _string(json['fee_amount'] ?? json['feeAmount']),
+      to: _string(json['to']),
+      status: _string(json['status']),
+    );
+  }
+}
+
+class RedPacketWithdrawOrder {
+  const RedPacketWithdrawOrder({
+    required this.withdrawNo,
+    required this.assetId,
+    required this.amount,
+    required this.feeAssetId,
+    required this.feeAmount,
+    required this.to,
+    required this.status,
+    required this.display,
+    this.symbol,
+    this.txHash,
+    this.createTime,
+  });
+
+  final String withdrawNo;
+  final String assetId;
+  final String amount;
+  final String feeAssetId;
+  final String feeAmount;
+  final String to;
+  final String status;
+  final String display;
+  final String? symbol;
+  final String? txHash;
+  final int? createTime;
+
+  factory RedPacketWithdrawOrder.fromJson(Map json) {
+    final decimals = _int(json['decimals'], fallback: 18);
+    final amount = _string(json['amount']);
+    final display = _string(json['display']);
+    return RedPacketWithdrawOrder(
+      withdrawNo: _string(json['withdraw_no'] ?? json['withdrawNo']),
+      assetId: _string(json['asset_id'] ?? json['assetId']),
+      amount: amount,
+      feeAssetId: _string(json['fee_asset_id'] ?? json['feeAssetId']),
+      feeAmount: _string(json['fee_amount'] ?? json['feeAmount']),
+      to: _string(json['to']),
+      status: _string(json['status']),
+      symbol: _nullableString(json['symbol']),
+      display: display.isNotEmpty
+          ? _formatDisplayString(display)
+          : _formatTokenUnitsString(amount, decimals),
+      txHash: _nullableString(json['tx_hash'] ?? json['txHash']),
+      createTime: _nullableInt(json['create_time'] ?? json['createTime']),
+    );
+  }
+}
+
 class RedPacketApi {
   RedPacketApi._();
 
@@ -587,6 +668,77 @@ class RedPacketApi {
       },
     );
     return RedPacketGroupListResult.fromJson(data);
+  }
+
+  static Future<RedPacketWithdrawResult> withdrawApply({
+    required String assetId,
+    required String amount,
+    required String to,
+    RedPacketSignatureRequest? signatureRequest,
+  }) async {
+    final request =
+        signatureRequest ??
+        prepareWithdrawSignature(assetId: assetId, amount: amount, to: to);
+    final signature = await _signature(request.userId, request.message);
+    final data = await _post(
+      '/withdraw/apply.json',
+      body: {
+        'userId': request.userId,
+        'signature': signature,
+        'timestamp': request.timestamp,
+        'nonce': request.nonce,
+        'assetId': assetId,
+        'amount': amount,
+        'to': to,
+      },
+    );
+    return RedPacketWithdrawResult.fromJson(data);
+  }
+
+  static RedPacketSignatureRequest prepareWithdrawSignature({
+    required String assetId,
+    required String amount,
+    required String to,
+  }) {
+    final safeUserId = _currentUserId();
+    if (safeUserId.isEmpty) {
+      throw const RedPacketApiException('missing_user', '缺少钱包地址');
+    }
+    final safeTo = to.trim();
+    if (safeTo.isEmpty) {
+      throw const RedPacketApiException('missing_to', '缺少提现地址');
+    }
+
+    final nonce = _nonce();
+    final timestamp = _timestamp();
+    final message = _signatureMessage(
+      title: 'RongCloud withdraw',
+      userId: safeUserId,
+      extras: ['assetId: $assetId', 'amount: $amount', 'to: $safeTo'],
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+    return RedPacketSignatureRequest(
+      userId: safeUserId,
+      message: message,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+  }
+
+  static Future<List<RedPacketWithdrawOrder>> withdrawQuery({
+    int limit = 20,
+  }) async {
+    final accessToken = await _accessToken();
+    final data = await _post(
+      '/withdraw/query.json',
+      body: {'accessToken': accessToken, 'limit': limit.clamp(1, 100)},
+    );
+    return _list(data['orders'])
+        .whereType<Map>()
+        .map(RedPacketWithdrawOrder.fromJson)
+        .where((item) => item.withdrawNo.isNotEmpty)
+        .toList(growable: false);
   }
 
   static Future<Map<String, dynamic>> _post(

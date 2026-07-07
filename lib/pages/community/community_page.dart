@@ -14,7 +14,6 @@ import 'package:paracosm/widgets/base/app_page.dart';
 import 'package:paracosm/widgets/chat/group_avatar_widget.dart';
 import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_modal.dart';
-import 'package:paracosm/widgets/modals/community_modals.dart';
 import 'package:rongcloud_im_wrapper_plugin/rongcloud_im_wrapper_plugin.dart';
 
 import '../../core/models/community_model.dart';
@@ -92,20 +91,6 @@ class _CommunityPageState extends State<CommunityPage>
         Navigator.of(context, rootNavigator: true).pop();
       },
       child: _CommunityFilterBottomSheet(key: filterKey),
-    );
-  }
-
-  void _showSelectDaoTypeModal() {
-    CommunityModals.showSelectedDao(
-      context: context,
-      onTokenSelected: (token) {
-        context.pop();
-        context.push('/create-dao', extra: token);
-      },
-      onNftSelected: (asset) {
-        context.pop();
-        context.push('/create-dao', extra: asset);
-      },
     );
   }
 
@@ -211,13 +196,12 @@ class _CommunityPageState extends State<CommunityPage>
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/dao.png',
                     label: l10n.communityMenuCreateDao,
-                    onTap: _showSelectDaoTypeModal,
-                    // onTap: () => context.push('/create-dao'),
+                    onTap: () => AppToast.show(l10n.communityComingSoon),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/community/club.png',
                     label: l10n.communityMenuCreateClub,
-                    onTap: () => context.push('/create-club'),
+                    onTap: () => AppToast.show(l10n.communityComingSoon),
                   ),
                   AppActionPopMenuItem(
                     icon: 'assets/images/chat/scanner.png',

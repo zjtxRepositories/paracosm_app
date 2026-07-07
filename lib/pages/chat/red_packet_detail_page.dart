@@ -205,13 +205,19 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
     final total = info?.totalDisplay ?? widget.data.amount ?? '0';
     final received = info?.receivedCount ?? 0;
     final count = info?.count ?? widget.data.count ?? 0;
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
-          '已领取 $received/$count，共 $total $symbol',
+          l10n.chatRedPacketClaimedSummary(
+            received: received,
+            count: count,
+            total: total,
+            symbol: symbol,
+          ),
           style: const TextStyle(color: Colors.black54),
         ),
       ),
@@ -279,9 +285,10 @@ class _RedPacketDetailPageState extends State<RedPacketDetailPage> {
 
   String _statusText(RedPacketInfo? info) {
     if (info == null) return '';
-    if (info.isFinished) return '手慢了，已被领完';
-    if (info.isExpired) return '红包已过期';
-    return '剩余 ${info.remainingCount} 个';
+    final l10n = AppLocalizations.of(context)!;
+    if (info.isFinished) return l10n.chatRedPacketFinished;
+    if (info.isExpired) return l10n.chatRedPacketExpired;
+    return l10n.chatRedPacketRemainingCount(info.remainingCount);
   }
 
   String _formatTime(int? seconds) {

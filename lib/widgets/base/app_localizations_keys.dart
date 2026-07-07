@@ -317,6 +317,40 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get chatRedPacketExpiredDetail =>
       translate('chat_red_packet_expired_detail');
   String get chatRedPacketOpen => translate('chat_red_packet_open');
+  String chatRedPacketFrom(String name) =>
+      translate('chat_red_packet_from', {'name': name});
+  String chatRedPacketClaimedSummary({
+    required int received,
+    required int count,
+    required String total,
+    required String symbol,
+  }) => translate('chat_red_packet_claimed_summary', {
+    'received': received,
+    'count': count,
+    'total': total,
+    'symbol': symbol,
+  });
+  String get chatRedPacketFinished => translate('chat_red_packet_finished');
+  String get chatRedPacketExpired => translate('chat_red_packet_expired');
+  String chatRedPacketRemainingCount(int count) =>
+      translate('chat_red_packet_remaining_count', {'count': count});
+  String get chatRedPacketReceivedTab =>
+      translate('chat_red_packet_received_tab');
+  String get chatRedPacketSentTab => translate('chat_red_packet_sent_tab');
+  String chatRedPacketReceivedSummary(int count) =>
+      translate('chat_red_packet_received_summary', {'count': count});
+  String chatRedPacketSentSummary(int count) =>
+      translate('chat_red_packet_sent_summary', {'count': count});
+  String get chatRedPacketStatusActive =>
+      translate('chat_red_packet_status_active');
+  String get chatRedPacketStatusFinished =>
+      translate('chat_red_packet_status_finished');
+  String get chatRedPacketStatusExpired =>
+      translate('chat_red_packet_status_expired');
+  String get chatRedPacketStatusPending =>
+      translate('chat_red_packet_status_pending');
+  String get chatRedPacketStatusVoid =>
+      translate('chat_red_packet_status_void');
   String get chatDetailActive => translate('chat_detail_active');
   String get chatDetailCanceled => translate('chat_detail_canceled');
   String chatDetailCallDuration(String duration) =>
@@ -536,6 +570,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get communityTabDao => translate('community_tab_dao');
   String get communityTabClub => translate('community_tab_club');
   String get communityTabKey => translate('community_tab_key');
+  String get communityComingSoon => translate('community_coming_soon');
   String get screening => translate('screening');
   String get byType => translate('by_type');
   String get blockchain => translate('blockchain');
@@ -1245,6 +1280,93 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_profile_details_messages_notifications');
   String get profileProfileDetailsLogout =>
       translate('profile_profile_details_logout');
+  String get profileRedPacketBalance => translate('profile_red_packet_balance');
+  String get profileRedPacketNoAssets =>
+      translate('profile_red_packet_no_assets');
+  String profileRedPacketChainBalance(String chain) =>
+      translate('profile_red_packet_chain_balance', {'chain': chain});
+  String get profileRedPacketDeposit => translate('profile_red_packet_deposit');
+  String get profileRedPacketWithdraw =>
+      translate('profile_red_packet_withdraw');
+  String get profileRedPacketAssetUnsupported =>
+      translate('profile_red_packet_asset_unsupported');
+  String profileRedPacketDepositTitle(String symbol) =>
+      translate('profile_red_packet_deposit_title', {'symbol': symbol});
+  String profileRedPacketDepositDesc({
+    required String chain,
+    required String symbol,
+  }) => translate('profile_red_packet_deposit_desc', {
+    'chain': chain,
+    'symbol': symbol,
+  });
+  String get profileRedPacketDepositConfirm =>
+      translate('profile_red_packet_deposit_confirm');
+  String get profileRedPacketWithdrawTitle =>
+      translate('profile_red_packet_withdraw_title');
+  String get profileRedPacketWithdrawRecords =>
+      translate('profile_red_packet_withdraw_records');
+  String get profileRedPacketWithdrawAssetLoadFailed =>
+      translate('profile_red_packet_withdraw_asset_load_failed');
+  String get profileRedPacketNoWithdrawAssets =>
+      translate('profile_red_packet_no_withdraw_assets');
+  String get profileRedPacketWithdrawAmount =>
+      translate('profile_red_packet_withdraw_amount');
+  String get profileRedPacketWithdrawAddress =>
+      translate('profile_red_packet_withdraw_address');
+  String get profileRedPacketWithdrawAddressHint =>
+      translate('profile_red_packet_withdraw_address_hint');
+  String get profileRedPacketWithdrawApply =>
+      translate('profile_red_packet_withdraw_apply');
+  String get profileRedPacketWithdrawAsset =>
+      translate('profile_red_packet_withdraw_asset');
+  String get profileRedPacketChooseWithdrawAsset =>
+      translate('profile_red_packet_choose_withdraw_asset');
+  String profileRedPacketBalanceLabel(String amount, String symbol) =>
+      translate('profile_red_packet_balance_label', {
+        'amount': amount,
+        'symbol': symbol,
+      });
+  String profileRedPacketAvailableLabel(String amount, String symbol) =>
+      translate('profile_red_packet_available_label', {
+        'amount': amount,
+        'symbol': symbol,
+      });
+  String get profileRedPacketWithdrawHint =>
+      translate('profile_red_packet_withdraw_hint');
+  String get profileRedPacketSelectWithdrawAsset =>
+      translate('profile_red_packet_select_withdraw_asset');
+  String get profileRedPacketEnterWithdrawAmount =>
+      translate('profile_red_packet_enter_withdraw_amount');
+  String get profileRedPacketMissingWithdrawAddress =>
+      translate('profile_red_packet_missing_withdraw_address');
+  String get profileRedPacketInvalidWithdrawAmount =>
+      translate('profile_red_packet_invalid_withdraw_amount');
+  String get profileRedPacketInvalidWithdrawParams =>
+      translate('profile_red_packet_invalid_withdraw_params');
+  String get profileRedPacketWithdrawSubmitted =>
+      translate('profile_red_packet_withdraw_submitted');
+  String get profileRedPacketWithdrawFailed =>
+      translate('profile_red_packet_withdraw_failed');
+  String get profileRedPacketWithdrawRecordsLoadFailed =>
+      translate('profile_red_packet_withdraw_records_load_failed');
+  String get profileRedPacketNoWithdrawRecords =>
+      translate('profile_red_packet_no_withdraw_records');
+  String get profileRedPacketWithdrawFee =>
+      translate('profile_red_packet_withdraw_fee');
+  String get profileRedPacketWithdrawRecordAddress =>
+      translate('profile_red_packet_withdraw_record_address');
+  String get profileRedPacketWithdrawRecordTime =>
+      translate('profile_red_packet_withdraw_record_time');
+  String get profileRedPacketWithdrawStatusPending =>
+      translate('profile_red_packet_withdraw_status_pending');
+  String get profileRedPacketWithdrawStatusSent =>
+      translate('profile_red_packet_withdraw_status_sent');
+  String get profileRedPacketWithdrawStatusConfirmed =>
+      translate('profile_red_packet_withdraw_status_confirmed');
+  String get profileRedPacketWithdrawStatusOnhold =>
+      translate('profile_red_packet_withdraw_status_onhold');
+  String get profileRedPacketWithdrawStatusFailed =>
+      translate('profile_red_packet_withdraw_status_failed');
 
   // --- 发现列表数据 ---
   String get discoverMockArbitrumLabel =>

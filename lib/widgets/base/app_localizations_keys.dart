@@ -570,6 +570,7 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get communityTabDao => translate('community_tab_dao');
   String get communityTabClub => translate('community_tab_club');
   String get communityTabKey => translate('community_tab_key');
+  String get communityComingSoon => translate('community_coming_soon');
   String get screening => translate('screening');
   String get byType => translate('by_type');
   String get blockchain => translate('blockchain');

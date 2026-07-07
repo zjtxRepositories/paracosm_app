@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paracosm/modules/im/listener/im_data_center.dart';
@@ -33,9 +32,16 @@ class _CommunityListPageState extends State<CommunityListPage>
   @override
   void initState() {
     super.initState();
+    if (_isComingSoonType) {
+      _loading = false;
+      return;
+    }
     _fetch();
     _listenGroupList();
   }
+
+  bool get _isComingSoonType =>
+      widget.type == RoomType.dao || widget.type == RoomType.club;
 
   void _listenGroupList() {
     _groupSub = ImDataCenter().groupInfoStream.listen((groupIds) {
@@ -79,6 +85,13 @@ class _CommunityListPageState extends State<CommunityListPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    if (_isComingSoonType) {
+      return AppEmptyView(
+        text: AppLocalizations.of(context)!.communityComingSoon,
+        bottomOffset: 50,
+      );
+    }
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());

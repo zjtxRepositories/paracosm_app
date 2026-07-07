@@ -37,7 +37,7 @@ class ApiPaths {
   /// block
   // 测试 https://testhb.zjtxy.top
   // 正式 https://hb.zjtxy.top
-  static const blockUrl = 'https://testhb.zjtxy.top';
+  static const blockUrl = 'https://hb.zjtxy.top';
 
   static const getTokenTransactionRecord = '/block/getTokenTransactionRecord';
 }

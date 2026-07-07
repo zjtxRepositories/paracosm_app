@@ -17,13 +17,15 @@ import 'package:paracosm/widgets/common/app_toast.dart';
 class RedPacketBalancePage extends StatefulWidget {
   const RedPacketBalancePage({super.key});
 
-  static const depositAddress = '0xb76E006da2E170511D30F35146964a0fC4173d58';
+  static const depositAddress = '0x67e607F8aeB0C4d4F5A37cB26C0702069b18961f';
 
   @override
   State<RedPacketBalancePage> createState() => _RedPacketBalancePageState();
 }
 
 class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
+  static const int _balanceFractionDigits = 5;
+
   bool _loading = true;
   List<RedPacketAsset> _assets = const [];
   Map<String, RedPacketBalance> _balances = const {};
@@ -122,7 +124,7 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
 
   Widget _buildAssetTile(RedPacketAsset asset, RedPacketBalance? balance) {
     final l10n = AppLocalizations.of(context)!;
-    final display = balance?.display ?? '0';
+    final display = _formatBalanceDisplay(balance);
     final chain = asset.assetId.split('-').first.toUpperCase();
 
     return Container(
@@ -332,6 +334,82 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
     if (token == null) return null;
 
     return _RedPacketTransferTarget(chain: chain, token: token);
+  }
+
+  String _formatBalanceDisplay(RedPacketBalance? balance) {
+    if (balance == null) {
+      return _zeroBalanceDisplay();
+    }
+
+    final available = BigInt.tryParse(balance.available.trim());
+    if (available != null) {
+      return _formatUnitsFixed(
+        available,
+        balance.decimals,
+        _balanceFractionDigits,
+      );
+    }
+
+    return _formatDecimalFixed(balance.display, _balanceFractionDigits);
+  }
+
+  String _formatUnitsFixed(BigInt amount, int decimals, int fractionDigits) {
+    final safeDecimals = decimals < 0 ? 0 : decimals;
+    final safeDigits = fractionDigits < 0 ? 0 : fractionDigits;
+    final sign = amount.isNegative ? '-' : '';
+    final absAmount = amount.abs();
+    final divisor = BigInt.from(10).pow(safeDecimals);
+    final integer = absAmount ~/ divisor;
+
+    if (safeDigits == 0) {
+      return '$sign$integer';
+    }
+
+    final decimal = absAmount % divisor;
+    var decimalText = safeDecimals == 0
+        ? ''
+        : decimal.toString().padLeft(safeDecimals, '0');
+    decimalText = decimalText.padRight(safeDigits, '0');
+    decimalText = decimalText.substring(0, safeDigits);
+
+    return '$sign$integer.$decimalText';
+  }
+
+  String _formatDecimalFixed(String value, int fractionDigits) {
+    final safeDigits = fractionDigits < 0 ? 0 : fractionDigits;
+    final text = value.trim();
+    if (text.isEmpty || text.startsWith('<')) {
+      return _zeroBalanceDisplay();
+    }
+
+    final sign = text.startsWith('-') ? '-' : '';
+    final unsigned = text.startsWith('-') || text.startsWith('+')
+        ? text.substring(1)
+        : text;
+    final parts = unsigned.split('.');
+    final integer = parts.isNotEmpty && parts.first.isNotEmpty
+        ? parts.first
+        : '0';
+    final fraction = parts.length > 1 ? parts.sublist(1).join() : '';
+
+    if (!RegExp(r'^\d+$').hasMatch(integer) ||
+        (fraction.isNotEmpty && !RegExp(r'^\d+$').hasMatch(fraction))) {
+      return text;
+    }
+
+    if (safeDigits == 0) {
+      return '$sign$integer';
+    }
+
+    final decimalText = fraction
+        .padRight(safeDigits, '0')
+        .substring(0, safeDigits);
+    return '$sign$integer.$decimalText';
+  }
+
+  String _zeroBalanceDisplay() {
+    if (_balanceFractionDigits == 0) return '0';
+    return '0.${'0' * _balanceFractionDigits}';
   }
 
   int _chainIdForAsset(RedPacketAsset asset) {

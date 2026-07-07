@@ -23,7 +23,7 @@ class InviteApi {
 
   // 测试 https://testhb.zjtxy.top
   // 正式 https://hb.zjtxy.top
-  static const inviteBaseUrl = 'https://testhb.zjtxy.top';
+  static const inviteBaseUrl = 'https://hb.zjtxy.top';
   static const childrenPath = '/invite/children.json';
   static const parentPath = '/invite/parent.json';
   static const resolvePath = '/invite/resolve.json';

@@ -35,8 +35,9 @@ class ApiPaths {
   static const addCommunityDynamics = '/room/community/dynamics/add';
 
   /// block
-  /// **线上地址**：`http://8.210.9.90:9100`（开发环境示例：`http://127.0.0.1:8080`）
-  static const blockUrl = 'http://8.210.9.90:9100';
+  // 测试 https://testhb.zjtxy.top
+  // 正式 https://hb.zjtxy.top
+  static const blockUrl = 'https://testhb.zjtxy.top';
 
   static const getTokenTransactionRecord = '/block/getTokenTransactionRecord';
 }

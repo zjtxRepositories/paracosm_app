@@ -20,7 +20,10 @@ class InviteApi {
           );
 
   static const profilePath = '/invite/profile.json';
-  static const inviteBaseUrl = 'http://8.210.9.90:9100';
+
+  // 测试 https://testhb.zjtxy.top
+  // 正式 https://hb.zjtxy.top
+  static const inviteBaseUrl = 'https://testhb.zjtxy.top';
   static const childrenPath = '/invite/children.json';
   static const parentPath = '/invite/parent.json';
   static const resolvePath = '/invite/resolve.json';

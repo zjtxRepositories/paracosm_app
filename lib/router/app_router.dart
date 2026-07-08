@@ -62,6 +62,7 @@ import 'package:paracosm/pages/profile/profile_details_page.dart';
 import 'package:paracosm/pages/profile/invite_children_page.dart';
 import 'package:paracosm/pages/profile/invite_page.dart';
 import 'package:paracosm/pages/profile/qr_code_page.dart';
+import 'package:paracosm/pages/profile/red_packet_balance_detail_page.dart';
 import 'package:paracosm/pages/profile/red_packet_balance_page.dart';
 import 'package:paracosm/pages/profile/red_packet_withdraw_page.dart';
 import 'package:paracosm/pages/profile/red_packet_withdraw_record_page.dart';
@@ -762,6 +763,11 @@ class AppRouter {
         path: '/red-packet-balance',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const RedPacketBalancePage(),
+      ),
+      GoRoute(
+        path: '/red-packet-balance-detail',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const RedPacketBalanceDetailPage(),
       ),
       GoRoute(
         path: '/red-packet-withdraw',

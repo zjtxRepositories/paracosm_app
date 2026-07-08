@@ -399,6 +399,104 @@ void main() {
       'limit': 20,
     });
   });
+
+  test('ledgerList uses access token and parses balance entries', () async {
+    Map<String, dynamic>? capturedBody;
+
+    RedPacketApi.setAccessTokenProviderForTesting(() => 'invite-token');
+    RedPacketApi.setHttpClientAdapterForTesting(
+      _Adapter((request) async {
+        capturedBody = _decodeBody(request.data);
+        return ResponseBody.fromString(
+          jsonEncode({
+            'code': 200,
+            'userId': '0xabc',
+            'entries': [
+              {
+                'asset_id': 'bsc-usdt',
+                'symbol': 'USDT',
+                'decimals': 18,
+                'amount': '-1000000000000000000',
+                'display': '-1',
+                'type': 'withdraw_fee',
+                'ref': 'wd_123',
+                'memo': 'withdraw usdt fee',
+                'create_time': 1783409033,
+              },
+            ],
+          }),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+
+    final result = await RedPacketApi.ledgerList(
+      assetId: 'bsc-usdt',
+      entryType: 'withdraw_fee',
+      limit: 50,
+      before: 1783409033,
+    );
+
+    expect(result.userId, '0xabc');
+    expect(result.entries.single.display, '-1');
+    expect(result.entries.single.isExpense, isTrue);
+    expect(capturedBody, {
+      'accessToken': 'invite-token',
+      'limit': 50,
+      'assetId': 'bsc-usdt',
+      'entryType': 'withdraw_fee',
+      'before': 1783409033,
+    });
+  });
+
+  test(
+    'ledgerList falls back to balanceQuery signature without token',
+    () async {
+      Map<String, dynamic>? capturedBody;
+      String? capturedMessage;
+
+      RedPacketApi.setAccessTokenProviderForTesting(() => '');
+      RedPacketApi.setUserIdProviderForTesting(() => '0xABC');
+      RedPacketApi.setTimestampProviderForTesting(() => 1700000000);
+      RedPacketApi.setNonceProviderForTesting(() => 'nonce-balance-query');
+      RedPacketApi.setSignatureProviderForTesting((userId, message) async {
+        capturedMessage = message;
+        return '0xsigned';
+      });
+      RedPacketApi.setHttpClientAdapterForTesting(
+        _Adapter((request) async {
+          capturedBody = _decodeBody(request.data);
+          return ResponseBody.fromString(
+            jsonEncode({'code': 200, 'userId': '0xabc', 'entries': []}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }),
+      );
+
+      await RedPacketApi.ledgerList(limit: 5);
+
+      expect(
+        capturedMessage,
+        'RongCloud balanceQuery\n'
+        'userId: 0xabc\n'
+        'timestamp: 1700000000\n'
+        'nonce: nonce-balance-query',
+      );
+      expect(capturedBody, {
+        'userId': '0xabc',
+        'signature': '0xsigned',
+        'timestamp': 1700000000,
+        'nonce': 'nonce-balance-query',
+        'limit': 5,
+      });
+    },
+  );
 }
 
 Map<String, dynamic> _decodeBody(Object? data) {

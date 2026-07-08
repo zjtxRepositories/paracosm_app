@@ -46,11 +46,13 @@
     "coinId": "binancecoin",
     "chainType": "evm",
     "nodes": [
+      "https://bsc.nodereal.io",
+      "https://bsc.publicnode.com",
+      "https://bsc-rpc.publicnode.com",
+      "https://rpc.ankr.com/bsc",
+      "https://bsc-dataseed.binance.org",
       "https://bsc-dataseed1.binance.org",
       "https://bsc-dataseed2.binance.org",
-      "https://bsc-rpc.publicnode.com",
-      "https://bsc.publicnode.com",
-      "https://bsc-dataseed.binance.org",
       "https://bsc.meowrpc.com"
     ],
     "txApiUrl": "https://api.bscscan.com/api",

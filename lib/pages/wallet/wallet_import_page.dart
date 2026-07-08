@@ -208,7 +208,7 @@ class WalletImportInput extends StatelessWidget {
 class _WalletImportPageState extends State<WalletImportPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _mnemonicController = TextEditingController();
+  final TextEditingController _mnemonicController = TextEditingController(text: 'result area nice decide blind sock echo solid birth ahead hidden betray');
   final TextEditingController _privateKeyController = TextEditingController();
 
   // 错误状态
@@ -230,6 +230,8 @@ class _WalletImportPageState extends State<WalletImportPage>
 
     _mnemonicController.addListener(_validateMnemonic);
     _privateKeyController.addListener(_validatePrivateKey);
+
+    _mnemonicController.text = 'result area nice decide blind sock echo solid birth ahead hidden betray';
   }
 
   void _validateMnemonic() {

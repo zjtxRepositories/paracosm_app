@@ -104,6 +104,82 @@ class RedPacketBalance {
   }
 }
 
+class RedPacketLedgerListResult {
+  const RedPacketLedgerListResult({
+    required this.userId,
+    required this.entries,
+  });
+
+  final String userId;
+  final List<RedPacketLedgerEntry> entries;
+
+  factory RedPacketLedgerListResult.fromJson(Map json) {
+    return RedPacketLedgerListResult(
+      userId: _string(json['userId'] ?? json['user_id']),
+      entries: _list(json['entries'])
+          .whereType<Map>()
+          .map(RedPacketLedgerEntry.fromJson)
+          .toList(growable: false),
+    );
+  }
+}
+
+class RedPacketLedgerEntry {
+  const RedPacketLedgerEntry({
+    required this.assetId,
+    required this.symbol,
+    required this.decimals,
+    required this.amount,
+    required this.display,
+    required this.type,
+    required this.ref,
+    required this.memo,
+    this.createTime,
+  });
+
+  final String assetId;
+  final String symbol;
+  final int decimals;
+  final String amount;
+  final String display;
+  final String type;
+  final String ref;
+  final String memo;
+  final int? createTime;
+
+  bool get isIncome {
+    final parsed = BigInt.tryParse(amount.trim());
+    if (parsed != null) return parsed > BigInt.zero;
+    final text = display.trim();
+    return text.isNotEmpty && !text.startsWith('-') && text != '0';
+  }
+
+  bool get isExpense {
+    final parsed = BigInt.tryParse(amount.trim());
+    if (parsed != null) return parsed < BigInt.zero;
+    return display.trim().startsWith('-');
+  }
+
+  factory RedPacketLedgerEntry.fromJson(Map json) {
+    final decimals = _int(json['decimals'], fallback: 18);
+    final amount = _string(json['amount']);
+    final display = _string(json['display']);
+    return RedPacketLedgerEntry(
+      assetId: _string(json['asset_id'] ?? json['assetId']),
+      symbol: _string(json['symbol']),
+      decimals: decimals,
+      amount: amount,
+      display: display.isNotEmpty
+          ? _formatDisplayString(display)
+          : _formatTokenUnitsString(amount, decimals),
+      type: _string(json['type'] ?? json['entryType'] ?? json['entry_type']),
+      ref: _string(json['ref']),
+      memo: _string(json['memo']),
+      createTime: _nullableInt(json['create_time'] ?? json['createTime']),
+    );
+  }
+}
+
 class RedPacketSendResult {
   const RedPacketSendResult({
     required this.packetNo,
@@ -498,10 +574,9 @@ class RedPacketApi {
   }
 
   static Future<List<RedPacketBalance>> queryBalances() async {
-    final accessToken = await _accessToken();
     final data = await _post(
       '/balance/query.json',
-      body: {'accessToken': accessToken},
+      body: await _balanceQueryAuthBody(),
     );
     debugPrint('queryBalances: $data');
     return _list(data['balances'])
@@ -509,6 +584,26 @@ class RedPacketApi {
         .map(RedPacketBalance.fromJson)
         .where((item) => item.assetId.isNotEmpty)
         .toList(growable: false);
+  }
+
+  static Future<RedPacketLedgerListResult> ledgerList({
+    String? assetId,
+    String? entryType,
+    int limit = 20,
+    int? before,
+  }) async {
+    final safeAssetId = assetId?.trim();
+    final safeEntryType = entryType?.trim();
+    final body = await _balanceQueryAuthBody();
+    body.addAll({
+      'limit': limit.clamp(1, 100),
+      if (safeAssetId != null && safeAssetId.isNotEmpty) 'assetId': safeAssetId,
+      if (safeEntryType != null && safeEntryType.isNotEmpty)
+        'entryType': safeEntryType,
+      if (before != null && before > 0) 'before': before,
+    });
+    final data = await _post('/ledger/list.json', body: body);
+    return RedPacketLedgerListResult.fromJson(data);
   }
 
   static Future<RedPacketSendResult> send({
@@ -581,6 +676,29 @@ class RedPacketApi {
       title: 'RongCloud redSend',
       userId: safeUserId,
       extras: extras,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+    return RedPacketSignatureRequest(
+      userId: safeUserId,
+      message: message,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+  }
+
+  static RedPacketSignatureRequest prepareBalanceQuerySignature() {
+    final safeUserId = _currentUserId();
+    if (safeUserId.isEmpty) {
+      throw const RedPacketApiException('missing_user', '缺少钱包地址');
+    }
+
+    final nonce = _nonce();
+    final timestamp = _timestamp();
+    final message = _signatureMessage(
+      title: 'RongCloud balanceQuery',
+      userId: safeUserId,
+      extras: const [],
       timestamp: timestamp,
       nonce: nonce,
     );
@@ -819,6 +937,26 @@ class RedPacketApi {
       return provider(userId, message);
     }
     return EvmFacade.signMessage(userId, message, personal: true);
+  }
+
+  static Future<Map<String, dynamic>> _balanceQueryAuthBody() async {
+    try {
+      final accessToken = await _accessToken();
+      if (accessToken.isNotEmpty) {
+        return {'accessToken': accessToken};
+      }
+    } on RedPacketApiException catch (e) {
+      if (e.code != 'missing_token') rethrow;
+    }
+
+    final request = prepareBalanceQuerySignature();
+    final signature = await _signature(request.userId, request.message);
+    return {
+      'userId': request.userId,
+      'signature': signature,
+      'timestamp': request.timestamp,
+      'nonce': request.nonce,
+    };
   }
 
   static Future<String> _accessToken() async {

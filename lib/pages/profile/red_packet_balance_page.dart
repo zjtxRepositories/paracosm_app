@@ -10,6 +10,7 @@ import 'package:paracosm/theme/app_colors.dart';
 import 'package:paracosm/theme/app_text_styles.dart';
 import 'package:paracosm/widgets/base/app_localizations.dart';
 import 'package:paracosm/widgets/base/app_page.dart';
+import 'package:paracosm/widgets/common/app_action_pop_menu.dart';
 import 'package:paracosm/widgets/common/app_button.dart';
 import 'package:paracosm/widgets/common/app_empty_view.dart';
 import 'package:paracosm/widgets/common/app_toast.dart';
@@ -25,6 +26,8 @@ class RedPacketBalancePage extends StatefulWidget {
 
 class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
   static const int _balanceFractionDigits = 5;
+
+  final GlobalKey _moreButtonKey = GlobalKey();
 
   bool _loading = true;
   List<RedPacketAsset> _assets = const [];
@@ -70,26 +73,39 @@ class _RedPacketBalancePageState extends State<RedPacketBalancePage> {
       backgroundColor: AppColors.white,
       headerActions: [
         Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: TextButton(
-            onPressed: () => context.push('/red-packet-withdraw'),
-            style: TextButton.styleFrom(
-              backgroundColor: AppColors.primaryDark,
-              foregroundColor: AppColors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              minimumSize: const Size(54, 32),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+          padding: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            key: _moreButtonKey,
+            tooltip: l10n.profileRedPacketMore,
+            onPressed: () {
+              AppActionPopMenu.show(
+                context,
+                buttonKey: _moreButtonKey,
+                width: 132,
+                rightOffset: 5,
+                topOffset: 0,
+                items: [
+                  AppActionPopMenuItem(
+                    icon: 'assets/images/profile/send.png',
+                    label: l10n.profileRedPacketWithdraw,
+                    onTap: () => context.push('/red-packet-withdraw'),
+                  ),
+                  AppActionPopMenuItem(
+                    icon: 'assets/images/profile/scroll.png',
+                    label: l10n.profileRedPacketBalanceDetails,
+                    onTap: () => context.push('/red-packet-balance-detail'),
+                    showDivider: false,
+                  ),
+                ],
+              );
+            },
+            icon: const Icon(
+              Icons.more_horiz,
+              color: AppColors.black,
+              size: 28,
             ),
-            child: Text(
-              l10n.profileRedPacketWithdraw,
-              style: AppTextStyles.body.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.white,
-              ),
-            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           ),
         ),
       ],

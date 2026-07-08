@@ -22,11 +22,7 @@ class AppActionPopMenu extends StatelessWidget {
   final List<AppActionPopMenuItem> items;
   final double width;
 
-  const AppActionPopMenu({
-    super.key,
-    required this.items,
-    this.width = 148,
-  });
+  const AppActionPopMenu({super.key, required this.items, this.width = 148});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +53,7 @@ class AppActionPopMenu extends StatelessWidget {
                 final index = entry.key;
                 final item = entry.value;
                 final isLast = index == items.length - 1;
-                
+
                 return _buildMenuItem(
                   icon: item.icon,
                   label: item.label,
@@ -95,7 +91,7 @@ class AppActionPopMenu extends StatelessWidget {
                   border: showDivider
                       ? Border(
                           bottom: BorderSide(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             width: 0.5,
                           ),
                         )
@@ -124,6 +120,7 @@ class AppActionPopMenu extends StatelessWidget {
     required List<AppActionPopMenuItem> items,
     double width = 148,
     double rightOffset = 12,
+    double topOffset = 10,
   }) {
     try {
       final currentContext = buttonKey.currentContext;
@@ -143,22 +140,26 @@ class AppActionPopMenu extends StatelessWidget {
           return Stack(
             children: [
               Positioned(
-                top: offset.dy + renderBox.size.height +10,
+                top: offset.dy + renderBox.size.height + topOffset,
                 right: rightOffset,
                 child: FadeTransition(
                   opacity: animation,
                   child: AppActionPopMenu(
-                    items: items.map((item) => AppActionPopMenuItem(
-                      icon: item.icon,
-                      label: item.label,
-                      onTap: () {
-                        // 1. 立即关闭弹窗（使用弹窗自己的 context）
-                        Navigator.of(dialogContext).pop();
-                        // 2. 执行原有的业务逻辑
-                        item.onTap();
-                      },
-                      showDivider: item.showDivider,
-                    )).toList(),
+                    items: items
+                        .map(
+                          (item) => AppActionPopMenuItem(
+                            icon: item.icon,
+                            label: item.label,
+                            onTap: () {
+                              // 1. 立即关闭弹窗（使用弹窗自己的 context）
+                              Navigator.of(dialogContext).pop();
+                              // 2. 执行原有的业务逻辑
+                              item.onTap();
+                            },
+                            showDivider: item.showDivider,
+                          ),
+                        )
+                        .toList(),
                     width: width,
                   ),
                 ),

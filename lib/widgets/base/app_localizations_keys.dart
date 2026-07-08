@@ -1281,6 +1281,13 @@ extension AppLocalizationsKeys on AppLocalizations {
   String get profileProfileDetailsLogout =>
       translate('profile_profile_details_logout');
   String get profileRedPacketBalance => translate('profile_red_packet_balance');
+  String get profileRedPacketMore => translate('profile_red_packet_more');
+  String get profileRedPacketBalanceDetails =>
+      translate('profile_red_packet_balance_details');
+  String get profileRedPacketNoBalanceDetails =>
+      translate('profile_red_packet_no_balance_details');
+  String get profileRedPacketBalanceDetailsLoadFailed =>
+      translate('profile_red_packet_balance_details_load_failed');
   String get profileRedPacketNoAssets =>
       translate('profile_red_packet_no_assets');
   String profileRedPacketChainBalance(String chain) =>
@@ -1367,6 +1374,24 @@ extension AppLocalizationsKeys on AppLocalizations {
       translate('profile_red_packet_withdraw_status_onhold');
   String get profileRedPacketWithdrawStatusFailed =>
       translate('profile_red_packet_withdraw_status_failed');
+  String get profileRedPacketLedgerMemo =>
+      translate('profile_red_packet_ledger_memo');
+  String get profileRedPacketLedgerRef =>
+      translate('profile_red_packet_ledger_ref');
+  String get profileRedPacketLedgerTypeDeposit =>
+      translate('profile_red_packet_ledger_type_deposit');
+  String get profileRedPacketLedgerTypeWithdraw =>
+      translate('profile_red_packet_ledger_type_withdraw');
+  String get profileRedPacketLedgerTypeWithdrawFee =>
+      translate('profile_red_packet_ledger_type_withdraw_fee');
+  String get profileRedPacketLedgerTypeRedSend =>
+      translate('profile_red_packet_ledger_type_red_send');
+  String get profileRedPacketLedgerTypeRedGrab =>
+      translate('profile_red_packet_ledger_type_red_grab');
+  String get profileRedPacketLedgerTypeRedRefund =>
+      translate('profile_red_packet_ledger_type_red_refund');
+  String get profileRedPacketLedgerTypeUnknown =>
+      translate('profile_red_packet_ledger_type_unknown');
 
   // --- 发现列表数据 ---
   String get discoverMockArbitrumLabel =>
